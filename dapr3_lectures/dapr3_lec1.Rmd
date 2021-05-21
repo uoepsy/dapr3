@@ -1,0 +1,710 @@
+---
+title: "<b>WEEK 1<br>Linear Models and Clustered Data</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: "AY 2020-2021"
+output:
+  xaringan::moon_reader:
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+knitr::opts_chunk$set(
+  dev = "png",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE
+)
+themedapr3 = function(){
+  theme_minimal() + 
+    theme(text = element_text(size=20))
+}
+#source('R/myfuncs.R')
+```
+
+```{r xaringan-themer, include = FALSE}
+library(xaringanthemer)
+style_mono_accent(
+  # base_color = "#0F4C81", # DAPR1
+  # base_color = "#BF1932", # DAPR2
+  base_color = "#88B04B", # DAPR3 
+  # base_color = "#FCBB06", # USMR
+  # base_color = "#a41ae4", # MSMR
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro")
+)
+```
+
+
+```{r premable, echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(patchwork)
+```
+
+---
+class: inverse, center, middle
+
+# Part 1<br>Linear Regression Refresh
+
+---
+
+# deterministic vs statistical model
+
+y = mx + c
+
+$y = \alpha + \beta x + \epsilon$  
+
+.br3.pa2.f3.white.bg-gray[
+$$ \textrm{outcome} = (\textrm{model}) + \textrm{error} $$
+]
+
+---
+# The Linear Model
+
+.br3.pa2.f2[
+$$
+\begin{align}
+\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
+\color{red}{y} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x} + \epsilon \\
+\text{where } \\
+\epsilon & \sim N(0, \sigma) \text{ independently} \\
+\end{align}
+$$
+]
+
+---
+# Model structure
+
+.flex.items-top[
+.w-50.pa2[
+
+$\color{red}{y} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x} + \epsilon$  
+  
+so the _fitted_ linear model itself is:  
+
+$\hat{y} = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x}$  
+
+]
+.w-50.pa2[
+```{r bb, echo=F, fig.asp=.6}
+x <- tibble(x=c(-1,4))
+f <- function(x) {5+2*x}
+p1 <- x %>% ggplot(aes(x=x)) +
+  stat_function(fun=f,size=1,colour="blue") +
+  geom_segment(aes(x=0,xend=0,y=0,yend=f(0)),colour="blue", lty="dotted") +
+  geom_segment(aes(x=0,xend=1,y=f(0),yend=f(0)),colour="blue",linetype="dotted") +
+  geom_segment(aes(x=1,y=f(0),xend=1,yend=f(1)),colour="blue",linetype="dotted") +
+  annotate("text",x=.5,y=2.5,label=expression(paste(beta[0], " (intercept)")),
+           size=5,parse=TRUE,colour="blue") +
+  annotate("text",x=1.4,y=6,label=expression(paste(beta[1], " (slope)")),
+           size=5,parse=TRUE,colour="blue") +
+    ggtitle(expression(paste(b[0]," = 5, ",b[1]," = 2")))+
+  scale_y_continuous(breaks=0:13)+
+  scale_x_continuous(limits = c(-0.3, 4), breaks=0:4)
+p1 +
+  ggtitle("")+
+  scale_y_continuous("y",labels=NULL)+
+  scale_x_continuous(limits=c(-0.3,4), breaks=c(0,1), labels=c("0","1"))+
+  themedapr3()
+  
+```
+]]
+
+---
+# An Example
+
+
+
+.flex.items-top[
+.w-50.pa2[
+
+$\color{red}{y_i} = \color{blue}{5 \cdot{} 1 + 2 \cdot{} x_i} + \epsilon_i$  
+  
+{{content}}
+]
+.w-50.pa2[
+```{r errplot,fig.asp=.6,echo=FALSE}
+xX <-1.2
+yY <- 9.9
+p1 + ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) +
+  geom_point(aes(x=xX,y=yY),size=3,colour="red") +
+  geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") +
+  annotate("text",.8,8.6,label=expression(paste(epsilon[i]," (error)")),colour="black",size=5)+
+  scale_y_continuous(labels=NULL)+
+  themedapr3()
+```
+]]
+
+--
+
+For the $i^{th}$ observation
+  - $\color{red}{y_i}$ is the value we observe for $x_i$   
+  - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
+  - $\color{red}{y_i} = \hat{y}_i + \epsilon_i$  
+
+{{content}}
+
+--
+
+__e.g.__ for an observation $x_i = 1.2$, $y_i = 9.9$:
+$$
+\begin{align}
+\color{red}{9.9} & = \color{blue}{5 \cdot{}} 1 + \color{blue}{2 \cdot{}} 1.2 + \epsilon_i \\
+& = 7.4 + \epsilon_i \\
+& = 7.4 + 2.5 \\
+\end{align}
+$$
+
+---
+# Extending the linear model
+## Categorical Predictors
+
+---
+count: false
+# Extending the linear model
+## Multiple predictors
+
+
+---
+count: false
+# Extending the linear model
+## Interactions
+
+---
+count: false
+# Extending the linear model
+## Link functions
+
+
+
+---
+# Linear Models in R
+
+```{r eval=FALSE, echo=TRUE}
+linear_model <- lm(y ~ x1 + x2 + x3*x4, data = df)
+```
+
+```{r eval=FALSE, echo=TRUE}
+logistic_model <- glm(y ~ x1 + x2 + x3*x4, data = df, family="binomial")
+```
+
+
+
+---
+# Inference for the linear model
+
+```{r echo=FALSE, out.height="500px"}
+knitr::include_graphics("jk_img_sandbox/sum1.png")
+```
+
+---
+# Inference for the linear model
+
+```{r echo=FALSE, out.height="500px"}
+knitr::include_graphics("jk_img_sandbox/sum2.png")
+```
+
+---
+# Inference for the linear model
+
+```{r echo=FALSE, out.height="500px"}
+knitr::include_graphics("jk_img_sandbox/sum3.png")
+```
+
+---
+# Inference for the linear model
+
+```{r echo=FALSE, out.height="500px"}
+knitr::include_graphics("jk_img_sandbox/sum4.png")
+```
+
+---
+# Assumptions
+
+$$
+\begin{align}
+\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
+\color{red}{y} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x} + \epsilon \\
+\text{where } \\
+\epsilon & \sim N(0, \sigma) \text{ independently} \\
+\end{align}
+$$
+
+---
+# Assumptions
+
+Our linear model is expressing that 
+$$y = X\beta + \epsilon$$
+$$y \sim Normal(X\beta, \sigma)$$
+
+--
+
+Recall, our ability to generalise from our model fitted on sample data to the wider population requires making some _assumptions_
+
+--
+
+- assumptions about the nature of the **model** .tr[
+(linear)
+]
+
+--
+
+- assumptions about the nature of the **errors** .tr[
+(normal)
+]
+
+---
+count: false
+# Checking Assumptions
+
+.pull-left[
+
+residuals should be zero mean and constant variance. 
+what does this look like? 
+
+well, we want the mean of the residuals to be zero, and we want a close to normal distribution.
+furthermore, we want that spread to be constant across the fitted values. 
+
+]
+.pull-right[
+
+```{r fig.height=4}
+library(tidyverse)
+df<-tibble(x=rnorm(1000),y=2*x+rnorm(1000))
+lm(y~x,df) %>% plot(which=1)
+```
+
+]
+
+
+---
+count: false
+# Checking Assumptions
+## (the "recipe book" way)
+
+<div class="acronym">
+L
+</div> inearity<br>
+<div class="acronym">
+I
+</div> ndependence<br>
+<div class="acronym">
+N
+</div> ormality<br>
+<div class="acronym">
+E
+</div> qual variance<br>
+
+.footnote["Line without N is a Lie!" (Umberto)]
+
+---
+
+# The Broader Idea
+
+
+All our work here is in aim of making models of the world.
+
+- Models are models. They are simplifications, and so wrong/imperfect.  
+- Our residuals ( $y - \hat{y}$ ) reflect everything that we don't account for in our model
+- In an ideal world, our model accounts for _all_ the systematic relationships. What is left over (our residuals) is just randomness. 
+    - If our model is mis-specified, or misses out something systematic, then our residuals will reflect this.
+- We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
+    - _this tends to get referred to as our "assumptions"_
+- We will never know whether our residuals contain only randomness - we can never observe everything! 
+
+---
+
+# What if our model doesn't meet assumptions?
+
+- bootstrap!
+
+what about independence? 
+
+
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+# Part 2<br>Clustered Data
+
+---
+
+# What is clustered data?
+
+- children within schools
+- patients within clinics
+- observations within individuals
+
+terms: "levels","hierarchical"
+
+- children within classrooms within schools within districts etc...
+
+---
+# Why is it relevant?  
+
+- clustering will likely result in measurement on observational units within a given cluster being more similar to those of other clusters.  
+  - e.g. our measured outcome for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes
+
+- clustering is expressed in terms of the correlation among the measurements within the same cluster
+
+---
+# ICC (intra-class correlation coefficient)
+
+- various forms
+- variance within / total variance  
+- $\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\epsilon}$
+
+
+---
+# Why is clustered data a problem for lm?
+
+$$\epsilon \sim N(0, \sigma) \textbf{ independently}$$ 
+
+- clustering is something systematic that our model should (arguably) take into account. 
+- "independence" assumption.  
+
+---
+# HOW is clustered data a problem for lm?
+
+example
+
+We saw:
+$$SE(\hat \beta_1) = \sqrt{\frac{ SS_{Residual}/(n-k-1)}{\sum(x_i - \bar{x})^2}}$$
+
+suppose that $\rho = 1$. i.e., all the variation we see is due to the clustering. 
+
+---
+# Various values of $\rho$
+
+```{r echo=FALSE, fig.asp=.9}
+iccgen <- function(j,n,e,icc,coef=0){
+  v = (icc*e)/(1-icc)
+  es = e/(v+e)
+  v = if(is.infinite(v)){v=e}else{v/(v+e)}
+  npj = n/j
+  tibble(
+    j = letters[1:j],
+    zeta_j = rnorm(j,0,sqrt(v))
+  ) %>%
+    mutate(
+      e_ij = map(j, ~rnorm(npj, 0, sqrt(es)))
+    ) %>% unnest() %>%
+    mutate(
+      x = rnorm(n, 10, 5),
+      y = 5 + coef*x + zeta_j + e_ij
+    )
+}
+set.seed(3406)
+sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
+        ~iccgen(j=10,n=100,e=1,icc=.,coef=0), .id="icc") %>%
+  group_by(icc, j) %>%
+  mutate(
+    m = mean(y)
+  ) %>% ungroup
+
+ggplot(sims, aes(x=j, y=y))+
+  geom_jitter(height=0, size=2,aes(col=j))+
+  scale_y_continuous(NULL, labels=NULL)+
+  stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
+  facet_grid(icc~.)+
+  guides(col=F)+
+  themedapr3() +
+  labs(x="cluster")+
+  theme(strip.text.y = element_blank()) -> p1
+
+ggplot(sims, aes(x=0, y=y))+
+  see::geom_violinhalf(aes(x=.5))+
+  geom_jitter(height=0,width=.5, size=2,aes(col=j), alpha=.5)+
+  scale_y_continuous(NULL, labels=NULL)+
+  scale_x_continuous(NULL, labels=NULL)+
+  #stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
+  facet_grid(icc~.)+
+  guides(col=F)+
+  themedapr3() -> p2
+
+p1 + p2 + plot_layout(widths=c(8,1))
+```
+
+---
+count: false
+# Various values of $\rho$
+
+```{r echo=FALSE, fig.asp=.9}
+set.seed(875)
+sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
+        ~iccgen(j=10,n=100,e=1,icc=.,coef=.1), .id="icc")
+
+ggplot(sims, aes(x=x, y=y))+
+  geom_point(aes(col=j))+
+  geom_line(aes(col=j))+
+  facet_grid(icc~.)+
+  themedapr3()+
+  guides(col=F)+
+  labs(x = "X")
+```
+
+---
+
+# Summary
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+# Part 3
+## Possible solutions
+
+```{r include=FALSE}
+set.seed(nchar("worms")^6)
+tibble(
+  gardenid = paste0("garden",1:12),
+  gardenmeanx = rnorm(12, 6, 2),
+  birdx = map(gardenmeanx, ~rnorm(10, .,1)),
+  birdt = map(gardenmeanx, ~sample(c("wren","blackbird"), 
+                                   size = 10, replace = TRUE, 
+                                   prob = c(.x/(max(.x)*2.5), 1-(.x/(max(.x)*2.5))))),
+  birdxcoef = rnorm(12, -3, 1)
+) %>%
+  unnest(cols = c(birdx, birdt)) %>% # punny! 
+  mutate(
+    nworms = round(10 + birdxcoef*birdx + 2.3*gardenmeanx -1*(birdt=="blackbird") + .5*(birdt=="blackbird")*birdx + rnorm(n(),0,3)),
+    nworms = pmax(0,nworms),
+    arrival_time = round(birdx,2)
+  ) %>% select(gardenid, arrival_time, nworms, birdt) -> df
+
+df %>% mutate(
+  nworms = ifelse(gardenid=="garden10",nworms+10, nworms)
+) -> df
+
+df <- df %>% mutate(x = arrival_time, y = nworms, x2 = birdt, birdid=1:n(),id=gardenid)
+```
+
+---
+# Some toy data
+
+```{r echo=FALSE, fig.align="center"}
+ggplot(df,aes(x=arrival_time,y=nworms))+geom_point()+
+  geom_smooth(method="lm")+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
+       title="the early bird catches the worm?") +
+  themedapr3() +
+  
+  ggplot(df,aes(x=arrival_time,y=nworms,col=id))+geom_point()+
+  geom_smooth(method="lm",se=F)+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
+       subtitle="only within a garden")+
+  facet_wrap(~gardenid) +
+  guides(col=FALSE)+
+  themedapr3()
+```
+
+---
+# Ignore it
+
+```{r}
+model <- lm(nworms ~ arrival_time, data = df)
+summary(model)$coefficients
+```
+
+---
+count: false
+# Ignore it
+
+.pull-left[
+### __(Complete pooling)__  
+
+Data from all gardens is pooled together to estimate over x 
+
+]
+.pull-right[
+```{r echo=FALSE}
+df %>% mutate(
+  f = fitted(model)
+) %>%
+ggplot(.,aes(x=arrival_time,y=nworms))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_segment(aes(y=nworms, yend = f, x = arrival_time, xend = arrival_time), alpha=.2) + 
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
+       title="the early bird catches the worm?") +
+  themedapr3()
+```
+]
+
+---
+count: false
+# Ignore it 
+
+.pull-left[
+### __(Complete pooling)__  
+
+Information from all clusters is pooled together to estimate over x 
+
+But different clusters show different patterns. 
+Residuals are not independent.  
+]
+.pull-right[
+```{r echo=FALSE}
+df %>% mutate(
+  f = fitted(model)
+) %>%
+ggplot(.,aes(x=arrival_time,y=nworms))+
+  geom_point(aes(col=factor(gardenid == "garden10"), alpha=factor(gardenid == "garden10")))+
+  #geom_smooth(data = filter(df, gardenid=="garden10"), method="lm",se=F, col="skyblue")+
+  guides(col=FALSE, alpha=FALSE)+
+  geom_smooth(method="lm",se=F)+
+  geom_segment(aes(y=nworms, yend = f, x = arrival_time, xend = arrival_time), alpha=.2) + 
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
+       title="the early bird catches the worm?") +
+  themedapr3()
+```
+]
+
+---
+# Lesser used solutions  
+
+<!-- https://rlbarter.github.io/Practical-Statistics/2017/05/10/generalized-estimating-equations-gee/ -->
+
+Don't model the clustering directly, but incorporate the dependency into our error term. 
+
+$$
+\begin{align}
+\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error}^* \\
+\end{align}
+$$
+* Where errors are correlated with clusters/with the error previously/etc. 
+
+
+- independence (observations over time are independent)
+- exchangeable (all observations over time have the same correlation)
+- AR(1) (correlation decreases as a power of how many timepoints apart two observations are)
+- unstructured (correlation between all timepoints may be different)
+
+
+---
+count: false
+# Lesser used solutions  
+
+.pull-left[
+### __Cluster Robust Standard Errors__
+
+```{r}
+library(plm)
+clm <- plm(y~x,data=df, model="pooling", index="id")
+summary(clm)$coefficients
+sqrt(diag(vcovHC(clm, method='arellano', cluster='group')))
+```
+]
+.pull-right[
+### __Generalised Estimating Equartions (GEE)__  
+
+```{r}
+library(geepack)
+df <- df %>% arrange(id) %>%
+  mutate(
+    id = as.numeric(as.factor(id))
+  )
+geemod  = geeglm(y~x, data=df, corstr='independence', id=id)
+summary(geemod)$coefficients %>% round(3)
+```
+]
+
+---
+# fixed effects
+
+```{r}
+model <- lm(nworms ~ arrival_time + gardenid, data = df)
+summary(model)$coefficients
+```
+
+---
+count: false
+# fixed effects
+
+.pull-left[
+### __(No Pooling)__
+
+Information from a cluster contributes to estimate *for that cluster*, but information is not pooled to estimate an overall effect. 
+
+]
+.pull-right[
+```{r echo=FALSE}
+df %>% mutate(
+  f = fitted(model)
+) %>%
+ggplot(.,aes(x=arrival_time,y=nworms,col=gardenid))+
+  geom_point()+
+  geom_line(aes(y=f,group=gardenid))+
+  guides(col=FALSE)+
+  geom_segment(aes(y=nworms, yend = f, x = arrival_time, xend = arrival_time), alpha=.2) + 
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
+       title="the early bird catches the worm?") +
+  themedapr3()
+```
+]
+
+---
+# LMM
+
+
+```{r}
+library(lme4)
+model <- lmer(y~x+(1|id),df)
+summary(model)$coefficients
+```
+
+
+---
+count: false
+# LMM 
+
+__(Partial Pooling)__
+
+
+
+---
+
+# Summary
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
