@@ -493,27 +493,29 @@ class: inverse, center, middle
 
 ```{r include=FALSE}
 set.seed(nchar("worms")^6)
+
 tibble(
   gardenid = paste0("garden",1:12),
   gardenmeanx = rnorm(12, 6, 2),
   birdx = map(gardenmeanx, ~rnorm(10, .,1)),
   birdt = map(gardenmeanx, ~sample(c("wren","blackbird"), 
                                    size = 10, replace = TRUE, 
-                                   prob = c(.x/(max(.x)*2.5), 1-(.x/(max(.x)*2.5))))),
-  birdxcoef = rnorm(12, -3, 1)
+                                   prob = c(.x/(max(.x)*2.5), 1-(.x/(max(.x)*2.5)))))
 ) %>%
   unnest(cols = c(birdx, birdt)) %>% # punny! 
   mutate(
-    nworms = round(10 + birdxcoef*birdx + 2.3*gardenmeanx -1*(birdt=="blackbird") + .5*(birdt=="blackbird")*birdx + rnorm(n(),0,3)),
+    nworms = round(7 - 3*birdx + 3.5*gardenmeanx -1*(birdt=="blackbird") + .5*(birdt=="blackbird")*birdx + rnorm(n(),0,2)),
     nworms = pmax(0,nworms),
     arrival_time = round(birdx,2)
   ) %>% select(gardenid, arrival_time, nworms, birdt) -> df
 
-df %>% mutate(
-  nworms = ifelse(gardenid=="garden10",nworms+10, nworms)
-) -> df
+df <- df %>% mutate(x = arrival_time, y = nworms, x2 = birdt, birdid=1:n())
 
-df <- df %>% mutate(x = arrival_time, y = nworms, x2 = birdt, birdid=1:n(),id=gardenid)
+df <- df[-c(35:40),]
+df$y[df$birdid==33]<-17
+df$nworms[df$birdid==33]<-17
+df[df$gardenid=="garden4",] %>% ggplot(.,aes(x=x,y=y))+geom_point()
+
 ```
 
 ---
@@ -526,7 +528,7 @@ ggplot(df,aes(x=arrival_time,y=nworms))+geom_point()+
        title="the early bird catches the worm?") +
   themedapr3() +
   
-  ggplot(df,aes(x=arrival_time,y=nworms,col=id))+geom_point()+
+  ggplot(df,aes(x=arrival_time,y=nworms,col=gardenid))+geom_point()+
   geom_smooth(method="lm",se=F)+
   labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
        subtitle="only within a garden")+
@@ -626,7 +628,7 @@ count: false
 
 ```{r}
 library(plm)
-clm <- plm(y~x,data=df, model="pooling", index="id")
+clm <- plm(y~x,data=df, model="pooling", index="gardenid")
 summary(clm)$coefficients
 sqrt(diag(vcovHC(clm, method='arellano', cluster='group')))
 ```
@@ -636,9 +638,9 @@ sqrt(diag(vcovHC(clm, method='arellano', cluster='group')))
 
 ```{r}
 library(geepack)
-df <- df %>% arrange(id) %>%
+df <- df %>% arrange(gardenid) %>%
   mutate(
-    id = as.numeric(as.factor(id))
+    id = as.numeric(as.factor(gardenid))
   )
 geemod  = geeglm(y~x, data=df, corstr='independence', id=id)
 summary(geemod)$coefficients %>% round(3)
@@ -685,7 +687,7 @@ ggplot(.,aes(x=arrival_time,y=nworms,col=gardenid))+
 
 ```{r}
 library(lme4)
-model <- lmer(y~x+(1|id),df)
+model <- lmer(nworms~arrival_time+(1|gardenid),df)
 summary(model)$coefficients
 ```
 
@@ -696,6 +698,26 @@ count: false
 
 __(Partial Pooling)__
 
+```{r echo=FALSE}
+dfm <- 
+  df %>% group_by(gardenid) %>%
+  summarise(arrival_time = mean(arrival_time)) %>% 
+  mutate(mf = predict(model, newdata=.),
+         ff = fixef(model)[1] + arrival_time*fixef(model)[2])
+
+
+df %>% mutate(
+  fit = fitted(model)
+) %>%
+ggplot(., aes(x=arrival_time, y=nworms))+
+  geom_line(aes(y=fit, group=gardenid, col=gardenid))+
+  geom_abline(intercept=fixef(model)[1], slope=fixef(model)[2],lwd=2)+
+  geom_point(aes(col=gardenid),alpha=.2)+
+  geom_segment(aes(y=nworms, yend = fit, x = arrival_time, xend = arrival_time, 
+                   col=gardenid), alpha=.2)+
+  geom_segment(data=dfm, aes(x=arrival_time, xend=arrival_time, y=mf, yend=ff))+
+  themedapr3()
+```
 
 
 ---

@@ -158,22 +158,22 @@ logistic_model &lt;- glm(y ~ x1 + x2 + x3*x4, data = df, family="binomial")
 ---
 # Inference for the linear model
 
-&lt;img src="jk_img_sandbox/sum1.png" width="2560" height="500px" /&gt;
+&lt;img src="jk_img_sandbox/sum1.png" height="500px" /&gt;
 
 ---
 # Inference for the linear model
 
-&lt;img src="jk_img_sandbox/sum2.png" width="2560" height="500px" /&gt;
+&lt;img src="jk_img_sandbox/sum2.png" height="500px" /&gt;
 
 ---
 # Inference for the linear model
 
-&lt;img src="jk_img_sandbox/sum3.png" width="2560" height="500px" /&gt;
+&lt;img src="jk_img_sandbox/sum3.png" height="500px" /&gt;
 
 ---
 # Inference for the linear model
 
-&lt;img src="jk_img_sandbox/sum4.png" width="2560" height="500px" /&gt;
+&lt;img src="jk_img_sandbox/sum4.png" height="500px" /&gt;
 
 ---
 # Assumptions
@@ -383,8 +383,8 @@ summary(model)$coefficients
 
 ```
 ##              Estimate Std. Error t value  Pr(&gt;|t|)
-## (Intercept)    8.9120     1.5930   5.595 1.456e-07
-## arrival_time   0.6331     0.2194   2.886 4.647e-03
+## (Intercept)     8.563      1.277   6.706 8.481e-10
+## arrival_time    0.503      0.173   2.907 4.399e-03
 ```
 
 ---
@@ -392,8 +392,7 @@ count: false
 # Ignore it
 
 .pull-left[
-
-__Complete pooling__  
+### __(Complete pooling)__  
 
 Data from all gardens is pooled together to estimate over x 
 
@@ -421,6 +420,8 @@ Residuals are not independent.
 ---
 # Lesser used solutions  
 
+&lt;!-- https://rlbarter.github.io/Practical-Statistics/2017/05/10/generalized-estimating-equations-gee/ --&gt;
+
 Don't model the clustering directly, but incorporate the dependency into our error term. 
 
 $$
@@ -430,24 +431,31 @@ $$
 $$
 * Where errors are correlated with clusters/with the error previously/etc. 
 
+
+- independence (observations over time are independent)
+- exchangeable (all observations over time have the same correlation)
+- AR(1) (correlation decreases as a power of how many timepoints apart two observations are)
+- unstructured (correlation between all timepoints may be different)
+
+
 ---
 count: false
 # Lesser used solutions  
 
 .pull-left[
-#### __Cluster Robust Standard Errors__
+### __Cluster Robust Standard Errors__
 
 
 ```r
 library(plm)
-clm &lt;- plm(y~x,data=df, model="pooling", index="id")
+clm &lt;- plm(y~x,data=df, model="pooling", index="gardenid")
 summary(clm)$coefficients
 ```
 
 ```
 ##             Estimate Std. Error t-value  Pr(&gt;|t|)
-## (Intercept)   8.9120     1.5930   5.595 1.456e-07
-## x             0.6331     0.2194   2.886 4.647e-03
+## (Intercept)    8.563      1.277   6.706 8.481e-10
+## x              0.503      0.173   2.907 4.399e-03
 ```
 
 ```r
@@ -456,27 +464,27 @@ sqrt(diag(vcovHC(clm, method='arellano', cluster='group')))
 
 ```
 ## (Intercept)           x 
-##       2.948       0.440
+##      1.6779      0.2082
 ```
 ]
 .pull-right[
-#### __Generalised Estimating Equartions (GEE)__  
+### __Generalised Estimating Equartions (GEE)__  
 
 
 ```r
 library(geepack)
-df &lt;- df %&gt;% arrange(id) %&gt;%
+df &lt;- df %&gt;% arrange(gardenid) %&gt;%
   mutate(
-    id = as.numeric(as.factor(id))
+    id = as.numeric(as.factor(gardenid))
   )
 geemod  = geeglm(y~x, data=df, corstr='independence', id=id)
 summary(geemod)$coefficients %&gt;% round(3)
 ```
 
 ```
-##             Estimate Std.err  Wald Pr(&gt;|W|)
-## (Intercept)    8.912   2.948 9.137    0.003
-## x              0.633   0.440 2.070    0.150
+##             Estimate Std.err   Wald Pr(&gt;|W|)
+## (Intercept)    8.563   1.678 26.042    0.000
+## x              0.503   0.208  5.838    0.016
 ```
 ]
 
@@ -490,20 +498,20 @@ summary(model)$coefficients
 ```
 
 ```
-##                  Estimate Std. Error t value  Pr(&gt;|t|)
-## (Intercept)       20.9224     2.4704  8.4692 1.441e-13
-## arrival_time      -2.0432     0.3335 -6.1273 1.514e-08
-## gardenidgarden10   4.6657     1.4432  3.2328 1.630e-03
-## gardenidgarden11  -4.9860     1.6822 -2.9640 3.744e-03
-## gardenidgarden12   0.7877     1.4545  0.5415 5.893e-01
-## gardenidgarden2   20.1093     1.7479 11.5049 2.014e-20
-## gardenidgarden3   -2.6904     1.8769 -1.4335 1.546e-01
-## gardenidgarden4    5.9131     1.6014  3.6925 3.514e-04
-## gardenidgarden5   12.3545     1.6141  7.6543 9.096e-12
-## gardenidgarden6    7.2528     1.4465  5.0140 2.126e-06
-## gardenidgarden7   19.1282     1.6356 11.6952 7.525e-21
-## gardenidgarden8    2.1677     1.4248  1.5214 1.311e-01
-## gardenidgarden9   12.0886     1.7181  7.0362 1.960e-10
+##                  Estimate Std. Error  t value  Pr(&gt;|t|)
+## (Intercept)       33.8657     1.9778  17.1232 1.247e-31
+## arrival_time      -2.9513     0.2675 -11.0311 4.856e-19
+## gardenidgarden10  -5.9718     1.1431  -5.2243 9.426e-07
+## gardenidgarden11 -12.2243     1.3369  -9.1434 6.902e-15
+## gardenidgarden12  -6.4178     1.1523  -5.5698 2.118e-07
+## gardenidgarden2    8.9691     1.3901   6.4519 3.867e-09
+## gardenidgarden3  -18.0195     1.4945 -12.0576 2.831e-21
+## gardenidgarden4   -8.7731     1.5838  -5.5393 2.420e-07
+## gardenidgarden5    8.7231     1.2817   6.8057 7.287e-10
+## gardenidgarden6   -0.3570     1.1457  -0.3116 7.560e-01
+## gardenidgarden7    7.5186     1.2992   5.7873 8.085e-08
+## gardenidgarden8   -0.4134     1.1281  -0.3664 7.148e-01
+## gardenidgarden9    9.2057     1.3660   6.7392 9.996e-10
 ```
 
 ---
@@ -533,8 +541,8 @@ summary(model)$coefficients
 
 ```
 ##             Estimate Std. Error t value
-## (Intercept)   25.213     3.0888   8.163
-## x             -1.737     0.3177  -5.466
+## (Intercept)   30.997     3.0728   10.09
+## x             -2.749     0.2614  -10.52
 ```
 
 
