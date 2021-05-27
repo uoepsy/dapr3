@@ -1,0 +1,213 @@
+---
+title: "Regression Refresh and Clustered Data"
+bibliography: references.bib
+biblio-style: apalike
+link-citations: yes
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+```
+
+:::blue
+**Some background reading**  
+
++ [Winter, 2013](https://arxiv.org/abs/1308.5499)  
++ [Brauer & Curtin, 2018](http://dx.doi.org/10.1037/met0000159),  [(pdf)](https://dionysus.psych.wisc.edu/LabPubs/BrauerM2018a.pdf)  
++ [Luke, 2017](https://doi.org/10.3758/s13428-016-0809-y)  
+:::
+
+:::red
+**Preliminaries**  
+ 
+1. Open Rstudio, and **create a new project for this course!!** 
+2. Create a new RMarkdown document (giving it a title for this week). 
+
+:::
+
+:::frame
+**A Note on terminology**
+
+The methods we're going to learn about in the first five weeks of this course are known by lots of different names: "multilevel models"; "hierarchical linear models"; "mixed-effect models"; "mixed models"; "nested data models"; "random coefficient models"; "random-effects models"; "random parameter models"... and so on).   
+
+What the idea boils down to is that **model parameters vary at more than one level.** This week, we're going to explore what that means.  
+:::
+
+# New Toys!  
+
+`r qbegin("New package time!", qlabel=FALSE)`
+These are the main packages we're going to use in this block. It might make sense to install them now if you do not have them already (note, the rstudio.ppls.ed.ac.uk server already has `lme4` installed for you).  
+
++ tidyverse  
++ lme4  
++ effects  
++ broom
++ broom.mixed
+
+`r qend()`
+
+```{r include=FALSE}
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(effects)
+```
+
+
+`r qbegin("New data time!", qlabel=FALSE)`
+Let's consider a little toy example in which we might use linear regression to determine how practice influences the reading age of Playmobil characters:
+```{r echo=FALSE, fig.cap = "[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)", out.width="300px",fig.align="center"}
+knitr::include_graphics("images/intro/reading.png")
+```
+  
+Let us know broaden our scope to the investigation of how practice affects reading age for *all* toys, (not just Playmobil characters).  
+You can find a dataset at https://uoepsy.github.io/data/toyexample.csv  
+
+```{r eval=FALSE}
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
+```
+
+The datasets contains information on 132 different toy figures. This time, however, they come from a selection of different families/types of toy. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].
+<br>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+```{r echo=FALSE, out.width="300px",fig.align="center"}
+knitr::include_graphics("images/intro/toys.png")
+```
+</div>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(gt)
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
+tibble(variable=names(toys_read),
+       description=c("Type of Toy","Character","Hours of practice per week","Age (in years)","Reading Age")
+) %>% gt()
+
+```
+</div>
+
+
+`r qend()`
+
+
+
+# Linear model refresh   
+
+:::yellow
+
+Recall that in the course last semester we learned all about the linear regression model:
+
+$$
+\begin{align}\\
+& \text{for observation }i \\
+& \color{red}{Y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} X_{1i} \ + \ ... \ + \ \beta_p \cdot{} X_{pi}} + \varepsilon_i \\ 
+\end{align}
+$$
+
+And if we wanted to write this more simply, we can express $X_1$ to $X_p$ as an $n \times p$ matrix (samplesize $\times$ parameters), and $\beta_0$ to $\beta_p$ as a vector of coefficients:
+
+$$
+\mathbf{y} = \boldsymbol{X\beta} + \boldsymbol{\varepsilon}
+\quad \\
+\text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
+$$
+
+:::
+
+`r qbegin("A1")`
+Plot the bivariate relationship between Reading Age and Hrs per Week practice, and then fit the simple linear model: 
+$$
+\text{Reading Age} \sim \beta_0 + \beta_1 \cdot \text{Hours per week practice} + \varepsilon
+$$
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+simplemod <- lm(R_AGE~hrs_week, data=toys_read)
+summary(simplemod)
+```
+
+`r solend()`
+
+`r qbegin("A2")`
+Thinking about the assumption we make about our model:
+$$
+\text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
+$$
+Have we satisfied this assumption (specifically, the assumption of *independence* of errors)? Our model from the previous question will assume that the residuals for all toys are independent of one another. But is this an assumption we can make? Might we not think that the Playmobil characters could be generally better at reading than the Power Rangers? Or even that ScoobyDoo figurines might be more receptive to practice than the Sock Puppets are?  
+The natural grouping of the toys introduces a level of *dependence*, which we would be best to account for.  
+  
+Try running the code below.  
+```{r eval=FALSE}
+ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+```
+Then try editing the code to include an aesthetic mapping from the type of toy to the color in the plot.  
+How do your thoughts about the relationship between Reading Age and Practice change?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+```
+
+```{r}
+ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE, col=toy_type))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+```
+  
+From the second plot, we see a lot of the toy types appear to have a positive relationship (practice increases reading age). There seem to be differences between toy types in both the general reading level (Scooby Doo characters can read very well), and in how practice influences reading age (for instance, the Farm Animals don't seem to improve at all with practice!). 
+
+`r solend()`
+
+:::frame
+We can consider the simple regression model (`lm(R_AGE ~ hrs_week, data = toys_read)`) to "pool" the information from all observations together.  
+We'll call this **Complete Pooling**.  
+In the 'Complete Pooling' approach, we simply ignore the natural clustering of the toys, as if we were unaware of it. The problem is that this assumes the same regression line for all toy types, which might not be that appropriate:  
+
+```{r echo=FALSE, out.width="350px", fig.align="center", fig.cap="Complete pooling can lead to bad fit for certain groups"}
+toys_read %>%
+  filter(str_detect(toy_type, "Scooby|Farm")) %>%
+ggplot(., aes(x=hrs_week, y=R_AGE, col=toy_type))+
+  geom_point(size=3)+
+  geom_abline(intercept = coef(simplemod)[1], slope = coef(simplemod)[2], lwd=2)+
+  geom_text(inherit.aes=F,x=4.5,y=8, label="Complete Pooling Line")+
+  theme(text=element_text(size=21))
+```
+
+
+There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters").^[An approach more common in Econometrics is to use "cluster robust variance estimates" but this is much less common in psychology, and not without their problems, so we will not discuss these in this course] With the tools you have learned in the USMR course last semester, you may be tempted to try including toy type in the model as another predictor, to allow for some toy types being generally better than others:
+```{r eval=FALSE}
+lm(R_AGE ~ hrs_week + toy_type, data = toys_read)
+```
+Or even to include an interaction to allow for toy types to respond differently to practice:
+```{r eval=FALSE}
+lm(R_AGE ~ hrs_week * toy_type, data = toys_read)
+```
+
+We might call this approach the **No Pooling** method, because the information from each cluster contributes *only* to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, but it means that a) we are estimating *a lot* of parameters, and b) we are not necessarily estimating the parameter of interest (the *overall* effect of practice on reading age). Furthermore, we'll probably end up having high variance in the estimates at each group.  
+
+
+So what if we could do something in between?... "Partial Pooling" perhaps? 
+
+:::
+
+
+# Clustering
+
+group means around overall mean
+
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

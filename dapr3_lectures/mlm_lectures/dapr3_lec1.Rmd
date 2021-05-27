@@ -57,7 +57,9 @@ style_mono_accent(
   header_font_google = google_font("Source Sans Pro"),
   header_font_weight = 400,
   text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
-  code_font_google = google_font("Source Code Pro")
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.8rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
 )
 ```
 
@@ -66,6 +68,7 @@ style_mono_accent(
 library(tidyverse)
 library(kableExtra)
 library(patchwork)
+source("jk_source/jk_presfuncs.R")
 ```
 
 ---
@@ -77,12 +80,12 @@ class: inverse, center, middle
 
 # deterministic vs statistical model
 
-y = mx + c
 
+y = mx + c  
 $y = \alpha + \beta x + \epsilon$  
 
 .br3.pa2.f3.white.bg-gray[
-$$ \textrm{outcome} = (\textrm{model}) + \textrm{error} $$
+$$ \textrm{outcome}_i = (\textrm{model}) + \textrm{error}_i $$
 ]
 
 ---
@@ -91,8 +94,8 @@ $$ \textrm{outcome} = (\textrm{model}) + \textrm{error} $$
 .br3.pa2.f2[
 $$
 \begin{align}
-\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
-\color{red}{y} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x} + \epsilon \\
+\color{red}{\textrm{outcome}_i} & = \color{blue}{(\textrm{model})} + \textrm{error}_i \\
+\color{red}{y_i} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \epsilon_i \\
 \text{where } \\
 \epsilon & \sim N(0, \sigma) \text{ independently} \\
 \end{align}
@@ -104,13 +107,15 @@ $$
 
 .flex.items-top[
 .w-50.pa2[
+Our proposed model of the world:
 
-$\color{red}{y} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x} + \epsilon$  
+$\color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \epsilon_i$  
   
-so the _fitted_ linear model itself is:  
+Our model _fitted_ to some data (note the $\widehat{\textrm{hats}}$):  
 
 $\hat{y} = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x}$  
 
+{{content}}
 ]
 .w-50.pa2[
 ```{r bb, echo=F, fig.asp=.6}
@@ -137,6 +142,14 @@ p1 +
 ```
 ]]
 
+--
+
+For the $i^{th}$ observation:
+  - $\color{red}{y_i}$ is the value we observe for $x_i$   
+  - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
+  - $\color{red}{y_i} = \hat{y}_i + \epsilon_i$  
+
+
 ---
 # An Example
 
@@ -156,24 +169,17 @@ yY <- 9.9
 p1 + ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) +
   geom_point(aes(x=xX,y=yY),size=3,colour="red") +
   geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") +
-  annotate("text",.8,8.6,label=expression(paste(epsilon[i]," (error)")),colour="black",size=5)+
-  scale_y_continuous(labels=NULL)+
+  annotate("text",.8,8.6,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=5)+
+  #scale_y_continuous(labels=NULL)+
   themedapr3()
 ```
 ]]
 
 --
 
-For the $i^{th}$ observation
-  - $\color{red}{y_i}$ is the value we observe for $x_i$   
-  - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
-  - $\color{red}{y_i} = \hat{y}_i + \epsilon_i$  
+__e.g.__   
+for the observation $x_i = 1.2, y_i = 9.9$:
 
-{{content}}
-
---
-
-__e.g.__ for an observation $x_i = 1.2$, $y_i = 9.9$:
 $$
 \begin{align}
 \color{red}{9.9} & = \color{blue}{5 \cdot{}} 1 + \color{blue}{2 \cdot{}} 1.2 + \epsilon_i \\
@@ -186,23 +192,141 @@ $$
 # Extending the linear model
 ## Categorical Predictors
 
+.pull-left[
+```{r echo=FALSE}
+set.seed(993)
+tibble(
+  x = sample(c("Category0","Category1"), size = 30, replace = T),
+  y = 5 + 2*(x == "Category1") + rnorm(30,0,1) %>% round(2)
+) %>% select(y,x) -> df
+df %>% sample_n(6) %>% rbind(., c("...","...")) %>% kable()
+```
+]
+.pull-right[
+```{r echo=FALSE, fig.asp=.8}
+
+ggplot(df,aes(x=as.numeric(x=="Category1"),y=y))+
+  geom_point()+
+  stat_summary(geom="point")+
+  stat_summary(geom="path", aes(group=1))+
+  scale_x_continuous(name="isCategory1",breaks=c(0,1),
+                     labels=c("0\n(FALSE)","1\n(TRUE)"))+
+  geom_segment(x=0,xend=1,y=mean(df$y[df$x=="Category0"]),yend=mean(df$y[df$x=="Category0"]),
+               lty="dashed",col="blue")+
+  geom_segment(x=1,xend=1,y=mean(df$y[df$x=="Category0"]),yend=mean(df$y[df$x=="Category1"]),
+               lty="dashed",col="blue")+
+  annotate("text",x=0.9,y=6,label=expression(paste(beta[1], " (slope)")),
+           size=5,parse=TRUE,colour="blue")+
+  labs(title="y ~ x", subtitle="(x is categorical)")+
+  themedapr3()
+```
+]
+
+
+
 ---
-count: false
+
 # Extending the linear model
 ## Multiple predictors
 
+.pull-left[
+```{r echo=FALSE, fig.asp=.8}
+mwdata <- read_csv(file = "https://uoepsy.github.io/data/wellbeing.csv")
+fit<-lm(wellbeing~outdoor_time+social_int, data=mwdata)
+steps=20
+outdoor_time <- with(mwdata, seq(min(outdoor_time),max(outdoor_time),length=steps))
+social_int <- with(mwdata, seq(min(social_int),max(social_int),length=steps))
+newdat <- expand.grid(outdoor_time=outdoor_time, social_int=social_int)
+wellbeing <- matrix(predict(fit, newdat), steps, steps)
+
+x1 <- outdoor_time
+x2 <- social_int
+y <- wellbeing
+
+p <- persp(x1,x2,y, theta = 35,phi=10, col = NA,main="y~x1+x2")
+obs <- with(mwdata, trans3d(outdoor_time,social_int, wellbeing, p))
+pred <- with(mwdata, trans3d(outdoor_time, social_int, fitted(fit), p))
+points(obs, col = "red", pch = 16)
+#points(pred, col = "blue", pch = 16)
+segments(obs$x, obs$y, pred$x, pred$y)
+
+```
+]
+
+.pull-right[
+```{r echo=FALSE, fig.asp=.8}
+fit<-lm(wellbeing~outdoor_time+social_int+routine, data=mwdata)
+steps=20
+outdoor_time <- with(mwdata, seq(min(outdoor_time),max(outdoor_time),length=steps))
+social_int <- with(mwdata, seq(min(social_int),max(social_int),length=steps))
+newdat <- expand.grid(outdoor_time=outdoor_time, social_int=social_int, routine = "Routine")
+wellbeing <- matrix(predict(fit, newdat), steps, steps)
+
+x1 <- outdoor_time
+x2 <- social_int
+y <- wellbeing
+
+p <- persp(x1,x2,y, theta = 35,phi=10, col = NA,zlim=c(10,70), main="y~x1+x2+x3\n(x3 is categorical)")
+newdat <- expand.grid(outdoor_time=outdoor_time, social_int=social_int-2, routine = "No Routine")
+wellbeing <- matrix(predict(fit, newdat), steps, steps)
+y <- wellbeing
+par(new=TRUE)
+persp(x1,x2,y, theta = 35,phi=10, col = NA,zlim=c(10,80), axes=F)
+
+
+```
+]
 
 ---
-count: false
+
 # Extending the linear model
 ## Interactions
 
+.pull-left[
+```{r echo=FALSE, fig.asp=.8}
+scs_study <- read_csv("https://uoepsy.github.io/data/scs_study.csv")
+fit<-lm(dass ~ scs*zn, data = scs_study)
+steps=20
+scs <- with(scs_study, seq(min(scs),max(scs),length=steps))
+zn <- with(scs_study, seq(min(zn),max(zn),length=steps))
+newdat <- expand.grid(scs=scs, zn=zn)
+dass <- matrix(predict(fit, newdat), steps, steps)
+x1 <- scs
+x2 <- zn
+y <- dass
+p <- persp(x2,x1,y, theta = -89,phi=10, col = NA, main = "y~x1+x2+x1:x2")
+```
+]
+.pull-right[
+```{r echo=FALSE, fig.asp=.8}
+mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
+  isRural = factor(ifelse(location=="rural","rural","notrural"))
+)
+fit<-lm(wellbeing~outdoor_time*isRural, data=mwdata2)
+with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2+x1:x2\n(x2 is categorical)"))
+abline(a = coef(fit)[1],b=coef(fit)[2])
+abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
+```
+]
+
+
+
 ---
-count: false
+# Notation
+
+$\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_1 + ... + \beta_k \cdot x_k} & + & \;\;\;\epsilon \\ \qquad \\ \color{red}{\begin{bmatrix}y_1 \\ y_2 \\ y_3 \\ y_4 \\ y_5 \\ \vdots \\ y_n \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} & x_{21} & \dots & x_{k1} \\ 1 & x_{12} & x_{22} &  & x_{k2} \\ 1 & x_{13} & x_{23} &  & x_{k3} \\ 1 & x_{14} & x_{24} &  & x_{k4} \\ 1 & x_{15} & x_{25} &  & x_{k5} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{1n} & x_{2n} & \dots & x_{kn} \end{bmatrix} \begin{bmatrix} \beta_0 \\ \beta_1 \\ \beta_2 \\ \vdots \\ \beta_k \end{bmatrix}} & + & \begin{bmatrix} \epsilon_1 \\ \epsilon_2 \\ \epsilon_3 \\ \epsilon_4 \\ \epsilon_5 \\ \vdots \\ \epsilon_n \end{bmatrix} \\ \qquad \\ \\\color{red}{y} \;\;\;\;\; & = \qquad \qquad \;\;\; \mathbf{\color{blue}{X \qquad \qquad \qquad \;\;\;\:\beta}} & + & \;\;\;\epsilon \\ \end{align}$
+
+---
+
 # Extending the linear model
 ## Link functions
 
-
+$$
+\begin{align}
+\color{red}{y} = \mathbf{\color{blue}{X \beta} + \epsilon} & \qquad  & (-\infty, \infty) \\
+\color{red}{ln \left( \frac{p}{1-p} \right) } = \mathbf{\color{blue}{X \beta} + \epsilon} & \qquad  & [0,1] \\
+\end{align}
+$$  
 
 ---
 # Linear Models in R
@@ -212,10 +336,8 @@ linear_model <- lm(y ~ x1 + x2 + x3*x4, data = df)
 ```
 
 ```{r eval=FALSE, echo=TRUE}
-logistic_model <- glm(y ~ x1 + x2 + x3*x4, data = df, family="binomial")
+logistic_model <- glm(y ~ x1 + x2 + x3*x4, data = df, family=binomial(link="logit"))
 ```
-
-
 
 ---
 # Inference for the linear model
@@ -248,21 +370,15 @@ knitr::include_graphics("jk_img_sandbox/sum4.png")
 ---
 # Assumptions
 
-$$
-\begin{align}
-\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
-\color{red}{y} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x} + \epsilon \\
-\text{where } \\
-\epsilon & \sim N(0, \sigma) \text{ independently} \\
-\end{align}
-$$
+Our model:  
 
----
-# Assumptions
+$\color{red}{y} = \color{blue}{\mathbf{X \beta}} + \epsilon \\ \text{where } \epsilon \sim N(0, \sigma) \text{ independently}$
 
-Our linear model is expressing that 
-$$y = X\beta + \epsilon$$
-$$y \sim Normal(X\beta, \sigma)$$
+--
+
+Or put another way:  
+
+$\color{red}{y} \sim Normal(\color{blue}{\mathbf{X \beta}}, \sigma)$
 
 --
 
@@ -281,12 +397,26 @@ Recall, our ability to generalise from our model fitted on sample data to the wi
 ]
 
 ---
-count: false
+
+# The Broader Idea
+
+
+All our work here is in aim of making models of the world.
+
+- Models are models. They are simplifications, and so wrong/imperfect.  
+- Our residuals ( $y - \hat{y}$ ) reflect everything that we don't account for in our model
+- In an ideal world, our model accounts for _all_ the systematic relationships. What is left over (our residuals) is just randomness. 
+    - If our model is mis-specified, or misses out something systematic, then our residuals will reflect this.
+- We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
+    - _this tends to get referred to as our "assumptions"_
+- We will never know whether our residuals contain only randomness - we can never observe everything! 
+---
+
 # Checking Assumptions
 
 .pull-left[
 
-residuals should be zero mean and constant variance. 
+residuals should be "zero mean and constant variance".  
 what does this look like? 
 
 well, we want the mean of the residuals to be zero, and we want a close to normal distribution.
@@ -295,7 +425,7 @@ furthermore, we want that spread to be constant across the fitted values.
 ]
 .pull-right[
 
-```{r fig.height=4}
+```{r echo=FALSE,fig.height=4}
 library(tidyverse)
 df<-tibble(x=rnorm(1000),y=2*x+rnorm(1000))
 lm(y~x,df) %>% plot(which=1)
@@ -305,7 +435,7 @@ lm(y~x,df) %>% plot(which=1)
 
 
 ---
-count: false
+
 # Checking Assumptions
 ## (the "recipe book" way)
 
@@ -324,20 +454,7 @@ E
 
 .footnote["Line without N is a Lie!" (Umberto)]
 
----
 
-# The Broader Idea
-
-
-All our work here is in aim of making models of the world.
-
-- Models are models. They are simplifications, and so wrong/imperfect.  
-- Our residuals ( $y - \hat{y}$ ) reflect everything that we don't account for in our model
-- In an ideal world, our model accounts for _all_ the systematic relationships. What is left over (our residuals) is just randomness. 
-    - If our model is mis-specified, or misses out something systematic, then our residuals will reflect this.
-- We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
-    - _this tends to get referred to as our "assumptions"_
-- We will never know whether our residuals contain only randomness - we can never observe everything! 
 
 ---
 
@@ -370,7 +487,7 @@ class: inverse, center, middle
 
 terms: "levels","hierarchical"
 
-- children within classrooms within schools within districts etc...
+- children within classrooms within schools within districts etc...  
 
 ---
 # Why is it relevant?  
@@ -399,12 +516,24 @@ $$\epsilon \sim N(0, \sigma) \textbf{ independently}$$
 ---
 # HOW is clustered data a problem for lm?
 
-example
+.pull-left[
+#### Standard errors
 
 We saw:
 $$SE(\hat \beta_1) = \sqrt{\frac{ SS_{Residual}/(n-k-1)}{\sum(x_i - \bar{x})^2}}$$
 
 suppose that $\rho = 1$. i.e., all the variation we see is due to the clustering. 
+
+if we ignore clustering, $SS_{Residual}$ 
+]
+.pull-right[
+#### Not always the effect of interest
+
+e.g. simpsons pdox
+
+
+]
+
 
 ---
 # Various values of $\rho$
@@ -459,7 +588,7 @@ p1 + p2 + plot_layout(widths=c(8,1))
 ```
 
 ---
-count: false
+
 # Various values of $\rho$
 
 ```{r echo=FALSE, fig.asp=.9}
@@ -473,6 +602,8 @@ ggplot(sims, aes(x=x, y=y))+
   facet_grid(icc~.)+
   themedapr3()+
   guides(col=F)+
+  scale_y_continuous(NULL, labels=NULL)+
+  scale_x_continuous(NULL, labels=NULL)+
   labs(x = "X")
 ```
 
@@ -496,7 +627,8 @@ set.seed(nchar("worms")^6)
 
 tibble(
   gardenid = paste0("garden",1:12),
-  gardenmeanx = rnorm(12, 6, 2),
+  gardenmeanx = rnorm(12, 6, .7),
+  coeffbirdx = rnorm(12, 3, 2.5),
   birdx = map(gardenmeanx, ~rnorm(10, .,1)),
   birdt = map(gardenmeanx, ~sample(c("wren","blackbird"), 
                                    size = 10, replace = TRUE, 
@@ -504,113 +636,124 @@ tibble(
 ) %>%
   unnest(cols = c(birdx, birdt)) %>% # punny! 
   mutate(
-    nworms = round(7 - 3*birdx + 3.5*gardenmeanx -1*(birdt=="blackbird") + .5*(birdt=="blackbird")*birdx + rnorm(n(),0,2)),
+    nworms = round(-40 - coeffbirdx*birdx + 15*gardenmeanx -1*(birdt=="blackbird") + .5*(birdt=="blackbird")*birdx + rnorm(n(),0,1)),
     nworms = pmax(0,nworms),
     arrival_time = round(birdx,2)
   ) %>% select(gardenid, arrival_time, nworms, birdt) -> df
 
-df <- df %>% mutate(x = arrival_time, y = nworms, x2 = birdt, birdid=1:n())
+df <- df %>% mutate(x = arrival_time, y = nworms, x2 = birdt, birdid=1:n(), cluster_var=gsub("garden","cluster",gardenid))
 
-df <- df[-c(35:40),]
-df$y[df$birdid==33]<-17
-df$nworms[df$birdid==33]<-17
-df[df$gardenid=="garden4",] %>% ggplot(.,aes(x=x,y=y))+geom_point()
-
+df <- df %>% filter(!(birdid %in% c(31,33,34,35,37)))
+df$y[df$birdid==40]<-37
+df$nworms[df$birdid==40]<-37
+df$y[df$birdid==36]<-19
+df$nworms[df$birdid==36]<-19
 ```
 
 ---
 # Some toy data
 
+.pull-left[
 ```{r echo=FALSE, fig.align="center"}
-ggplot(df,aes(x=arrival_time,y=nworms))+geom_point()+
+ggplot(df,aes(x=x,y=y))+geom_point(size=4)+
   geom_smooth(method="lm")+
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
-       title="the early bird catches the worm?") +
-  themedapr3() +
-  
-  ggplot(df,aes(x=arrival_time,y=nworms,col=gardenid))+geom_point()+
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  themedapr3()
+```
+]
+.pull-right[
+```{r echo=FALSE, fig.align="center"}
+  ggplot(df,aes(x=x,y=y,col=gardenid))+geom_point(size=4)+
   geom_smooth(method="lm",se=F)+
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
-       subtitle="only within a garden")+
-  facet_wrap(~gardenid) +
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  facet_wrap(~cluster_var) +
   guides(col=FALSE)+
   themedapr3()
 ```
+]
+
+.footnote[You can find this data yourself at LINK]
 
 ---
-# Ignore it
-
-```{r}
-model <- lm(nworms ~ arrival_time, data = df)
-summary(model)$coefficients
-```
-
----
-count: false
-# Ignore it
+# 1. Ignore it
 
 .pull-left[
-### __(Complete pooling)__  
-
-Data from all gardens is pooled together to estimate over x 
-
+```{r echo=FALSE}
+model <- lm(y ~ x, data = df)
+df %>% mutate(
+  f = fitted(model)
+) %>%
+ggplot(.,aes(x=x,y=y))+geom_point(size=4)+
+  geom_smooth(method="lm")+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  themedapr3()
+```
 ]
 .pull-right[
+__(Complete pooling)__  
+
+Information from all clusters is pooled together to estimate over x  
+
+```{r}
+model <- lm(y ~ x, data = df)
+```
+```{r echo=FALSE, out.width="300px"}
+.pp(summary(model),l=list(c(10:12)))
+```
+
+]
+
+---
+
+# 1. Ignore it 
+
+.pull-left[
 ```{r echo=FALSE}
 df %>% mutate(
   f = fitted(model)
 ) %>%
-ggplot(.,aes(x=arrival_time,y=nworms))+geom_point()+
-  geom_smooth(method="lm")+
-  geom_segment(aes(y=nworms, yend = f, x = arrival_time, xend = arrival_time), alpha=.2) + 
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
-       title="the early bird catches the worm?") +
+ggplot(.,aes(x=x,y=y))+
+  geom_point(aes(col=cluster_var, alpha=factor(cluster_var %in% c("cluster10","cluster4"))),size=4)+
+  #geom_smooth(data = filter(df, gardenid %in% c("garden10","garden4")), method="lm",se=F,aes(group=gardenid))+
+  guides(col=FALSE, alpha=FALSE)+
+  geom_smooth(method="lm",se=F)+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
   themedapr3()
 ```
 ]
+.pull-right[
 
----
-count: false
-# Ignore it 
+__(Complete pooling)__  
 
-.pull-left[
-### __(Complete pooling)__  
+Information from all clusters is pooled together to estimate over x  
 
-Information from all clusters is pooled together to estimate over x 
+```{r}
+model <- lm(y ~ x, data = df)
+```
+```{r echo=FALSE, out.width="300px"}
+.pp(summary(model),l=list(c(10:12)))
+```
 
 But different clusters show different patterns. 
 Residuals are not independent.  
 ]
-.pull-right[
-```{r echo=FALSE}
-df %>% mutate(
-  f = fitted(model)
-) %>%
-ggplot(.,aes(x=arrival_time,y=nworms))+
-  geom_point(aes(col=factor(gardenid == "garden10"), alpha=factor(gardenid == "garden10")))+
-  #geom_smooth(data = filter(df, gardenid=="garden10"), method="lm",se=F, col="skyblue")+
-  guides(col=FALSE, alpha=FALSE)+
-  geom_smooth(method="lm",se=F)+
-  geom_segment(aes(y=nworms, yend = f, x = arrival_time, xend = arrival_time), alpha=.2) + 
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
-       title="the early bird catches the worm?") +
-  themedapr3()
-```
-]
 
 ---
-# Lesser used solutions  
+# 2. Lesser used solutions  
 
 <!-- https://rlbarter.github.io/Practical-Statistics/2017/05/10/generalized-estimating-equations-gee/ -->
 
-Don't model the clustering directly, but incorporate the dependency into our error term. 
+Don't include clustering as part of the model directly, but incorporate the dependency into our residuals term. 
 
 $$
 \begin{align}
 \color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error}^* \\
 \end{align}
 $$
-* Where errors are correlated with clusters/with the error previously/etc. 
+
+.footnote[Where errors are correlated with clusters/with the error previously/etc.]
 
 
 - independence (observations over time are independent)
@@ -620,49 +763,57 @@ $$
 
 
 ---
-count: false
-# Lesser used solutions  
+
+# 2. Lesser used solutions  
 
 .pull-left[
 ### __Cluster Robust Standard Errors__
 
 ```{r}
 library(plm)
-clm <- plm(y~x,data=df, model="pooling", index="gardenid")
-summary(clm)$coefficients
-sqrt(diag(vcovHC(clm, method='arellano', cluster='group')))
+clm <- plm(y ~ x, data=df, 
+           model="pooling", index="cluster_var")
+```
+```{r echo=FALSE}
+.pp(summary(clm),l=list(c(13:16)))
+```
+```{r}
+sqrt(diag(vcovHC(clm, 
+                 method='arellano', 
+                 cluster='group')))
 ```
 ]
 .pull-right[
-### __Generalised Estimating Equartions (GEE)__  
+### __Generalised Estimating Equations (GEE)__  
 
 ```{r}
 library(geepack)
-df <- df %>% arrange(gardenid) %>%
+# needs to be arranged by cluster, and for cluster to be numeric
+df <- df %>% arrange(cluster_var) %>%
   mutate(
-    id = as.numeric(as.factor(gardenid))
+    cluster_id = as.numeric(as.factor(cluster_var))
   )
-geemod  = geeglm(y~x, data=df, corstr='independence', id=id)
-summary(geemod)$coefficients %>% round(3)
+geemod  = geeglm(y ~ x, data=df, 
+                 corstr = 'independence', id =  cluster_id)
 ```
+```{r echo=FALSE}
+.pp(summary(geemod),l=list(c(5:8)))
+```
+
 ]
 
 ---
-# fixed effects
-
-```{r}
-model <- lm(nworms ~ arrival_time + gardenid, data = df)
-summary(model)$coefficients
-```
-
----
-count: false
-# fixed effects
+# 3. Fixed effects
 
 .pull-left[
-### __(No Pooling)__
+
+__(Complete pooling)__  
 
 Information from a cluster contributes to estimate *for that cluster*, but information is not pooled to estimate an overall effect. 
+
+```{r}
+model <- lm(y ~ x * cluster_var, data = df)
+```
 
 ]
 .pull-right[
@@ -670,16 +821,27 @@ Information from a cluster contributes to estimate *for that cluster*, but infor
 df %>% mutate(
   f = fitted(model)
 ) %>%
-ggplot(.,aes(x=arrival_time,y=nworms,col=gardenid))+
+ggplot(.,aes(x=x,y=y,col=cluster_var))+
   geom_point()+
-  geom_line(aes(y=f,group=gardenid))+
+  geom_line(aes(y=f,group=cluster_var))+
   guides(col=FALSE)+
-  geom_segment(aes(y=nworms, yend = f, x = arrival_time, xend = arrival_time), alpha=.2) + 
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught",
-       title="the early bird catches the worm?") +
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
   themedapr3()
 ```
 ]
+
+---
+
+# 3. Fixed effects 
+
++ Lots of estimates (separate for each cluster). 
++ Variance estimates constructed based on information *only* within each cluster. 
++ No overall estimate of effect over x. 
+
+```{r echo=FALSE}
+.pp(summary(model),l=list(c(10:34)))
+```
 
 ---
 # LMM
@@ -687,35 +849,93 @@ ggplot(.,aes(x=arrival_time,y=nworms,col=gardenid))+
 
 ```{r}
 library(lme4)
-model <- lmer(nworms~arrival_time+(1|gardenid),df)
+
+model <- lmer(y ~ x + (1 + x | cluster_var),df)
 summary(model)$coefficients
 ```
 
 
 ---
-count: false
-# LMM 
 
+# 4. Random effects (LMM)
+
+.pull-left[
 __(Partial Pooling)__
+
+].pull-right[
+
+```{r echo=FALSE}
+df %>% mutate(
+  fit = fitted(model)
+) %>%
+ggplot(., aes(x=x, y=y))+
+  geom_line(aes(y=fit, group=cluster_var, col=cluster_var))+
+  geom_abline(intercept=fixef(model)[1], slope=fixef(model)[2],lwd=2)+
+  geom_point(aes(col=cluster_var),alpha=.2)+
+  geom_segment(aes(y=y, yend = fit, x = x, xend = x, 
+                   col=cluster_var), alpha=.2)+
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  themedapr3()
+```
+]
+
+---
 
 ```{r echo=FALSE}
 dfm <- 
-  df %>% group_by(gardenid) %>%
-  summarise(arrival_time = mean(arrival_time)) %>% 
+  df %>% group_by(cluster_var) %>%
+  summarise(x = 0) %>% 
   mutate(mf = predict(model, newdata=.),
-         ff = fixef(model)[1] + arrival_time*fixef(model)[2])
+         ff = fixef(model)[1] + x*fixef(model)[2],
+         cv = ifelse(mf>ff, -.2, .2))
 
+dfi <- bind_rows(df,
+                 df %>% group_by(cluster_var) %>% summarise(x = 0)) %>%
+  mutate(fit2 = predict(model, newdata=.))
+
+dfs <- tibble(
+  cluster_var = c("cluster1","cluster12"),
+  yf = c(
+    coef(model)$cluster_var["cluster1","(Intercept)"]+(3*fixef(model)[2]),
+    coef(model)$cluster_var["cluster12","(Intercept)"]+(3*fixef(model)[2])
+    ),
+  yg = c(
+    coef(model)$cluster_var["cluster1","(Intercept)"]+(3*coef(model)$cluster_var["cluster1","x"]), 
+    coef(model)$cluster_var["cluster12","(Intercept)"]+(2.7*coef(model)$cluster_var["cluster12","x"])
+  )
+)
 
 df %>% mutate(
   fit = fitted(model)
 ) %>%
-ggplot(., aes(x=arrival_time, y=nworms))+
-  geom_line(aes(y=fit, group=gardenid, col=gardenid))+
+ggplot(., aes(x=x, y=y))+
+  geom_line(aes(y=fit, group=cluster_var, col=cluster_var, alpha=factor(cluster_var %in% c("cluster12","cluster1"))))+
   geom_abline(intercept=fixef(model)[1], slope=fixef(model)[2],lwd=2)+
-  geom_point(aes(col=gardenid),alpha=.2)+
-  geom_segment(aes(y=nworms, yend = fit, x = arrival_time, xend = arrival_time, 
-                   col=gardenid), alpha=.2)+
-  geom_segment(data=dfm, aes(x=arrival_time, xend=arrival_time, y=mf, yend=ff))+
+  geom_point(aes(col=cluster_var, alpha=factor(cluster_var %in% c("cluster12","cluster1"))))+
+  geom_segment(aes(y=y, yend = fit, x = x, xend = x, col=cluster_var), alpha=.2)+
+  
+  geom_curve(data=dfm[dfm$mf>dfm$ff,], 
+             aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var,
+                 alpha=factor(cluster_var %in% c("cluster12","cluster1"))),
+             curvature = -.5)+
+  geom_curve(data=dfm[dfm$mf<dfm$ff,],
+             aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var,
+                 alpha=factor(cluster_var %in% c("cluster12","cluster1"))),
+             curvature = .5)+
+  
+  geom_line(data=dfi, aes(y=fit2, group=cluster_var, col=cluster_var, 
+                          alpha=factor(cluster_var %in% c("cluster12","cluster1"))),
+            lty = "dashed")+
+  
+  
+  geom_abline(intercept=coef(model)$cluster_var["cluster1","(Intercept)"], slope=fixef(model)[2],
+              lwd=2,alpha=.1)+
+  geom_abline(intercept=coef(model)$cluster_var["cluster12","(Intercept)"], slope=fixef(model)[2],
+              lwd=2,alpha=.1)+
+  geom_curve(data = dfs[1,], aes(x=3,xend=3,y=yf, yend=yg), curvature=.5, lty="dotted")+
+  geom_curve(data = dfs[2,], aes(x=3,xend=2.7,y=yf, yend=yg), curvature=-.5, lty="dotted")+
+  guides(alpha=F)+
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
   themedapr3()
 ```
 

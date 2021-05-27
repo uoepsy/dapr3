@@ -1,0 +1,595 @@
+---
+title: "Logistic Mixed Models | Longitudinal Mixed Models (linear growth)"
+bibliography: references.bib
+biblio-style: apalike
+link-citations: yes
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+```
+
+:::red
+**Preliminaries**  
+ 
+1. Open Rstudio, and create a new RMarkdown document (giving it a title for this week). 
+
+:::
+
+Last week we began to cover the idea of longitudinal mixed models (or 'multi-level models' - whatever we're calling them!) in our exercises on Weight Change. The lectures this week have also introduced the idea of 'change over time' by looking at some data from Public Health England.  
+
+In the exercises this week, we're going to concentrate on this in combination with the other topic this week, *Logistic* multi-level models. Then we're going to look at *contrasts* (they're a confusing topic, and can be pretty unintuitive, but we're going to have to do it sometime!), and talk a little bit about making inferences. 
+
+# Logistic MLM
+
+:::frame
+**Don't forget to look back at other materials!** 
+
+Back in USMR, we introduced logistic regression in week 10. The lectures followed the example of some [singing aliens that either survived or were splatted](https://uoepsy.github.io/usmr/lectures/lecture_9.html#1), and the exercises used some simulated data based on a hypothetical study [about inattentional blindness](https://uoepsy.github.io/usmr/labs/09_glm.html). 
+That content will provide a lot of the groundwork for this week, so we recommend revisiting it if you feel like it might be useful. 
+:::
+
+## `lmer()` >> `glmer()`
+
+Remember how we simply used `glm()` and could specify the `family = "binomial"` in order to fit a logistic regression? Well it's much the same thing for multi-level models! 
+
++ Gaussian model: `lmer(y ~ x1 + x2 + (1 | g), data = data)`  
++ Binomial model: `glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial(link='logit'))`
+    + or just `glmer(y ~ x1 + x2 + (1 | g), data = data, family = "binomial")`
+    + or `glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial)`
+    
+:::frame
+Binary? Binomial? Huh?  
+
+Very briefly in the USMR materials we made the distinction between **binary** and **binomial**. This wasn't hugely relevant at the time just because we only looked at binary outcomes.  
+
+For binary regression, all the data in our outcome variable has to be a 0 or a 1.  
+For example, the `correct` variable below:  
+```{r echo=FALSE}
+tibble(participant = c(1,1,1),question=c(1,2,3),correct=c(1,0,1)) %>% rbind(rep("...",3)) %>%
+  gt::gt()
+```
+
+But we can re-express this information in a different way, when we know the total number of questions asked.
+```{r echo=FALSE}
+tibble(participant = c(1,2,3),questions_correct=c(2,1,3),questions_incorrect=c(1,2,0)) %>% rbind(rep("...",3)) %>% gt::gt()
+```
+
+To model data when it is in this form, we can express our outcome as `cbind(questions_correct, questions_incorrect)`
+:::
+
+`r qbegin("A1")`
+Load any of the packages you think you might be using today.  
+
+By now you may have started get into a sort of routine with R, and you might know what functions you like, and which you don't. Because there are so many alternatives for doing the same thing, the packages and functions you use are very much up to you.   
+
+If I'm planning on doing some multi-level modelling, I will tend to load these by default at the top: 
+```{r}
+library(tidyverse) # for everything
+library(lme4) # for fitting models
+library(broom.mixed) # for tidying model output
+```
+`r qend()`
+
+
+`r optbegin("Novel Word Learning: Data Codebook", olabel=FALSE, toggle=params$TOGGLE)`
+
+```{r eval=FALSE}
+load(url("https://uoepsy.github.io/msmr/data/nwl.RData"))
+```
+
+In the `nwl` data set (accessed using the code above), participants with aphasia are separated into two groups based on the general location of their brain lesion: anterior vs. posterior. There is data on the numbers of correct and incorrect responses participants gave in each of a series of experimental blocks. There were 7 learning blocks, immediately followed by a test. Finally, participants also completed a follow-up test.  
+<br>
+Data were also collect from healthy controls. 
+<br>
+Figure \@ref(fig:nwl-fig) shows the differences between groups in the average proportion of correct responses at each point in time (i.e., each block, test, and follow-up)
+
+```{r nwl-fig, echo=FALSE, fig.cap="Differences between groups in the average proportion of correct responses at each block"}
+load(url("https://uoepsy.github.io/msmr/data/nwl.RData"))
+ggplot(filter(nwl, !is.na(lesion_location)), aes(block, PropCorrect, 
+                                            color=lesion_location, 
+                                            shape=lesion_location)) +
+  #geom_line(aes(group=ID),alpha=.2) + 
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  stat_summary(data=filter(nwl, !is.na(lesion_location), block <= 7), 
+                           fun=mean, geom="line") + 
+  geom_hline(yintercept=0.5, linetype="dashed") + 
+  geom_vline(xintercept=c(7.5, 8.5), linetype="dashed") + 
+  scale_x_continuous(breaks=1:9, labels=c(1:7, "Test", "Follow-Up")) + 
+  theme_bw(base_size=10) + 
+  labs(x="Block", y="Proportion Correct", shape="Lesion\nLocation", color="Lesion\nLocation")
+```
+
+`r optend()`
+
+`r qbegin("A2")`
+Load the data. Take a look around. Any missing values? Can you think of why?  
+`r qend()`
+
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+load(url("https://uoepsy.github.io/msmr/data/nwl.RData"))
+summary(nwl)
+```
+The only missing vales are in the lesion location, and it's probably because the healthy controls don't have any lesions. 
+
+`r solend()`
+
+
+> **Research Aims**  
+> Compare the two groups (those with anterior vs. posterior lesions) with respect to their accuracy of responses over the course of the study
+
+
+`r qbegin("A3: Initial thoughts")`
+
+1. What is our outcome? 
+2. Is it longitudinal? (simply, is there a temporal sequence to observations within a participant?) 
+
+*Hint:* Think carefully about question 1. There might be several variables which either fully or partly express the information we are considering the "outcome" here. 
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+1. The outcome here is (in words) "the proportion of correct answers in each block". This makes it tempting to look straight to the variable called `PropCorrect`. Unfortunately, this is encoded as a proportion (i.e., is bounded by 0 and 1), and of the models we have learned about so far, we don't definitely have the necessary tools to model this.  
+    - linear regression = continuous *unbounded* outcome variable  
+    - logistic regression = binomial, expressed as `0` or `1` if the number of trials per observation is 1, and expressed as `cbind(num_successes, num_failures)` if the number of trials per observation is >1. 
+2. It is longitudinal in the sense that blocks are sequential. However, we probably wouldn't call it a "longitudinal study" as that tends to get reserved for when we follow-up participants over a fairly long time period (months or years). 
+`r solend()`
+
+`r qbegin("A4")`
+> **Research Question 1:**  
+> Is the learning rate (training blocks) different between these two groups?
+
+**Hints**: 
+
+- Do we want `cbind(num_successes, num_failures)`?
+- Make sure we're running models on only the data we are actually interested in.  
+- Think back to what we did in last week's exercises using model comparison via likelihood ratio tests (using `anova(model1, model2, model3, ...)`. We could use this approach for this question, to compare:
+
+    - A model with just the change over the sequence of blocks
+    - A model with the change over the sequence of blocks *and* an overall difference between groups
+    - A model with groups differing with respect to their change over the sequence of blocks
+
+  
+- What about the random effects part?  
+    
+    1. What are our observations grouped by? 
+    2. What variables can vary within these groups? 
+    3. What do you want your model to allow to vary within these groups?
+
+`r optbegin("Suggested answers to the hints if you don't know where to start", olabel=FALSE, toggle=params$TOGGLE)`
+
+- Make sure we're running models on only the data we are actually interested in. 
+    - We want only the learning blocks, and none of the healthy controls.
+    - You might want to store this data in a separate object, but in the code for the solutio we will just use `filter()` *inside* the `glmer()`.   
+  
+- A model with just the change over the sequence of blocks:
+    - **outcome ~ block**
+- A model with the change over the sequence of blocks *and* an overall difference between groups:
+    - **outcome ~ block + lesion_location**
+- A model with groups differing with respect to their change *over the sequence of blocks:
+    - **outcome ~ block * lesion_location**
+    
+- What are our observations grouped by? 
+    - repeated measures by-participant. i.e., the `ID` variable
+- What variables can vary within these groups? 
+    - `Block` and `Phase`. Be careful though - you can create the `Phase` variable out of the `Block` variable, so really this is just one piece of information, encoded differently in two variables. 
+    - The other variables (`lesion_location` and `group`) do **not** vary for each ID. Lesions don't suddenly change where they are located, nor do participants swap between being a patient vs a control (we don't need the group variable anyway as we are excluding the controls).  
+What do you want your model to allow to vary within these groups?
+    - Do you think the change over the course of the blocks is **the same** for everybody? Or do you think it varies? Is this variation important to think about in terms of your research question?   
+    
+`r optend()`
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+m.base <- glmer(cbind(NumCorrect, NumError) ~ block + (block | ID), 
+                data = filter(nwl, block < 8, !is.na(lesion_location)),
+                family=binomial)
+m.loc0 <- glmer(cbind(NumCorrect, NumError) ~ block + lesion_location + (block | ID), 
+                data=filter(nwl, block < 8, !is.na(lesion_location)),
+                family=binomial)
+m.loc1 <- glmer(cbind(NumCorrect, NumError) ~ block * lesion_location + (block | ID), 
+                data=filter(nwl, block < 8, !is.na(lesion_location)),
+                family=binomial)
+#summary(m.loc1)
+anova(m.base, m.loc0, m.loc1, test="Chisq")
+```
+:::int
+No significant difference in learning rate between groups ($\chi^2(1)=2.2, p = 0.138$).
+:::
+
+`r solend()`
+
+`r qbegin("A5")`
+> **Research Question 2**  
+> In the testing phase, does performance on the immediate test differ between lesion location groups, and does their retention from immediate to follow-up test differ?
+
+Let's try a different approach to this. Instead of fitting various models and comparing them via likelihood ratio tests, just fit the one model which could answer both parts of the question above.  
+
+**Hints:**
+    
+- This might required a bit more data-wrangling before hand. Think about the order of your factor levels
+(alphabetically speaking, "Follow-up" comes before "Immediate")!
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+```{r}
+nwl_test <- filter(nwl, block > 7, !is.na(lesion_location)) %>%
+  mutate(
+    Phase = fct_relevel(factor(Phase),"Immediate")
+  )
+
+m.recall.loc <- glmer(cbind(NumCorrect, NumError) ~ Phase * lesion_location + (Phase | ID), 
+                  nwl_test, family="binomial")
+
+summary(m.recall.loc)
+```
+`r solend()`
+
+## Interpreting fixed effects
+
+:::frame
+
+Take some time to remind yourself from USMR of the [interpretation of logistic regression coefficients](https://uoepsy.github.io/usmr/labs/09_glm.html#Introducing_GLM).  
+
+The interpretation of the fixed effects of a logistic multi-level model are no different.  
+We can obtain them using:  
+
+- `fixef(model)`
+- `summary(model)$coefficients`
+- `tidy(model)` **from broom.mixed**  
+- (there are probably more ways, but I can't think of them right now!)
+
+It's just that for multi-level models, we can model by-cluster andom variation around these effects.  
+:::
+
+`r qbegin("A6")`
+
+1. In `family = binomial(link='logit')`. What function is used to relate the linear predictors in the model to the expected value of the response variable?  
+2. How do we convert this into something more interpretable?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+ 
+1. The link function is the `logit`, or log-odds (other link functions are available).
+
+2. To convert log-odds to odds, we can use `exp()`, to get odds and odds ratios.  
+
+`r solend()`
+
+`r qbegin("A7")`
+Make sure you pay attention to trying to interpret each fixed effect from your models.  
+These can be difficult, especially when it's logistic, and especially when there are interactions.  
+
+- What is the increase in the odds of answering correctly in the immediate test for someone with a posterior legion compared to someone with an anterior legion?  
+
+`r optbegin("Optional help: Our Solution to A5", olabel=F, toggle=params$TOGGLE)`
+```{r eval=F}
+nwl_test <- filter(nwl, block > 7, !is.na(lesion_location)) %>%
+  mutate(
+    Phase = fct_relevel(factor(Phase),"Immediate")
+  )
+
+m.recall.loc <- glmer(cbind(NumCorrect, NumError) ~ Phase * lesion_location + (Phase | ID), 
+                  nwl_test, family="binomial")
+```
+`r optend()`
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+* `(Intercept)` ==> Anterior lesion group performance in immediate test. This is the log-odds of them answering correctly in the immediate test. 
+* `PhaseFollow-up`  ==> Change in performance (for the anterior lesion group) from immediate to follow-up test. 
+* `lesion_locationposterior` ==> Posterior lesion group performance in immediate test relative to anterior lesion group performance in immediate test
+* `PhaseFollow-up:lesion_locationposterior` ==> Change in performance from immediate to follow-up test, posterior lesion group relative to anterior lesion group
+
+```{r echo=FALSE}
+exp(fixef(m.recall.loc))[3]
+```
+
+:::int
+Those with posterior lesions have `r round(exp(fixef(m.recall.loc))[3],2)` times the odds of answering correctly in the immediate test compared to someone with an anterior lesion. 
+:::
+
+`r solend()`
+
+## Optional extra exercise
+
+`r qbegin("A8: **Extra**")`
+Recreate the visualisation in Figure \@ref(fig:nwl-fig2).
+
+```{r nwl-fig2, echo=FALSE, fig.cap="Differences between groups in the average proportion of correct responses at each block"}
+load(url("https://uoepsy.github.io/msmr/data/nwl.RData"))
+ggplot(filter(nwl, !is.na(lesion_location)), aes(block, PropCorrect, 
+                                            color=lesion_location, 
+                                            shape=lesion_location)) +
+  #geom_line(aes(group=ID),alpha=.2) + 
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  stat_summary(data=filter(nwl, !is.na(lesion_location), block <= 7), 
+                           fun=mean, geom="line") + 
+  geom_hline(yintercept=0.5, linetype="dashed") + 
+  geom_vline(xintercept=c(7.5, 8.5), linetype="dashed") + 
+  scale_x_continuous(breaks=1:9, labels=c(1:7, "Test", "Follow-Up")) + 
+  theme_bw(base_size=10) + 
+  labs(x="Block", y="Proportion Correct", shape="Lesion\nLocation", color="Lesion\nLocation")
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+ggplot(filter(nwl, !is.na(lesion_location)), aes(block, PropCorrect, 
+                                            color=lesion_location, 
+                                            shape=lesion_location)) +
+  #geom_line(aes(group=ID),alpha=.2) + 
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  stat_summary(data=filter(nwl, !is.na(lesion_location), block <= 7), 
+                           fun=mean, geom="line") + 
+  geom_hline(yintercept=0.5, linetype="dashed") + 
+  geom_vline(xintercept=c(7.5, 8.5), linetype="dashed") + 
+  scale_x_continuous(breaks=1:9, labels=c(1:7, "Test", "Follow-Up")) + 
+  theme_bw(base_size=10) + 
+  labs(x="Block", y="Proportion Correct", shape="Lesion\nLocation", color="Lesion\nLocation")
+```
+`r solend()`
+
+# Optional Readings: Inference in MLM  
+
+:::frame
+
+**What, no p-values?**  
+  
+Hang on, we have p-values for these models? You might have noticed that we didn't get p-values last week^[We also didn't get $R^2$. Check out [http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#how-do-i-compute-a-coefficient-of-determination-r2-or-an-analogue-for-glmms](http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#how-do-i-compute-a-coefficient-of-determination-r2-or-an-analogue-for-glmms)] for `lmer()`, but we do now for `glmer()`?
+
+The reason is partly just one of convention. There is a standard practice for determining the statistical significance of parameters in the generalised linear model, relying on asymptotic Wald tests which evaluate differences in log-likelihood. 
+
+When we are in the Gaussian ("normal") world, we're back in the world of sums of squares. In the rare occasion that you have a perfectly balanced experimental design, then it has been shown that ratios of sums of squares for multi-level models follow an $F$-distribution, in which we know the numerator and denominator degrees of freedom (this means we can work out the degrees of freedom for the $t$-test of our fixed effect parameters). Unfortunately, in the real world where things are not often perfectly balanced, determining the denominator degrees of freedom becomes unclear. 
+
+:::
+
+:::frame
+
+**What can we do??**  
+
+So far, we have been taking the approach of model comparison. This can be good because there are lots of different criteria for comparing models. Then when it comes to the specific effects of interest, we can then talk about the effect size (i.e., the $\beta$), and about whether it improves model fit according to our criterion. Unfortunately, the reliability of the likelihood ratio tests which we have been using is dependent on the degrees of freedom issue above. 
+
+There are some alternatives: 
+
+1. Kenward-Rogers adjustment:
+    ```{r eval=FALSE}
+    library(pbkrtest)
+    KRmodcomp(model1, model2)
+    ```
+2. Satterthwaite approximation: 
+    (this will just add a column for p-values to your `summary(model)` output)
+    ```{r eval=FALSE}
+    library(lmerTest)
+    model <- lmer(......
+    summary(model)
+    ```
+3. Parametric bootstraps
+    ```{r eval=FALSE}
+    library(pbkrtest)
+    PBmodcomp(full_model, restricted_model)
+    ```
+      
+If you want more information (not required reading for this course), then Julian Faraway has a page [here](https://people.bath.ac.uk/jjf23/mixchange/index.html) with links to some worked examples, and Ben Bolker has a wealth of information on his [GLMM FAQ pages](http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#why-doesnt-lme4-display-denominator-degrees-of-freedomp-values-what-other-options-do-i-have).  
+
+:::
+
+# Contrasts
+
+We largely avoided the discussion of cotrasts in USMR because they can be quite incomprehensible at first, and we wanted to focus on really consolidating our learning of the linear model basics.  
+
+:::frame
+**What are contrasts and when are they relevant?**  
+  
+Recall when we have a categorical predictors? To continue the example in USMR, Martin's lectures considered the utility of different types of toys (Playmo, SuperZings, and Lego).  
+```{r echo=FALSE, out.width="400px", fig.cap="[USMR Week 9 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_8.html#36) utility of different toy_types"}
+knitr::include_graphics("images/loglong/leccontrasts.png")
+```
+
+When we put a categorical variable into our model as a predictor, we are always relying on **contrasts**, which are essentially just combinations of 0s & 1s which we use to define the differences which we wish to test.  
+
+The default, *treatment* coding, treats one level as a **reference group**, and results in coefficients which compare each group to that reference.  
+When a variable is defined as a **factor** in R, there will always be an attached "attribute" defining the contrasts:  
+```{r}
+#read the data
+toy_utils <- read_csv("https://uoepsy.github.io/msmr/data/toyutility.csv")
+
+#make type a factor
+toy_utils <- toy_utils %>%
+  mutate(
+    type = factor(type)
+  )
+```
+
+
+```{r}
+# look at the contrasts
+contrasts(toy_utils$type)
+```
+Currently, the resulting coefficients from the contrasts above will correspond to:
+
+- Intercept = estimated mean utility for Lego (reference group)
+- typeplaymo = estimated difference in mean utility Playmo vs Lego
+- typezing = estimated different in mean utility Zing vs Lego
+
+:::
+
+`r qbegin("B1")`
+Read in the toy utility data from [https://uoepsy.github.io/msmr/data/toyutility.csv](https://uoepsy.github.io/msmr/data/toyutility.csv).  
+We're going to switch back to the normal `lm()` world here for a bit, so no multi-level stuff while we learn more about contrasts.
+
+1. Fit the model below 
+    ```{r}
+    model_treatment <- lm(UTILITY ~ type, data = toy_utils)
+    ```
+2. Calculate the means for each group, and the differences between them, to match them to the coefficients from the model above
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+You don't have to do it this way. This was just the first way to calculate the difference in means that came to my head. `group_by()` will definitely come in handy though. 
+```{r}
+toy_utils %>% group_by(type) %>%
+  summarise(
+    mutil = mean(UTILITY)
+  ) %>% 
+  mutate(
+    diff = mutil - mutil[type == "lego"]
+  )
+
+coef(model_treatment)
+```
+`r solend()`
+
+
+:::frame
+**How can we change the way contrasts are coded?**  
+
+In our regression model we are fitting an intercept plus a coefficient for each explanatory variable, and any categorical predictors are coded as 0s and 1s.  
+
+We can add constraints to our the way our contrasts are coded. In fact, with the default **treatment** coding, we already have applied one - we constrained them such that the intercept ($\beta_0$) = the mean of one of the groups. 
+
+`r optbegin("Optional: Why constraints?", olabel=FALSE, toggle=params$TOGGLE)`
+
+Why do we not have:  
+
+- `Intercept`
+- `typelego`
+- `typeplaymo`
+- `typezing`
+
+The model has would become **not identifiable**. We cannot distinguish any more whether the group mean is due to a group effect or not. For example, we can get the same group mean $μ_{lego}=10$, say, either by setting:
+
+- $\beta_0=0$ and $\beta_1=10$, which interprets as "there is an effect due to being lego"
+- $\beta_0=10$ and $\beta_1=0$, which interprets as "there is no effect due to being lego"
+
+`r optend()`
+
+The other common constraint that is used is the **sum-to-zero** constraint. 
+Under this constraint the interpretation of the coefficients becomes:
+
+- $\beta_0$ represents the global mean (sometimes referred to as the "grand mean"). 
+- $\beta_1$ the effect due to group $i$ — that is, the mean response in group $i$ minus the global mean.  
+
+**Changing contrasts in R**  
+There are two main ways to change the contrasts in R. 
+
+1. Change them in your data object.
+    ```{r}
+    contrasts(toy_utils$type) <- "contr.sum"
+    ```
+2. Change them *only* in the fit of your model (don't change them in the data object)
+    ```{r}
+    model_sum <- lm(UTILITY ~ type, contrasts = list(type = "contr.sum"), data = toy_utils)
+    ```
+
+:::
+
+`r qbegin("B2")`
+
+1. Using sum-to-zero contrasts, refit the same model of utility by toy-type.  
+2. Then calculate the global mean, and the differences from each mean to the global mean, to match them to the coefficients
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+model_sum <- lm(UTILITY ~ type, contrasts = list(type = "contr.sum"), data = toy_utils)
+
+globmean <- mean(toy_utils$UTILITY)
+
+toy_utils %>% group_by(type) %>%
+  summarise(
+    mutil = mean(UTILITY)
+  ) %>% 
+  mutate(
+    diff = mutil - globmean
+  )
+
+coef(model_sum)
+```
+
+`r solend()`
+
+`r qbegin("B3")`
+
+This code is what we used to answer question A5 above, only we have edited it to change lesion location to be fitted with sum-to-zero contrasts.  
+  
+The interpretation of this is going to get pretty tricky - we have a logistic regression, and we have sum-to-zero contrasts, and we have an interaction.. &#x1f92f;  
+
+Can you work out the interpretation of the fixed effects estimates?  
+
+```{r echo=TRUE}
+nwl_test <- filter(nwl, block > 7, !is.na(lesion_location)) %>%
+  mutate(
+    Phase = fct_relevel(factor(Phase),"Immediate")
+  )
+
+m.recall.loc.sum <- glmer(cbind(NumCorrect, NumError) ~ Phase * lesion_location + (Phase | ID), 
+                      contrasts = list(lesion_location = "contr.sum"),
+                  nwl_test, family="binomial")
+rbind(summary(m.recall.loc.sum)$coefficients,
+      summary(m.recall.loc)$coefficients)
+
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+* `(Intercept)` ==> Overall performance in immediate test. This is the overall log-odds of answering correctly in the immediate test. 
+* `PhaseFollow-up`  ==> Average change in performance from immediate to follow-up test. 
+* `lesion_location1` ==> Anterior lesion group performance in immediate test relative to *overall average* performance in immediate test
+* `PhaseFollow-up:lesion_location1` ==> Change in performance from immediate to follow-up test, anterior lesion group relative to overall average
+  
+  
+**???**  
+How do we know that `lesion_location1` is the *anterior* and not the *posterior* lesion group? 
+We need to check the what the contrasts look like:  
+```{r}
+contrasts(nwl_test$lesion_location) <- "contr.sum"
+contrasts(nwl_test$lesion_location)
+```
+Because there are only two levels to this variable, the estimate will simply flip sign (positive/negative) depending on which way the contrast is levelled.  
+
+`r optbegin("Optional: I liked my coefficients being named properly", olabel=FALSE, toggle=params$TOGGLE)`
+
+```{r}
+colnames(contrasts(nwl_test$lesion_location)) <- "PeppaPig"
+
+contrasts(nwl_test$lesion_location)
+
+modeltest <- glmer(cbind(NumCorrect, NumError) ~ Phase * lesion_location + (Phase | ID),
+                  nwl_test, family="binomial")
+summary(modeltest)$coefficients
+```
+`r optend()`
+
+`r solend()`
+
+`r qbegin("B4")`
+Try playing around with the Toy Utility dataset again, fitting sum-to-zero contrasts.  
+Can you re-level the factor first? What happens when you do?  
+
+**Tip:** You can always revert easily to the treatment coding scheme, either by reading in the data again, or using
+```{r}
+contrasts(toy_utils$type) <- NULL
+contrasts(toy_utils$type)
+```
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+No solution, just play! 
+`r solend()`
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
+
+
+
