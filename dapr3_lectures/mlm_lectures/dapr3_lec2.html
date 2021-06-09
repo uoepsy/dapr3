@@ -10,6 +10,11 @@
     <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
     <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
     <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
     <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
     <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
   </head>
@@ -21,12 +26,9 @@ class: center, middle, inverse, title-slide
 ## Data Analysis for Psychology in R 3
 ### Josiah King
 ### Department of Psychology<br/>The University of Edinburgh
-### AY 2020-2021
+### AY 2021-2022
 
 ---
-
-
-
 
 
 
@@ -42,34 +44,541 @@ class: inverse, center, middle
 ---
 # Terminology
 
-names
-
----
-# From LM to LMM
+mlm, lmm, mem, lmem, blah blah blah
 
 
 ---
-# data
-
----
-# lm
-
----
-# random int
-
-fit, plot
-compare w FE, return to "partial pooling"
-
----
-# random slopes
-
-fit, plot
-partial pooling again.
+# Notation 
+&lt;!-- $$ --&gt;
+&lt;!-- \begin{align} --&gt;
+&lt;!-- &amp; \text{for observation }i \\ --&gt;
+&lt;!-- \quad \\ --&gt;
+&lt;!-- &amp; \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ --&gt;
+&lt;!-- \end{align} --&gt;
+&lt;!-- $$ --&gt;
+**Simple regression**  
+.pull-left[
+`\(\begin{align} &amp; \text{for observation }i \\ \quad \\ &amp; \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ \end{align}\)`
+]
 
 
 ---
+# Notation 
+
+&lt;!-- $$ --&gt;
+&lt;!-- \begin{align} --&gt;
+&lt;!-- &amp; \text{for observation }j\text{ in group }i \\ --&gt;
+&lt;!-- \quad \\ --&gt;
+&lt;!-- &amp; \text{Level 1:} \\ --&gt;
+&lt;!-- &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ --&gt;
+&lt;!-- &amp; \text{Level 2:} \\ --&gt;
+&lt;!-- &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ --&gt;
+&lt;!-- &amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ --&gt;
+&lt;!-- \quad \\ --&gt;
+&lt;!-- &amp; \text{Where:} \\ --&gt;
+&lt;!-- &amp; \gamma_{00}\text{ is the population intercept, and }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ --&gt;
+&lt;!-- &amp; \gamma_{10}\text{ is the population slope, and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ --&gt;
+&lt;!-- \end{align} --&gt;
+&lt;!-- $$ --&gt;
+**Multi-level**  
+.pull-left[
+`\(\begin{align} &amp; \text{for observation }j\text{ in group }i \\ \quad \\ &amp; \text{Level 1:} \\ &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ &amp; \text{Level 2:} \\ &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ &amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}\)`
+]
+
+--
+
+.pull-right[
+`\(\begin{align} &amp; \text{Where:} \\ &amp; \gamma_{00}\text{ is the population intercept}\\ &amp; \text{and  }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ \qquad \\ &amp; \gamma_{10}\text{ is the population slope,}\\ &amp; \text{and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ \end{align}\)`
+]
+
+--
+
+We are now assuming `\(\color{orange}{\zeta_0}\)`, `\(\color{orange}{\zeta_1}\)`, and `\(\varepsilon\)` to be normally distributed with a mean of 0, and we denote their variances as `\(\sigma_{\color{orange}{\zeta_0}}^2\)`, `\(\sigma_{\color{orange}{\zeta_1}}^2\)`, `\(\sigma_\varepsilon^2\)` respectively.   
+
+The `\(\color{orange}{\zeta}\)` components also get termed the "random effects" part of the model, Hence names like "random effects model", etc.
+
+---
+# Notation 
+
+**Mixed-effects**
+
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
+
+`\(\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{\beta_{0i}}} \cdot 1 + \underbrace{(\gamma_{10} + \color{orange}{\zeta_{1i}})}_{\color{blue}{\beta_{1i}}} \cdot x_{ij}  +  \varepsilon_{ij} \\\)`
 
 
+--
+
+.footnote[
+**other notation to be aware of**  
+
+- Many people use the symbol `\(u\)` in place of `\(\zeta\)`  
+
+- Sometimes people use `\(\beta_{00}\)` instead of `\(\gamma_{00}\)`  
+
+- In various resources, you are likely to see `\(\alpha\)` used to denote the intercept instead of `\(\beta_0\)`  
+
+]
+
+---
+# Notation 
+
+__Matrix form__
+
+And then we also have the condensed matrix form of the model, in which the Z matrix represents the grouping structure of the data, and `\(\zeta\)` contains the estimated random deviations. 
+
+`\(\begin{align} \color{red}{\begin{bmatrix} y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ \end{bmatrix}} &amp; = \color{blue}{\begin{bmatrix} 1 &amp; x_{11} \\ 1 &amp; x_{12} \\ 1 &amp; x_{21} \\ 1 &amp; x_{22} \\1 &amp; x_{31} \\ 1 &amp; x_{32} \\ \end{bmatrix} \begin{bmatrix} \gamma_{00} \\ \beta_1 \\  \end{bmatrix}} &amp; + &amp; \color{orange}{ \begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 1 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 1 \\ 0 &amp; 0 &amp; 1 \\ \end{bmatrix} \begin{bmatrix}\zeta_{01} \\ \zeta_{02} \\ \zeta_{03} \end{bmatrix}} &amp; + &amp; \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32} \end{bmatrix} \\ \qquad \\ \\ \color{red}{\boldsymbol y}\;\;\;\;\; &amp; = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} &amp; + &amp; \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} &amp; + &amp; \;\;\;\varepsilon \\ \end{align}\)`
+
+&lt;!-- $$ --&gt;
+&lt;!-- \begin{align}  --&gt;
+&lt;!-- \color{red}{ --&gt;
+&lt;!-- \begin{bmatrix} --&gt;
+&lt;!-- y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- } &amp; =  --&gt;
+&lt;!-- \color{blue}{ --&gt;
+&lt;!-- \begin{bmatrix} --&gt;
+&lt;!-- 1 &amp; x_{11} \\ --&gt;
+&lt;!-- 1 &amp; x_{12} \\ --&gt;
+&lt;!-- 1 &amp; x_{21} \\ --&gt;
+&lt;!-- 1 &amp; x_{22} \\ --&gt;
+&lt;!-- 1 &amp; x_{31} \\ --&gt;
+&lt;!-- 1 &amp; x_{32} \\ --&gt;
+&lt;!-- \end{bmatrix}  --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- \gamma_{00} \\ \beta_1 \\   --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- }  --&gt;
+&lt;!-- &amp; --&gt;
+&lt;!-- + &amp; --&gt;
+&lt;!-- \color{orange}{ --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- 1 &amp; 0 &amp; 0 \\  --&gt;
+&lt;!-- 1 &amp; 0 &amp; 0 \\ --&gt;
+&lt;!-- 0 &amp; 1 &amp; 0 \\ --&gt;
+&lt;!-- 0 &amp; 1 &amp; 0 \\ --&gt;
+&lt;!-- 0 &amp; 0 &amp; 1 \\ --&gt;
+&lt;!-- 0 &amp; 0 &amp; 1 \\ --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- \zeta_{01} \\ \zeta_{02} \\ \zeta_{03}  --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- } --&gt;
+&lt;!-- &amp; + &amp; --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32}  --&gt;
+&lt;!-- \end{bmatrix} \\  --&gt;
+&lt;!-- \qquad \\  --&gt;
+&lt;!-- \\ --&gt;
+&lt;!-- \color{red}{\boldsymbol y}\;\;\;\;\; &amp; = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} &amp; + &amp; \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} &amp; + &amp; \;\;\;\varepsilon \\  --&gt;
+&lt;!-- \end{align} --&gt;
+&lt;!-- $$ --&gt;
+
+
+---
+# Data
+
+
+
+
+.pull-left[
+
+&gt; 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire. Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
+
+]
+.pull-right[
+
+```r
+head(crq)
+```
+
+```
+## # A tibble: 6 x 5
+##   emot_dysreg   crq int     schoolid sleep
+##         &lt;dbl&gt; &lt;dbl&gt; &lt;fct&gt;   &lt;chr&gt;    &lt;fct&gt;
+## 1        0.73  2.28 Control school1  &lt;8hr 
+## 2       -0.04  2.61 Control school1  &lt;8hr 
+## 3       -1.06  3.21 Control school1  &lt;8hr 
+## 4        0.84  2.14 Control school1  &lt;8hr 
+## 5        0.09  1.44 Control school1  8hr+ 
+## 6        1.6   1.38 Control school1  &lt;8hr
+```
+]
+
+---
+count: false
+# Data
+
+.pull-left[
+
+&gt; 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire. Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
+
+
+```r
+ggplot(crq, aes(x = crq, y = emot_dysreg, col = schoolid)) +
+  geom_point()+
+  facet_wrap(~schoolid) + 
+  guides(col = FALSE) +
+  labs(x = "Child Routines Questionnaire (CRQ)", y = "Emotion Dysregulation Scale (EDS)") +
+  themedapr3()
+```
+]
+.pull-right[
+
+![](dapr3_lec2_files/figure-html/unnamed-chunk-4-1.png)&lt;!-- --&gt;
+
+]
+
+---
+# ICC
+
+.pull-left[
+
+```r
+library(ICC)
+ICCbare(schoolid, emot_dysreg, data = crq)
+```
+
+```
+## [1] 0.3396
+```
+
+remember - icc is ratio of variance within clusters to total variance (variance within + variance between)
+
+in other words, ICC = The correlation between two observations within the same cluster. 
+
+The higher the correlation within the clusters (ie. the larger the ICC) the lower the variability is within the clusters and consequently the higher the variability is between the clusters. 
+]
+.pull-right[
+
+
+```r
+library(ggridges)
+ggplot(crq, aes(x = emot_dysreg, y = schoolid, 
+                fill = schoolid)) +
+  geom_density_ridges(jittered_points = TRUE, position = "raincloud", alpha = .4) +
+  guides(fill=FALSE) + 
+  themedapr3()
+```
+
+![](dapr3_lec2_files/figure-html/unnamed-chunk-6-1.png)&lt;!-- --&gt;
+
+
+]
+
+---
+# R: multilevel models
+
+- **lme4** package (many others are available, but lme4 is most popular).  
+
+- `lmer()` function.  
+
+- syntax is similar to `lm()`, in that we specify:   
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
+    
+- in `lmer()`, we add to this the random effect structure in parentheses:  
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__
+
+---
+# R: lm
+
+.pull-left[
+
+```r
+lm_mod &lt;- lm(emot_dysreg ~ crq, data = crq)
+```
+
+
+```r
+schoolplots &lt;- 
+  ggplot(crq, aes(x = crq)) + 
+  geom_point(aes(y = emot_dysreg)) + 
+  facet_wrap(~schoolid) +
+  themedapr3()
+
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
+```
+]
+.pull-right[
+![](dapr3_lec2_files/figure-html/unnamed-chunk-9-1.png)&lt;!-- --&gt;
+
+]
+
+---
+# R: Adding a random intercept
+
+.pull-left[
+
+```r
+library(lme4)
+ri_mod &lt;- lmer(emot_dysreg ~ crq + 
+                 (1 | schoolid), data = crq)
+```
+
+vary the intercept by schools.
+
+]
+
+---
+count: false
+# R: Adding a random intercept
+
+.pull-left[
+
+```r
+library(lme4)
+ri_mod &lt;- lmer(emot_dysreg ~ crq + 
+                 (1 | schoolid), data = crq)
+```
+
+vary the intercept by schools.
+
+
+```r
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), 
+            col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), 
+            col = "red", lwd=1)
+```
+]
+
+.pull-right[
+![](dapr3_lec2_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
+] 
+
+---
+# R: Adding a random slope
+
+.pull-left[
+
+```r
+rs_mod &lt;- lmer(emot_dysreg ~ crq + 
+                 (1 + crq | schoolid), data = crq)
+```
+
+vary the intercept and the effect (slope) of crq by schools
+
+]
+
+---
+count: false
+# R: Adding a random slope
+
+.pull-left[
+
+```r
+rs_mod &lt;- lmer(emot_dysreg ~ crq + 
+                 (1 + crq | schoolid), data = crq)
+```
+
+vary the intercept and the effect (slope) of crq by schools
+
+
+```r
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), 
+            col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), 
+            col = "red", lwd=1) + 
+  geom_line(aes(y=fitted(rs_mod)), 
+            col = "orange", lwd=1)
+```
+]
+
+.pull-right[
+![](dapr3_lec2_files/figure-html/unnamed-chunk-17-1.png)&lt;!-- --&gt;
+]
+
+---
+# Partial Pooling vs No Pooling
+
+.pull-left[
+Why not fit a fixed effect adjustment to the slope of x for each group?  
+`lm(y ~ x * group)`?
+
+
+```r
+fe_mod &lt;- lm(emot_dysreg ~ crq * schoolid, data = crq)
+```
+]
+
+.pull-right[
+
+```r
+schoolplots + 
+  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1)
+```
+
+![](dapr3_lec2_files/figure-html/unnamed-chunk-19-1.png)&lt;!-- --&gt;
+]
+
+
+---
+# Partial Pooling vs No Pooling
+
+.pull-left[
+Why not fit a fixed effect adjustment to the slope of x for each group?  
+`lm(y ~ x * group)`?
+
+
+```r
+fe_mod &lt;- lm(emot_dysreg ~ crq * schoolid, data = crq)
+```
+
+We talked last week about how this results in a lot of output.  
+With 20 schools, we get: intercept at reference school, adjustment for every other school, the effect of x at reference school, adjustment to effect of x for every other school. 
+
+40 parameters estimated. 
+
+```r
+length(coef(fe_mod))
+```
+
+```
+## [1] 40
+```
+
+information is not combined in anyway (data from school $ J $ contributes to differences from reference school to school J, but nothing else. No overall estimates)
+
+]
+.pull-right[
+
+```r
+schoolplots + 
+  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1)
+```
+![](dapr3_lec2_files/figure-html/unnamed-chunk-23-1.png)&lt;!-- --&gt;
+]
+
+---
+count: false
+# Partial Pooling vs No Pooling
+
+![](dapr3_lec2_files/figure-html/unnamed-chunk-24-1.png)&lt;!-- --&gt;
+
+
+
+---
+# lmm in R
+
+
+```r
+crq %&gt;% rename(
+  y = emot_dysreg, 
+  x = crq,
+  group = schoolid
+) -&gt; my_data
+lmer(y ~ x + (1 + x | group), my_data) %&gt;% summary(.,correlation=F)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  group    (Intercept) 1.326    1.152         
+##           x           0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.7890     0.2858    6.26
+## x            -0.6250     0.0996   -6.27
+```
+
+```r
+model &lt;- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), data = crq)
+summary(model)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: emot_dysreg ~ crq + (1 + crq | schoolid)
+##    Data: crq
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  schoolid (Intercept) 1.326    1.152         
+##           crq         0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  schoolid, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.7890     0.2858    6.26
+## crq          -0.6250     0.0996   -6.27
+## 
+## Correlation of Fixed Effects:
+##     (Intr)
+## crq -0.894
+```
+
+
+
+annotated output
+
+---
+# ICC in lmer
+
+
+```r
+base_mod &lt;- lmer(emot_dysreg ~ 1 + (1 | schoolid), data = crq) 
+summary(base_mod)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: emot_dysreg ~ 1 + (1 | schoolid)
+##    Data: crq
+## 
+## REML criterion at convergence: 446.9
+## 
+## Scaled residuals: 
+##    Min     1Q Median     3Q    Max 
+## -2.319 -0.664  0.048  0.580  2.514 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  schoolid (Intercept) 0.334    0.578   
+##  Residual             0.664    0.815   
+## Number of obs: 170, groups:  schoolid, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)    0.334      0.144    2.32
+```
+
+```r
+0.2692 / (0.2692 + 0.7881)
+```
+
+```
+## [1] 0.2546
+```
+
+&lt;!-- Once we introduce random slopes/coefficients, things get more complicated. The ICC is no longer the same as the VPC, because the ICC will be a function of the variable(s) for which random slopes are specified. Therefore there can be an infinite number of values for the ICC is the variable in question is continuous, and as many as the number of levels if it is categorical or a count. Thus any interpretation of the ICC in a random slopes model becomes more difficult. Stata, for example, will calculate a single value for the ICC but in a random slopes model, this is accompanied by the warning: --&gt;
+
+&lt;!-- Note: ICC is conditional on zero values of random-effects covariates. --&gt;
+&lt;!-- In other words, it has computed the ICC based on a value of zero for the random slope variable(s), so any interpretation of the ICC is also based on a value of zero for the slope variable(s). --&gt;
 
 ---
 # Summary
@@ -87,7 +596,189 @@ class: inverse, center, middle, animated, rotateInDownLeft
 ---
 class: inverse, center, middle
 
-# Part 2&lt;br&gt;Inference
+# Part 2&lt;br&gt;Repeated Measures ANOVA (brief)
+
+
+---
+# ANOVA is a special case of linear model
+
+- anova is essentially lm with categorical predictors. examines group mean differences
+- does it by partitioning variance.
+- can calculate more easily by hand.
+- still fairly popular in psychology because we often design experiments with discrete conditions. means we can balance designs and examine condition mean differences
+
+---
+# ANOVA in R
+
+
+```r
+df &lt;- read.table("~/Desktop/jk_codebits/wip/data/growth.txt", header=T) %&gt;%
+  rename(y = gain, x1 = supplement, x2 = diet)
+  
+lm(y ~ x1, df) %&gt;% anova()
+```
+
+```
+## Analysis of Variance Table
+## 
+## Response: y
+##           Df Sum Sq Mean Sq F value Pr(&gt;F)  
+## x1         3     92   30.63    3.82  0.016 *
+## Residuals 44    352    8.01                 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+aov(y~x1,df) %&gt;% summary
+```
+
+```
+##             Df Sum Sq Mean Sq F value Pr(&gt;F)  
+## x1           3     92   30.63    3.82  0.016 *
+## Residuals   44    352    8.01                 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+lm(y ~ x1+x2, df) %&gt;% anova()
+```
+
+```
+## Analysis of Variance Table
+## 
+## Response: y
+##           Df Sum Sq Mean Sq F value  Pr(&gt;F)    
+## x1         3   91.9    30.6    19.7 4.0e-08 ***
+## x2         2  287.2   143.6    92.4 4.2e-16 ***
+## Residuals 42   65.3     1.6                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+aov(y~x1+x2,df) %&gt;% summary
+```
+
+```
+##             Df Sum Sq Mean Sq F value  Pr(&gt;F)    
+## x1           3   91.9    30.6    19.7 4.0e-08 ***
+## x2           2  287.2   143.6    92.4 4.2e-16 ***
+## Residuals   42   65.3     1.6                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+order matters (when using type 1 SS as above)
+
+---
+# anova() for model comparison
+
+
+- anova() function to compare models. 
+- if we run it on one model, it does so incrementally adding the predictors
+
+```r
+m1&lt;-lm(y~x1+x2, df)
+m2&lt;-lm(y~x1+x2+x3, df)
+
+anova(m1, m2)
+#is the same as the last term from
+anova(m2)
+```
+
+---
+# Why use 1 vs another?
+
+anova asks the question "are there differences between group means?/is there an effect of x?". 
+the coefficient tests from the linear model ask "*what* are the differences between group means?/*what* is the effect of x?"
+
+anova requires post-hoc tests comparing specific differences, but has the advantage of conducting fewer tests. 
+
+---
+# Repeated measures ANOVA
+
+partitioning variance further
+
+
+
+
+```r
+library(ez)
+ezANOVA(df, y, wid=sid, within=t, between =condition)
+```
+
+```
+## $ANOVA
+##        Effect DFn DFd       F         p p&lt;.05        ges
+## 1   condition   3  36 48.2682 1.065e-12     * 0.80026106
+## 2           t   1  36  0.4454 5.088e-01       0.00004864
+## 3 condition:t   3  36  0.9306 4.359e-01       0.00030477
+```
+
+```r
+library(lme4)
+m &lt;- lmer(y~condition+t+(1|sid),df)
+anova(m)
+```
+
+```
+## Analysis of Variance Table
+##           npar Sum Sq Mean Sq F value
+## condition    3  1.407   0.469   48.27
+## t            1  0.004   0.004    0.42
+```
+
+---
+# denominator degrees of freedom
+
+
+---
+# Summary
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+
+---
+class: inverse, center, middle
+
+# Part 3&lt;br&gt;Inference in MLM
+
+
+---
+# Likelihood ratio tests
+
+---
+# df corrections
+
+.pull-left[
+
+```r
+library(pbkrtest)
+KRmodcomp(full_model, restricted_model)
+```
+]
+.pull-right[
+
+```r
+library(lmerTest)
+lmer(....)
+```
+]
+
+
+---
+# parametric bootstrap
+
+
+```r
+library(pbkrtest)
+PBmodcomp(full_model, restricted_model)
+```
 
 ---
 # Summary
@@ -98,12 +789,25 @@ Inference, df etc.
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
-# End of Part 2
+# End of Part 3
 
 ---
 class: inverse, center, middle
 
-# Part 3&lt;br&gt;Model Comparison
+# Part 4&lt;br&gt;Examples
+
+---
+# test of a single parameter
+
+
+---
+# testing that several parameters are simultaneously zero
+
+
+---
+# testing random effects 
+
+are you sure you want to?
 
 ---
 # Summary

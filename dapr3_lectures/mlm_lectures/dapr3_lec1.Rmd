@@ -3,7 +3,7 @@ title: "<b>WEEK 1<br>Linear Models and Clustered Data</b>"
 subtitle: "Data Analysis for Psychology in R 3"
 author: "Josiah King"
 institute: "Department of Psychology<br/>The University of Edinburgh"
-date: "AY 2020-2021"
+date: "AY 2021-2022"
 output:
   xaringan::moon_reader:
     lib_dir: jk_libs/libs
@@ -33,6 +33,8 @@ xaringanExtra::use_share_again()
 library(knitr)
 library(tidyverse)
 library(ggplot2)
+library(kableExtra)
+library(patchwork)
 knitr::opts_chunk$set(
   dev = "png",
   warning = FALSE,
@@ -43,7 +45,7 @@ themedapr3 = function(){
   theme_minimal() + 
     theme(text = element_text(size=20))
 }
-#source('R/myfuncs.R')
+source("jk_source/jk_presfuncs.R")
 ```
 
 ```{r xaringan-themer, include = FALSE}
@@ -64,14 +66,6 @@ style_mono_accent(
 )
 ```
 
-
-```{r premable, echo=FALSE, warning=FALSE, message=FALSE}
-library(tidyverse)
-library(kableExtra)
-library(patchwork)
-source("jk_source/jk_presfuncs.R")
-```
-
 ---
 class: inverse, center, middle
 
@@ -83,10 +77,10 @@ class: inverse, center, middle
 
 
 y = mx + c  
-$y = \alpha + \beta x + \epsilon$  
+$y = \alpha + \beta x + \varepsilon$  
 
 .br3.pa2.f3.white.bg-gray[
-$$ \textrm{outcome}_i = (\textrm{model}) + \textrm{error}_i $$
+$$ \textrm{outcome} = (\textrm{model}) + \textrm{error} $$
 ]
 
 ---
@@ -95,10 +89,10 @@ $$ \textrm{outcome}_i = (\textrm{model}) + \textrm{error}_i $$
 .br3.pa2.f2[
 $$
 \begin{align}
-\color{red}{\textrm{outcome}_i} & = \color{blue}{(\textrm{model})} + \textrm{error}_i \\
-\color{red}{y_i} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \epsilon_i \\
+\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
+\color{red}{y_i} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \varepsilon_i \\
 \text{where } \\
-\epsilon & \sim N(0, \sigma) \text{ independently} \\
+\varepsilon & \sim N(0, \sigma) \text{ independently} \\
 \end{align}
 $$
 ]
@@ -110,11 +104,11 @@ $$
 .w-50.pa2[
 Our proposed model of the world:
 
-$\color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \epsilon_i$  
+$\color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \varepsilon_i$  
   
 Our model _fitted_ to some data (note the $\widehat{\textrm{hats}}$):  
 
-$\hat{y} = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x}$  
+$\hat{y}_i = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x_i}$  
 
 {{content}}
 ]
@@ -131,7 +125,7 @@ p1 <- x %>% ggplot(aes(x=x)) +
            size=5,parse=TRUE,colour="blue") +
   annotate("text",x=1.4,y=6,label=expression(paste(beta[1], " (slope)")),
            size=5,parse=TRUE,colour="blue") +
-    ggtitle(expression(paste(b[0]," = 5, ",b[1]," = 2")))+
+    ggtitle(expression(paste(beta[0]," = 5, ",beta[1]," = 2")))+
   scale_y_continuous(breaks=0:13)+
   scale_x_continuous(limits = c(-0.3, 4), breaks=0:4)
 p1 +
@@ -148,7 +142,7 @@ p1 +
 For the $i^{th}$ observation:
   - $\color{red}{y_i}$ is the value we observe for $x_i$   
   - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
-  - $\color{red}{y_i} = \hat{y}_i + \epsilon_i$  
+  - $\color{red}{y_i} = \hat{y}_i + \varepsilon_i$  
 
 
 ---
@@ -159,7 +153,7 @@ For the $i^{th}$ observation:
 .flex.items-top[
 .w-50.pa2[
 
-$\color{red}{y_i} = \color{blue}{5 \cdot{} 1 + 2 \cdot{} x_i} + \epsilon_i$  
+$\color{red}{y_i} = \color{blue}{5 \cdot{} 1 + 2 \cdot{} x_i} + \varepsilon_i$  
   
 {{content}}
 ]
@@ -183,8 +177,8 @@ for the observation $x_i = 1.2, y_i = 9.9$:
 
 $$
 \begin{align}
-\color{red}{9.9} & = \color{blue}{5 \cdot{}} 1 + \color{blue}{2 \cdot{}} 1.2 + \epsilon_i \\
-& = 7.4 + \epsilon_i \\
+\color{red}{9.9} & = \color{blue}{5 \cdot{}} 1 + \color{blue}{2 \cdot{}} 1.2 + \varepsilon_i \\
+& = 7.4 + \varepsilon_i \\
 & = 7.4 + 2.5 \\
 \end{align}
 $$
@@ -303,10 +297,17 @@ p <- persp(x2,x1,y, theta = -89,phi=10, col = NA, main = "y~x1+x2+x1:x2")
 mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
   isRural = factor(ifelse(location=="rural","rural","notrural"))
 )
+par(mfrow=c(1,2))
+fit<-lm(wellbeing~outdoor_time+isRural, data=mwdata2)
+with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2\n(x2 is categorical)"))
+abline(a = coef(fit)[1],b=coef(fit)[2])
+abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2], col="red")
+
 fit<-lm(wellbeing~outdoor_time*isRural, data=mwdata2)
 with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2+x1:x2\n(x2 is categorical)"))
 abline(a = coef(fit)[1],b=coef(fit)[2])
 abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
+par(mfrow=c(1,1))
 ```
 ]
 
@@ -315,7 +316,7 @@ abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
 ---
 # Notation
 
-$\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_1 + ... + \beta_k \cdot x_k} & + & \;\;\;\epsilon \\ \qquad \\ \color{red}{\begin{bmatrix}y_1 \\ y_2 \\ y_3 \\ y_4 \\ y_5 \\ \vdots \\ y_n \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} & x_{21} & \dots & x_{k1} \\ 1 & x_{12} & x_{22} &  & x_{k2} \\ 1 & x_{13} & x_{23} &  & x_{k3} \\ 1 & x_{14} & x_{24} &  & x_{k4} \\ 1 & x_{15} & x_{25} &  & x_{k5} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{1n} & x_{2n} & \dots & x_{kn} \end{bmatrix} \begin{bmatrix} \beta_0 \\ \beta_1 \\ \beta_2 \\ \vdots \\ \beta_k \end{bmatrix}} & + & \begin{bmatrix} \epsilon_1 \\ \epsilon_2 \\ \epsilon_3 \\ \epsilon_4 \\ \epsilon_5 \\ \vdots \\ \epsilon_n \end{bmatrix} \\ \qquad \\ \\\color{red}{y} \;\;\;\;\; & = \qquad \qquad \;\;\; \mathbf{\color{blue}{X \qquad \qquad \qquad \;\;\;\:\beta}} & + & \;\;\;\epsilon \\ \end{align}$
+$\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_1 + ... + \beta_k \cdot x_k} & + & \;\;\;\varepsilon \\ \qquad \\ \color{red}{\begin{bmatrix}y_1 \\ y_2 \\ y_3 \\ y_4 \\ y_5 \\ \vdots \\ y_n \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} & x_{21} & \dots & x_{k1} \\ 1 & x_{12} & x_{22} &  & x_{k2} \\ 1 & x_{13} & x_{23} &  & x_{k3} \\ 1 & x_{14} & x_{24} &  & x_{k4} \\ 1 & x_{15} & x_{25} &  & x_{k5} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{1n} & x_{2n} & \dots & x_{kn} \end{bmatrix} \begin{bmatrix} \beta_0 \\ \beta_1 \\ \beta_2 \\ \vdots \\ \beta_k \end{bmatrix}} & + & \begin{bmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \varepsilon_3 \\ \varepsilon_4 \\ \varepsilon_5 \\ \vdots \\ \varepsilon_n \end{bmatrix} \\ \qquad \\ \\\color{red}{\boldsymbol y} \;\;\;\;\; & = \qquad \qquad \;\;\; \mathbf{\color{blue}{X \qquad \qquad \qquad \;\;\;\: \boldsymbol \beta}} & + & \;\;\; \boldsymbol \varepsilon \\ \end{align}$
 
 ---
 
@@ -324,8 +325,8 @@ $\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{\beta_0 \cdot
 
 $$
 \begin{align}
-\color{red}{y} = \mathbf{\color{blue}{X \beta} + \epsilon} & \qquad  & (-\infty, \infty) \\
-\color{red}{ln \left( \frac{p}{1-p} \right) } = \mathbf{\color{blue}{X \beta} + \epsilon} & \qquad  & [0,1] \\
+\color{red}{y} = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & (-\infty, \infty) \\
+\color{red}{ln \left( \frac{p}{1-p} \right) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & [0,1] \\
 \end{align}
 $$  
 
@@ -373,13 +374,13 @@ knitr::include_graphics("jk_img_sandbox/sum4.png")
 
 Our model:  
 
-$\color{red}{y} = \color{blue}{\mathbf{X \beta}} + \epsilon \\ \text{where } \epsilon \sim N(0, \sigma) \text{ independently}$
+$\color{red}{y} = \color{blue}{\mathbf{X \boldsymbol \beta}} + \varepsilon \\ \text{where } \boldsymbol \varepsilon \sim N(0, \sigma) \text{ independently}$
 
 --
 
 Or put another way:  
 
-$\color{red}{y} \sim Normal(\color{blue}{\mathbf{X \beta}}, \sigma)$
+$\color{red}{\boldsymbol  y} \sim Normal(\color{blue}{\mathbf{X \boldsymbol \beta}}, \sigma)$
 
 --
 
@@ -465,7 +466,14 @@ E
 
 what about independence? 
 
+---
+# Summary
 
+- we can fit a linear regression model which takes the form $\color{red}{y} = \color{blue}{\mathbf{X} \boldsymbol{\beta}} + \boldsymbol{\varepsilon}$
+- in R, we fit this with `lm(y ~ x1 + .... xk, data = mydata)`.
+- we can extend this to different link functions to model outcome variables which follow different distributions.
+- when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.
+- one of these is that the errors are independent.
 
 
 ---
@@ -503,13 +511,13 @@ terms: "levels","hierarchical"
 
 - various forms
 - variance within / total variance  
-- $\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\epsilon}$
+- $\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\varepsilon}$
 
 
 ---
 # Why is clustered data a problem for lm?
 
-$$\epsilon \sim N(0, \sigma) \textbf{ independently}$$ 
+$$\varepsilon \sim N(0, \sigma) \textbf{ independently}$$ 
 
 - clustering is something systematic that our model should (arguably) take into account. 
 - "independence" assumption.  
@@ -612,6 +620,11 @@ ggplot(sims, aes(x=x, y=y))+
 
 # Summary
 
+- clustering can take many forms, and exist at many levels
+- clustering is something systematic that we would want our model to take into account
+- typically assessed using intra-class correlation coefficient (ICC) - the ratio of variance within clusters to the total variance $\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\varepsilon}$
+
+
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
@@ -649,31 +662,63 @@ df$y[df$birdid==40]<-37
 df$nworms[df$birdid==40]<-37
 df$y[df$birdid==36]<-19
 df$nworms[df$birdid==36]<-19
+worms_data <- df %>% select(gardenid, birdid, arrival_time, nworms, birdt) %>% rename(arrivalt = arrival_time)
 ```
 
 ---
 # Some toy data
 
 .pull-left[
-```{r echo=FALSE, fig.align="center"}
-ggplot(df,aes(x=x,y=y))+geom_point(size=4)+
+
+> Sample of 115 birds from 12 gardens, information captured on the arrival time (hours past midnight) and number of worms caught by the end of the day. 
+
+```{r}
+# worms_data <- read_csv(".......")
+head(worms_data)
+```
+
+]
+
+.pull-right[
+
+```{r fig.align="center", fig.asp=.7}
+ggplot(worms_data, aes(x=arrivalt,y=nworms))+
+  geom_point(size=4)+
   geom_smooth(method="lm")+
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
   themedapr3()
 ```
+
+]
+
+---
+count:false
+# Some toy data: plotting each group
+
+.pull-left[
+```{r eval=FALSE}
+ggplot(worms_data, aes(x=arrivalt,y=nworms, col=gardenid))+
+  geom_point(size=4)+
+  geom_smooth(method="lm", se=FALSE)+
+  facet_wrap(~gardenid)+
+  guides(col=FALSE)+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
+  themedapr3()
+```
+
 ]
 .pull-right[
-```{r echo=FALSE, fig.align="center"}
-  ggplot(df,aes(x=x,y=y,col=gardenid))+geom_point(size=4)+
-  geom_smooth(method="lm",se=F)+
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
-  facet_wrap(~cluster_var) +
+```{r echo=FALSE, fig.align="center", fig.asp=.8}
+ggplot(worms_data, aes(x=arrivalt,y=nworms, col=gardenid))+
+  geom_point(size=4)+
+  geom_smooth(method="lm", se=FALSE)+
+  facet_wrap(~gardenid)+
   guides(col=FALSE)+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
   themedapr3()
 ```
 ]
 
-.footnote[You can find this data yourself at LINK]
 
 ---
 # 1. Ignore it
@@ -687,17 +732,18 @@ df %>% mutate(
 ggplot(.,aes(x=x,y=y))+geom_point(size=4)+
   geom_smooth(method="lm")+
   geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
   themedapr3()
 ```
 ]
 .pull-right[
 __(Complete pooling)__  
 
-Information from all clusters is pooled together to estimate over x  
++ `lm(y ~ 1 + x, data = df)`
++ Information from all clusters is pooled together to estimate over x  
 
 ```{r}
-model <- lm(y ~ x, data = df)
+model <- lm(nworms ~ arrivalt, data = worms_data)
 ```
 ```{r echo=FALSE, out.width="300px"}
 .pp(summary(model),l=list(c(10:12)))
@@ -711,16 +757,30 @@ model <- lm(y ~ x, data = df)
 
 .pull-left[
 ```{r echo=FALSE}
+library(ggfx)
+library(ggforce)
 df %>% mutate(
   f = fitted(model)
-) %>%
-ggplot(.,aes(x=x,y=y))+
-  geom_point(aes(col=cluster_var, alpha=factor(cluster_var %in% c("cluster10","cluster4"))),size=4)+
-  #geom_smooth(data = filter(df, gardenid %in% c("garden10","garden4")), method="lm",se=F,aes(group=gardenid))+
+) -> pdat 
+
+ggplot(pdat,aes(x=x,y=y))+
+  with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
+  geom_point(data = filter(pdat,cluster_var %in% c("cluster9","cluster4")),aes(col=cluster_var),size=4) + 
+  
+  geom_mark_ellipse(aes(label = gardenid, filter = cluster_var == "cluster4"),
+                    con.colour  = "#526A83", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  geom_mark_ellipse(aes(label = gardenid, filter = cluster_var == "cluster9"),
+                    con.colour  = "#526A83", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  
+  
   guides(col=FALSE, alpha=FALSE)+
   geom_smooth(method="lm",se=F)+
   geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
   themedapr3()
 ```
 ]
@@ -728,10 +788,11 @@ ggplot(.,aes(x=x,y=y))+
 
 __(Complete pooling)__  
 
-Information from all clusters is pooled together to estimate over x  
++ `lm(y ~ 1 + x, data = df)`
++ Information from all clusters is pooled together to estimate over x  
 
 ```{r}
-model <- lm(y ~ x, data = df)
+model <- lm(nworms ~ arrivalt, data = worms_data)
 ```
 ```{r echo=FALSE, out.width="300px"}
 .pp(summary(model),l=list(c(10:12)))
@@ -768,12 +829,12 @@ $$
 # 2. Lesser used solutions  
 
 .pull-left[
-### __Cluster Robust Standard Errors__
+__Cluster Robust Standard Errors__
 
 ```{r}
 library(plm)
-clm <- plm(y ~ x, data=df, 
-           model="pooling", index="cluster_var")
+clm <- plm(nworms ~ 1 + arrivalt, data=worms_data, 
+           model="pooling", index="gardenid")
 ```
 ```{r echo=FALSE}
 .pp(summary(clm),l=list(c(13:16)))
@@ -785,17 +846,21 @@ sqrt(diag(vcovHC(clm,
 ```
 ]
 .pull-right[
-### __Generalised Estimating Equations (GEE)__  
+__Generalised Estimating Equations (GEE)__  
 
 ```{r}
 library(geepack)
 # needs to be arranged by cluster, and for cluster to be numeric
-df <- df %>% arrange(cluster_var) %>%
+worms_data <- 
+  worms_data %>% arrange(gardenid) %>%
   mutate(
-    cluster_id = as.numeric(as.factor(cluster_var))
+    cluster_id = as.numeric(as.factor(gardenid))
   )
-geemod  = geeglm(y ~ x, data=df, 
-                 corstr = 'independence', id =  cluster_id)
+
+geemod  = geeglm(nworms ~ 1 + arrivalt, 
+                 data = worms_data, 
+                 corstr = 'independence', 
+                 id = cluster_id)
 ```
 ```{r echo=FALSE}
 .pp(summary(geemod),l=list(c(5:8)))
@@ -808,26 +873,29 @@ geemod  = geeglm(y ~ x, data=df,
 
 .pull-left[
 
-__(Complete pooling)__  
+__(No pooling)__  
 
-Information from a cluster contributes to estimate *for that cluster*, but information is not pooled to estimate an overall effect. 
+- `lm(y ~ x * cluster, data = df)`
+- Information from a cluster contributes to estimate *for that cluster*, but information is not pooled to estimate an overall effect. 
 
 ```{r}
-model <- lm(y ~ x * cluster_var, data = df)
+model <- lm(nworms ~ 1 + arrivalt * gardenid, 
+            data = worms_data)
 ```
 
 ]
 .pull-right[
 ```{r echo=FALSE}
+model1 <- lm(y~x*cluster_var,df)
 df %>% mutate(
-  f = fitted(model)
+  f = fitted(model1)
 ) %>%
 ggplot(.,aes(x=x,y=y,col=cluster_var))+
   geom_point()+
   geom_line(aes(y=f,group=cluster_var))+
   guides(col=FALSE)+
   geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
   themedapr3()
 ```
 ]
@@ -845,44 +913,72 @@ ggplot(.,aes(x=x,y=y,col=cluster_var))+
 ```
 
 ---
-# LMM
-
-
-```{r}
-library(lme4)
-
-model <- lmer(y ~ x + (1 + x | cluster_var),df)
-summary(model)$coefficients
-```
-
-
----
-
 # 4. Random effects (LMM)
 
 .pull-left[
 __(Partial Pooling)__
 
-].pull-right[
+- `lmer(y ~ 1 + x + (1 + x| cluster), data = df)`
+- cluster-level variance in intercepts and slopes is modeled as randomly distributed around fixed parameters.
+- effects are free to vary by cluster, but information from clusters contributes (according to cluster $n$ and outlyingness of cluster) to an overall fixed parameter. 
+
+```{r}
+library(lme4)
+model <- lmer(nworms ~ 1 + arrivalt + 
+                (1 + arrivalt | gardenid),
+              data = worms_data)
+summary(model)$coefficients
+```
+
+
+]
+.pull-right[
 
 ```{r echo=FALSE}
+model = lmer(y~x+(1+x|cluster_var),df)
 df %>% mutate(
   fit = fitted(model)
 ) %>%
 ggplot(., aes(x=x, y=y))+
   geom_line(aes(y=fit, group=cluster_var, col=cluster_var))+
   geom_abline(intercept=fixef(model)[1], slope=fixef(model)[2],lwd=2)+
-  geom_point(aes(col=cluster_var),alpha=.2)+
+  geom_point(aes(col=cluster_var),alpha=.3)+
   geom_segment(aes(y=y, yend = fit, x = x, xend = x, 
-                   col=cluster_var), alpha=.2)+
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
-  themedapr3()
+                   col=cluster_var), alpha=.3)+
+  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
+  themedapr3()+
+  guides(col=FALSE) +
+  scale_x_continuous(limits=c(0,9), breaks=0:9)+
+  scale_y_continuous(limits=c(0,70))
 ```
 ]
 
 ---
+# 4. Random effects (LMM)
+
+.pull-left[
+__(Partial Pooling)__
+
+- `lmer(y ~ 1 + x + (1 + x| cluster), data = df)`
+- cluster-level variance in intercepts and slopes is modeled as randomly distributed around fixed parameters.
+- effects are free to vary by cluster, but information from clusters contributes (according to cluster $n$ and outlyingness of cluster) to an overall fixed parameter. 
+
+```{r}
+library(lme4)
+model <- lmer(nworms ~ 1 + arrivalt + 
+                (1 + arrivalt | gardenid),
+              data = worms_data)
+summary(model)$coefficients
+```
+
+
+]
+.pull-right[
 
 ```{r echo=FALSE}
+library(ggforce)
+library(ggfx)
+model = lmer(y~x+(1+x|cluster_var),df)
 dfm <- 
   df %>% group_by(cluster_var) %>%
   summarise(x = 0) %>% 
@@ -894,52 +990,77 @@ dfi <- bind_rows(df,
                  df %>% group_by(cluster_var) %>% summarise(x = 0)) %>%
   mutate(fit2 = predict(model, newdata=.))
 
+
+df %>% mutate(
+  fit = fitted(model)
+) -> pdat
+
 dfs <- tibble(
-  cluster_var = c("cluster1","cluster12"),
+  cluster_var = c("cluster5","cluster12"),
   yf = c(
-    coef(model)$cluster_var["cluster1","(Intercept)"]+(3*fixef(model)[2]),
+    coef(model)$cluster_var["cluster5","(Intercept)"]+(3*fixef(model)[2]),
     coef(model)$cluster_var["cluster12","(Intercept)"]+(3*fixef(model)[2])
     ),
   yg = c(
-    coef(model)$cluster_var["cluster1","(Intercept)"]+(3*coef(model)$cluster_var["cluster1","x"]), 
+    coef(model)$cluster_var["cluster5","(Intercept)"]+(3*coef(model)$cluster_var["cluster5","x"]), 
     coef(model)$cluster_var["cluster12","(Intercept)"]+(2.7*coef(model)$cluster_var["cluster12","x"])
   )
 )
 
-df %>% mutate(
-  fit = fitted(model)
-) %>%
-ggplot(., aes(x=x, y=y))+
-  geom_line(aes(y=fit, group=cluster_var, col=cluster_var, alpha=factor(cluster_var %in% c("cluster12","cluster1"))))+
-  geom_abline(intercept=fixef(model)[1], slope=fixef(model)[2],lwd=2)+
-  geom_point(aes(col=cluster_var, alpha=factor(cluster_var %in% c("cluster12","cluster1"))))+
-  geom_segment(aes(y=y, yend = fit, x = x, xend = x, col=cluster_var), alpha=.2)+
-  
-  geom_curve(data=dfm[dfm$mf>dfm$ff,], 
-             aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var,
-                 alpha=factor(cluster_var %in% c("cluster12","cluster1"))),
-             curvature = -.5)+
-  geom_curve(data=dfm[dfm$mf<dfm$ff,],
-             aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var,
-                 alpha=factor(cluster_var %in% c("cluster12","cluster1"))),
-             curvature = .5)+
-  
-  geom_line(data=dfi, aes(y=fit2, group=cluster_var, col=cluster_var, 
-                          alpha=factor(cluster_var %in% c("cluster12","cluster1"))),
-            lty = "dashed")+
-  
-  
-  geom_abline(intercept=coef(model)$cluster_var["cluster1","(Intercept)"], slope=fixef(model)[2],
-              lwd=2,alpha=.1)+
-  geom_abline(intercept=coef(model)$cluster_var["cluster12","(Intercept)"], slope=fixef(model)[2],
-              lwd=2,alpha=.1)+
-  geom_curve(data = dfs[1,], aes(x=3,xend=3,y=yf, yend=yg), curvature=.5, lty="dotted")+
-  geom_curve(data = dfs[2,], aes(x=3,xend=2.7,y=yf, yend=yg), curvature=-.5, lty="dotted")+
-  guides(alpha=F)+
-  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
-  themedapr3()
-```
+filter(pdat, cluster_var %in% c("cluster12","cluster5")) %>%
+  group_by(cluster_var) %>%
+  mutate(
+    fitmc = mean(fit),
+    xgc = x-mean(x),
+    fix = fitmc + fixef(model)[2]*xgc,
+  ) -> counterf
 
+
+ggplot(pdat, aes(x=x, y=y))+
+  geom_abline(intercept=fixef(model)[1], slope=fixef(model)[2],lwd=2)+
+  with_blur(geom_line(aes(y=fit, group=cluster_var, col=cluster_var), alpha=.5), sigma = 2)+
+  with_blur(geom_point(aes(col=cluster_var), alpha=.5), sigma = 2)+
+  with_blur(geom_segment(aes(y=y, yend = fit, x = x, xend = x, col=cluster_var), alpha=.2), sigma = 2)+
+  with_blur(geom_curve(data=dfm[dfm$mf>dfm$ff,], 
+             aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var),
+             curvature = -.5, alpha=.5), sigma = 2)+
+  with_blur(geom_curve(data=dfm[dfm$mf<dfm$ff,],
+             aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var),
+             curvature = .5, alpha=.5), sigma = 2)+
+  with_blur(geom_line(data=dfi, aes(y=fit2, group=cluster_var, col=cluster_var),
+            lty = "dashed", alpha=.5), sigma = 2)+
+  
+  geom_line(data = filter(pdat, cluster_var %in% c("cluster12","cluster5")), aes(y=fit, group=cluster_var, col=cluster_var))+
+  geom_point(data = filter(pdat, cluster_var %in% c("cluster12","cluster5")), aes(col=cluster_var))+
+  geom_segment(data = filter(pdat, cluster_var %in% c("cluster12","cluster5")), aes(y=y, yend = fit, x = x, xend = x, col=cluster_var), alpha=.7)+
+  geom_line(data=filter(dfi, cluster_var %in% c("cluster12","cluster5")), aes(y=fit2, group=cluster_var, col=cluster_var),lty = "dashed")+
+  geom_curve(data=filter(dfm[dfm$mf>dfm$ff,], cluster_var %in% c("cluster12","cluster5")),aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var),curvature = -.5)+
+  geom_curve(data=filter(dfm[dfm$mf<dfm$ff,], cluster_var %in% c("cluster12","cluster5")),aes(x=x, xend=x, y=mf, yend=ff, col = cluster_var),curvature = .5)+
+  
+  geom_line(data=counterf, aes(y=fix,group=cluster_var), alpha=.5)+
+  # geom_abline(intercept=coef(model)$cluster_var["cluster5","(Intercept)"], slope=fixef(model)[2],
+  #             lwd=1,alpha=.2)+
+  # geom_curve(data = dfs[1,], aes(x=3,xend=3,y=yf, yend=yg), lwd=.5, curvature=.5, alpha=.3)+
+  # geom_abline(intercept=coef(model)$cluster_var["cluster12","(Intercept)"], slope=fixef(model)[2],
+  #             lwd=1,alpha=.2)+
+  # geom_curve(data = dfs[2,], aes(x=3,xend=2.7,y=yf, yend=yg), lwd=.5, curvature=-.5, alpha=.3)+
+  
+  
+  guides(col = FALSE)+
+  labs(x="x = arrival at garden\n(hrs past midnight)",y="y = number of worms caught")+
+  themedapr3() + 
+  geom_mark_ellipse(aes(label = gardenid, filter = cluster_var == "cluster5"),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) +
+  geom_mark_ellipse(aes(label = gardenid, filter = cluster_var == "cluster12"),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) +
+  scale_x_continuous(limits=c(0,9), breaks=0:9)+
+  scale_y_continuous(limits=c(0,70))+
+  NULL
+
+```
+]
 
 ---
 

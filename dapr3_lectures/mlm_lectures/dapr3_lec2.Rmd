@@ -3,7 +3,7 @@ title: "<b>WEEK 2<br>Multi-level Models</b>"
 subtitle: "Data Analysis for Psychology in R 3"
 author: "Josiah King"
 institute: "Department of Psychology<br/>The University of Edinburgh"
-date: "AY 2020-2021"
+date: "AY 2021-2022"
 output:
   xaringan::moon_reader:
     lib_dir: jk_libs/libs
@@ -29,9 +29,12 @@ xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
 xaringanExtra::use_extra_styles(
   mute_unhighlighted_code = FALSE
 )
+xaringanExtra::use_share_again()
 library(knitr)
 library(tidyverse)
 library(ggplot2)
+library(kableExtra)
+library(patchwork)
 knitr::opts_chunk$set(
   dev = "png",
   warning = FALSE,
@@ -56,16 +59,11 @@ style_mono_accent(
   header_color = "#000000",
   header_font_google = google_font("Source Sans Pro"),
   header_font_weight = 400,
+  code_font_size = "0.8rem",
   text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
-  code_font_google = google_font("Source Code Pro")
+  code_font_google = google_font("Source Code Pro"),
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
 )
-```
-
-
-```{r premable, echo=FALSE, warning=FALSE, message=FALSE}
-library(tidyverse)
-library(kableExtra)
-library(patchwork)
 ```
 
 ---
@@ -76,34 +74,511 @@ class: inverse, center, middle
 ---
 # Terminology
 
-names
-
----
-# From LM to LMM
+mlm, lmm, mem, lmem, blah blah blah
 
 
 ---
-# data
-
----
-# lm
-
----
-# random int
-
-fit, plot
-compare w FE, return to "partial pooling"
-
----
-# random slopes
-
-fit, plot
-partial pooling again.
+# Notation 
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- & \text{for observation }i \\ -->
+<!-- \quad \\ -->
+<!-- & \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
+**Simple regression**  
+.pull-left[
+$\begin{align} & \text{for observation }i \\ \quad \\ & \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ \end{align}$
+]
 
 
 ---
+# Notation 
+
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- & \text{for observation }j\text{ in group }i \\ -->
+<!-- \quad \\ -->
+<!-- & \text{Level 1:} \\ -->
+<!-- & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ -->
+<!-- & \text{Level 2:} \\ -->
+<!-- & \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ -->
+<!-- & \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ -->
+<!-- \quad \\ -->
+<!-- & \text{Where:} \\ -->
+<!-- & \gamma_{00}\text{ is the population intercept, and }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ -->
+<!-- & \gamma_{10}\text{ is the population slope, and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
+**Multi-level**  
+.pull-left[
+$\begin{align} & \text{for observation }j\text{ in group }i \\ \quad \\ & \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ & \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}$
+]
+
+--
+
+.pull-right[
+$\begin{align} & \text{Where:} \\ & \gamma_{00}\text{ is the population intercept}\\ & \text{and  }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ \qquad \\ & \gamma_{10}\text{ is the population slope,}\\ & \text{and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ \end{align}$
+]
+
+--
+
+We are now assuming $\color{orange}{\zeta_0}$, $\color{orange}{\zeta_1}$, and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\sigma_{\color{orange}{\zeta_0}}^2$, $\sigma_{\color{orange}{\zeta_1}}^2$, $\sigma_\varepsilon^2$ respectively.   
+
+The $\color{orange}{\zeta}$ components also get termed the "random effects" part of the model, Hence names like "random effects model", etc.
+
+---
+# Notation 
+
+**Mixed-effects**
+
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
+
+$\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{\beta_{0i}}} \cdot 1 + \underbrace{(\gamma_{10} + \color{orange}{\zeta_{1i}})}_{\color{blue}{\beta_{1i}}} \cdot x_{ij}  +  \varepsilon_{ij} \\$
 
 
+--
+
+.footnote[
+**other notation to be aware of**  
+
+- Many people use the symbol $u$ in place of $\zeta$  
+
+- Sometimes people use $\beta_{00}$ instead of $\gamma_{00}$  
+
+- In various resources, you are likely to see $\alpha$ used to denote the intercept instead of $\beta_0$  
+
+]
+
+---
+# Notation 
+
+__Matrix form__
+
+And then we also have the condensed matrix form of the model, in which the Z matrix represents the grouping structure of the data, and $\zeta$ contains the estimated random deviations. 
+
+$\begin{align} \color{red}{\begin{bmatrix} y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} \\ 1 & x_{12} \\ 1 & x_{21} \\ 1 & x_{22} \\1 & x_{31} \\ 1 & x_{32} \\ \end{bmatrix} \begin{bmatrix} \gamma_{00} \\ \beta_1 \\  \end{bmatrix}} & + & \color{orange}{ \begin{bmatrix} 1 & 0 & 0 \\ 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \\ 0 & 0 & 1 \\ \end{bmatrix} \begin{bmatrix}\zeta_{01} \\ \zeta_{02} \\ \zeta_{03} \end{bmatrix}} & + & \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32} \end{bmatrix} \\ \qquad \\ \\ \color{red}{\boldsymbol y}\;\;\;\;\; & = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} & + & \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} & + & \;\;\;\varepsilon \\ \end{align}$
+
+<!-- $$ -->
+<!-- \begin{align}  -->
+<!-- \color{red}{ -->
+<!-- \begin{bmatrix} -->
+<!-- y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ -->
+<!-- \end{bmatrix} -->
+<!-- } & =  -->
+<!-- \color{blue}{ -->
+<!-- \begin{bmatrix} -->
+<!-- 1 & x_{11} \\ -->
+<!-- 1 & x_{12} \\ -->
+<!-- 1 & x_{21} \\ -->
+<!-- 1 & x_{22} \\ -->
+<!-- 1 & x_{31} \\ -->
+<!-- 1 & x_{32} \\ -->
+<!-- \end{bmatrix}  -->
+<!-- \begin{bmatrix}  -->
+<!-- \gamma_{00} \\ \beta_1 \\   -->
+<!-- \end{bmatrix} -->
+<!-- }  -->
+<!-- & -->
+<!-- + & -->
+<!-- \color{orange}{ -->
+<!-- \begin{bmatrix}  -->
+<!-- 1 & 0 & 0 \\  -->
+<!-- 1 & 0 & 0 \\ -->
+<!-- 0 & 1 & 0 \\ -->
+<!-- 0 & 1 & 0 \\ -->
+<!-- 0 & 0 & 1 \\ -->
+<!-- 0 & 0 & 1 \\ -->
+<!-- \end{bmatrix} -->
+<!-- \begin{bmatrix}  -->
+<!-- \zeta_{01} \\ \zeta_{02} \\ \zeta_{03}  -->
+<!-- \end{bmatrix} -->
+<!-- } -->
+<!-- & + & -->
+<!-- \begin{bmatrix}  -->
+<!-- \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32}  -->
+<!-- \end{bmatrix} \\  -->
+<!-- \qquad \\  -->
+<!-- \\ -->
+<!-- \color{red}{\boldsymbol y}\;\;\;\;\; & = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} & + & \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} & + & \;\;\;\varepsilon \\  -->
+<!-- \end{align} -->
+<!-- $$ -->
+
+
+---
+# Data
+
+```{r include=F}
+#set.seed(85321)
+set.seed(987)
+N = 200                                  # total sample size
+n_groups = 20                          # number of groups
+g = rep(1:n_groups, e = N/n_groups)      # the group identifier
+x = rnorm(N)                             # an observation level continuous variable
+b = rbinom(n_groups, size = 1, prob=.5)  # a cluster level categorical variable
+b = b[g]
+jx = rbinom(N, 1, .8)
+
+sd_g = .4     # standard deviation for the random effect
+sigma = .5     # standard deviation for the observation
+sd_x = .4
+
+re0 = rnorm(n_groups, sd = sd_g)  # random effects
+re  = re0[g]
+rex = rnorm(n_groups, sd = sd_x)  # random effects
+re_x  = rex[g]
+lp = (0 + re) + (-.5 + re_x)*x + .35*b + .2*jx + (-.2*b*x)
+
+y = rnorm(N, mean = lp, sd = sigma)               # create a continuous target variable
+y_bin = rbinom(N, size = 1, prob = plogis(lp))    #- create a binary target variable
+
+d = tibble(x, b, y, y_bin, g = factor(g), jx)
+
+ggplot(d,aes(x=x,y=y,col=g))+
+  geom_point()+
+  geom_smooth(method="lm",se=F)+
+  guides(col=FALSE)+
+  facet_wrap(~g)
+
+#summary(lmer(y~x*b+(1+x|g),d))
+
+d %>% transmute(
+  emot_dysreg = round(y,2),
+  crq = round(x-min(x),2),
+  int = fct_relevel(factor(b, levels=c(0,1),labels=c("Treatment","Control")), "Control"),
+  schoolid = paste0("school",g),
+  #sleep = rbinom(N, 1, .3)
+  sleep = factor(jx, levels=c(0,1), labels=c("8hr+","<8hr"))
+) -> crq
+crq$emot_dysreg[sample(1:200, 23)]<-NA
+crq$emot_dysreg[crq$schoolid=="school5"][sample(1:10, 7)]<-NA
+crq$emot_dysreg[crq$schoolid=="school5"][4]<-0.1
+#crq$emot_dysreg[crq$schoolid=="school18"][4]<-(-crq$emot_dysreg[crq$schoolid=="school18"][4])
+crq <- na.omit(crq)
+#lmer(emot_dysreg ~ crq*int+ (1 + crq | schoolid), data = crq) %>% summary
+```
+
+
+.pull-left[
+
+> 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire. Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
+
+]
+.pull-right[
+```{r}
+head(crq)
+```
+]
+
+---
+count: false
+# Data
+
+.pull-left[
+
+> 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire. Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
+
+```{r eval=FALSE}
+ggplot(crq, aes(x = crq, y = emot_dysreg, col = schoolid)) +
+  geom_point()+
+  facet_wrap(~schoolid) + 
+  guides(col = FALSE) +
+  labs(x = "Child Routines Questionnaire (CRQ)", y = "Emotion Dysregulation Scale (EDS)") +
+  themedapr3()
+```
+]
+.pull-right[
+
+```{r echo=FALSE}
+ggplot(crq, aes(x = crq, y = emot_dysreg, col = schoolid)) +
+  geom_point()+
+  facet_wrap(~schoolid) + 
+  guides(col = FALSE) +
+  labs(x = "Child Routines Questionnaire (CRQ)", y = "Emotion Dysregulation Scale (EDS)") +
+  themedapr3()
+```
+
+]
+
+---
+# ICC
+
+.pull-left[
+```{r}
+library(ICC)
+ICCbare(schoolid, emot_dysreg, data = crq)
+```
+
+remember - icc is ratio of variance within clusters to total variance (variance within + variance between)
+
+in other words, ICC = The correlation between two observations within the same cluster. 
+
+The higher the correlation within the clusters (ie. the larger the ICC) the lower the variability is within the clusters and consequently the higher the variability is between the clusters. 
+]
+.pull-right[
+
+```{r fig.asp=.7}
+library(ggridges)
+ggplot(crq, aes(x = emot_dysreg, y = schoolid, 
+                fill = schoolid)) +
+  geom_density_ridges(jittered_points = TRUE, position = "raincloud", alpha = .4) +
+  guides(fill=FALSE) + 
+  themedapr3()
+```
+
+
+]
+
+---
+# R: multilevel models
+
+- **lme4** package (many others are available, but lme4 is most popular).  
+
+- `lmer()` function.  
+
+- syntax is similar to `lm()`, in that we specify:   
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
+    
+- in `lmer()`, we add to this the random effect structure in parentheses:  
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__
+
+---
+# R: lm
+
+.pull-left[
+```{r}
+lm_mod <- lm(emot_dysreg ~ crq, data = crq)
+```
+
+```{r eval=FALSE}
+schoolplots <- 
+  ggplot(crq, aes(x = crq)) + 
+  geom_point(aes(y = emot_dysreg)) + 
+  facet_wrap(~schoolid) +
+  themedapr3()
+
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+schoolplots <- 
+  ggplot(crq, aes(x = crq)) + 
+  geom_point(aes(y = emot_dysreg)) + 
+  facet_wrap(~schoolid) +
+  themedapr3()
+
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
+```
+
+]
+
+---
+# R: Adding a random intercept
+
+.pull-left[
+```{r}
+library(lme4)
+ri_mod <- lmer(emot_dysreg ~ crq + 
+                 (1 | schoolid), data = crq)
+```
+
+vary the intercept by schools.
+
+]
+
+---
+count: false
+# R: Adding a random intercept
+
+.pull-left[
+```{r}
+library(lme4)
+ri_mod <- lmer(emot_dysreg ~ crq + 
+                 (1 | schoolid), data = crq)
+```
+
+vary the intercept by schools.
+
+```{r eval=FALSE}
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), 
+            col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), 
+            col = "red", lwd=1)
+```
+]
+
+.pull-right[
+```{r echo=FALSE}
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
+```
+] 
+
+---
+# R: Adding a random slope
+
+.pull-left[
+```{r}
+rs_mod <- lmer(emot_dysreg ~ crq + 
+                 (1 + crq | schoolid), data = crq)
+```
+
+vary the intercept and the effect (slope) of crq by schools
+
+]
+
+---
+count: false
+# R: Adding a random slope
+
+.pull-left[
+```{r}
+rs_mod <- lmer(emot_dysreg ~ crq + 
+                 (1 + crq | schoolid), data = crq)
+```
+
+vary the intercept and the effect (slope) of crq by schools
+
+```{r eval=FALSE}
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), 
+            col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), 
+            col = "red", lwd=1) + 
+  geom_line(aes(y=fitted(rs_mod)), 
+            col = "orange", lwd=1)
+```
+]
+
+.pull-right[
+```{r echo=FALSE}
+schoolplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1) + 
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=1)
+```
+]
+
+---
+# Partial Pooling vs No Pooling
+
+.pull-left[
+Why not fit a fixed effect adjustment to the slope of x for each group?  
+`lm(y ~ x * group)`?
+
+```{r}
+fe_mod <- lm(emot_dysreg ~ crq * schoolid, data = crq)
+```
+]
+
+.pull-right[
+```{r fig.asp=.8}
+schoolplots + 
+  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1)
+```
+]
+
+
+---
+# Partial Pooling vs No Pooling
+
+.pull-left[
+Why not fit a fixed effect adjustment to the slope of x for each group?  
+`lm(y ~ x * group)`?
+
+```{r}
+fe_mod <- lm(emot_dysreg ~ crq * schoolid, data = crq)
+```
+
+We talked last week about how this results in a lot of output.  
+With 20 schools, we get: intercept at reference school, adjustment for every other school, the effect of x at reference school, adjustment to effect of x for every other school. 
+
+40 parameters estimated. 
+```{r}
+length(coef(fe_mod))
+```
+
+information is not combined in anyway (data from school $ J $ contributes to differences from reference school to school J, but nothing else. No overall estimates)
+
+]
+.pull-right[
+```{r eval=F}
+schoolplots + 
+  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1)
+```
+```{r echo=FALSE, fig.asp=.8}
+schoolplots + 
+  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1) + 
+  geom_rect(data = filter(crq, schoolid %in% paste0("school",c(2,5,6,19))), 
+                          fill = NA, colour = "red", lwd = 2, lty = 2, xmin = -Inf,xmax = Inf,
+            ymin = -Inf,ymax = Inf)
+```
+]
+
+---
+count: false
+# Partial Pooling vs No Pooling
+
+```{r echo=FALSE, fig.width=12}
+m1<-lm(emot_dysreg~crq*schoolid, data = crq)
+m2<-lmer(emot_dysreg~crq + (1 + crq | schoolid), data = crq)
+crq %>% 
+  mutate(
+    lm_fit = fitted(m1),
+    rs_fit = fitted(m2)
+  ) %>%
+  filter(schoolid %in% paste0("school",c(2,5,6,19))) %>%
+  ggplot(., aes(x = crq)) + 
+    geom_point(aes(y = emot_dysreg)) + 
+    facet_wrap(~schoolid) +
+    themedapr3() +
+    geom_line(aes(y = lm_fit, lty="fixed effects:\ny ~ x * g",col="fixed effects:\ny ~ x * g"), lwd=1) + 
+    geom_line(aes(y = rs_fit, lty="random effects:\ny ~ x + (1 + x | g)", col="random effects:\ny ~ x + (1 + x | g)"), lwd=1) +
+  scale_linetype_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"=2,"random effects:\ny ~ x + (1 + x | g)"=1)) + 
+  scale_color_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"="green","random effects:\ny ~ x + (1 + x | g)"="orange"))
+```
+
+
+
+---
+# lmm in R
+
+```{r}
+crq %>% rename(
+  y = emot_dysreg, 
+  x = crq,
+  group = schoolid
+) -> my_data
+lmer(y ~ x + (1 + x | group), my_data) %>% summary(.,correlation=F)
+
+model <- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), data = crq)
+summary(model)
+```
+
+
+
+annotated output
+
+---
+# ICC in lmer
+
+```{r}
+base_mod <- lmer(emot_dysreg ~ 1 + (1 | schoolid), data = crq) 
+summary(base_mod)
+0.2692 / (0.2692 + 0.7881)
+```
+
+<!-- Once we introduce random slopes/coefficients, things get more complicated. The ICC is no longer the same as the VPC, because the ICC will be a function of the variable(s) for which random slopes are specified. Therefore there can be an infinite number of values for the ICC is the variable in question is continuous, and as many as the number of levels if it is categorical or a count. Thus any interpretation of the ICC in a random slopes model becomes more difficult. Stata, for example, will calculate a single value for the ICC but in a random slopes model, this is accompanied by the warning: -->
+
+<!-- Note: ICC is conditional on zero values of random-effects covariates. -->
+<!-- In other words, it has computed the ICC based on a value of zero for the random slope variable(s), so any interpretation of the ICC is also based on a value of zero for the slope variable(s). -->
 
 ---
 # Summary
@@ -121,37 +596,7 @@ class: inverse, center, middle, animated, rotateInDownLeft
 ---
 class: inverse, center, middle
 
-# Part 2<br>Inference
-
----
-# Summary
-
-Inference, df etc.
-
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End of Part 2
-
----
-class: inverse, center, middle
-
-# Part 3<br>Model Comparison
-
----
-# Summary
-
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End of Part 3
-
----
-class: inverse, center, middle
-
-# Part 4<br>Repeated Measures ANOVA
+# Part 2<br>Repeated Measures ANOVA (brief)
 
 
 ---
@@ -193,8 +638,6 @@ anova(m1, m2)
 anova(m2)
 ```
 
-
-
 ---
 # Why use 1 vs another?
 
@@ -206,14 +649,110 @@ anova requires post-hoc tests comparing specific differences, but has the advant
 ---
 # Repeated measures ANOVA
 
-
 partitioning variance further
 
+```{r include=FALSE}
+tibble(
+  condition = letters[1:4],
+  cmean = c(0,2,0,4),
+  smeans = map(cmean, ~rnorm(10,.,1)),
+  sid = map(condition, ~paste0(.,1:10))
+) %>% unnest(c(smeans,sid)) %>%
+  mutate(
+    data = map(smeans, ~tibble(t = 1:3, y = rnorm(3,.,.1)))
+  ) %>% unnest(data) -> df
+
+#df %>% filter(sid !="a1") -> df
+
+ggplot(df,aes(x=condition,y=y))+geom_boxplot()+geom_jitter(aes(col=sid))+guides(col=F)
+```
+
+```{r}
+library(ez)
+ezANOVA(df, y, wid=sid, within=t, between =condition)
+library(lme4)
+m <- lmer(y~condition+t+(1|sid),df)
+anova(m)
+```
+
+---
+# denominator degrees of freedom
 
 
 ---
 # Summary
 
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+
+---
+class: inverse, center, middle
+
+# Part 3<br>Inference in MLM
+
+
+---
+# Likelihood ratio tests
+
+---
+# df corrections
+
+.pull-left[
+```{r eval=F}
+library(pbkrtest)
+KRmodcomp(full_model, restricted_model)
+```
+]
+.pull-right[
+```{r eval=F}
+library(lmerTest)
+lmer(....)
+```
+]
+
+
+---
+# parametric bootstrap
+
+```{r eval=FALSE}
+library(pbkrtest)
+PBmodcomp(full_model, restricted_model)
+```
+
+---
+# Summary
+
+Inference, df etc.
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+# Part 4<br>Examples
+
+---
+# test of a single parameter
+
+
+---
+# testing that several parameters are simultaneously zero
+
+
+---
+# testing random effects 
+
+are you sure you want to?
+
+---
+# Summary
 
 
 ---
