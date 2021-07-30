@@ -5,7 +5,7 @@ biblio-style: apalike
 link-citations: yes
 params: 
     SHOW_SOLS: TRUE
-    TOGGLE: TRUE
+    TOGGLE: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -14,15 +14,8 @@ library(tidyverse)
 library(patchwork)
 ```
 
-:::blue
-**Some background reading**  
 
-+ [Winter, 2013](https://arxiv.org/abs/1308.5499)  
-+ [Brauer & Curtin, 2018](http://dx.doi.org/10.1037/met0000159),  [(pdf)](https://dionysus.psych.wisc.edu/LabPubs/BrauerM2018a.pdf)  
-+ [Luke, 2017](https://doi.org/10.3758/s13428-016-0809-y)  
-:::
-
-:::red
+:::lo
 **Preliminaries**  
  
 1. Open Rstudio, and **create a new project for this course!!** 
@@ -30,24 +23,26 @@ library(patchwork)
 
 :::
 
-:::frame
+:::statbox
 **A Note on terminology**
 
 The methods we're going to learn about in the first five weeks of this course are known by lots of different names: "multilevel models"; "hierarchical linear models"; "mixed-effect models"; "mixed models"; "nested data models"; "random coefficient models"; "random-effects models"; "random parameter models"... and so on).   
 
-What the idea boils down to is that **model parameters vary at more than one level.** This week, we're going to explore what that means.  
+What the idea boils down to is that **model parameters can vary at more than one level.** This week, we're going to motivate why we might want to be able to do this! 
 :::
 
 # New Toys!  
 
 `r qbegin("New package time!", qlabel=FALSE)`
-These are the main packages we're going to use in this block. It might make sense to install them now if you do not have them already (note, the rstudio.ppls.ed.ac.uk server already has `lme4` installed for you).  
+These are the main packages we're going to use in this block. It might make sense to install them now if you do not have them already (note, the rstudio.ppls.ed.ac.uk server already has `lme4` and `tidyverse` installed for you).  
 
 + tidyverse  
++ ICC
 + lme4  
 + effects  
 + broom
 + broom.mixed
++ sjPlot
 
 `r qend()`
 
@@ -60,19 +55,20 @@ library(effects)
 
 
 `r qbegin("New data time!", qlabel=FALSE)`
-Let's consider a little toy example in which we might use linear regression to determine how practice influences the reading age of Playmobil characters:
+Let's consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines:
 ```{r echo=FALSE, fig.cap = "[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)", out.width="300px",fig.align="center"}
 knitr::include_graphics("images/intro/reading.png")
 ```
   
-Let us know broaden our scope to the investigation of how practice affects reading age for *all* toys, (not just Playmobil characters).  
-You can find a dataset at https://uoepsy.github.io/data/toyexample.csv  
+Let's suppose we have data on various types of toys, from Playmobil (pictured above) to Powerrangers, to farm animals.  
 
+You can find a dataset at https://uoepsy.github.io/data/toyexample.csv, and read it into your R environment using the code below: 
 ```{r eval=FALSE}
 toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
 ```
-
-The datasets contains information on 132 different toy figures. This time, however, they come from a selection of different families/types of toy. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].
+  
+  
+The dataset contains information on 132 different toy figures. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].
 <br>
 <div style="display:inline-block; width: 45%;vertical-align: middle;">
 ```{r echo=FALSE, out.width="300px",fig.align="center"}
@@ -90,14 +86,13 @@ tibble(variable=names(toys_read),
 ```
 </div>
 
-
 `r qend()`
 
 
 
 # Linear model refresh   
 
-:::yellow
+:::statbox
 
 Recall that in the course last semester we learned all about the linear regression model:
 
@@ -137,13 +132,20 @@ summary(simplemod)
 `r solend()`
 
 `r qbegin("A2")`
-Thinking about the assumption we make about our model:
+Think about the assumptions we make about our model:
 $$
 \text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
 $$
-Have we satisfied this assumption (specifically, the assumption of *independence* of errors)? Our model from the previous question will assume that the residuals for all toys are independent of one another. But is this an assumption we can make? Might we not think that the Playmobil characters could be generally better at reading than the Power Rangers? Or even that ScoobyDoo figurines might be more receptive to practice than the Sock Puppets are?  
-The natural grouping of the toys introduces a level of *dependence*, which we would be best to account for.  
-  
+Have we satisfied this assumption (specifically, the assumption of *independence* of errors)? 
+`r qend()`
+
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+Our model from the previous question will assume that the residuals for all toys are independent of one another. But is this a reasonable assumption that we can make? Might we not think that the Playmobil characters could be generally better at reading than the Power Rangers? Or even that ScoobyDoo figurines might be more receptive to practice than the Sock Puppets are?   
+
+The natural grouping of the toys into their respective type introduces a level of *dependence* which we would be best to account for.  
+`r solend()`
+
+`r qbegin("A3")`
 Try running the code below.  
 ```{r eval=FALSE}
 ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
@@ -172,9 +174,9 @@ From the second plot, we see a lot of the toy types appear to have a positive re
 `r solend()`
 
 :::frame
-We can consider the simple regression model (`lm(R_AGE ~ hrs_week, data = toys_read)`) to "pool" the information from all observations together.  
-We'll call this **Complete Pooling**.  
-In the 'Complete Pooling' approach, we simply ignore the natural clustering of the toys, as if we were unaware of it. The problem is that this assumes the same regression line for all toy types, which might not be that appropriate:  
+**Complete Pooling**  
+
+We can consider the simple regression model (`lm(R_AGE ~ hrs_week, data = toys_read)`) to "pool" the information from all observations together. In this 'Complete Pooling' approach, we simply ignore the natural clustering of the toys, as if we were unaware of it. The problem is that this assumes the same regression line for all toy types, which might not be that appropriate:  
 
 ```{r echo=FALSE, out.width="350px", fig.align="center", fig.cap="Complete pooling can lead to bad fit for certain groups"}
 toys_read %>%
@@ -185,9 +187,10 @@ ggplot(., aes(x=hrs_week, y=R_AGE, col=toy_type))+
   geom_text(inherit.aes=F,x=4.5,y=8, label="Complete Pooling Line")+
   theme(text=element_text(size=21))
 ```
-
-
-There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters").^[An approach more common in Econometrics is to use "cluster robust variance estimates" but this is much less common in psychology, and not without their problems, so we will not discuss these in this course] With the tools you have learned in the USMR course last semester, you may be tempted to try including toy type in the model as another predictor, to allow for some toy types being generally better than others:
+  
+  
+**No Pooling**
+There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters"). With the tools you have learned in DAPR2, you may be tempted to try including toy type in the model as another predictor, to allow for some toy types being generally better than others:
 ```{r eval=FALSE}
 lm(R_AGE ~ hrs_week + toy_type, data = toys_read)
 ```
@@ -196,17 +199,420 @@ Or even to include an interaction to allow for toy types to respond differently 
 lm(R_AGE ~ hrs_week * toy_type, data = toys_read)
 ```
 
-We might call this approach the **No Pooling** method, because the information from each cluster contributes *only* to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, but it means that a) we are estimating *a lot* of parameters, and b) we are not necessarily estimating the parameter of interest (the *overall* effect of practice on reading age). Furthermore, we'll probably end up having high variance in the estimates at each group.  
+This approach gets termed the "No Pooling" method, because the information from each cluster contributes *only* to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, but it means that a) we are estimating *a lot* of parameters, and b) we are not necessarily estimating the parameter of interest (the *overall* effect of practice on reading age). Furthermore, we'll probably end up having high variance in the estimates at each group.  
+
+:::
+
+`r qbegin("A4")`
+Fit a linear model which accounts for the grouping of toys into their different types, but holds the effect of practice-hours-per-week on reading age as constant across types:
+```{r}
+mod1 <- lm(R_AGE ~ hrs_week + toy_type, data = toys_read)
+```
+
+Can you construct a plot of the **fitted** values from this model, coloured by toy_type?  
+(Hint: you might want to use the `augment()` function from the **broom** package)
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+broom::augment(mod1) %>%
+  ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
+  geom_line()
+```
+`r solend()`
+
+`r qbegin("A5")`
+What happens (to the plot, and to your parameter estimates) when you include the interaction between `toy_type` and `hrs_week`?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+mod2 <- lm(R_AGE ~ hrs_week * toy_type, data = toys_read)
+
+broom::augment(mod2) %>%
+  ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
+  geom_line()
+```
+We can see now that our model is fitting a different relationship between reading age and practice for each toy type. This is good - we're going to get better estimates for different types of toy (e.g. scooby doo's reading age increases with practice, farm animals don't).  
+
+We can see that this model provides a better fit - it results in a significant reduction in the residual sums of squares:
+```{r}
+anova(mod1, mod2)
+```
+
+But it comes at the expense of estimating many many different parameters, and not pooling information across groups to get one estimate for "the effect of practice on reading age".  
+
+`r solend()`
 
 
-So what if we could do something in between?... "Partial Pooling" perhaps? 
+# Exploring Clustering
+
+```{r include=FALSE}
+set.seed(987)
+N = 600                                  # total sample size
+n_groups = 30                          # number of groups
+g = rep(1:n_groups, e = N/n_groups)      # the group identifier
+x = rep(seq(-2,1.8,.2), 30)                             # an observation level continuous variable
+b = rep(0:1, each=15)  # a cluster level categorical variable
+b = b[g]
+jx = rbinom(N, 1, .8)
+
+sd_g = .7     # standard deviation for the random effect
+sigma = .9     # standard deviation for the observation
+sd_x = .5
+
+re0 = rnorm(n_groups, sd = sd_g)  # random effects
+re  = re0[g]
+rex = rnorm(n_groups, sd = sd_x)  # random effects
+re_x  = rex[g]
+lp = (4 + re) + (.3 + re_x)*x + .45*b -.2*b*x + 0.6*jx
+
+y = rnorm(N, mean = lp, sd = sigma)               # create a continuous target variable
+y_bin = rbinom(N, size = 1, prob = plogis(lp))    #- create a binary target variable
+
+hrvdat = tibble(stakes=19-as.numeric(cut(x,20)), condition = as.character(factor(b, labels=c("money","kudos"))), hrv = y, hr_abv = y_bin, sub = factor(g), t = jx)
+
+#ggplot(d, aes(x=x,y=y,group=g,col=factor(b)))+geom_smooth(method="lm",se=F, alpha=.2)+
+#  geom_point()+NULL
+```
+
+:::frame
+**Data: Raising the stakes**
+
+30 volunteers from an amateur basketball league participated in a study on stress induced by size and type of potential reward for successfully completing a throw. Each participant completed 20 trials in which they were tasked with throwing a basketball and scoring a goal in order to win a wager. The size of the wager varied between trials, ranging from 1 to 20 points, with the order randomised for each participant. If a participant successfully threw the ball in the basket, then their score increased accordingly. If they missed, their score decreased accordingly. Participants were informed of the size of the potential reward/loss prior to each throw.  
+
+To examine the influence of the *type* of reward/loss on stress-levels, the study consisted of two conditions. In the monetary condition, (n = 15) participants were informed at the start of the study that the points corresponded to a monetary reward, and that they would be given their total score in £ at the end of the study. In the reputation condition, (n = 15) participants were informed that the points would be inputted on to a scoreboard and distributed around the local basketball clubs and in the league newsletter. 
+
+Throughout each trial, participants' heart rate variability (HRV) was measured via a chest strap. HRV is considered to be indirectly related to levels of stress. 
+:::
+
+
+`r qbegin()`
+what are the units of observations
+what are the groups/clusters?
+what varies *within* these clusters?
+what varies *between* these clusters?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+`r solend()`
+
+
+
+`r qbegin()`
+Plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.  
+Can you make a separate plot for each of the experimental conditions? (Hint: `facet_wrap()`)
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+ggplot(hrvdat, aes(x=stakes,y=hrv))+geom_smooth(method="lm", alpha=.2)+
+  geom_point() +
+  facet_wrap(~condition)
+```
+`r solend()`
+
+`r qbegin()`
+Fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+simple_mod <- lm(hrv ~ stakes, data = hrvdat)
+summary(simple_mod)
+```
+
+
+`r solend()`
+
+
+
+
+`r qbegin()`
+Plot the relationship between size of reward and HRV, with a separate line for each subject. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+ggplot(hrvdat, aes(x=stakes, y=hrv, group=sub, col=condition))+
+  geom_smooth(method="lm",se=F, alpha=.2)+
+  geom_point()+NULL
+```
+`r solend()`
+
+`r qbegin()`
+Calculate the ICC, using the `ICCbare()` function from the **ICC** package.  
+
+Remember, you can look up the help for a function by typing a `?` followed by the function name in the console. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+library(ICC)
+ICCbare(sub, hrv, hrvdat)
+```
+`r solend()`
+
+`r optbegin("Optional - Extra difficult. Calculate ICC manually", olabel=F)`
+We have equal group sizes here (there are 30 groups, each with 20 observations), which makes calculating ICC by hand a lot easier, but it's still a bit tricky.  
+
+Let's take a look at the formula for ICC
+
+$$
+\begin{align}
+ICC \; (\rho) = & \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\
+\qquad \\
+= & \frac{\frac{MS_b - MS_e}{k}}{\frac{MS_b - MS_e}{k} + MS_e} \\
+\qquad \\
+= & \frac{MS_b - MS_e}{MS_b + (k-1)MS_e} \\
+\qquad \\
+\qquad \\
+\text{Where:} & \\ 
+k = & \textrm{number of observations in each group} \\
+MS_b = & \textrm{Mean Squares between groups} = \frac{\text{Sums Squares between groups}}{df_\text{groups}}
+= \frac{\sum\limits_{i=1}(\bar{y}_i - \bar{y})^2}{\textrm{n groups}-1}\\
+MS_e = & \textrm{Mean Squares within groups} \frac{\text{Sums Squares within groups}}{df_\text{within groups}} 
+= \frac{\sum\limits_{i=1}\sum\limits_{j=1}(y_{ij} - \bar{y_i})^2}{\textrm{n obs}-\textrm{n groups}}\\
+\end{align}
+$$
+So we're going to need to calculate the grand mean of $y$, the group means of $y$, and then the various squared differences between group means and grand mean, and between observations and their respective group means.  
+
+The code below will give us a new column which is the overall mean of y. This bit is fairly straightforward. 
+```{r eval=F}
+hrvdat %>% mutate(
+  grand_mean = mean(hrv)
+)
+```
+
+
+:::rtip
+We have seen a lot of the combination of `group_by() %>% summarise()`, but we can also combine `group_by()` with `mutate()`!
+:::
+
+Try the following:
+```{r eval=F}
+hrvdat %>% mutate(
+    grand_mean = mean(hrv)
+  ) %>% 
+  group_by(sub) %>%
+  mutate(
+    group_mean = mean(hrv)
+  )
+```
+
+
+:::rtip
+**The grouping gets carried forward.**  
+
+Using `group_by()` can quite easily land you in trouble if you forget that you have grouped the dataframe. 
+
+Look at the output of `class()` when we have grouped the data. It still mentions something about the grouping. 
+```{r}
+hrvdat <- hrvdat %>% mutate(
+    grand_mean = mean(hrv)
+  ) %>% 
+  group_by(sub) %>%
+  mutate(
+    group_mean = mean(hrv)
+  )
+
+class(hrvdat)
+```
+
+To remove the grouping, we can use `ungroup()` (we could also just add this to the end of our code sequence above and re-run it):
+
+```{r}
+hrvdat <- ungroup(hrvdat)
+class(hrvdat)
+```
+
+:::
+
+Now we need to create a column which is the squared differences between the observations $y_{ij}$ and the group means $\bar{y_i}$.  
+We also want a column which is the squared differences between the group means $\bar{y_i}$ and the overall mean $\bar{y}$.  
+```{r}
+hrvdat <- hrvdat %>% 
+  mutate(
+    within = (hrv-group_mean)^2,
+    between = (group_mean-grand_mean)^2
+  )
+```
+
+And then we want to sum them:
+```{r}
+ssbetween = sum(hrvdat$between)
+sswithin = sum(hrvdat$within)
+```
+
+Finally, we divide them by the degrees of freedom. 
+```{r}
+# Mean Squares between
+msb = ssbetween / (30-1)
+# Mean Squares within 
+mse = sswithin / (600-30)
+```
+
+And calculate the ICC!!!
+```{r}
+# ICC
+(msb-mse) /(msb + (19*mse))
+```
+
+`r optend()`
+
+:::statbox
+
+**Understanding ICC a bit better**  
+  
+Think about what ICC represents - the ratio of the variance between the groups to the total variance.  
+You can think of the "variance between the groups" as the group means varying around the overall mean (the black dots around the black line), and the total variance as that plus the addition of the variance of the individual observations around each group mean (each set of coloured points around their respective larger black dot):
+```{r}
+ggplot(hrvdat, aes(x=sub, y=hrv))+
+  geom_point(aes(col=sub),alpha=.3)+
+  stat_summary(geom = "pointrange")+
+  geom_hline(yintercept = mean(hrvdat$hrv))+
+  guides(col=FALSE)
+```
+
+You can also think of the ICC as the correlation between two randomly drawn observations from the same group. 
+This is a bit of a tricky thing to get your head round if you try to relate it to the type of "correlation" that you are familiar with. Pearson's correlation (e.g think about a typical scatterplot) operates on *pairs of observations* (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on *data which is structured in groups*. 
+`r optbegin("Optional - ICC as the expected correlation between two observations from same group", olabel=F)`
+
+Let's suppose we had only 2 observations in each group.  
+```{r echo=FALSE}
+tempdat <- read.csv("../../data/iccexplainer.csv")
+head(tempdat) %>% rbind(.,rep("...", 3))
+```
+
+```{r include=F}
+library(nlme)
+res <- lme(y ~ 1, random = ~ 1 | cluster, data=tempdat, method="ML")
+ic <- getVarCov(res)[1] / (getVarCov(res)[1] + res$sigma^2)
+```
+The ICC for this data is `r round(ic,2)`:
+
+Now suppose we *reshape* our data so that we have one row per group, and one column for each observation to look like this:
+```{r echo=F}
+tempdat_wide <- tempdat %>% 
+  pivot_wider(names_from=observation, values_from=y, names_prefix = "obs") 
+tempdat_wide %>% head %>% rbind(.,rep("...", 3))
+```
+Calculating Pearson's correlation on those two columns yields `r cor(tempdat_wide$obs1, tempdat_wide$obs2) %>% round(.,2)`, which isn't quite right. It's close, but not quite.. 
+
+:::imp 
+The crucial thing here is that it is completely arbitrary which observations get called "obs1" and which get called "obs2".  
+The data aren't paired, but grouped. 
+:::
+
+Essentially, there are lots of different combinations of "pairs" here. 
+There are the ones we have shown above:
+```{r echo=F}
+head(tempdat_wide) %>% rbind(., rep("...",3))
+```
+But we might have equally chosen these:
+```{r echo=F}
+sample_n(tempdat, n()) %>% arrange(cluster) %>% group_by(cluster) %>% 
+  mutate(observation = 1:n()) %>% ungroup %>%
+  pivot_wider(names_from=observation, values_from=y, names_prefix = "obs") %>% head() %>% rbind(., rep("...",3))
+```
+or these:
+```{r echo=F}
+sample_n(tempdat, n()) %>% arrange(cluster) %>% group_by(cluster) %>% 
+  mutate(observation = 1:n()) %>% ungroup %>%
+  pivot_wider(names_from=observation, values_from=y, names_prefix = "obs") %>% head() %>% rbind(., rep("...",3))
+```
+
+If we take the correlation of all these combinations of pairings, then we get our ICC of `r round(ic, 2)`!
+
+__ICC = the expected correlation of a *randomly drawn pair* of observations from the same group.__
+
+<!-- We could even do this via simulation, and write our own customised function! -->
+<!-- The code below creates a function for us to use. Can you figure out how it works?  -->
+<!-- ```{r} -->
+<!-- get_random_pair <- function(){ -->
+<!--   my_sub = sample(unique(hrvdat$sub), 1) -->
+<!--   my_obs = sample(hrvdat$hrv[hrvdat$sub == my_sub], size=2) -->
+<!--   my_obs -->
+<!-- } -->
+<!-- ``` -->
+<!-- Try it out, by running it several times.  -->
+<!-- ```{r} -->
+<!-- get_random_pair() -->
+<!-- ``` -->
+
+<!-- Now let's make our computer do it loads and loads of times: -->
+<!-- ```{r} -->
+<!-- # replicate is a way of making R execute the same code repeatedly, n times. -->
+<!-- sims <- replicate(1e6, get_random_pair()) -->
+<!-- # t() is short for "transpose" and simple rotates the object 90 degrees (so rows become columns and columns become rows) -->
+<!-- sims <- t(sims) -->
+<!-- cor(sims[,1], sims[,2]) -->
+
+<!-- ``` -->
+
+`r optend()`
 
 :::
 
 
-# Clustering
+# GEE
 
-group means around overall mean
+if we're just interested in the effect of x on y and want to adjust for the clustering of the data, generalising estimation equations (GEE) can sometimes be useful. 
+They are more limited than multilevel models, but simplicity can often be a good thing.
+
+
+subjects are already arranged in order, but they need to be numeric.
+```{r}
+hrvdat$sub<-as.numeric(hrvdat$sub)
+```
+
+
+```{r}
+library(geepack)
+geemod <- geeglm(hrv ~ stakes,
+       id=sub, data = hrvdat,
+       corstr="independence")
+summary(geemod)
+```
+
+
+
+
+# Revisiting interactions
+
+lm(y~x)
+
+`r qbegin()`
+Add to this the interaction between stakes and experimental condition and examine the parameter values (again, ignore the fact that we are violating our independence assumption here!).
+
+Remember to think about how HRV is considered to relate to stress, and whether the direction of any effect you see makes theoretical sense. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+simple_mod <- lm(hrv ~ condition*stakes, data = hrvdat)
+anova(simple_mod)
+summary(simple_mod)
+```
+```{r include=F}
+res = summary(simple_mod)$coefficients %>% round(2)
+```
+:::int
+Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two. 
+For a 1 point increase in stakes, HRV decreased by `r res[4,1]` ($SE=`r res[4,2]`,t(`r simple_mod[["df.residual"]]`)=`r res[4,3]`,p=`r res[4,4]`$) in the condition in which participants played for money relative to that in which participants played for kudos. 
+:::
+`r solend()`
+
+
+
+# Rpt measures anova
+
+```{r}
+library(ez)
+ezANOVA(data=hrvdat, dv=hrv, wid = sub, within = stakes, between = condition)
+```
+```{r}
+mimo0 <- lmer(hrv~condition+(1|sub), hrvdat)
+mimo1 <- lmer(hrv~condition*stakes+(1+stakes|sub), hrvdat)
+anova(mimo0)
+anova(mimo1)
+```
+
 
 
 
