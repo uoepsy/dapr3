@@ -1,0 +1,215 @@
+---
+title: "Multivariate: Linear Mixed Models"
+subtitle: "Lecture 4: Model Considerations"
+date: "Lecture 4"
+author: "Tom Booth"
+output: 
+  beamer_presentation:
+    theme: "Madrid"
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(scales)
+```
+
+# Good morning
+
+## Today
+- Centering
+- Interactions
+- Crossed structure
+    - Maximal random effect structure
+- Examples:
+    - Repeated measures: "standard" experiment
+    - Mixed designs: intervention
+
+# Any questions so far....
+
+# Centering
+
+## Overview
+- Essentially centering concerns any number of linear transformations such that the 0 point of scale takes a spefific value.
+- Generally three main forms:
+    - Z-scoring
+    - Grand mean centering
+    - Group mean centering
+- The decision as to which approach is most suitable is largely based on the question you wish to ask.
+
+## Lack of invariance to centering
+- The single level linear model is invariant to linear transformations. 
+- This is only the case in LMM when there are no random slopes in our model.
+- It is easier to see why if we visualize a simple model. 
+
+## Visualizing invariance (1)
+```{r echo=FALSE}
+df <- tibble(
+  X = 1:10,
+  Y = 1:10
+)
+ggplot(df, aes(X,Y)) +
+  geom_blank() + 
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) + 
+  geom_abline(intercept = 3, slope = 0.25) + 
+  geom_abline(intercept = 4, slope = 0.25) +
+  geom_abline(intercept = 5, slope = 0.25) +
+  geom_vline(xintercept = 2, col = "red") + 
+  geom_vline(xintercept = 5, col = "blue") 
+```
+
+
+## Visualizing invariance (2)
+```{r echo=FALSE}
+ggplot(df, aes(X,Y)) +
+  geom_blank() + 
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) + 
+  geom_abline(intercept = 3, slope = -0.25) + 
+  geom_abline(intercept = 4, slope = 0.25) +
+  geom_abline(intercept = 5, slope = 0.50) +
+  geom_vline(xintercept = 2, col = "red") + 
+  geom_vline(xintercept = 5, col = "blue") 
+```
+
+## Grand mean centering preditors
+- Probably the most common form of centering.
+- For any variable, subtract the mean across all observations from each data point.
+    - 0 now = overall mean
+- If done for all variables, the intercept is now the expected value of the outcome when all variables are at their average.
+    - Has an intutitve appeal.
+- It also gives the variance estimates (random effects) an intuitive anchoring. 
+    - They are the expected variances when all variables are at their mean.
+    - Or to put it another way, for the average person in the sample.
+
+## Group mean centering predictors
+- As the name suggests, substract the mean of a given group from all observations within that group.
+- This is a complex procedure and not a straightforward linear transform.
+- We are subtracting a range of different values from subsets of observations.
+- All information about the group level is removed from the model. 
+- Consider this data.....
+
+## Group mean centering predictors
+```{r echo=FALSE}
+df <- tibble(
+  ID = c("P1", "P2", "P3", "P4", "P5", "P6"),
+  Group = c(1,1,1,2,2,2),
+  Squat = c(100, 90, 110, 200, 190, 210),
+  GC_Squat = c(0, -10, 10, 0, -10, 10)
+)
+
+kable(df) %>%
+        kable_styling("striped")
+```
+
+## Pro's and con's
+- An important reason why grand mean centering is often preferred is that although the values for some parameters may change, the overall model does not.
+    - That is our model deviance is the same.
+- This is not the case with group mean centering.
+    - A model with group mean centered variables is a completely new model.
+    - Generally, then, this approach is not recommended unless there are very specific hypotheses (e.g. Frog pond, from Hox)
+    
+> See Enders, C. K., & Tofighi, D. (2007). Centering predictor variables in cross-sectional multilevel models: a new look at an old issue. *Psychological methods, 12(2)*, 121. for detailed discussion.
+
+## In R
+- R: `scale` is a generic function for centring and scaling
+- `scale(x, center = TRUE, scale = TRUE)`
+- If `center = TRUE` then centring is done by subtracting the column means (omitting NAs)
+    - Mean centre
+- If `scale = TRUE` then scaling is done by dividing the (centred) columns of x by their standard deviations if
+`center = TRUE`.
+    - Z-score
+
+# Interactions
+
+## Overview
+- **Defintion**: the effect of a predictor (X), on the outcome (Y), changes dependent on the value of a second predictor (Z)
+- The conditional main effects are the slope of the line for X or Z, when the other variable is 0.
+    - This is a very specific interpretation.
+    - And is very different to the model with no interaction.
+- This is also why we typically mean centre predictors that form the interaction, so the conditional main effect is interpreted (if we bother doing so) at the average value for the sample.
+
+## Probing interactions
+- In the presence of an interaction, it is typical to probe the result to be able to interpret it fully.
+- This may include:
+    - Simple slopes analysis
+    - Regions of significance
+    - Defining the type of interaction (ordinal, disordinal, buffering, antagonistic etc.)
+
+## Single vs cross level interactions
+- In LMM, not much changes
+    - Pretty much all the same principles of how we transform the data, make conditional interpretations, probe interactions etc. are the same.
+- The major difference is that we now have different levels of interaction.
+- Single level interactions occur between two variables at the same level - typically lowest - of the clustered structure.
+- Cross-level (name is a hint) concerns interactions between level 1 and a higher level variable.
+
+## Consider the salary-experience example
+- Single level:
+    - Years of Service * performance
+    - Years of Service * motivation
+- Cross level:
+    - Years of Service * Organisation Sector
+    - Years of Service * Organisation Profit
+
+# Crossed structure
+
+## Definition: Nested vs Crossed
+- **Nested** data = Strictly hierarically organised. All members of one group are contained entirely within a sinfle level of another
+- **Crossed** data = non-nested! Members of one group can appear in multiple other groups.
+
+## An example
+- Consider how we might explore the effect of department in our salary example.
+- We could view departments (HR, Finance etc.) as professional groups that span organisations
+- Or, we could see them as specific units within the organisation.
+- The former is a crossed model.
+- The latter is nested.
+
+## Modelling crossed design in `lmer()`
+
+```{r eval=FALSE}
+lmer(Salary ~               # Outcome
+       Service +            # Individual level
+       (1 | Organisation) + # Employess in Orgs
+       (1 | Department)     # Employees in Dept.
+     )
+```
+
+
+## Modelling nested design in `lmer()`
+
+```{r eval=FALSE}
+lmer(Salary ~        # Outcome
+       Service +     # Individual level
+       (1 | Org/Dpt) # Unique dept nested in orgs
+     )
+```
+
+## Random effect structure
+- Return to this briefly as our preceeding discussion opens more possibilities for how our random effect structure might look.
+- 2x2 within-person within-item design
+
+```{r eval=FALSE}
+Y ~ 1 + A + B + A:B +
+  (1 + A + B + A:B | subject) +
+  (1 + A + B + A:B | item)
+```
+
+- This has 20 variance-covariance paramters.
+
+## Some comments
+- Arguments put forward to "keep it maximal" i.e. in designs such as the by-subject by-item models, a full variance-covariance matrix would be estimated.
+- The primary issue with such an approach is that the number of parameters grows fast!
+    - So models soon get very complex.
+- This is where the "zero-correlation" model (Remember: `lmer(Y = 1 + x1 + (1 | group) + (0 | gang))`)
+- For more discussion on this see papers by Barr and Baayen et al. on the reading list.
+
+# That's all for today - now let's look at examples

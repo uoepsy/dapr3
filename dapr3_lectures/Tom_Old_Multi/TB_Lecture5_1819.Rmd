@@ -1,0 +1,233 @@
+---
+title: "Multivariate: Linear Mixed Models"
+subtitle: "Lecture 5: Power and GLMM"
+date: "Lecture 5"
+author: "Tom Booth"
+output: 
+  beamer_presentation:
+    theme: "Madrid"
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(scales)
+library(lme4)
+library(pwr)
+library(paramtest)
+```
+
+# Good morning
+
+## Course Announcements
+- Coursework set at the end of this week.
+- Revision/Q&A sessions likely to be in LG.07 lab, DHT, WB 8th April
+    - TBC
+
+## Today
+- Example: Trial by person
+- Generalized linear mixed models (GLMM)
+- Examples: Logisitic
+- Power in LMM
+- In closing...remembering why LMM are useful!
+
+# Questions up until now...
+
+# Example: Trial by person (off we go to Notebooks)
+
+# Generalized linear mixed models (GLMM)
+
+## Overview
+- Linear model requires our outcome variable to continuous.
+    - Often it is not.
+    - Sometimes we ignore this
+    - Sometimes we can not.
+- When we can not, enter the generalized linear model.
+
+## Principle of GLM
+- In a standard linear model, we assume:
+    - The outcome is normally distributed
+    - The predictors to have a linear relation to the expected value of the outcome
+- But the normal (Gaussian) distribution is one of a large number of distributions our outcome could come from.
+- In a generalized linear model we add a step.
+    - This step states that the linear relation of the predictors to the outcome follows a particular functional form, that links to the underlying distribution of the outcome.
+    - Hence the term "link functions"
+
+## Some common link functions
+
+\begin{table}[]
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Outcome} & \textbf{Distribution} & \textbf{Link}   \\ \hline
+Continuous       & Gaussian              & Identity        \\ \hline
+Binary           & Binomial              & Logit or Probit \\ \hline
+Count            & Poisson               & Log             \\ \hline
+\end{tabular}
+\end{table}
+
+## GLMM
+- In the context of LMM, we can apply the same steps as we would for a LM in order to fit GLM.
+- In which case, we are fitting a **G**eneralized **L**inear **M**ixed **M**odel, or GLMM.
+- To fit these models we use the `glmer()` function instead of `lmer()`
+
+# Example: Logistic model (off we go to Notebooks)
+
+# Power in LMM
+
+## Single level power
+- 4 components comprise "standard" analytic power calculations:
+    - Type I error rate
+    - Sample size
+    - Effect size
+    - Power level
+- If we know 3 elements, we can work out the final one.
+
+## Power for *t*-tests: Analytic (`pwr`)
+
+```{r eval=FALSE}
+pwr.t.test(n = 20, d = 0.5, sig.level = .05, 
+           type= "two.sample", 
+           alternative = "two.sided")
+```
+
+## Power for *t*-tests: Analytic
+
+```{r echo=FALSE}
+pwr.t.test(n = 20, d = 0.5, sig.level = .05, 
+           type= "two.sample", 
+           alternative = "two.sided")
+```
+
+## Power for *t*-tests: Analytic
+
+```{r eval=FALSE}
+pwr.t.test(power = 0.95, d = 0.5, sig.level = .05, 
+           type= "two.sample", alternative = "two.sided")
+```
+
+## Power for *t*-tests: Analytic
+
+```{r echo=FALSE}
+pwr.t.test(power = 0.95, d = 0.5, sig.level = .05, 
+           type= "two.sample", alternative = "two.sided")
+```
+
+
+## Power via simulation (`paramtest`)
+- Based on choosing a hypothesised model and true parameter values.
+- Then draws a large number of samples and estimates the model in each sample.
+- Then the parameter values and standard errors are averaged over the samples.
+- The relevant outcomes are parameter estimate bias, standard error bias, coverage and power.
+
+## Power for *t*-test: Simulation
+
+```{r eval=FALSE}
+t_func <- function(simNum, N, d) { 
+    x1 <- rnorm(N, 0, 1)          
+    x2 <- rnorm(N, d, 1)          
+    
+# runs t-tests on the simulated datasets
+    t <- t.test(x1, x2, var.equal=TRUE) 
+
+# extracts t-values from the t-tests
+    stat <- t$statistic 
+
+# extracts p-values from the t-tests
+    p <- t$p.value 
+
+# returns a named vector with the results we want to keep
+    return(c(t = stat, p = p, sig = (p < .05)))
+}
+```
+
+## Power for *t*-test: Simulation
+
+```{r echo=FALSE}
+# here, we create a user-defined function to simulate and analyse data
+t_func <- function(simNum, N, d) { # simNum is the number of simulations we want
+    x1 <- rnorm(N, 0, 1)           # N is the number of participants in each group
+    x2 <- rnorm(N, d, 1)           # d is the expected effect size
+# rnorm simulates normally distributed data given a certain N, mean, and SD
+# for the first group, data is simulated from a standard normal distribution
+# a standard normal distribution has a mean of 0 and an SD of 1
+# for the second group, data is simulated from a distribution with the same SD
+# but the mean of the second group is simulated to be 0 + the expected effect size
+        
+    t <- t.test(x1, x2, var.equal=TRUE) # runs t-tests on the simulated datasets
+    stat <- t$statistic # extracts t-values from the t-tests
+    p <- t$p.value # extracts p-values from the t-tests
+    return(c(t = stat, p = p, sig = (p < .05)))
+        # returns a named vector with the results we want to keep
+}
+```
+
+```{r message=FALSE}
+head(results(power_ttest <- run_test(
+  t_func, n.iter = 1000, output = 'data.frame', 
+  N = 20, d = 0.5)))
+```
+
+## Power for *t*-test: Simulation
+
+```{r}
+table(power_ttest$results$sig)
+```
+
+
+## Power for LMM
+- As has generally been the case, power in the LMM context is more complex.
+- The factors effecting power are similar:
+    - Number of clusters (Level 2 sample size) 
+    - Cluster size (Level 1 sample size)
+    - ICC (relation between level 1 and 2 variance)
+    - Effect size
+    
+## Sample Size
+- Fixed effects and their SE:
+    - When N of groups is below 50, begin to see some bias in the estimation of SE.
+- Random effects and SE:
+    - Somewhat dependent on estimator
+    - REML provides better estimates with fewer groups than ML
+
+## Sample Size
+- Rules of thumb are hard to set. 
+- Power is based on a combination of the N at different levels.
+- Dependent on interest, various suggestions have been made for the N's at L2/L1
+    - General rule - 30/30
+    - Cross-level interactions - 50/20
+    - Variance-covariance - 100/10
+
+## Sample Size
+- Gellman & Hill: Group N < 5, not enough information to estimate group-level variation.
+    - Unlikely that MLM improves over no pooling models
+-However, same authors argue that even with as few as 2 observations per group we can use LMM.
+    - Group level intercepts will be poorly estimated, but still contribute to the estimation of individual level effects.
+    
+## Effect sizes
+- We have already spoken about some of the difficulties with quantities such as R-square.
+- We also spoke about PRV as a local measure of effect size.
+- With standardized variables we can also consider the size of the coefficients we would expect to see.
+- The issue with all of the above is that LMM are large, multivariable models, and so there are lots of parameters to consider plausible values for.
+
+## Practical approaches to power for LMM
+- We could write a function to simulate data from an LMM and use `paramtest`
+    - Lisa DeBruine @Glasgow Uni has done the first step for us.
+    - https://debruine.github.io/posts/ 
+- `SIMR` package
+    - Arguably most flexible package.
+    - Takes some getting used to!
+- Anoter option is WebPower
+    - https://webpower.psychstat.org/wiki/ 
+    
+# Why LMM are useful!
+
+## The take homes
+1. Single framework for modelling longitudinal, cross-sectional, experimental with a variety of dependent variable types.
+2. Explicitly model variation at multiple levels of nested and crossed structure.
+3. Include predictors to explain that variance.
+4. These predictors can be continuous or categorical without the need for additional assumptions (e.g. ANCOVA)
+5. Handles unbalanced data better than ANOVA.
+6. Fewer and less restrictive assumptions than ANOVA.
+
+# That's all for THE COURSE! :-( 
+

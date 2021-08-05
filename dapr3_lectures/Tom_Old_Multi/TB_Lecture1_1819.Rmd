@@ -1,0 +1,664 @@
+---
+title: "Multivariate: Linear Mixed Models"
+subtitle: "Lecture 1: Conceptual Introduction"
+date: "Lecture 1"
+author: "Tom Booth"
+output: 
+  beamer_presentation:
+    theme: "Madrid"
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(kableExtra)
+library(scales)
+```
+
+# Welcome
+
+## Overview
+- Week 1: Linear model recap and conceptual introduction
+- Week 2: Estimating simple LMM
+- Week 3: Model evaluation and building
+- Week 4: Complex designs, longitudinal analyses and power
+- Week 5: Generalized models and catch up
+
+## Reading
+- There is a reading list on LEARN.
+- You will be able to complete the assessment for LMM using the materials from lecture and labs.
+- The reading is there if you want to:
+    (a) get a deeper understanding
+    (b) push for really top marks
+
+## Labs
+- First couple of weeks materials are on LEARN
+- We will start with data organisation and plotting
+- We will then build and evaluate models
+- Last couple of weeks we will look at some more complex examples, and give a more open task
+    - i.e., to mimic report
+- Lab answer sheets will be posted on a week lag.
+
+## Assessment
+- You will need to produce a write up and code based on the methods in the course.
+- More details in a couple of weeks time.
+    - We need to actually do some LMM first!
+
+## R Notebooks or PDFs
+- Your lecture material is provided as both a PDF slide deck, and an R Notebook.
+- The R Notebook is on LEARN in HTML format.
+    - Open as an HTML, you can follow the lecture, and choose whether to look at the underpinning code (e.g., the code that makes the plots) in the document.
+    - You can also download the code and live edit in R, add your own notes, tweak and run the code etc. 
+
+# Today
+
+## Topics
+- Recap on the linear model
+- Recap on LM assumptions
+- Violations of assumptions due to structured data
+- Overview of mixed models
+- Some notes on data
+- Conceptual examples (*class task, answers not in this slide deck*)
+- Some more model details (*Bridge to week 2, time dependent*)
+
+# Linear Model (LM)
+
+## LM with single predictor
+- Hopefully we are all familiar with:
+
+$$ y_i = \beta_0 + \beta_1x_{1i} + \epsilon_i $$  
+
+- $y_i$ is a vector of values for the outcome variable $y$ for each observation  
+- $x_{1i}$ is a vector of values for the predictor variable $x$ for each observation  
+- $\beta_0$ is the intercept  
+- $\beta_1$ is the slope for the predictor $x_{1}$  
+- $\epsilon_i$ is a vector of individual error terms for each observation  
+
+## LM with a single predictor
+- The intercept and slope are called coefficients or parameters.
+- Together define a model line.
+    - If we have multiple predictors, the coefficients define a surface.
+- This provides an easy way to visualise a simple linear model.
+
+## Example
+- Suppose we were looking to predict salary ($y$) from years of service ($x$) in an organisation.
+- Let's look at some data:
+
+## Example
+```{r echo=FALSE}
+true_sal <- c(20000, 30000, 40000, 50000, 60000)
+true_years <- c(2.5, 5, 7.5, 10, 12.5)
+
+set.seed(1001)
+ob_salary <- map(true_sal, ~rnorm(20, mean = .x, sd = 3000)) %>% simplify()
+ob_years <- map(true_years, ~rnorm(20, mean = .x, sd = 1)) %>% simplify()
+
+job_df <- tibble(salary = ob_salary,
+                 service = ob_years)
+
+job_df %>%
+  ggplot(aes(service, salary))+
+    geom_vline(xintercept = 0, linetype  = 2)+
+    geom_hline(yintercept = 0, linetype  = 2)+  
+    geom_point()+
+    xlab("Years of Service")+
+    ylim(0, 80000)+
+    ylab("Salary Pounds Sterling")
+
+```
+
+## Fitting the linear model
+
+```{r echo=FALSE}
+job_df %>%
+  ggplot(aes(service, salary))+
+    geom_vline(xintercept = 0, linetype  = 2)+
+    geom_hline(yintercept = 0, linetype  = 2)+  
+    geom_point()+
+    stat_smooth(method = 'lm', color = 'red', se = F, fullrange = T)+
+    xlab("Years of Service")+
+    ylim(0, 80000)+
+    ylab("Salary Pounds Sterling")
+
+```
+
+## Intercept $\beta_0$
+- The intercept is the value of the outcome ($y$, here `Salary`), when the predictor ($x$, here `Service`) = 0
+- In this example, the intercept is:
+
+```{r}
+sal_mod <- lm(salary ~ service, data = job_df)
+round(sal_mod$coefficients[1],0)
+```
+
+- The salary for someone with 0 years experience is £12,161
+
+## Slope $\beta_1$
+- The slope of the line is the change in the outcome ($y$, here `Salary`), per unit change in the predictor ($x$, here `Service`).
+    - `Service` is measured in years, so... 
+
+```{r}
+sal_mod <- lm(salary ~ service, data = job_df)
+round(sal_mod$coefficients[2],0)
+```
+
+- For each year of service, salary increases by £3,709.
+
+## Finding the best fit linear model
+- The best fit linear model for our data will be the line that minimizes the distance of each point to the line.
+    - That is, the model that has the smallest error, or residuals
+    - This is the **least squares** solution
+- *An aside for later, if all assumptions are met, the least squared solution is the maximum likelihood solution. This we will return to when we discuss model estimation,*
+
+## Finding the best fit linear model
+
+```{r echo = F}
+job_df$fitted <- fitted(sal_mod)
+
+ggplot(job_df, aes(service, salary))+
+    geom_vline(xintercept = 0, linetype  = 2)+
+    geom_hline(yintercept = 0, linetype  = 2)+  
+    geom_segment(aes(xend = service, yend = fitted))+
+    geom_point(color = "grey40")+
+    stat_smooth(method = 'lm', color = 'red', se = F, fullrange = T)+
+    xlab("Years of Service")+
+    ylim(0, 80000)+
+    ylab("Salary Pounds Sterling")
+
+```
+
+## Fitted values
+- The residual term ($\epsilon_i$) for any individual is the difference between their observed $y$ and the model fitted value (or predicted value) $\hat{y}$
+
+```{r}
+job_df$salary[1] - fitted(sal_mod)[1]
+
+residuals(sal_mod)[1] 
+```
+
+## Fitted values (red line)
+```{r echo = F}
+ggplot(job_df, aes(service, salary))+
+    geom_vline(xintercept = 0, linetype  = 2)+
+    geom_hline(yintercept = 0, linetype  = 2)+  
+    geom_segment(aes(xend = service, yend = fitted))+
+    geom_point(color = "grey40")+
+    stat_smooth(method = 'lm', color = 'red', se = F, fullrange = T)+
+    xlab("Years of Service")+
+    ylim(0, 80000)+
+    ylab("Salary Pounds Sterling")
+```
+
+## Things to keep in mind
+1. $\beta_0$ and $\beta_1$ are single constant values.
+    - They are the same for all observations in our data.
+    - *Question*: When might $\beta_1$ not be constant?
+2. Anything with a subscript $i$ is at the level of the individual observation.
+3. $x_{1i}$ are individual values of the predictor, $y_{i}$ the outcome.
+4. There is an $\epsilon_i$ associated with every observation. 
+
+# Assumptions & Data Structure
+
+## LM Assumptions
+- LM have the following assumptions:
+    - Linearity
+    - Homoscedasticity (constant error variance)
+    - Normality of residuals
+    - Independence of residuals
+
+## Thinking about data structure
+
+|         | **Cross-Sectional** | **Repeated Measures** | **Longitudinal** |
+|---------|:-------------------:|:---------------------:|:----------------:|
+| Level 2 |    Classroom        |      Subject          |  Participant     |
+| Level 1 |      Pupil          |       Trial           |     Time         |
+
+
+## It can get more complicated
+
+|         | **Cross-Sectional** | **Repeated Measures** | **Longitudinal** |
+|---------|:-------------------:|:---------------------:|:----------------:|
+| Level 3 |      School         |     Condition         |    Family        |
+| Level 2 |    Classroom        |      Subject          |  Participant     |
+| Level 1 |      Pupil          |       Trial           |     Time         |
+
+
+## Why is clustering a problem?
+1. Clustering of any of these types leads to data where the residuals will not be independent. 
+2. Non-independence leads to an underestimation of standard errors for model estimates.
+3. In turn, this leads to an increased risk of Type I errors.
+4. We miss the chance to ask interesting questions.
+5. We may make errors in our conclusions.
+    - **Ecological Fallacy**: Inferences about individuals deduced from inferences about groups.  
+    - **Atomistic Fallacy**: Inferences about groups deduced from inferences about individuals.  
+
+## Simpson's Paradox (1)
+```{r echo=FALSE}
+## Example code from http://rpubs.com/lakenp/simpsonsparadox
+set.seed(123)
+n = 1000
+
+Education = rbinom(n, 2, 0.5)
+Neuroticism = rnorm(n) + Education
+Salary = Education * 2 + rnorm(n) - Neuroticism * 0.3
+
+Salary = sample(10000:11000,1) + rescale(Salary, to = c(0, 100000))
+# summary(Salary)
+Neuroticism = rescale(Neuroticism, to = c(0, 7))
+# summary(Neuroticism)
+Education = factor(Education, labels = c("Low", "Medium", "High"))
+
+data <- data.frame(
+  Salary,
+  Neuroticism,
+  Education
+)
+
+p <- 
+  data %>% 
+  ggplot(aes(Neuroticism, Salary)) +
+  geom_point(alpha = 0.5) + 
+  geom_smooth(method = 'lm')
+
+p
+```
+
+
+## Simpson's Paradox (2)
+
+```{r echo=FALSE}
+## Example code from http://rpubs.com/lakenp/simpsonsparadox
+np <- p + 
+  geom_point(aes(col = Education), alpha = 0.5) + 
+  geom_smooth(aes(col = Education), method = 'lm') +
+  theme(legend.background = element_rect(fill = "transparent"),
+        legend.justification = c(0, 1),
+        legend.position = c(0, 1))
+np
+```
+
+## Imperfect solutions (we will come back to "pooling language")
+- Ignore it!
+    - Run a normal linear model. 
+    - Sometimes called *complete pooling* in that all responses are bundled together.
+- Aggregation
+    - Explicitly collapse levels to remove structure.
+- Stratification
+    - Run a separate model within each level cluster/grouping variable.
+    - Sometimes called *no pooling*
+
+- Better solution...
+
+# Linear mixed models (LMM)
+
+## Terminology
+- Linear mixed models are referred to in a wide variety of ways:
+    - General linear mixed-models  
+    - Random coefficient models  
+    - Hierarchical linear models (HLM)  
+    - Multi-level models (MLM)  
+    - Multi-level regression  
+    - Variance components models  
+- These are all pretty much the same thing.
+
+## Broad concept
+- When we have clustered/structured data, we need to fit a model that takes this into account.
+    - That models dependencies
+- To do this, our model includes **fixed** and **random** effects.
+
+## Fixed vs. random effects
+
+\begin{block}{FIXED EFFECTS}
+\vspace{10pt}
+Average estimates across the whole sample for model parameters. \\
+Fixed = the same for all.
+\vspace{10pt}
+\end{block}
+
+\begin{block}{RANDOM EFFECTS}
+\vspace{10pt}
+Variability around the average parameter (fixed effects) due to clustering. \\
+Random = varying between clusters.
+\vspace{10pt}
+\end{block}
+
+## Salary example
+- Suppose in our salary example we have employees measured within 5 different companies.
+    - For simplicity in the following plots we plot a single employee from each company.
+- What possible patterns do we think we could see?
+
+## LM: Fixed intercept and slope
+
+```{r echo=FALSE}
+ggplot(job_df, aes(service, salary)) +
+  geom_blank() + 
+  xlab("Years of Service")+
+  ylim(0, 80000)+
+  ylab("Salary Pounds Sterling")+
+  stat_smooth(method = 'lm', color = 'blue', se = F, fullrange = T)
+
+```
+
+## LM: Fixed intercept and slope
+
+$$ Salary_i = \beta_0 + \beta_1Service_i + \epsilon_i$$
+
+- Fixed intercept ($\beta_0$)
+- Fixed slope ($\beta_1$)
+
+## Random (varying) intercept, fixed (same) slope
+
+```{r echo=FALSE}
+ggplot(job_df, aes(service, salary)) +
+  geom_blank() + 
+  xlab("Years of Service")+
+  ylim(0, 80000)+
+  ylab("Salary Pounds Sterling")+
+  geom_abline(slope = 3709, intercept = 12161, color = 'blue', linetype = 1) + 
+  geom_abline(slope = 3709, intercept = 20000, color = 'red', linetype = 2) + 
+  geom_abline(slope = 3709, intercept = 10000, color = 'red', linetype = 2) + 
+  geom_abline(slope = 3709, intercept = 5000, color = 'red', linetype = 2) + 
+  geom_abline(slope = 3709, intercept = 25000, color = 'red', linetype = 2) +
+  geom_abline(slope = 3709, intercept = 30000, color = 'red', linetype = 2)
+
+```
+
+## Random (varying) intercept, fixed (same) slope
+
+$$ Salary_{ij} = \beta_{0j} + \beta_1Service_i + \epsilon_{ij}$$
+$$ \beta_{0j} = \gamma_{00} + \upsilon_{0j} $$
+
+- Random intercept ($\beta_{0j}$): Overall average ($\gamma_{00}$) and a residual term ($\upsilon_{0j}$)
+    - Based on the residuals, we can estimate the variance ($\sigma_{0j}^2$) in the intercepts.
+- Fixed slope ($\beta_1$)
+- Presented as a single equation:
+
+$$ Salary_{ij} =  \gamma_{00} + \beta_1Service_i + \upsilon_{0j} + \epsilon_{ij} $$
+
+## Fixed (same) intercept, random (varying) slope
+
+```{r echo=FALSE}
+ggplot(job_df, aes(service, salary)) +
+  geom_blank() + 
+  xlab("Years of Service")+
+  ylim(0, 80000)+
+  ylab("Salary Pounds Sterling")+
+  geom_abline(slope = 3709, intercept = 12161, color = 'blue', linetype = 1) + 
+  geom_abline(slope = 0, intercept = 12161, color = 'red', linetype = 2) + 
+  geom_abline(slope = 1000, intercept = 12161, color = 'red', linetype = 2) + 
+  geom_abline(slope = 2000, intercept = 12161, color = 'red', linetype = 2) + 
+  geom_abline(slope = 3000, intercept = 12161, color = 'red', linetype = 2) +
+  geom_abline(slope = 4000, intercept = 12161, color = 'red', linetype = 2)
+
+```
+
+## Fixed (same) intercept, random (varying) slope
+
+$$ Salary_{ij} = \beta_{0} + \beta_{1j}Service_{ij} + \epsilon_{ij}$$
+$$ \beta_{1j} = \gamma_{10} + \upsilon_{1j} $$
+
+- Fixed intercept ($\beta_{0}$) 
+- Random slope ($\beta_{1j}$): Overall average slope ($\gamma_{10}$) and a residual term ($\upsilon_{1j}$)
+- Presented as a single equation:
+
+$$ Salary_{ij} =  \beta_0 + \gamma_{10}Service_{ij} + \upsilon_{1j} + \epsilon_{ij} $$
+
+
+## Random (varying) intercept, random (varying) slope
+
+```{r echo=FALSE}
+ggplot(job_df, aes(service, salary)) +
+  geom_blank() + 
+  xlab("Years of Service")+
+  ylim(0, 80000)+
+  ylab("Salary Pounds Sterling")+
+  geom_abline(slope = 3709, intercept = 12161, color = 'blue', linetype = 1) + 
+  geom_abline(slope = 0, intercept = 20000, color = 'red', linetype = 2) + 
+  geom_abline(slope = 1000, intercept = 10000, color = 'red', linetype = 2) + 
+  geom_abline(slope = 2000, intercept = 5000, color = 'red', linetype = 2) + 
+  geom_abline(slope = 3000, intercept = 25000, color = 'red', linetype = 2) +
+  geom_abline(slope = 4000, intercept = 30000, color = 'red', linetype = 2)
+
+```
+
+
+## Random (varying) intercept, random (varying) slope
+
+$$ Salary_{ij} = \beta_{0j} + \beta_{1j}Service_{ij} + \epsilon_{ij}$$
+$$ \beta_{0j} = \gamma_{00} + \upsilon_{0j} $$
+$$ \beta_{1j} = \gamma_{10} + \upsilon_{1j} $$
+
+- Random intercept ($\beta_{0}$): Overall average ($\gamma_{00}$) and a residual term ($\upsilon_{0j}$)
+- Random slope ($\beta_{1j}$): Overall average slope ($\gamma_{10}$) and a residual term ($\upsilon_{1j}$)
+- Presented as a single equation:
+
+$$ Salary_{ij} =  \gamma_{00} + \gamma_{10}Service_{ij} + \upsilon_{0j} + \upsilon_{1j} + \epsilon_{ij} $$
+
+## Steps in LMM
+- In lecture 3, we will consider in detail the approach to model building in LMM.
+- Here I wanted to make brief reference to the overall process of analysis.
+- Assuming we have already established our theory, developed our hypotheses, and constructed a suitable study (easy right!!!!!!), then we....
+
+1. Tidy our data.
+2. Describe and visualize the data.
+3. Build and test our model (lecture 3)
+4. Interpret the model (all lectures!)
+
+- Lab today is (1) and (2), so I wanted to take a few minutes to flag a couple of things.
+
+# A practical comment on data
+
+## Wide vs long format
+- Who is aware of the distinction between wide and long data?
+
+## Example wide data
+```{r echo=FALSE}
+wide <- tibble(
+  ID = c("ID1001", "ID1002"),
+  Gender = c("Male", "Female"),
+  Trial_1 = c(10, 7.5),
+  Trial_2 = c(12.5, 10),
+  Trial_3 = c(18, 5) 
+)
+
+kable(wide, "latex", caption = "Wide Data 2 Participants")
+```
+
+- How many variables do we have?
+
+## Tidy data
+- In labs we will be using the `tidyverse` set of packages for data manipulation and plotting.
+- Tidy data has a number of basic principles (*described in lab*)
+- The short version:
+    - Each variable is a column.
+    - Each observation forms a row.
+- Think again about our structured data, and the wide format....
+
+## Example wide data
+
+```{r echo=FALSE}
+kable(wide, caption = "Wide Data 2 Participants")
+```
+
+- **Variables**: Gender, Trial and Score
+- **Observations**: Participants * n.trials = (6)
+
+## Example Long Data
+
+```{r echo=FALSE}
+long <- wide %>%
+  gather(key = Trial,
+         value = Score,
+         Trial_1:Trial_3) %>%
+  separate(Trial, c("label", "Trial"), "_", convert = T) %>%
+  select(-label)
+  
+
+kable(long, #"latex", 
+      caption = "Long Data 2 Participants")
+```
+
+## `tidyverse` for conversion
+
+```{r eval=FALSE}
+long <- wide %>%
+  gather(key = Trial,
+         value = Score,
+         Trial_1:Trial_3) %>%
+  separate(Trial, c("label", "Trial"), "_", convert = T) %>%
+  select(-label)
+```
+
+## Descriptive statistics by clustering variable
+- When we have higher level units we can cluster by, it can be of interest to look at descriptive statistics at this level.
+- So for example, if a participant completes multiple reaction time trials, we might want to know the mean and standard deviation per participant.
+- We can do this simply in `tidyverse` using `group_by()` and `summarise()` functions.
+
+## Descriptive statistics by clustering variable
+```{r eval=FALSE}
+long %>%
+  group_by(ID) %>%
+  summarise(
+    N.trials = n_distinct(Trial),
+    mean_score = mean(Score),
+    sd_score = sd(Score)
+  )
+
+```
+
+## Descriptive statistics by clustering variable
+
+```{r}
+summary <- 
+  long %>%
+  group_by(ID) %>%
+  summarise(
+    N.trials = n_distinct(Trial),
+    mean_score = mean(Score),
+    sd_score = sd(Score)
+  )
+summary
+```
+
+## Descriptive statistics by clustering variable
+
+``` {r}
+kable(summary, "latex", 
+      caption = "Descriptive Statistics by ID")
+```
+
+## Plots by clustering variable
+- As well as describing data, we may want to visualise data by clustering variable.
+- Again this can achieved within the `tidyverse` using `ggplot2` and in particular, the `facet_wrap()` argument.
+
+```{r eval=FALSE}
+long %>%
+  ggplot(aes(x=factor(Trial), y=Score, group = ID)) +
+  geom_point(size = 2, alpha= .75) +
+  geom_line() +
+  labs(x="Trial Number", y="Score") +
+  facet_wrap(~ID)
+```
+
+## Plots by clustering variable
+```{r echo=FALSE}
+long %>%
+  ggplot(aes(x=factor(Trial), y=Score, group = ID)) +
+  geom_point(size = 2, alpha= .75) +
+  geom_line() +
+  labs(x="Trial Number", y="Score") +
+  facet_wrap(~ID)
+```
+
+# Study Examples: How well do we understand levels?
+
+## Example 1: Intervention study
+- A research team conducts an intervention study on exercise. They want to know if total hours exercise increases whether someone uses an in gym personal trainer, or has one-to-one sessions from home. 
+- They randomly assign 100 people to each condition.
+- They measure number of hours exercised one week pre, and two weeks post, a 3 week training intervention period.
+- They also measure a set of demographics.
+
+## Questions
+1. What is the outcome?
+2. What are the predictors?
+3. What aspect of the study creates dependent structure?
+4. Due to (3) what are the potential random effects?
+
+## Example 2: Longitudinal study
+- A research team is interested in change in aggressive behaviour across adolescents.
+- They measure aggression using a questionnaire measure every year from age 7 to age 17.
+- The children in the study come from different areas of the same city.
+
+## Questions
+1. What is the outcome?
+2. What are the predictors?
+3. What aspect of the study creates dependent structure?
+4. Due to (3) what are the potential random effects?
+
+## Example 3: Experimental study
+- **Disclaimer** I am not a linguist, better example from *actual* linguistic researchers in future lectures.   
+- A research team is interested in the non-word reaction time in a lexical decision task.  
+- They are interested in whether real word neighbourhood density is predictive of RT.  
+- Conduct an experiment with 30 trials per participant.  
+
+## Questions
+1. What is the outcome?
+2. What are the predictors?
+3. What aspect of the study creates dependent structure?
+4. Due to (3) what are the potential random effects?
+
+# A few more details on models
+
+## "Complex"Multi-level"" theories
+- LMM allow us to construct multi-level theories.
+- So can think about whether phenomena at one level predict outcomes at another...
+    - e.g. does sector predict variation in starting salary?
+    - **What might this look like?**
+
+## Random intercept with predictor
+$$ Salary_{ij} = \beta_{0j} + \beta_1Service_i + \epsilon_{ij}$$
+
+$$ \beta_{0j} = \gamma_{00} + \gamma_{01}Sector_j + \upsilon_{0j} $$
+
+- Our random intercept ($\beta_{0j}$) is now predicted by Sector, and the effect captured in the $\gamma_{01}$ coefficient. 
+    - This is identical to a $\beta$ coefficient.
+- Presented as a single equation:
+
+$$ Salary_{ij} =  \gamma_{00} + \beta_1Service_i + + \gamma_{01}Sector + \upsilon_{0j} + \epsilon_{ij} $$
+
+## "Complex"Multi-level"" theories
+- And these can get elaborate
+    - e.g. does the effect of service on salary change dependent on the organisations market performance.
+    -**What might this look like?**
+    
+## Random slope, cross-level interaction
+$$ Salary_{ij} = \beta_{0} + \beta_{1j}Service_{ij} + \epsilon_{ij}$$
+
+$$ \beta_{1j} = \gamma_{10} + \gamma_{11}Performance_j + \upsilon_{1j} $$
+
+- The ($\gamma_{11}$) coefficient now expresses the degree to which the $\beta_{1j}$ slope, or the effect of `Service` on `Salary` is dependent on organisational performance. 
+- Presented as a single equation:
+
+$$ Salary_{ij} =  \beta_0 + \gamma_{10}Service_{ij} + \gamma_{11}Service_{ij}Performance_j + \upsilon_{1j} + \epsilon_{ij} $$
+
+## "Complex"Multi-level"" theories
+- We can also consider the covariance between random effects.
+    - Put another way, is there a positive covariance between intercept and slope variation.
+    - Do people who have higher intercept values (higher starting salary), also have a faster increase in pay (more positive slope)
+    - **What might this look like?**
+
+## Covarying random variances
+- Consider the random intercepts, random slopes model:
+
+$$ Salary_{ij} =  \gamma_{00} + \gamma_{10}Service_{ij} + \upsilon_{0j} + \upsilon_{1j} + \epsilon_{ij} $$
+- $\upsilon_{0j}$ and $\upsilon_{1j}$ are assumed independent of $\epsilon_{ij}$, but they are allowed to covary.
+    - Remember, from these we can estimate variances $\sigma_{\upsilon_{0}}^2$ and $\sigma_{\upsilon_{1}}^2$ respectively.
+- The associated covariance matrix is generally **not** assumed to be zero.
+
+$$
+\begin{matrix}
+\sigma_{\upsilon_{01}}^2 & \\ 
+\sigma_{\upsilon_{12}}^2 & \sigma_{\upsilon_{02}}^2
+\end{matrix}
+$$
+
+# That's all for today
