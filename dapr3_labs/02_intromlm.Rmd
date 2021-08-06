@@ -1,5 +1,5 @@
 ---
-title: "Introducing Mixed Effects Models"
+title: "Introducing Multi Level Models"
 bibliography: references.bib
 biblio-style: apalike
 link-citations: yes
@@ -12,66 +12,21 @@ params:
 source('assets/setup.R')
 library(tidyverse)
 library(patchwork)
+library(effects)
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
 ```
 
-:::blue
-**Some background reading**  
-
-+ [Winter, 2013](https://arxiv.org/abs/1308.5499)  
-+ [Brauer & Curtin, 2018](http://dx.doi.org/10.1037/met0000159),  [(pdf)](https://dionysus.psych.wisc.edu/LabPubs/BrauerM2018a.pdf)  
-+ [Luke, 2017](https://doi.org/10.3758/s13428-016-0809-y)  
-:::
-
-:::red
+:::lo
 **Preliminaries**  
  
-1. Open Rstudio, and **create a new project for this course!!** 
-2. Create a new RMarkdown document (giving it a title for this week). 
+1. Create a new RMarkdown document or R script (whichever you like) for this week. 
 
-:::
-
-:::frame
 **A Note on terminology**
 
 The methods we're going to learn about in the first five weeks of this course are known by lots of different names: "multilevel models"; "hierarchical linear models"; "mixed-effect models"; "mixed models"; "nested data models"; "random coefficient models"; "random-effects models"; "random parameter models"... and so on).   
 
 What the idea boils down to is that **model parameters vary at more than one level.** This week, we're going to explore what that means.  
 :::
-
-
-`r qbegin("New data time!", qlabel=FALSE)`
-Let's consider a little toy example in which we might use linear regression to determine how practice influences the reading age of Playmobil characters:
-```{r echo=FALSE, fig.cap = "[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)", out.width="300px",fig.align="center"}
-knitr::include_graphics("images/intro/reading.png")
-```
-  
-Let us know broaden our scope to the investigation of how practice affects reading age for *all* toys, (not just Playmobil characters).  
-You can find a dataset at https://uoepsy.github.io/data/toyexample.csv  
-
-```{r eval=FALSE}
-toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
-```
-
-The datasets contains information on 132 different toy figures. This time, however, they come from a selection of different families/types of toy. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].
-<br>
-<div style="display:inline-block; width: 45%;vertical-align: middle;">
-```{r echo=FALSE, out.width="300px",fig.align="center"}
-knitr::include_graphics("images/intro/toys.png")
-```
-</div>
-<div style="display:inline-block; width: 45%;vertical-align: middle;">
-```{r echo=FALSE, message=FALSE,warning=FALSE}
-library(gt)
-toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
-tibble(variable=names(toys_read),
-       description=c("Type of Toy","Character","Hours of practice per week","Age (in years)","Reading Age")
-) %>% gt()
-
-```
-</div>
-
-
-`r qend()`
 
 
 
@@ -107,7 +62,7 @@ The $\color{orange}{\zeta}$ components also get termed the "random effects" part
 Many people use the symbol $u$ in place of $\zeta$.  
 In various resources, you are likely to see $\alpha$ used to denote the intercept instead of $\beta_0$.  
 
-Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading. This often fits with the name "mixed effects" for these models:
 
 $$
 \color{red}{y_{ij}} = (\color{blue}{\beta_0} + \color{orange}{\zeta_{0i}}) \cdot 1 + ( \color{blue}{\beta_{1}} + \color{orange}{\zeta_{1i}} ) \cdot x_{ij}  +  \varepsilon_{ij} \\
@@ -125,7 +80,7 @@ $$
 
 ## Introducing **lme4** 
 
-:::yellow
+:::rtip
 
 We're going to use the `lme4` package, and specifically the functions `lmer()` and `glmer()`.  
 "(g)lmer" here stands for "(generalised) linear mixed effects regression". 
@@ -137,7 +92,15 @@ You will have seen some use of these functions in the lectures. The broad syntax
 
 We write the first bit of our **formula** just the same as our old friend the normal linear model `y ~ 1 + x + x2 + ...`, where `y` is the name of our outcome variable, `1` is the intercept (which we don't have to explicitly state as it will be included anyway) and `x`, `x2` etc are the names of our explanatory variables.  
 
-But let us suppose that we wish to model our intercept not as a fixed constant, but as varying randomly according to some grouping around a fixed center. This would fit the model:
+With **lme4**, we now have the addition of __random effect terms)), specified in parenthesis with the `|` operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).  
+We use the `|` operator to separate the parameters (intercept, slope etc.) on the LHS, from the grouping variable(s) on the RHS, by which we would like to model these parameters as varying.  
+
+__Random Intercept__  
+Let us suppose that we wish to model our intercept not as a fixed constant, but as varying randomly according to some grouping around a fixed center. 
+We can such a model by allowing the intercept to vary by our grouping variable (`g` below): 
+
+:::statbox
+<center>`lmer(y ~ 1 + x + (1|g), data = df)`</center>
 $$
 \begin{align}
 & \text{Level 1:} \\
@@ -146,39 +109,54 @@ $$
 & \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
 \end{align}
 $$
-With **lme4**, we now have the addition of these such random effect terms, specified in parenthesis with the `|` operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).  
-
-We use the `|` operator to separate the parameters (intercept, slope etc.) on the LHS, from the grouping variable(s) on the RHS, by which we would like to model these parameters as varying.  
-
-We can fit the model above by allowing the intercept to vary by our grouping variable (`g` below)  
-<br>
-<div style="margin-left:50px;">Random intercept model: `y ~ 1 + x + (1|g)`</div>
-<br>
-
-And by extension we can also allow the effect `y~x` to vary between groups:   
-<br>
-<div style="margin-left:50px;">Random intercept & slope model: `y ~ 1 + x + (1 + x|g)`</div>
-<br>
-
-
-
 :::
 
 
 
-## Estimation problems  
+
+__Random Slope__  
+By extension we can also allow the effect `y~x` to vary between groups, by including the `x` on the left hand side of `|` in the random effects part of the call to `lmer()`.
+
+:::statbox
+<center>`lmer(y ~ 1 + x + (1 + x |g), data = df)`</center>
+$$
+\begin{align}
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \text{Level 2:} \\
+& \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\end{align}
+$$
+:::
+:::
+
+
+
+## Estimation
+
+### ML vs REML
+
+TODO 
+
+### Model Convergence
 
 For large datasets and/or complex models (lots of random-effects terms), it is quite common to get a *convergence warning*.  There are lots of different ways to [deal with these](https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html) (to try to rule out hypotheses about what is causing them).  
 
-For now, if `lmer()` gives you convergence errors, you could try changing the optimizer. Bobyqa is a good one: add `control = lmerControl(optimizer = "bobyqa")` when you run your model.
+For now, if `lmer()` gives you convergence errors, you could try changing the optimizer. Bobyqa is a good one: add `control = lmerControl(optimizer = "bobyqa")` when you run your model.  
+
+```{r eval=F}
+lmer(y ~ 1 + x1 + ... + (1 + .... | g), data = df, 
+     control = lmerControl(optimizer = "bobyqa"))
+```
 
 `r optbegin("What *is* a convergence warning??", olabel=FALSE, toggle=params$TOGGLE)`
 
-Remember back to [Week 10 of USMR](https://uoepsy.github.io/usmr/labs/09_glm.html#Introducing_GLM), when we introduced the generalised linear model (GLM) we briefly discussed **Maximum likelihood** in an explanation of how models are fitted.  
+Remember back to DAPR2 when we introduced logistic regression, and we briefly discussed **Maximum likelihood** in an explanation of how models are fitted.  
 
 The key idea of *maximum likelihood estimation* (MLE) is that we (well, the computer) iteratively finds the set of estimates for our model which it considers to best reproduce our observed data. Recall our simple linear regression model of how practice (hrs per week) affects reading age: 
 $$
-\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{1i}} + \varepsilon_i
+\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{i}} + \varepsilon_i
 $$
 There are values of $\beta_0$ and $\beta_1$ and which maximise the likelihood of observing our data. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. And we saw that this is not possible for more complex models (e.g., logistic), which is where we turn to MLE.  
 
@@ -186,7 +164,7 @@ In a one-dimensional world, we could imagine the process of *maximum likelihood 
 ```{r echo=FALSE, out.width="350px", fig.cap="MLE"}
 knitr::include_graphics("images/intro/mle.png")
 ```
-However, our typical models estimate a whole bunch of parameters, and our multi-level models have yet more! So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities. 
+However, our typical models estimate a whole bunch of parameters. The simple regression model above is already having to estimate $\beta_0$, $\beta_1$ and $\sigma_\varepsilon$, and our multi-level models have far more! So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities. 
 ```{r echo=FALSE, out.width="350px",fig.cap="MLE for complex models"}
 knitr::include_graphics("images/intro/mle2.png")
 ```
@@ -194,17 +172,32 @@ There are different technques for doing this, which we apply by using different 
 
 `r optend()`
 
-## Fitting some models
+# exercises TODO name
+
+:::frame
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+Recall our toy example data in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines. We have data on various types of toys, from Playmobil to Powerrangers, to Farm Animals.
+</div>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+```{r echo=FALSE, out.width="300px",fig.align="center"}
+knitr::include_graphics("images/intro/toys.png")
+```
+</div>
+```{r message=FALSE,warning=FALSE}
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
+```
+:::
+
 
 `r qbegin("A3")`
-Using `lmer()` from the **lme4** package, fit a model of practice (`hrs_week`) predicting Reading age (`R_AGE`), with by-toytype random intercepts. 
+Using `lmer()` from the **lme4** package, fit a model of practice (`hrs_week`) predicting Reading age (`R_AGE`), with by-toytype random intercepts.  
 Pass the model to `summary()` to see the output. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
 library(lme4)
-rmodel1 <- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
-summary(rmodel1)
+ri_model <- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
+summary(ri_model)
 ```
 `r solend()`
 
@@ -213,16 +206,16 @@ Sometimes the easiest way to start understanding your model is to visualise it.
  
 Load the package **broom.mixed**. Along with some handy functions `tidy()` and `glance()` which give us the information we see in `summary()`, there is a handy function called `augment()` which returns us the data in the model plus the fitted values, residuals, hat values, Cook's D etc.. 
 ```{r}
+ri_model <- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
 library(broom.mixed)
-rmodel1 <- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
-augment(rmodel1)
+augment(ri_model)
 ```
 
 Add to the code below to plot the model fitted values, and color them according to toy type.  
-(you may need to edit `rmodel1` to be whatever name you assigned to your model).
+(you will need to edit `ri_model` to be whatever name you assigned to your model).
 
 ```{r eval=FALSE}
-augment(rmodel1) %>%
+augment(ri_model) %>%
   ggplot(aes(x = hrs_week, y = ...... 
 ```
 
@@ -230,7 +223,7 @@ augment(rmodel1) %>%
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
-augment(rmodel1) %>%
+augment(ri_model) %>%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line()
 ```
@@ -238,9 +231,18 @@ augment(rmodel1) %>%
 
 
 `r qbegin("A5")`
-For our $\beta$ estimates from a multilevel model, we can use `fixef()`.  
+We have just fitted the model:
+$$
+\begin{align}
+& \text{For toy } j \text{ of toy-type } i \\
+& \color{red}{\textrm{Reading_Age}_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot \textrm{Practice}_{ij}} + \varepsilon_{ij} \\
+& \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+$$
+
+For our estimates of $\gamma_{00}$ (the fixed value around which toy-type intercepts vary) and $\beta_1$ (the fixed estimate of the relationship between reading age and practice), we can use `fixef()`.  
 ```{r}
-fixef(rmodel1)
+fixef(ri_model)
 ```
 Can you add to the plot in the previous question, a thick black line with the intercept and slope given by `fixef()`?  
 
@@ -250,34 +252,37 @@ Can you add to the plot in the previous question, a thick black line with the in
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
-augment(rmodel1) %>%
+augment(ri_model) %>%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
-  geom_abline(intercept = fixef(rmodel1)[1], slope = fixef(rmodel1)[2], lwd = 2)
+  geom_abline(intercept = fixef(ri_model)[1], slope = fixef(ri_model)[2], lwd = 2)
 ```
 `r solend()`
 
 `r qbegin("A6")`
-By now, you should have a plot which looks more or less like the below. We have added on the raw data too (the points). 
-```{r echo=FALSE}
-augment(rmodel1) %>%
+By now, you should have a plot which looks more or less like the left-hand figure below (we have added on the raw data - the points).  
+<div style="display:inline-block; width: 55%;vertical-align: top;">
+```{r modfit, echo=FALSE, fig.asp=1, fig.cap="Model fitted values"}
+augment(ri_model) %>%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
-  geom_abline(intercept = fixef(rmodel1)[1], slope = fixef(rmodel1)[2], lwd = 2)+
+  geom_abline(intercept = fixef(ri_model)[1], slope = fixef(ri_model)[2], lwd = 2)+
   geom_point(aes(y=R_AGE), alpha=.4)
 ```
-Let's try to map the parts of the plot to the `summary()` output of the model.  
-Match the coloured sections in the image below to the descriptions A through D.  
-
-A) where the black line cuts the y axis  
-B) the standard deviation of the distances from all the individual toy types lines to the black line.  
-C) the slope of the black line  
-D) the standard deviation of the distances from all the individual observations to the line for the toy type to which it belongs. 
-
-```{r lmersummap, echo=FALSE, out.width="400px", fig.cap="Summary model output, lmer(R_AGE~hrs_week + (1|toy_type), data = toys_read)"}
+</div>
+<div style="display:inline-block; width: 40%;vertical-align: top;">
+```{r lmersummap, echo=FALSE, out.width="400px", fig.cap="Summary model output<br>lmer(R_AGE~1 + hrs_week + (1|toy_type),<br>data = toys_read)"}
 knitr::include_graphics("images/intro/summarylmer.png")
 ```
+</div>
+<br>
+<br>
+We're going to map the parts of the plot in Figure \@ref(fig:modfit) to the `summary()` output of the model in Figure \@ref(fig:lmersummap). Match the coloured sections Red, Orange, Yellow and Blue in Figure \@ref(fig:lmersummap) to the descriptions below of \@ref(fig:modfit) A through D. 
 
+A) where the black line cuts the y axis
+B) the standard deviation of the distances from all the individual toy types lines to the black lines
+C) the slope of the black lines
+D) the standard deviation of the distances from all the individual observations to the line for the toy type to which it belongs.
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -291,7 +296,7 @@ knitr::include_graphics("images/intro/summarylmer.png")
 
 
 `r qbegin("A7 - Harder")`
-Can you know map those same coloured sections in Figure \@ref(fig:lmersummap) to the mathematical terms in the model equation:  
+Can you now map those same coloured sections in Figure \@ref(fig:lmersummap) to the mathematical terms in the model equation:  
 
 $$
 \begin{align}
@@ -322,8 +327,8 @@ Then, using `augment()` again, plot the model fitted values. What do you think y
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-rmodel2 <- lmer(R_AGE ~ 1 + hrs_week + (1 + hrs_week | toy_type), data = toys_read)
-augment(rmodel2) %>%
+rs_model <- lmer(R_AGE ~ 1 + hrs_week + (1 + hrs_week | toy_type), data = toys_read)
+augment(rs_model) %>%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
   geom_point(aes(y=R_AGE), alpha=.4)
@@ -338,13 +343,13 @@ Do this for both the model with the random intercept only, and the model with bo
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-augment(rmodel1) %>%
+augment(ri_model) %>%
   filter(str_detect(toy_type, "Scooby|Farm")) %>%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
   geom_point(aes(y=R_AGE), alpha=.4)
 
-augment(rmodel2) %>%
+augment(rs_model) %>%
   filter(str_detect(toy_type, "Scooby|Farm")) %>%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
@@ -387,32 +392,42 @@ head(WeightMaintain3)
 > Q: Overall, did the participants maintain their weight loss or did their weights change?
 
 Each of our participants have measurements at 4 assessments. 
-We need to think about what this means for our *random effect structure*. Would we like our models to accommodate individuals to vary in their starting weight change, to vary in their weight change over the course of the assessment period, or both?  
+We need to think about what this means for the **random effects** that we will include in our model (our **random effect structure**). Would we like our models to accommodate individuals to vary in their starting weight change, to vary in their weight change over the course of the assessment period, or both?  
 
 To investigate whether weights changed over the course of the assessments, or whether they stayed the same, we can fit and compare 2 models:  
 
 1. The "null" or "intercept-only" model. 
 2. A model with weight change predicted by assessment.  
 
-*Hint:* You can compare two `lmer()` models the same way you would compare two `lm()` models in R. However, note that the output will not give you an F-ratio, but a Chisq. This is because instead of comparing the residual sums of squares, we are comparing the model deviance (or $-2 \times \text{LogLikelihood}$ of our model). This is what is known as a *likelihood ratio test (LRT)*.  
+And we can then compare them in terms of model fit. As discussed in the lecture, there are lots of ways to assess inference in multilevel models. 
+
+Our sample size here (180 participants, each with 4 observations) is reasonably large given the relative simplicity of our model. We might consider running a straightforward Likelihood Ratio Test using `anova(restricted_model, full_model)` to compare our two models. This will assume that the difference in model deviances ( $-2 \times \text{LogLikelihood}$ ) is $\chi^2$-distributed.  
+If we wish to use a more robust test, we might use the `PBmodcomp()` function from the __pbkrtest__ package, in order to bootstrap the likelihood ratio statistic based on simulations based on the parameters of the model.  
+
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
 ```{r}
 m.null <- lmer(WeightChange ~ 1 + (1 + Assessment | ID), data=WeightMaintain3)
 m.base <- lmer(WeightChange ~ Assessment + (1 + Assessment | ID), data=WeightMaintain3)
 
+# Straightforward LRT
 anova(m.null, m.base)
 ```
-```{r echo=FALSE}
-res <- anova(m.null, m.base)
+```{r eval=F}
+# parametric bootstrap LRT
+library(pbkrtest)
+PBmodcomp(m.base, m.null)
 ```
-
+```{r echo=FALSE}
+library(pbkrtest)
+res <- PBmodcomp(m.base, m.null)
+res
+```
 
 :::int
 
-Likelihood ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( $\chi^2(1)$ = `r round(res$Chisq[2],2)`, $p < .001$), suggesting that participants' weights changed over course of 36 month assessment period. 
+Parameetric Bootstrap Likelihood Ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( $\chi^2(1)$ = `r round(res$test$stat[2],2)`, `r ifelse(res$test$p.value[2]<.001, "p < .001", paste0("p = ",round(res$test$p.value[2], 3)))`), suggesting that participants' weights changed over course of 36 month assessment period. 
 
 :::
 
@@ -440,26 +455,42 @@ m.full <- lmer(WeightChange ~ Assessment*Condition + (Assessment | ID),
                data=WeightMaintain3)
 ```
 
-We're going to compare all our models so far, in order. This will compare each one to the previous one, so is equivalent to:
-```{r eval=FALSE}
-anova(m.null, m.base)
-anova(m.int, m.base)
-anova(m.full, m.int)
-```
-
+We're going to compare each model to the previous one to examine the improvement in fit due to inclusion of each parameter. 
+We could do this quickly with
 ```{r}
 anova(m.null, m.base, m.int, m.full)
 ```
 :::int 
-Conditions differed overall in weight change $\chi^2(2)=9.4, p < .01$  
+Conditions differed overall in weight change $\chi^2(2)=9.4, p = .009$  
 Conditions differed in change over assessment period $\chi^2(2)=40.4, p < .001$
+:::
+
+
+```{r eval=FALSE}
+PBmodcomp(m.int, m.base)
+```
+```{r echo=FALSE}
+res1 <- PBmodcomp(m.int, m.base)
+res1
+```
+```{r eval=FALSE}
+PBmodcomp(m.full, m.int)
+```
+```{r echo=FALSE}
+res2<-PBmodcomp(m.full, m.int)
+res2
+```
+
+:::int 
+Conditions differed overall in weight change (bootstrap likelihood ratio = 9.4, $p = .014$ ).  
+Conditions differed in change over assessment period (bootstrap likelihood ratio = 40.4, $p = .001$ ).  
 :::
 
 `r solend()`
 
 `r qbegin("B4")`
 We saw that we can get the coefficients using `fixef(model)`. 
-We can also use `tidy(model)`, and similar to last semester, we can pull out the bit of the `summary()` using:  
+We can also use `tidy(model)`, and similar to models fitted with `lm()`, we can pull out the bit of the `summary()` using:  
 ```{r eval=FALSE}
 summary(model)$coefficients
 ```

@@ -36,21 +36,49 @@ class: center, middle, inverse, title-slide
 
 
 
+
 ---
 class: inverse, center, middle
 
-# Part 1&lt;br&gt;Linear Regression Refresh
+&lt;h2&gt;Part 1: Linear Regression Refresh&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Clustered Data&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Possible Approaches&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Extra: ANOVA &amp; Repeated Measures (brief)&lt;/h2&gt;
 
 ---
 
-# deterministic vs statistical model
+# Models
 
+.pull-left[
+__deterministic__  
 
-y = mx + c  
-`\(y = \alpha + \beta x + \varepsilon\)`  
+given the same input, deterministic functions return *exactly* the same output
 
-.br3.pa2.f3.white.bg-gray[
-$$ \textrm{outcome} = (\textrm{model}) + \textrm{error} $$
+- `\(y = mx + c\)`  
+
+- area of sphere = `\(4\pi r^2\)`  
+
+- height of fall = `\(1/2 g t^2\)`
+    - `\(g = \textrm{gravitational constant, }9.8m/s^2\)`
+    - `\(t = \textrm{time (in seconds) of fall}\)`
+
+]
+
+--
+
+.pull-right[
+__statistical__  
+
+.br2.f4.white.bg-gray[
+$$ 
+\textrm{outcome} = (\textrm{model}) + \color{black}{\textrm{error}}
+$$
+]
+
+- handspan = height + randomness  
+
+- cognitive test score = age + premorbid IQ + ... + randomness
+
 ]
 
 ---
@@ -62,7 +90,7 @@ $$
 \color{red}{\textrm{outcome}} &amp; = \color{blue}{(\textrm{model})} + \textrm{error} \\
 \color{red}{y_i} &amp; = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \varepsilon_i \\
 \text{where } \\
-\varepsilon &amp; \sim N(0, \sigma) \text{ independently} \\
+\varepsilon_i &amp; \sim N(0, \sigma) \text{ independently} \\
 \end{align}`
 $$
 ]
@@ -76,10 +104,6 @@ Our proposed model of the world:
 
 `\(\color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \varepsilon_i\)`  
   
-Our model _fitted_ to some data (note the `\(\widehat{\textrm{hats}}\)`):  
-
-`\(\hat{y}_i = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x_i}\)`  
-
 {{content}}
 ]
 .w-50.pa2[
@@ -88,11 +112,18 @@ Our model _fitted_ to some data (note the `\(\widehat{\textrm{hats}}\)`):
 
 --
 
+Our model _fitted_ to some data (note the `\(\widehat{\textrm{hats}}\)`):  
+
+`\(\hat{y}_i = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x_i}\)`  
+
+{{content}}
+
+--
+
 For the `\(i^{th}\)` observation:
   - `\(\color{red}{y_i}\)` is the value we observe for `\(x_i\)`   
   - `\(\hat{y}_i\)` is the value the model _predicts_ for `\(x_i\)`   
   - `\(\color{red}{y_i} = \hat{y}_i + \varepsilon_i\)`  
-
 
 ---
 # An Example
@@ -113,7 +144,8 @@ For the `\(i^{th}\)` observation:
 --
 
 __e.g.__   
-for the observation `\(x_i = 1.2, y_i = 9.9\)`:
+for the observation `\(x_i = 1.2, \; y_i = 9.9\)`:  
+
 
 $$
 `\begin{align}
@@ -127,8 +159,8 @@ $$
 # Extending the linear model
 ## Categorical Predictors
 
-.pull-left[
-&lt;table&gt;
+.pull-left[  
+&lt;br&gt;&lt;table&gt;
  &lt;thead&gt;
   &lt;tr&gt;
    &lt;th style="text-align:left;"&gt; y &lt;/th&gt;
@@ -182,6 +214,8 @@ $$
 ![](dapr3_lec1_files/figure-html/unnamed-chunk-3-1.png)&lt;!-- --&gt;
 ]
 
+--
+
 .pull-right[
 ![](dapr3_lec1_files/figure-html/unnamed-chunk-4-1.png)&lt;!-- --&gt;
 ]
@@ -194,6 +228,9 @@ $$
 .pull-left[
 ![](dapr3_lec1_files/figure-html/unnamed-chunk-5-1.png)&lt;!-- --&gt;
 ]
+
+--
+
 .pull-right[
 ![](dapr3_lec1_files/figure-html/unnamed-chunk-6-1.png)&lt;!-- --&gt;
 ]
@@ -213,21 +250,34 @@ $$
 $$
 `\begin{align}
 \color{red}{y} = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} &amp; \qquad  &amp; (-\infty, \infty) \\
+\qquad \\
+\qquad \\
 \color{red}{ln \left( \frac{p}{1-p} \right) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} &amp; \qquad  &amp; [0,1] \\
+\qquad \\
+\qquad \\
+\color{red}{ln (y) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} &amp; \qquad  &amp; (0, \infty) \\
 \end{align}`
 $$  
 
 ---
 # Linear Models in R
 
+- Linear regression
 
 ```r
-linear_model &lt;- lm(y ~ x1 + x2 + x3*x4, data = df)
+linear_model &lt;- lm(continuous_y ~ x1 + x2 + x3*x4, data = df)
 ```
 
+- Logistic regression
 
 ```r
-logistic_model &lt;- glm(y ~ x1 + x2 + x3*x4, data = df, family=binomial(link="logit"))
+logistic_model &lt;- glm(binary_y ~ x1 + x2 + x3*x4, data = df, family=binomial(link="logit"))
+```
+
+- Poisson regression
+
+```r
+poisson_model &lt;- glm(count_y ~ x1 + x2 + x3*x4, data = df, family=poisson(link="log"))
 ```
 
 ---
@@ -257,21 +307,16 @@ Our model:
 
 `\(\color{red}{y} = \color{blue}{\mathbf{X \boldsymbol \beta}} + \varepsilon \\ \text{where } \boldsymbol \varepsilon \sim N(0, \sigma) \text{ independently}\)`
 
---
-
-Or put another way:  
-
-`\(\color{red}{\boldsymbol  y} \sim Normal(\color{blue}{\mathbf{X \boldsymbol \beta}}, \sigma)\)`
 
 --
 
-Recall, our ability to generalise from our model fitted on sample data to the wider population requires making some _assumptions_
+Our ability to generalise from the model we fit on sample data to the wider population requires making some _assumptions._
 
 --
 
 - assumptions about the nature of the **model** .tr[
 (linear)
-]
+]o
 
 --
 
@@ -279,45 +324,148 @@ Recall, our ability to generalise from our model fitted on sample data to the wi
 (normal)
 ]
 
+--
+
+.footnote[
+You can also phrase the linear model as: `\(\color{red}{\boldsymbol  y} \sim Normal(\color{blue}{\mathbf{X \boldsymbol \beta}}, \sigma)\)`
+]
 ---
 
-# The Broader Idea
+# The Broad Idea
 
+All our work here is in
+aim of making **models of the world**.  
 
-All our work here is in aim of making models of the world.
+--
 
-- Models are models. They are simplifications, and so wrong/imperfect.  
-- Our residuals ( `\(y - \hat{y}\)` ) reflect everything that we don't account for in our model
-- In an ideal world, our model accounts for _all_ the systematic relationships. What is left over (our residuals) is just randomness. 
-    - If our model is mis-specified, or misses out something systematic, then our residuals will reflect this.
+- Models are models. They are simplifications. They are therefore wrong.  
+
+--
+
+![](jk_img_sandbox/joeymap.jpg)
+
+---
+count:false
+# The Broad Idea
+
+All our work here is in aim of making **models of the world**.  
+
+- Models are models. They are simplifications. They are therefore wrong.  
+
+- Our residuals ( `\(y - \hat{y}\)` ) reflect everything that we **don't** account for in our model.  
+
+--
+
+- In an ideal world, our model accounts for _all_ the systematic relationships. The leftovers (our residuals) are just random noise.  
+
+--
+
+    - If our model is mis-specified, or we don't measure some systematic relationship, then our residuals will reflect this.
+    
+--
+
 - We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
-    - _this tends to get referred to as our "assumptions"_
-- We will never know whether our residuals contain only randomness - we can never observe everything! 
----
+    - _these ideas tend to get referred to as our "assumptions"_
+    
+--
 
+- We will **never** know whether our residuals contain only randomness - we can never observe everything! 
+
+---
 # Checking Assumptions
 
 .pull-left[
 
-residuals should be "zero mean and constant variance".  
-what does this look like? 
+What does "zero mean and constant variance" look like?  
 
-well, we want the mean of the residuals to be zero, and we want a close to normal distribution.
-furthermore, we want that spread to be constant across the fitted values. 
+- mean of the residuals = zero across the predicted values on the linear predictor.  
+
+- spread of residuals is normally distributed and constant across the predicted values on the linear predictor.  
+
 
 ]
 .pull-right[
 
-![](dapr3_lec1_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
+![](dapr3_lec1_files/figure-html/unnamed-chunk-14-1.png)&lt;!-- --&gt;
+
+]
+
+---
+count:false 
+# Checking Assumptions
+
+.pull-left[
+
+What does "zero mean and constant variance" look like?  
+
+- __mean of the residuals = zero across the predicted values on the linear predictor.__    
+
+- spread of residuals is normally distributed and constant across the predicted values on the linear predictor.  
+
+
+]
+.pull-right[
+
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-15-1.png)&lt;!-- --&gt;
+
+]
+
+---
+count:false 
+# Checking Assumptions
+
+.pull-left[
+
+What does "zero mean and constant variance" look like?  
+
+- mean of the residuals = zero across the predicted values on the linear predictor.  
+
+- __spread of residuals is normally distributed and constant across the predicted values on the linear predictor.__  
+
+
+]
+.pull-right[
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-16-1.png)&lt;!-- --&gt;
+]
+
+---
+count:false
+# Checking Assumptions
+
+.pull-left[
+
+What does "zero mean and constant variance" look like?  
+
+- mean of the residuals = zero across the predicted values on the linear predictor.  
+
+- spread of residuals is normally distributed and constant across the predicted values on the linear predictor.  
+
+
+
+]
+.pull-right[
+__`plot(model)`__
+
+
+
+
+```r
+my_model &lt;- lm(y ~ x, data = df)
+plot(my_model, which = 1)
+```
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-18-1.png)&lt;!-- --&gt;
 
 ]
 
 
 ---
-
+count:false
 # Checking Assumptions
-## (the "recipe book" way)
-
+&lt;br&gt;&lt;br&gt;
+&lt;center&gt;
 &lt;div class="acronym"&gt;
 L
 &lt;/div&gt; inearity&lt;br&gt;
@@ -330,27 +478,57 @@ N
 &lt;div class="acronym"&gt;
 E
 &lt;/div&gt; qual variance&lt;br&gt;
-
+&lt;/center&gt;
 .footnote["Line without N is a Lie!" (Umberto)]
-
-
 
 ---
 
 # What if our model doesn't meet assumptions?
 
-- bootstrap!
+- is our model mis-specified?  
+  - is the relationship non-linear? higher order terms? (e.g. `\(y \sim x + x^2\)`)
+  - is there an omitted variable or interaction term? 
+  
+  
+--
 
-what about independence? 
+- transform the outcome variable?
+  - makes things look more "normal"
+  - but can make things more tricky to interpret:  
+    `\(y \sim x\)` and `\(log(y) \sim x\)` are quite different models
+
+--
+
+- bootstrap
+  - do many times: resample (w/ replacement) your data, and refit your model.
+  - obtain a distribution of parameter estimate of interest. 
+  - compute a confidence interval for estimate
+  - celebrate
+
+--
+
+But these don't help if have violated our assumption of independence...
 
 ---
 # Summary
 
-- we can fit a linear regression model which takes the form `\(\color{red}{y} = \color{blue}{\mathbf{X} \boldsymbol{\beta}} + \boldsymbol{\varepsilon}\)`
-- in R, we fit this with `lm(y ~ x1 + .... xk, data = mydata)`.
-- we can extend this to different link functions to model outcome variables which follow different distributions.
-- when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.
-- one of these is that the errors are independent.
+- we can fit a linear regression model which takes the form `\(\color{red}{y} = \color{blue}{\mathbf{X} \boldsymbol{\beta}} + \boldsymbol{\varepsilon}\)`  
+
+--
+
+- in R, we fit this with `lm(y ~ x1 + .... xk, data = mydata)`.  
+
+--
+
+- we can extend this to different link functions to model outcome variables which follow different distributions.  
+
+--
+
+- when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.  
+
+--
+
+  - one of these is that the errors are independent.
 
 
 ---
@@ -361,116 +539,293 @@ class: inverse, center, middle, animated, rotateInDownLeft
 ---
 class: inverse, center, middle
 
-# Part 2&lt;br&gt;Clustered Data
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Linear Regression Refresh&lt;/h2&gt;
+&lt;h2&gt;Part 2: Clustered Data&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Possible Approaches&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Extra: ANOVA &amp; Repeated Measures (brief)&lt;/h2&gt;
 
 ---
 
 # What is clustered data?
 
-- children within schools
-- patients within clinics
-- observations within individuals
+--
 
-terms: "levels","hierarchical"
+.pull-left[
+- children within schools  
 
+- patients within clinics  
+
+- observations within individuals  
+]
+
+--
+
+TODO INCLUDE GRAPHIC FROM TOM
+
+--
+
+.pull-right[
+  
 - children within classrooms within schools within districts etc...  
 
+- patients within doctors within hospitals... 
+
+- time-periods within trials within individuals
+] 
+
+--
+
+.footnote[
+Other relevant terms you will tend to see: "grouping structure", "levels", "hierarchies". 
+]
+
 ---
-# Why is it relevant?  
+# Why is clustering worth thinking about?  
 
-- clustering will likely result in measurement on observational units within a given cluster being more similar to those of other clusters.  
-  - e.g. our measured outcome for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes
+Clustering will likely result in measurements on observational units within a given cluster being more similar to each other than to those in other clusters.  
 
-- clustering is expressed in terms of the correlation among the measurements within the same cluster
+--
+&lt;br&gt;
+  - For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
+
+--
+
+A lot of the data you will come across will have clusters. 
+  - multiple experimental trials per participant
+  - patients in clinics
+  - employees within departments
+  - children within classes
 
 ---
 # ICC (intra-class correlation coefficient)
 
-- various forms
-- variance within / total variance  
-- `\(\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\varepsilon}\)`
+Clustering is expressed in terms of the correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
 
+--
+
+There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
+
+&lt;br&gt;
+`\(\rho = \frac{\sigma^2_{a}}{\sigma^2_{b} + \sigma^2_e} \\ \qquad \\\textrm{Where:} \\ \sigma^2_{b} = \textrm{variance between clusters} \\ \sigma^2_e = \textrm{variance within clusters (residual variance)} \\\)`
+
+--
+
+Can also be interpreted as the correlation between two observations from the same group. 
 
 ---
-# Why is clustered data a problem for lm?
+# Various values of `\(\rho\)`
 
-`$$\varepsilon \sim N(0, \sigma) \textbf{ independently}$$` 
-
-- clustering is something systematic that our model should (arguably) take into account. 
-- "independence" assumption.  
-
----
-# HOW is clustered data a problem for lm?
+The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
 
 .pull-left[
-#### Standard errors
+&lt;img src="dapr3_lec1_files/figure-html/unnamed-chunk-19-1.png" style="display: block; margin: auto;" /&gt;
 
-We saw:
-`$$SE(\hat \beta_1) = \sqrt{\frac{ SS_{Residual}/(n-k-1)}{\sum(x_i - \bar{x})^2}}$$`
+]
 
-suppose that `\(\rho = 1\)`. i.e., all the variation we see is due to the clustering. 
+--
 
-if we ignore clustering, `\(SS_{Residual}\)` 
+.pull-right[
+
+&lt;img src="dapr3_lec1_files/figure-html/unnamed-chunk-20-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Clustered data &amp; lm
+
+.pull-left[
+#### Why is it a problem?
+
+Clustering is something **systematic** that our model should (arguably) take into account.  
+
+- remember, `\(\varepsilon \sim N(0, \sigma) \textbf{ independently}\)` 
+
+]
+
+--
+
+.pull-right[
+#### HOW is it a problem?  
+
+Standard errors tend to be smaller than they should be, meaning that:  
+
+  - confidence intervals will be too narrow 
+  
+  - `\(t\)`-statistics will be too large  
+  
+  - `\(p\)`-values will be misleadingly small
+
+]
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Linear Regression Refresh&lt;/h2&gt;
+&lt;h2&gt;&lt;b style="opacity:0.4;"&gt;Part 2: Clustered Data&lt;/b&gt;&lt;b&gt;A Practical Comment on Data&lt;/b&gt;&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Possible Approaches&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Extra: ANOVA &amp; Repeated Measures (brief)&lt;/h2&gt;
+
+
+---
+# Wide Data/Long Data
+
+.pull-left[
+__Wide Data__  
+
+
+```
+## # A tibble: 5 x 5
+##   ID    age   trial_1 trial_2 trial_3
+##   &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;  
+## 1 001   28    10      12.5    18     
+## 2 002   36    7.5     7       5      
+## 3 003   61    12      14.5    11     
+## 4 004   45    10.5    17      14     
+## 5 ...   ...   ...     ...     ...
+```
+
+
+
 ]
 .pull-right[
-#### Not always the effect of interest
+__Long Data__
 
-e.g. simpsons pdox
+
+
+```
+## # A tibble: 13 x 4
+##    ID    age   trial   score
+##    &lt;chr&gt; &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;
+##  1 001   36    trial_1 10   
+##  2 001   36    trial_2 12.5 
+##  3 001   36    trial_3 18   
+##  4 002   70    trial_1 7.5  
+##  5 002   70    trial_2 7    
+##  6 002   70    trial_3 5    
+##  7 003   68    trial_1 12   
+##  8 003   68    trial_2 14.5 
+##  9 003   68    trial_3 11   
+## 10 004   31    trial_1 10.5 
+## 11 004   31    trial_2 17   
+## 12 004   31    trial_3 14   
+## 13 ...   ...   ...     ...
+```
 
 
 ]
 
 
 ---
-# Various values of `\(\rho\)`
+# Wide Data/Long Data
 
-![](dapr3_lec1_files/figure-html/unnamed-chunk-14-1.png)&lt;!-- --&gt;
 
----
+![Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)](https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif)
 
-# Various values of `\(\rho\)`
-
-![](dapr3_lec1_files/figure-html/unnamed-chunk-15-1.png)&lt;!-- --&gt;
 
 ---
+# Long is good for plotting. 
 
+.pull-left[
+__`group` aesthetic__  
+
+
+```r
+ggplot(longd, aes(x=trial,y=score, group=ID, col=ID))+
+  geom_point(size=4)+
+  geom_path()+
+  themedapr3()
+```
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-24-1.png)&lt;!-- --&gt;
+
+]
+.pull-right[
+__`facet_wrap()`__  
+
+```r
+ggplot(longd, aes(x=trial,y=score))+
+  geom_point(size=4)+
+  geom_path(aes(group=1))+
+  themedapr3()+
+  facet_wrap(~ID)
+```
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-25-1.png)&lt;!-- --&gt;
+]
+
+---
+# Long is good for describing by ID
+
+
+```r
+longd %&gt;% 
+  group_by(ID) %&gt;%
+  summarise(
+    ntrials = n_distinct(trial),
+    meanscore = mean(score),
+    sdscore = sd(score)
+  )
+```
+
+```
+## # A tibble: 4 x 4
+##   ID    ntrials meanscore sdscore
+##   &lt;chr&gt;   &lt;int&gt;     &lt;dbl&gt;   &lt;dbl&gt;
+## 1 001         3      13.5    4.09
+## 2 002         3       6.5    1.32
+## 3 003         3      12.5    1.80
+## 4 004         3      13.8    3.25
+```
+
+
+
+---
 # Summary
 
-- clustering can take many forms, and exist at many levels
-- clustering is something systematic that we would want our model to take into account
-- typically assessed using intra-class correlation coefficient (ICC) - the ratio of variance within clusters to the total variance `\(\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\varepsilon}\)`
+- Clustering can take many forms, and exist at many levels  
 
+--
+
+- Clustering is something systematic that we would want our model to take into account
+
+  - Ignoring it can lead to incorrect statistical inferences
+
+--
+
+- Clustering is typically assessed using intra-class correlation coefficient (ICC) - the ratio of variance within clusters to the total variance `\(\rho = \frac{\sigma^2_b}{\sigma^2_b + \sigma^2_e}\)`
+
+--
+
+- Tidying your data and converting it to *long* format (one observational unit per row, and a variable identifying the cluster ID) is a good start. 
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
 # End of Part 2
 
+
 ---
 class: inverse, center, middle
 
-# Part 3
-## Possible solutions
-
-
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Linear Regression Refresh&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Clustered Data&lt;/h2&gt;
+&lt;h2&gt;Part 3: Possible Approaches&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Extra: ANOVA &amp; Repeated Measures (brief)&lt;/h2&gt;
 
 ---
-# Some toy data
-
+# Our Data
 .pull-left[
-
 &gt; Sample of 115 birds from 12 gardens, information captured on the arrival time (hours past midnight) and number of worms caught by the end of the day. 
 
 
 ```r
-# worms_data &lt;- read_csv(".......")
+worms_data &lt;- read_csv("https://uoepsy.github.io/data/worms.csv")
 head(worms_data)
 ```
 
 ```
 ## # A tibble: 6 x 5
 ##   gardenid birdid arrivalt nworms birdt    
-##   &lt;chr&gt;     &lt;int&gt;    &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;    
+##   &lt;chr&gt;     &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;    
 ## 1 garden1       1     6.49     53 blackbird
 ## 2 garden1       2     6.32     54 blackbird
 ## 3 garden1       3     7.15     52 blackbird
@@ -479,55 +834,28 @@ head(worms_data)
 ## 6 garden1       6     5.47     55 blackbird
 ```
 
-]
-
-.pull-right[
-
 
 ```r
-ggplot(worms_data, aes(x=arrivalt,y=nworms))+
-  geom_point(size=4)+
-  geom_smooth(method="lm")+
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
-  themedapr3()
+library(ICC)
+ICCbare(x = gardenid, y = nworms, data = worms_data)
 ```
 
-&lt;img src="dapr3_lec1_files/figure-html/unnamed-chunk-18-1.png" style="display: block; margin: auto;" /&gt;
-
+```
+## [1] 0.9549
+```
+]
+.pull-right[
+&lt;img src="dapr3_lec1_files/figure-html/unnamed-chunk-29-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
 ---
-count:false
-# Some toy data: plotting each group
+# Ignore the clustering
 
 .pull-left[
-
-```r
-ggplot(worms_data, aes(x=arrivalt,y=nworms, col=gardenid))+
-  geom_point(size=4)+
-  geom_smooth(method="lm", se=FALSE)+
-  facet_wrap(~gardenid)+
-  guides(col=FALSE)+
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
-  themedapr3()
-```
-
-]
-.pull-right[
-&lt;img src="dapr3_lec1_files/figure-html/unnamed-chunk-20-1.png" style="display: block; margin: auto;" /&gt;
-]
-
-
----
-# 1. Ignore it
-
-.pull-left[
-![](dapr3_lec1_files/figure-html/unnamed-chunk-21-1.png)&lt;!-- --&gt;
-]
-.pull-right[
 __(Complete pooling)__  
 
-+ `lm(y ~ 1 + x, data = df)`
++ `lm(y ~ 1 + x, data = df)`  
+
 + Information from all clusters is pooled together to estimate over x  
 
 
@@ -540,21 +868,20 @@ model &lt;- lm(nworms ~ arrivalt, data = worms_data)
 ## (Intercept)    18.08       8.68    2.08    0.040 *
 ## arrivalt        3.29       1.31    2.50    0.014 *
 ```
-
+]
+.pull-right[
+![](dapr3_lec1_files/figure-html/unnamed-chunk-32-1.png)&lt;!-- --&gt;
 ]
 
 ---
-
-# 1. Ignore it 
+count:false
+# Ignore the clustering
 
 .pull-left[
-![](dapr3_lec1_files/figure-html/unnamed-chunk-24-1.png)&lt;!-- --&gt;
-]
-.pull-right[
-
 __(Complete pooling)__  
 
-+ `lm(y ~ 1 + x, data = df)`
++ `lm(y ~ 1 + x, data = df)`  
+
 + Information from all clusters is pooled together to estimate over x  
 
 
@@ -571,10 +898,18 @@ model &lt;- lm(nworms ~ arrivalt, data = worms_data)
 But different clusters show different patterns. 
 Residuals are not independent.  
 ]
+.pull-right[
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-35-1.png)&lt;!-- --&gt;
+]
 
 ---
-# 2. Lesser used solutions  
+class: extra
+# Lesser used approaches
 
+__Cluster Robust Standard Errors__
+
+.pull-left[
 &lt;!-- https://rlbarter.github.io/Practical-Statistics/2017/05/10/generalized-estimating-equations-gee/ --&gt;
 
 Don't include clustering as part of the model directly, but incorporate the dependency into our residuals term. 
@@ -584,23 +919,12 @@ $$
 \color{red}{\textrm{outcome}} &amp; = \color{blue}{(\textrm{model})} + \textrm{error}^* \\
 \end{align}`
 $$
+.footnote[`*` Where errors are clustered]
 
-.footnote[Where errors are correlated with clusters/with the error previously/etc.]
-
-
-- independence (observations over time are independent)
-- exchangeable (all observations over time have the same correlation)
-- AR(1) (correlation decreases as a power of how many timepoints apart two observations are)
-- unstructured (correlation between all timepoints may be different)
-
-
----
-
-# 2. Lesser used solutions  
-
-.pull-left[
-__Cluster Robust Standard Errors__
-
+]
+--
+.pull-right[
+Simply adjusts our standard errors:
 
 ```r
 library(plm)
@@ -626,42 +950,67 @@ sqrt(diag(vcovHC(clm,
 ##      12.890       2.138
 ```
 ]
-.pull-right[
+
+
+---
+class: extra
+count:false
+# Lesser used approaches
+
 __Generalised Estimating Equations (GEE)__  
 
+.pull-left[
+- Don't include clustering as part of the model directly, but incorporate the dependency into our residuals term. 
+
+$$
+`\begin{align}
+\color{red}{\textrm{outcome}} &amp; = \color{blue}{(\textrm{model})} + \textrm{error}^* \\
+\end{align}`
+$$
+
+.footnote[`*` Where errors are clustered, and follow some form of correlational&lt;br&gt;structure within clusters (e.g. based on how many timepoints apart&lt;br&gt;two observations are).]
+
+
+]
+
+--
+.pull-right[
+Specifying a correlational structure for residuals within clusters can influence _what_ we are estimating
 
 ```r
 library(geepack)
-# needs to be arranged by cluster, and for cluster to be numeric
+# needs to be arranged by cluster, 
+# and for cluster to be numeric
 worms_data &lt;- 
-  worms_data %&gt;% arrange(gardenid) %&gt;%
+  worms_data %&gt;%
   mutate(
     cluster_id = as.numeric(as.factor(gardenid))
-  )
-
+  ) %&gt;% arrange(cluster_id)
+# 
 geemod  = geeglm(nworms ~ 1 + arrivalt, 
                  data = worms_data, 
-                 corstr = 'independence', 
+                 corstr = 'exchangeable',
                  id = cluster_id)
 ```
 
 ```
-## 
 ##  Coefficients:
-##             Estimate Std.err Wald Pr(&gt;|W|)
-## (Intercept)    18.08   12.89 1.97     0.16
+##             Estimate Std.err  Wald Pr(&gt;|W|)    
+## (Intercept)   54.137   4.344 155.3  &lt; 2e-16 ***
+## arrivalt      -2.384   0.619  14.8  0.00012 ***
 ```
 
 ]
 
 ---
-# 3. Fixed effects
+# Fixed effects
 
 .pull-left[
 
 __(No pooling)__  
 
-- `lm(y ~ x * cluster, data = df)`
+- `lm(y ~ x * cluster, data = df)`  
+
 - Information from a cluster contributes to estimate *for that cluster*, but information is not pooled to estimate an overall effect. 
 
 
@@ -669,20 +1018,17 @@ __(No pooling)__
 model &lt;- lm(nworms ~ 1 + arrivalt * gardenid, 
             data = worms_data)
 ```
-
+{{content}}
 ]
 .pull-right[
-![](dapr3_lec1_files/figure-html/unnamed-chunk-33-1.png)&lt;!-- --&gt;
+![](dapr3_lec1_files/figure-html/unnamed-chunk-42-1.png)&lt;!-- --&gt;
 ]
 
----
-
-# 3. Fixed effects 
+--
 
 + Lots of estimates (separate for each cluster). 
 + Variance estimates constructed based on information *only* within each cluster. 
 + No overall estimate of effect over x. 
-
 
 ```
 ##                           Estimate Std. Error t value Pr(&gt;|t|)    
@@ -713,7 +1059,7 @@ model &lt;- lm(nworms ~ 1 + arrivalt * gardenid,
 ```
 
 ---
-# 4. Random effects (LMM)
+# Random effects (MLM)
 
 .pull-left[
 __(Partial Pooling)__
@@ -741,14 +1087,19 @@ summary(model)$coefficients
 ]
 .pull-right[
 
-![](dapr3_lec1_files/figure-html/unnamed-chunk-36-1.png)&lt;!-- --&gt;
+![](dapr3_lec1_files/figure-html/unnamed-chunk-45-1.png)&lt;!-- --&gt;
 ]
 
 ---
-# 4. Random effects (LMM)
+count:false
+# Random effects (MLM)
 
 .pull-left[
 __(Partial Pooling)__
+
+- `lmer(y ~ 1 + x + (1 + x| cluster), data = df)`
+- cluster-level variance in intercepts and slopes is modeled as randomly distributed around fixed parameters.
+- effects are free to vary by cluster, but information from clusters contributes (according to cluster `\(n\)` and outlyingness of cluster) to an overall fixed parameter. 
 
 
 ```r
@@ -769,16 +1120,459 @@ summary(model)$coefficients
 ]
 .pull-right[
 
-![](dapr3_lec1_files/figure-html/unnamed-chunk-38-1.png)&lt;!-- --&gt;
+![](dapr3_lec1_files/figure-html/unnamed-chunk-47-1.png)&lt;!-- --&gt;
 ]
 
----
 
+---
 # Summary
 
+With clustered data, there are many possible approaches. Some of the main ones are:  
+
+- Ignore it (**complete pooling**)
+    - and make inappropriate inferences.
+
+--
+
+- Completely partition out any variance due to clustering into fixed effects for each cluster (__no pooling__).
+    - and limit our estimates to being cluster specific
+    
+--
+
+- Model cluster-level variance as randomly distributed around fixed parameters, and partially pool information across clusters.
+    - best of both worlds?  
+    
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+---
+class: extra, inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Linear Regression Refresh&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Clustered Data&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Possible Approaches&lt;/h2&gt;
+&lt;h2&gt;Extra: ANOVA &amp; Repeated Measures (brief)&lt;/h2&gt;
+
+
+---
+class: extra
+# ANOVA revisited
+
+- ANOVA in it's simplest form is essentially a linear model with categorical predictor(s). It is used to examines differences in group means/differences in differences in group means etc.  
+
+--
+
+- It achieves this by partitioning variance. We can calculate it by hand!  
+
+--
+
+- Still quite popular in psychology because we often design experiments with discrete conditions.
+  - This means we can balance designs and examine mean differences between conditions. 
+
+---
+class: extra
+# quick simulating data
+
+.pull-left[
+
+
+
+```r
+testdata &lt;- 
+  tibble(
+    groups = rep(c("A","B"), each = 30),
+    outcome = c(rnorm(30,10,5), rnorm(30,15,5))
+  )
+```
+].pull-right[
+
+```r
+with(testdata, boxplot(outcome ~ groups))
+```
+
+![](dapr3_lec1_files/figure-html/unnamed-chunk-50-1.png)&lt;!-- --&gt;
+]
+
+---
+class: extra
+# lm vs anova
+
+.pull-left[
+
+```r
+summary(lm(outcome ~ groups, data = testdata))
+```
+
+```
+## 
+## Call:
+## lm(formula = outcome ~ groups, data = testdata)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -14.439  -2.614  -0.076   3.141  11.654 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)   10.735      0.939   11.43  &lt; 2e-16 ***
+## groupsB        4.693      1.329    3.53  0.00082 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 5.15 on 58 degrees of freedom
+## Multiple R-squared:  0.177,	Adjusted R-squared:  0.163 
+## F-statistic: 12.5 on 1 and 58 DF,  p-value: 0.000816
+```
+]
+
+--
+
+.pull-right[
+
+```r
+summary(aov(outcome ~ groups, data = testdata))
+```
+
+```
+##             Df Sum Sq Mean Sq F value  Pr(&gt;F)    
+## groups       1    330     330    12.5 0.00082 ***
+## Residuals   58   1535      26                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+anova(lm(outcome ~ groups, data = testdata))
+```
+
+```
+## Analysis of Variance Table
+## 
+## Response: outcome
+##           Df Sum Sq Mean Sq F value  Pr(&gt;F)    
+## groups     1    330     330    12.5 0.00082 ***
+## Residuals 58   1535      26                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+]
+
+--
+
+in this case (one predictor) the coefficient test `\(t = \sqrt{F}\)`
+
+```r
+sqrt(12.5)
+```
+
+```
+## [1] 3.54
+```
+
+---
+class: extra
+# more anova  
+
+
+- ANOVA tests whether several parameters (differences between group means) are simultaneously zero.   
+- This is why it is referred to as the "omnibus"/"overall F" test. 
+
+.pull-left[
+![](dapr3_lec1_files/figure-html/unnamed-chunk-55-1.png)&lt;!-- --&gt;
+]
+
+--
+
+.pull-right[
+
+```r
+anova(lm(y~x1,df))
+```
+
+```
+## Analysis of Variance Table
+## 
+## Response: y
+##           Df Sum Sq Mean Sq F value Pr(&gt;F)  
+*## x1         3   67.1   22.37    2.65  0.063 .
+## Residuals 36  303.6    8.43                 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+]
+
+---
+class: extra
+count:false
+# more anova
+
+- ANOVA tests whether several parameters (differences between group means) are simultaneously zero.   
+- This is why it is referred to as the "omnibus"/"overall F" test. 
+
+.pull-left[
+![](dapr3_lec1_files/figure-html/unnamed-chunk-57-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+
+```r
+summary(lm(y~x1,df))
+```
+
+```
+## 
+## Call:
+## lm(formula = y ~ x1, data = df)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -4.642 -2.308 -0.119  1.479  6.423 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)   22.606      0.918   24.62   &lt;2e-16 ***
+## x1horse       -1.914      1.299   -1.47    0.149    
+## x1cat         -3.236      1.299   -2.49    0.017 *  
+## x1dog         -0.342      1.299   -0.26    0.794    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 2.9 on 36 degrees of freedom
+## Multiple R-squared:  0.181,	Adjusted R-squared:  0.113 
+*## F-statistic: 2.65 on 3 and 36 DF,  p-value: 0.0633
+```
+]
+
+
+---
+class: extra
+# partitioning variance
+
+&lt;img src="jk_img_sandbox/anova.png" width="1288" /&gt;
+
+
+.footnote[
+The terminology here can be a nightmare.  
+`\(SS_{between}\)` sometimes gets referred to as `\(SS_{model}\)`, `\(SS_{condition}\)`, `\(SS_{regression}\)`, or `\(SS_{treatment}\)`.  
+Meanwhile `\(SS_{residual}\)` also gets termed `\(SS_{error}\)`.  
+To make it all worse, there are inconsistencies in the acronyms used, `\(SSR\)` vs. `\(RSS\)`! 
+
+]
+
+
+---
+class: extra
+# more anova
+
+.pull-left[
+
+sums squares can be calculated differently
+
+sequential = order matters for unbalanced designs
+
+]
+.pull-right[
+__sequential SS__
+
+```r
+anova(lm(y~x1+x2,df))
+```
+
+```
+## Analysis of Variance Table
+## 
+## Response: y
+##           Df Sum Sq Mean Sq F value Pr(&gt;F)    
+## x1         3   67.1    22.4    12.7  1e-05 ***
+## x2         2  243.7   121.9    69.2  1e-12 ***
+## Residuals 34   59.9     1.8                   
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+anova(lm(y~x2+x1,df))
+```
+
+```
+## Analysis of Variance Table
+## 
+## Response: y
+##           Df Sum Sq Mean Sq F value  Pr(&gt;F)    
+## x2         2  225.4   112.7    64.0 3.0e-12 ***
+## x1         3   85.5    28.5    16.2 1.1e-06 ***
+## Residuals 34   59.9     1.8                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+]
+
+---
+class: extra
+count:false
+# more anova
+
+.pull-left[
+
+sums squares
+
+partial = each one as if its the last one in sequential
+
+]
+.pull-right[
+__partial SS__
+
+```r
+car::Anova(lm(y~x1+x2,df), type="III")
+```
+
+```
+## Anova Table (Type III tests)
+## 
+## Response: y
+##             Sum Sq Df F value  Pr(&gt;F)    
+## (Intercept)   3869  1  2196.1 &lt; 2e-16 ***
+## x1              85  3    16.2 1.1e-06 ***
+## x2             244  2    69.2 1.0e-12 ***
+## Residuals       60 34                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+car::Anova(lm(y~x2+x1,df), type="III")
+```
+
+```
+## Anova Table (Type III tests)
+## 
+## Response: y
+##             Sum Sq Df F value  Pr(&gt;F)    
+## (Intercept)   3869  1  2196.1 &lt; 2e-16 ***
+## x2             244  2    69.2 1.0e-12 ***
+## x1              85  3    16.2 1.1e-06 ***
+## Residuals       60 34                    
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+]
+
+---
+# Why use lm vs ANOVA?
+
+ANOVA requires post-hoc test to compare specific differences, but it has the advantage of conducting fewer tests (initially). 
+
+- ANOVA asks the question:
+  - "*are there differences* between group means?
+  - "*is there an effect* of x?"
+  - "*does* x predict y?"  
+  
+- the coefficient tests from the linear model ask 
+  - "*what are the differences* between group means?
+  - "*what is the effect* of x?"
+  - "*how does* x predict y?"
+
+---
+class: extra
+# anova() as model comparison
+
+.pull-left[
+because ANOVA provides test of __set of parameters being simultaneously zero__, we can use this for model comparison. e.g.  
+- "does the addition of `\(\textrm{&lt;predictor(s)&gt;}\)` improve our model of y?"
+
+
+```r
+m0&lt;-lm(y~1, df)
+m1&lt;-lm(y~x1, df)
+
+m2&lt;-lm(y~x1+x2, df)
+m3&lt;-lm(y~x1+x2+x3, df)
+```
+]
+.pull-right[
+`anova()` function to compare models. 
+
+```r
+anova(m1, m2)
+```
+
+```
+## Analysis of Variance Table
+## 
+## Model 1: y ~ x1
+## Model 2: y ~ x1 + x2
+##   Res.Df   RSS Df Sum of Sq    F Pr(&gt;F)    
+## 1     36 303.6                             
+## 2     34  59.9  2       244 69.2  1e-12 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+```r
+anova(m1, m3)
+```
+
+```
+## Analysis of Variance Table
+## 
+## Model 1: y ~ x1
+## Model 2: y ~ x1 + x2 + x3
+##   Res.Df   RSS Df Sum of Sq    F  Pr(&gt;F)    
+## 1     36 303.6                              
+## 2     33  59.9  3       244 44.8 9.9e-12 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+]
+
+---
+class: extra
+# Partitioning - ANOVA
+
+&lt;img src="jk_img_sandbox/anova.png" width="1288" /&gt;
+
+---
+class: extra
+# Partitioning - ANOVA (Rpt Measures)
+
+&lt;img src="jk_img_sandbox/rmanova.png" width="1288" /&gt;
+
+---
+class: extra
+# Rpt Measures ANOVA in R
+
+.pull-left[
+![](dapr3_lec1_files/figure-html/unnamed-chunk-66-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+
+```r
+library(ez)
+ezANOVA(data = df, dv = y, wid = subject, 
+        between = condition)
+```
+
+```
+## $ANOVA
+##      Effect DFn DFd    F        p p&lt;.05   ges
+## 1 condition   3  36 30.1 6.54e-10     * 0.715
+## 
+## $`Levene's Test for Homogeneity of Variance`
+##   DFn DFd   SSn  SSd     F     p p&lt;.05
+## 1   3  36 0.656 12.6 0.624 0.604
+```
+]
+
+---
+class: extra
+# Summary
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
 
 # End
 

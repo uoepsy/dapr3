@@ -1,5 +1,5 @@
 ---
-title: "<b>WEEK 2<br>Multi-level Models</b>"
+title: "<b>WEEK 2<br>Multi Level Models</b>"
 subtitle: "Data Analysis for Psychology in R 3"
 author: "Josiah King"
 institute: "Department of Psychology<br/>The University of Edinburgh"
@@ -26,6 +26,7 @@ options(htmltools.dir.version = FALSE)
 options(digits=4,scipen=2)
 options(knitr.table.format="html")
 xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_tile_view()
 xaringanExtra::use_extra_styles(
   mute_unhighlighted_code = FALSE
 )
@@ -45,7 +46,7 @@ themedapr3 = function(){
   theme_minimal() + 
     theme(text = element_text(size=20))
 }
-#source('R/myfuncs.R')
+source("jk_source/jk_presfuncs.R")
 ```
 
 ```{r xaringan-themer, include = FALSE}
@@ -59,7 +60,7 @@ style_mono_accent(
   header_color = "#000000",
   header_font_google = google_font("Source Sans Pro"),
   header_font_weight = 400,
-  code_font_size = "0.8rem",
+  code_font_size = "0.7rem",
   text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
   code_font_google = google_font("Source Code Pro"),
   extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
@@ -69,12 +70,54 @@ style_mono_accent(
 ---
 class: inverse, center, middle
 
-# Part 1<br>LM to LMM
+<h2>Part 1: LM to MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Examples</h2>
+
 
 ---
 # Terminology
 
-mlm, lmm, mem, lmem, blah blah blah
+```{r echo=FALSE, eval=FALSE}
+tribble(
+  ~word, ~freq,
+  "multi-level model", 26200+109000,
+  "hierarchical linear model", 21300,
+  "mixed-effect model", 40900+19400+130000,
+  "mixed model", 1200000,
+  "linear mixed model", 169000,
+  "nested data model", 295,
+  "random coefficient model", 10400,
+  "random-effect model", 69100+371000,
+  "random parameter model", 1750,
+  "random-intercept model", 14300,
+  "split-plot designs", 7020,
+  "variance components model", 5580,
+  "partial pooling", 4220,
+  "mixed error-component model", 44,
+  "random slope model", 3180,
+  "panel data model", 34900,
+  "latent curve model", 1230,
+  "growth curve model", 16300
+) -> mlmname
+
+
+mlmname$freq[mlmname$freq > 100000] <- c(75000,85000, 110000,80000,95000)*1.5
+
+#wordcloud2(mlmname, shape="diamond", size=.4)
+library(wordcloud)
+wordcloud(words = mlmname$word, freq = mlmname$freq, random.order=FALSE,
+          min.freq=1,
+          scale=c(4,.5),rot.per=0,
+          fixed.asp=T,
+          #ordered.colors=T,
+          colors="#88B04B")
+```
+
+```{r echo=FALSE, fig.cap="(size weighted by hits on google scholar)", fig.align="center", fig.asp=.9}
+knitr::include_graphics("jk_img_sandbox/mlmname.png")
+```
+
 
 
 ---
@@ -88,7 +131,7 @@ mlm, lmm, mem, lmem, blah blah blah
 <!-- $$ -->
 **Simple regression**  
 .pull-left[
-$\begin{align} & \text{for observation }i \\ \quad \\ & \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ \end{align}$
+$\begin{align} & \text{for observation }i \\ \quad \\ \quad \\ & \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ \end{align}$
 ]
 
 
@@ -130,7 +173,7 @@ The $\color{orange}{\zeta}$ components also get termed the "random effects" part
 ---
 # Notation 
 
-**Mixed-effects**
+**Mixed-effects == Multi Level**
 
 Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
 
@@ -151,11 +194,13 @@ $\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{
 ]
 
 ---
+class: extra
 # Notation 
 
 __Matrix form__
 
 And then we also have the condensed matrix form of the model, in which the Z matrix represents the grouping structure of the data, and $\zeta$ contains the estimated random deviations. 
+
 
 $\begin{align} \color{red}{\begin{bmatrix} y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} \\ 1 & x_{12} \\ 1 & x_{21} \\ 1 & x_{22} \\1 & x_{31} \\ 1 & x_{32} \\ \end{bmatrix} \begin{bmatrix} \gamma_{00} \\ \beta_1 \\  \end{bmatrix}} & + & \color{orange}{ \begin{bmatrix} 1 & 0 & 0 \\ 1 & 0 & 0 \\ 0 & 1 & 0 \\ 0 & 1 & 0 \\ 0 & 0 & 1 \\ 0 & 0 & 1 \\ \end{bmatrix} \begin{bmatrix}\zeta_{01} \\ \zeta_{02} \\ \zeta_{03} \end{bmatrix}} & + & \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32} \end{bmatrix} \\ \qquad \\ \\ \color{red}{\boldsymbol y}\;\;\;\;\; & = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} & + & \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} & + & \;\;\;\varepsilon \\ \end{align}$
 
@@ -204,68 +249,128 @@ $\begin{align} \color{red}{\begin{bmatrix} y_{11} \\ y_{12} \\ y_{21} \\ y_{22} 
 <!-- \end{align} -->
 <!-- $$ -->
 
+---
+# "Fixed" vs "Random"
+
+.pull-left[
+$\begin{align}& \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}} \\ & \color{blue}{\beta_{1i}} = \underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}} \\ \quad \\ \end{align}$
+]
+.pull-right[
+$\color{red}{y_{ij}} = (\underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}}) \cdot 1 + (\underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}}) \cdot x_{ij}  +  \varepsilon_{ij} \\$
+]
+
+$\color{orange}{\zeta_i}$ is "random" because considered a random sample from larger population such that $\color{orange}{\zeta_i} \sim N(0, \sigma^2_{\color{orange}{\zeta_i}})$. 
+
+
+---
+# Fixed vs Random
+
+What is the difference? 
+
+When specifying a random effects model, think about the data you have and how they fit in the following table:
+
+| Criterion: | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed effects  | <center>Same levels would be used</center>     |    <center>The levels used </center>                                   |
+| Random effects | <center>Different levels would be used</center>   | <center>A population from which the levels used<br> are just a (random) sample</center> |
+
+--
+
+- Sometimes, there isn't much variability in a specific random effect and to allow your model to fit it is common to just model that variable as a fixed effect. 
+
+- Other times, you don't have sufficient data or levels to estimate the random effect variance, and you are forced to model it as a fixed effect. 
+
+
+---
+# Advantages of MLM
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do phenomena at Level X predict __outcomes__ at Level Y?  
+
+.pull-left[
+Does population density in school district predict variation in scores in childrens' first year of school?  
+]
+.pull-right[
+$\textrm{score}_{ij} = \beta_{0i} + \beta_1\textrm{school_year}_j + \varepsilon_{ij}$  
+<br>
+$\beta_{0i} = \gamma_{00} + \gamma_{01}\textrm{district_pop_dens}_i + \zeta_{0i}$  
+]
+    
+---
+# Advantages of MLM
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do phenomena at Level X predict __effects__ at Level Y?  
+
+.pull-left[
+Does amount of school funding predict childrens' improvement in scores over time?  
+]
+.pull-right[
+$\textrm{score}_{ij} = \beta_{0} + \beta_{1i}\textrm{school_year}_j + \varepsilon_{ij}$  
+<br>
+$\beta_{1i} = \gamma_{10} + \gamma_{11}\textrm{school_funding}_i + \zeta_{1i}$
+]
+  
+---
+# Advantages of MLM
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do random variances covary?  
+
+.pull-left[
+Do children who score higher at the start of school show greater improvements than those who start lower?  
+]
+.pull-right[
+$\textrm{score}_{ij} = \beta_{0i} + \beta_{1i}\textrm{school_year}_j + \varepsilon_{ij}$  
+<br>
+$\beta_{0i} = \gamma_{00} + \zeta_{0i}$  
+$\beta_{1i} = \gamma_{10} + \zeta_{1i}$  
+<br>
+$$
+\begin{bmatrix}
+\sigma^2_{\zeta_{0}} & \\ \sigma_{\zeta_{0},\zeta_{1}} & \sigma^2_{\zeta_{1}} \\
+\end{bmatrix}
+$$
+]
+        
+    
+---
+class: center, middle
+
+<h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>In R</b></h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Examples</h2>
+
+---
+# Multi Level Models in R
+
+- **lme4** package (many others are available, but **lme4** is most popular).  
+
+- `lmer()` function.  
+
+- syntax is similar to `lm()`, in that we specify:   
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
+    
+- in `lmer()`, we add to this the random effect structure in parentheses:  
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__
+
 
 ---
 # Data
 
-```{r include=F}
-#set.seed(85321)
-set.seed(987)
-N = 200                                  # total sample size
-n_groups = 20                          # number of groups
-g = rep(1:n_groups, e = N/n_groups)      # the group identifier
-x = rnorm(N)                             # an observation level continuous variable
-b = rbinom(n_groups, size = 1, prob=.5)  # a cluster level categorical variable
-b = b[g]
-jx = rbinom(N, 1, .8)
-
-sd_g = .4     # standard deviation for the random effect
-sigma = .5     # standard deviation for the observation
-sd_x = .4
-
-re0 = rnorm(n_groups, sd = sd_g)  # random effects
-re  = re0[g]
-rex = rnorm(n_groups, sd = sd_x)  # random effects
-re_x  = rex[g]
-lp = (0 + re) + (-.5 + re_x)*x + .35*b + .2*jx + (-.2*b*x)
-
-y = rnorm(N, mean = lp, sd = sigma)               # create a continuous target variable
-y_bin = rbinom(N, size = 1, prob = plogis(lp))    #- create a binary target variable
-
-d = tibble(x, b, y, y_bin, g = factor(g), jx)
-
-ggplot(d,aes(x=x,y=y,col=g))+
-  geom_point()+
-  geom_smooth(method="lm",se=F)+
-  guides(col=FALSE)+
-  facet_wrap(~g)
-
-#summary(lmer(y~x*b+(1+x|g),d))
-
-d %>% transmute(
-  emot_dysreg = round(y,2),
-  crq = round(x-min(x),2),
-  int = fct_relevel(factor(b, levels=c(0,1),labels=c("Treatment","Control")), "Control"),
-  schoolid = paste0("school",g),
-  #sleep = rbinom(N, 1, .3)
-  sleep = factor(jx, levels=c(0,1), labels=c("8hr+","<8hr"))
-) -> crq
-crq$emot_dysreg[sample(1:200, 23)]<-NA
-crq$emot_dysreg[crq$schoolid=="school5"][sample(1:10, 7)]<-NA
-crq$emot_dysreg[crq$schoolid=="school5"][4]<-0.1
-#crq$emot_dysreg[crq$schoolid=="school18"][4]<-(-crq$emot_dysreg[crq$schoolid=="school18"][4])
-crq <- na.omit(crq)
-#lmer(emot_dysreg ~ crq*int+ (1 + crq | schoolid), data = crq) %>% summary
-```
-
-
-.pull-left[
+.pull-left[o
 
 > 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire. Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
 
 ]
 .pull-right[
 ```{r}
+crq <- read_csv("https://uoepsy.github.io/data/crqdata.csv")
 head(crq)
 ```
 ]
@@ -278,24 +383,22 @@ count: false
 
 > 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire. Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
 
-```{r eval=FALSE}
-ggplot(crq, aes(x = crq, y = emot_dysreg, col = schoolid)) +
+```{r echo=TRUE, fig.show='hide'}
+schoolplots <- 
+  ggplot(crq, aes(x = crq, y = emot_dysreg, 
+                  col = schoolid)) +
   geom_point()+
   facet_wrap(~schoolid) + 
   guides(col = FALSE) +
-  labs(x = "Child Routines Questionnaire (CRQ)", y = "Emotion Dysregulation Scale (EDS)") +
+  labs(x = "Child Routines Questionnaire (CRQ)", 
+       y = "Emotion Dysregulation Scale (EDS)") +
   themedapr3()
 ```
 ]
 .pull-right[
 
-```{r echo=FALSE}
-ggplot(crq, aes(x = crq, y = emot_dysreg, col = schoolid)) +
-  geom_point()+
-  facet_wrap(~schoolid) + 
-  guides(col = FALSE) +
-  labs(x = "Child Routines Questionnaire (CRQ)", y = "Emotion Dysregulation Scale (EDS)") +
-  themedapr3()
+```{r fig.asp=.9}
+schoolplots
 ```
 
 ]
@@ -304,73 +407,44 @@ ggplot(crq, aes(x = crq, y = emot_dysreg, col = schoolid)) +
 # ICC
 
 .pull-left[
+```{r fig.asp=.6}
+library(ggridges)
+ggplot(crq, aes(x = emot_dysreg, y = schoolid, 
+                fill = schoolid)) +
+  geom_density_ridges(jittered_points = TRUE, 
+                      position = "raincloud", alpha = .4,
+                      quantile_lines=TRUE,
+                      quantile_fun=function(x,...) mean(x)) +
+  guides(fill=FALSE) + 
+  themedapr3()
+```
+]
+.pull-right[
 ```{r}
 library(ICC)
 ICCbare(schoolid, emot_dysreg, data = crq)
 ```
 
-remember - icc is ratio of variance within clusters to total variance (variance within + variance between)
-
-in other words, ICC = The correlation between two observations within the same cluster. 
-
-The higher the correlation within the clusters (ie. the larger the ICC) the lower the variability is within the clusters and consequently the higher the variability is between the clusters. 
-]
-.pull-right[
-
-```{r fig.asp=.7}
-library(ggridges)
-ggplot(crq, aes(x = emot_dysreg, y = schoolid, 
-                fill = schoolid)) +
-  geom_density_ridges(jittered_points = TRUE, position = "raincloud", alpha = .4) +
-  guides(fill=FALSE) + 
-  themedapr3()
-```
-
+__Reminder:__ the Intraclass Correlation Coefficient is ratio of variance between clusters to the total variance (variance within + variance between).
 
 ]
 
----
-# R: multilevel models
-
-- **lme4** package (many others are available, but lme4 is most popular).  
-
-- `lmer()` function.  
-
-- syntax is similar to `lm()`, in that we specify:   
-
-    __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
-    
-- in `lmer()`, we add to this the random effect structure in parentheses:  
-
-    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__
 
 ---
-# R: lm
+# R: fitting lm
 
 .pull-left[
-```{r}
+```{r highlight.output=c(11,12)}
 lm_mod <- lm(emot_dysreg ~ crq, data = crq)
+summary(lm_mod)
 ```
 
-```{r eval=FALSE}
-schoolplots <- 
-  ggplot(crq, aes(x = crq)) + 
-  geom_point(aes(y = emot_dysreg)) + 
-  facet_wrap(~schoolid) +
-  themedapr3()
-
-schoolplots + 
-  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
-```
 ]
-.pull-right[
-```{r echo=FALSE}
-schoolplots <- 
-  ggplot(crq, aes(x = crq)) + 
-  geom_point(aes(y = emot_dysreg)) + 
-  facet_wrap(~schoolid) +
-  themedapr3()
 
+--
+
+.pull-right[
+```{r fig.asp=.8}
 schoolplots + 
   geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
 ```
@@ -381,40 +455,20 @@ schoolplots +
 # R: Adding a random intercept
 
 .pull-left[
-```{r}
+vary the intercept by schools.
+```{r highlight.output=c(13,19)}
 library(lme4)
 ri_mod <- lmer(emot_dysreg ~ crq + 
                  (1 | schoolid), data = crq)
+summary(ri_mod)
 ```
-
-vary the intercept by schools.
 
 ]
 
----
-count: false
-# R: Adding a random intercept
-
-.pull-left[
-```{r}
-library(lme4)
-ri_mod <- lmer(emot_dysreg ~ crq + 
-                 (1 | schoolid), data = crq)
-```
-
-vary the intercept by schools.
-
-```{r eval=FALSE}
-schoolplots + 
-  geom_line(aes(y=fitted(lm_mod)), 
-            col = "blue", lwd=1) + 
-  geom_line(aes(y=fitted(ri_mod)), 
-            col = "red", lwd=1)
-```
-]
+--
 
 .pull-right[
-```{r echo=FALSE}
+```{r fig.asp=.8}
 schoolplots + 
   geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1) + 
   geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
@@ -425,40 +479,19 @@ schoolplots +
 # R: Adding a random slope
 
 .pull-left[
-```{r}
+vary the intercept and the effect (slope) of crq by schools
+```{r highlight.output=c(13,14,20,21)}
 rs_mod <- lmer(emot_dysreg ~ crq + 
                  (1 + crq | schoolid), data = crq)
+summary(rs_mod)
 ```
-
-vary the intercept and the effect (slope) of crq by schools
 
 ]
 
----
-count: false
-# R: Adding a random slope
-
-.pull-left[
-```{r}
-rs_mod <- lmer(emot_dysreg ~ crq + 
-                 (1 + crq | schoolid), data = crq)
-```
-
-vary the intercept and the effect (slope) of crq by schools
-
-```{r eval=FALSE}
-schoolplots + 
-  geom_line(aes(y=fitted(lm_mod)), 
-            col = "blue", lwd=1) + 
-  geom_line(aes(y=fitted(ri_mod)), 
-            col = "red", lwd=1) + 
-  geom_line(aes(y=fitted(rs_mod)), 
-            col = "orange", lwd=1)
-```
-]
+--
 
 .pull-right[
-```{r echo=FALSE}
+```{r fig.asp=.8}
 schoolplots + 
   geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1) + 
   geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1) + 
@@ -481,7 +514,7 @@ fe_mod <- lm(emot_dysreg ~ crq * schoolid, data = crq)
 .pull-right[
 ```{r fig.asp=.8}
 schoolplots + 
-  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1)
+  geom_line(aes(y=fitted(fe_mod)), col = "black", lwd=1)
 ```
 ]
 
@@ -490,43 +523,18 @@ schoolplots +
 # Partial Pooling vs No Pooling
 
 .pull-left[
-Why not fit a fixed effect adjustment to the slope of x for each group?  
-`lm(y ~ x * group)`?
-
-```{r}
-fe_mod <- lm(emot_dysreg ~ crq * schoolid, data = crq)
-```
-
-We talked last week about how this results in a lot of output.  
-With 20 schools, we get: intercept at reference school, adjustment for every other school, the effect of x at reference school, adjustment to effect of x for every other school. 
-
-40 parameters estimated. 
-```{r}
-length(coef(fe_mod))
-```
-
-information is not combined in anyway (data from school $ J $ contributes to differences from reference school to school J, but nothing else. No overall estimates)
+- We talked last week about how this results in a lot of output. With 20 schools, we get: intercept at reference school, adjustment for every other school, the effect of x at reference school, adjustment to effect of x for every other school. 
+    ```{r}
+    length(coef(fe_mod))
+    ```
+- information is not combined in anyway (data from school $i$ contributes to differences from reference school to school $i$, but nothing else. No overall estimates)
 
 ]
+
+--
+
 .pull-right[
-```{r eval=F}
-schoolplots + 
-  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1)
-```
-```{r echo=FALSE, fig.asp=.8}
-schoolplots + 
-  geom_line(aes(y=fitted(fe_mod)), col = "green", lwd=1) + 
-  geom_rect(data = filter(crq, schoolid %in% paste0("school",c(2,5,6,19))), 
-                          fill = NA, colour = "red", lwd = 2, lty = 2, xmin = -Inf,xmax = Inf,
-            ymin = -Inf,ymax = Inf)
-```
-]
-
----
-count: false
-# Partial Pooling vs No Pooling
-
-```{r echo=FALSE, fig.width=12}
+```{r echo=FALSE}
 m1<-lm(emot_dysreg~crq*schoolid, data = crq)
 m2<-lmer(emot_dysreg~crq + (1 + crq | schoolid), data = crq)
 crq %>% 
@@ -542,51 +550,326 @@ crq %>%
     geom_line(aes(y = lm_fit, lty="fixed effects:\ny ~ x * g",col="fixed effects:\ny ~ x * g"), lwd=1) + 
     geom_line(aes(y = rs_fit, lty="random effects:\ny ~ x + (1 + x | g)", col="random effects:\ny ~ x + (1 + x | g)"), lwd=1) +
   scale_linetype_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"=2,"random effects:\ny ~ x + (1 + x | g)"=1)) + 
-  scale_color_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"="green","random effects:\ny ~ x + (1 + x | g)"="orange"))
+  scale_color_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"="black","random effects:\ny ~ x + (1 + x | g)"="orange"))+
+  theme(legend.position="bottom")
 ```
-
-
+]
 
 ---
-# lmm in R
+# Understanding MLM output
 
-```{r}
+.pull-left[
+```{r echo=FALSE, highlight.output=c(20,21)}
 crq %>% rename(
   y = emot_dysreg, 
   x = crq,
   group = schoolid
 ) -> my_data
-lmer(y ~ x + (1 + x | group), my_data) %>% summary(.,correlation=F)
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/lmer2.png")
+```
+]
 
-model <- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), data = crq)
-summary(model)
+---
+count: false
+# Understanding MLM output
+
+.pull-left[
+```{r echo=FALSE, highlight.output=c(13,14)}
+crq %>% rename(
+  y = emot_dysreg, 
+  x = crq,
+  group = schoolid
+) -> my_data
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/lmer2a.png")
+```
+]
+
+---
+count: false
+# Understanding MLM output
+
+.pull-left[
+```{r echo=FALSE, highlight.output=c(13,14,20,21)}
+crq %>% rename(
+  y = emot_dysreg, 
+  x = crq,
+  group = schoolid
+) -> my_data
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/lmer3.png")
+```
+]
+
+---
+count: false
+# Understanding MLM output
+
+.pull-left[
+```{r echo=FALSE, highlight.output=c(15)}
+crq %>% rename(
+  y = emot_dysreg, 
+  x = crq,
+  group = schoolid
+) -> my_data
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/lmer4.png")
+```
+]
+
+---
+# Extracting MLM output
+
+.pull-left[
+```{r echo=FALSE}
+crq %>% rename(
+  y = emot_dysreg, 
+  x = crq,
+  group = schoolid
+) -> my_data
+model=lmer(y ~ x + (1 + x | group), my_data)
+summary(model, correlation=F)
+```
+]
+.pull-right[
+```{r}
+fixef(model)
+```
+```{r eval=F}
+ranef(model)
+```
+```{r echo=F}
+head(ranef(model)$group %>% round(.,4), 5L) %>% rbind(.,"...") -> op
+row.names(op)[6] <- "..."
+op
+```
+```{r eval=F}
+coef(model)
+```
+```{r echo=F}
+head(coef(model)$group %>% round(.,4), 5L) %>% rbind(.,"...") -> op
+row.names(op)[6] <- "..."
+op
 ```
 
-
-
-annotated output
-
+]
 ---
 # ICC in lmer
 
-```{r}
+.pull-left[
+```{r highlight.output=c(13,14)}
 base_mod <- lmer(emot_dysreg ~ 1 + (1 | schoolid), data = crq) 
 summary(base_mod)
-0.2692 / (0.2692 + 0.7881)
 ```
+]
+.pull-right[
+```{r}
+0.334 / (0.334 + 0.664)
+```
+
+Note: ICC is conditional on zero values of random-effects covariates.
+In other words, it has computed the ICC based on a value of zero for the random slope variable(s), so any interpretation of the ICC is also based on a value of zero for the slope variable(s).
+
 
 <!-- Once we introduce random slopes/coefficients, things get more complicated. The ICC is no longer the same as the VPC, because the ICC will be a function of the variable(s) for which random slopes are specified. Therefore there can be an infinite number of values for the ICC is the variable in question is continuous, and as many as the number of levels if it is categorical or a count. Thus any interpretation of the ICC in a random slopes model becomes more difficult. Stata, for example, will calculate a single value for the ICC but in a random slopes model, this is accompanied by the warning: -->
 
-<!-- Note: ICC is conditional on zero values of random-effects covariates. -->
-<!-- In other words, it has computed the ICC based on a value of zero for the random slope variable(s), so any interpretation of the ICC is also based on a value of zero for the slope variable(s). -->
+
+
+]
+
+---
+class: center, middle, animated, rotateInDownLeft
+
+<h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>Example</b></h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Examples</h2>
+
+---
+# MLM: Longitudinal Example
+
+Researchers are interested in how cognition changes over time. 
+
+.pull-left[
+```{r}
+cogtime <- read_csv("https://uoepsy.github.io/data/cogtimerpm.csv")
+cogtime <- cogtime %>% 
+  mutate(across(c(participant, sexFemale, alc), factor))
+head(cogtime, 12L)
+```
+
+]
+
+--
+
+.pull-right[
+```{r fig.asp=.7}
+ggplot(cogtime, aes(x=visit_n, y = cog, col=participant))+
+  geom_line(alpha = 0.5)+
+  guides(col=FALSE)+
+  scale_x_continuous(breaks=1:10)+
+  themedapr3()
+```
+]
+
+---
+# MLM: Longitudinal Example
+
+__determining our random effect structure__
+
+- multiple data-points per participant: **1 | participant**
+
+--
+
+- explanatory variable of interest (`visit_n`) varies *within* participants: **visit_n | participant**
+
+--
+
+- allow by-participant intercepts to correlate with by-participant slopes: **1 + visit_n | participant**  
+(more on this in future weeks)
+
+--
+
+__fitting the model__
+
+```{r}
+cogtime_model <- lmer(cog ~ visit_n + (1 + visit_n | participant), data = cogtime)
+```
+
+---
+MLM: Longitudinal Example
+
+.pull-left[
+__model output__
+
+```{r}
+summary(cogtime_model)
+```
+]
+.pull-right[
+__raw data__  
+
+```{r fig.asp=.7}
+ggplot(cogtime, aes(x=visit_n, y = cog, col=participant))+
+  geom_path(alpha = 0.5)+
+  guides(col=FALSE)+
+  scale_x_continuous(breaks=1:10)+
+  themedapr3()
+```
+]
+
+---
+# MLM: Plotting the model
+#### **sjPlot::plot_model()**
+
+.pull-left[
+```{r eval=FALSE}
+library(sjPlot)
+plot_model(cogtime_model, type="pred")
+```
+]
+--
+.pull-right[
+```{r echo=FALSE, fig.asp=.7}
+library(sjPlot)
+plot_model(cogtime_model, type="pred")
+```
+]
+
+
+---
+# MLM: Plotting the model
+#### **effects::effect()**
+
+.pull-left[
+```{r}
+library(effects)
+as.data.frame(effect("visit_n",cogtime_model))
+```
+
+```{r eval=FALSE}
+as.data.frame(effect("visit_n",cogtime_model)) %>%
+  ggplot(.,aes(x=visit_n, y=fit))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)+
+  themedapr3()
+```
+]
+
+--
+
+.pull-right[
+```{r echo=FALSE, fig.asp=.7}
+as.data.frame(effect("visit_n",cogtime_model)) %>%
+  ggplot(.,aes(x=visit_n, y=fit))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)+
+  themedapr3()
+```
+]
+
+---
+# MLM: Plotting the model
+#### **broom.mixed::augment()** for subject fits
+
+.pull-left[
+```{r}
+library(broom.mixed)
+augment(cogtime_model)
+```
+```{r eval=FALSE}
+ggplot(augment(cogtime_model), 
+       aes(x=visit_n, y=.fitted,
+           col=participant))+
+  geom_line() +
+  guides(col=FALSE)+
+  themedapr3()
+```
+]
+
+--
+
+.pull-right[
+```{r echo=F, fig.asp=.8}
+library(broom.mixed)
+ggplot(augment(cogtime_model), 
+       aes(x=visit_n, y=.fitted,
+           col=participant))+
+  geom_line() +
+  guides(col=FALSE)+
+  themedapr3()
+```
+]
 
 ---
 # Summary
 
-LM to LMM
+LM to MLM
 notation
 Random intercepts
 Random slopes
+TODO
+
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -596,160 +879,353 @@ class: inverse, center, middle, animated, rotateInDownLeft
 ---
 class: inverse, center, middle
 
-# Part 2<br>Repeated Measures ANOVA (brief)
+<h2 style="text-align: left;opacity:0.3;">Part 1: LM to MLM</h2>
+<h2>Part 2: Inference in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Examples</h2>
+
+---
+# <p></p>
+
+.pull-left[
+you might have noticed...
+
+```{r highlight.output=c(20,21)}
+summary(cogtime_model)
+```
+]
+.pull-right[
+![](jk_img_sandbox/wotnop.png)
+]
+
+
 
 
 ---
-# ANOVA is a special case of linear model
+# Why no p-values?
 
-- anova is essentially lm with categorical predictors. examines group mean differences
-- does it by partitioning variance.
-- can calculate more easily by hand.
-- still fairly popular in psychology because we often design experiments with discrete conditions. means we can balance designs and examine condition mean differences
+**Extensive debate about how best to test parameters from MLMs.**  
+
+--
+
+In simple LM, we test the reduction in residual SS (sums of squares), which follows an $F$ distribution with a known $df$.
+$$
+\begin{align}
+F \qquad = \qquad \frac{MS_{model}}{MS_{residual}} \qquad = \qquad \frac{SS_{model}/df_{model}}{SS_{residual}/df_{residual}} \\
+\quad \\
+df_{model} = k \\
+df_{residual} = n-k-1 \\
+\end{align}
+$$
+
+--
+
+The $t$-statistic for a coefficient in a simple regression model is the square root of $F$ ratio between models with and without that parameter. 
+
+- Such $F$ will have 1 numerator degree of freedom (and $n-k-1$ denominator degrees of freedom).
+- The analogous $t$-distribution has $n-k-1$ degrees of freedom
 
 ---
-# ANOVA in R
+# Why no p-values?
 
-```{r}
-df <- read.table("~/Desktop/jk_codebits/wip/data/growth.txt", header=T) %>%
-  rename(y = gain, x1 = supplement, x2 = diet)
+In MLM, the distribution of a test statistic when the null hypothesis is true is **unknown.**
+
+--
+
+<!-- - Parameter estimates are not based on observed and expected mean squaresm but they are the ML estimates (which is good as it allows us to study much more broad scope of study designs) -->
+
+Under very specific conditions (normally distributed outcome variable, perfectly balanced designs), we can use an $F$ distribution and correctly determine the denominator $df$.  
+
+--
+
+But for most situations:
+  - unclear how to calculate denominator $df$
+  - unclear whether the test statistics even follow an $F$ distribution
+
+---
+# Options for inference
+
+1. $df$ approximations  
+
+2. Likelihood Ratio Tests  
+
+3. Bootstrap  
+
+
+---
+count:false
+# Options for inference
+
+1. <p style="opacity:.4">$df$ approximations - assumes $F$-distributed just with unknown $ddf$.<p> 
+
+2. <p style="opacity:.4">Likelihood Ratio Tests - differences in logLik are only asymptotically $\chi^2$-distributed.</p>  
+
+3. Bootstrap  
+  - Parametric Bootstrap  
+  assumes that explanatory variables are fixed and that model specification and the distributions such as $\zeta_i \sim N(0,\sigma_{\zeta})$ and $\varepsilon_i \sim N(0,\sigma_{\varepsilon})$ are correct.
   
-lm(y ~ x1, df) %>% anova()
-aov(y~x1,df) %>% summary
-
-lm(y ~ x1+x2, df) %>% anova()
-aov(y~x1+x2,df) %>% summary
-```
-
-order matters (when using type 1 SS as above)
-
+  - Case-based Bootstrap  
+  minimal assumptions - we just need to ensure that we correctly specify the hierarchical dependency of data.  
+  requires decision of at which levels to resample
+  
 ---
-# anova() for model comparison
+class: extra
+# Satterthwaite $df$ approximation
 
-
-- anova() function to compare models. 
-- if we run it on one model, it does so incrementally adding the predictors
+.pull-left[
+- There are some suggested approaches to approximating the denominator $df$. 
+<br><br>
+- Loading the package **lmerTest** will fit your models and print the summary with p-values approximated by the Satterthwaite method.
 ```{r eval=F}
-m1<-lm(y~x1+x2, df)
-m2<-lm(y~x1+x2+x3, df)
-
-anova(m1, m2)
-#is the same as the last term from
-anova(m2)
+library(lmerTest)
+full_model <- lmer(cog ~  1 + visit_n + (1 + visit_n | participant), data = cogtime)
+summary(full_model)
+```
+]
+.pull-right[
+```{r echo=F}
+library(lmerTest)
+full_model <- lmer(cog ~  1 + visit_n + (1 + visit_n | participant), data = cogtime)
+summary(full_model)
+```
+]
+```{r echo=F}
+detach("package:lmerTest", unload=TRUE)
 ```
 
----
-# Why use 1 vs another?
-
-anova asks the question "are there differences between group means?/is there an effect of x?". 
-the coefficient tests from the linear model ask "*what* are the differences between group means?/*what* is the effect of x?"
-
-anova requires post-hoc tests comparing specific differences, but has the advantage of conducting fewer tests. 
 
 ---
-# Repeated measures ANOVA
+class: extra
+# Kenward-Rogers $df$ approximations
 
-partitioning variance further
-
-```{r include=FALSE}
-tibble(
-  condition = letters[1:4],
-  cmean = c(0,2,0,4),
-  smeans = map(cmean, ~rnorm(10,.,1)),
-  sid = map(condition, ~paste0(.,1:10))
-) %>% unnest(c(smeans,sid)) %>%
-  mutate(
-    data = map(smeans, ~tibble(t = 1:3, y = rnorm(3,.,.1)))
-  ) %>% unnest(data) -> df
-
-#df %>% filter(sid !="a1") -> df
-
-ggplot(df,aes(x=condition,y=y))+geom_boxplot()+geom_jitter(aes(col=sid))+guides(col=F)
-```
+- The **pbkrtest** package implements the slightly more reliable Kenward-Rogers method. 
 
 ```{r}
-library(ez)
-ezANOVA(df, y, wid=sid, within=t, between =condition)
-library(lme4)
-m <- lmer(y~condition+t+(1|sid),df)
-anova(m)
+library(pbkrtest)
+restricted_model <- lmer(cog ~ 1 + (1 + visit_n | participant), data = cogtime)
+full_model <- lmer(cog ~ 1 + visit_n + (1 + visit_n | participant), data = cogtime)
+KRmodcomp(full_model, restricted_model)
 ```
 
+
 ---
-# denominator degrees of freedom
+class: extra
+# Likelihood ratio tests
+
+.pull-left[
+We can also conduct a Likelihood Ratio Test (LRT). 
+
+```{r}
+anova(restricted_model, full_model, test = "LRT")
+```
+
+]
+
+.pull-right[
+- Compares the log-likelihood of two competing models.  
+<br><br>
+- what is the "likelihood"?  
+    - a function that associates to a parameter the probability (or probability density) of observing the given sample data. 
+<br>
+- ratio of two likelihoods is asymptotically $\chi^2$-square distributed.
+    - **this means for small samples it may be unreliable**
+]
+
+---
+# Parametric Bootstrap
+
+.pull-left[
+The idea here is that in order to do inference on the effect of (a) predictor(s), you 
+
+1. fit the reduced model (without the predictors) to the data. 
+{{content}}
+]
+--
+
+2. 
+  - a) simulate data from the reduced model
+  - b) fit both the reduced and the full model to the simulated (null) data
+  - c) compute some statistic(s), e.g. t-statistic of the relevant parameter.
+{{content}}
+
+--
+
+3. Compare the parameter estimates obtained from fitting the full model to the data, to the "null distribution" constructed in step 2. 
+
+--
+
+.pull-right[
+Easy to do with `PBmodcomp()` in the **pbkrtest** package.
+
+```{r eval=F}
+library(pbkrtest)
+PBmodcomp(full_model, restricted_model)
+```
+]
+---
+# Case-based Bootstrap
+
+
 
 
 ---
 # Summary
+
+Inference, df etc.
+TODO
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
 # End of Part 2
 
-
 ---
 class: inverse, center, middle
 
-# Part 3<br>Inference in MLM
-
-
----
-# Likelihood ratio tests
+<h2 style="text-align: left;opacity:0.3;">Part 1: LM to MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
+<h2>Part 3: Examples</h2>
 
 ---
-# df corrections
+# Data
 
-.pull-left[
-```{r eval=F}
-library(pbkrtest)
-KRmodcomp(full_model, restricted_model)
-```
-]
-.pull-right[
-```{r eval=F}
-library(lmerTest)
-lmer(....)
-```
-]
-
-
----
-# parametric bootstrap
-
-```{r eval=FALSE}
-library(pbkrtest)
-PBmodcomp(full_model, restricted_model)
+```{r}
+nursedf <- read_csv("https://uoepsy.github.io/data/nurse_stress.csv")
+nursedf <- nursedf %>% 
+  mutate(across(c(hospital, expcon, gender, wardtype, hospsize), factor))
+head(nursedf)
 ```
 
----
-# Summary
 
-Inference, df etc.
+_The files nurses.csv contains three-level simulated data from a hypothetical study on stress in hospitals. The data are from nurses working in wards nested within hospitals. It is a cluster-randomized experiment. In each of 25 hospitals, four wards are selected and randomly assigned to an experimental and a control condition. In the experimental condition, a training program is offered to all nurses to cope with job-related stress. After the program is completed, a sample of about 10 nurses from each ward is given a test that measures job-related stress. Additional variables are: nurse age (years), nurse experience (years), nurse gender (0 = male, 1 = female), type of ward (0 = general care, 1 = special care), and hospital size (0 = small, 1 = medium, 2 = large)._  
+(From https://multilevel-analysis.sites.uu.nl/datasets/ )
 
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End of Part 3
-
----
-class: inverse, center, middle
-
-# Part 4<br>Examples
 
 ---
 # test of a single parameter
 
+> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
+
+--
+
+```{r}
+mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf)
+summary(mod1)
+```
+
+---
+class: extra
+count:false
+# test of a single parameter
+
+> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
+
+__Likelihood Ratio Test:__
+```{r}
+mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf)
+mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf)
+anova(mod0, mod1, test="Chisq")
+```
+
+
+---
+count:false
+# test of a single parameter
+
+> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
+
+__Parametric Bootstrap__ 
+```{r eval=F}
+mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf)
+mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf)
+PBmodcomp(mod1, mod0)
+```
+```{r echo=F}
+pbs = PBmodcomp(mod1, mod0)
+pbs 
+```
+
+
+---
+count:false
+# test of a single parameter
+
+> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, **by how much?**
+
+__Bootstrap Confidence Intervals__
+```{r echo=T, eval=F}
+mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf)
+confint(mod1, method="boot")
+```
+```{r echo=F, highlight.output=c(8)}
+cis = confint(mod1, method="boot")
+cis
+```
+
+---
+count:false
+# test of a single parameter
+
+> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
+
+Attendance of training programs on job-related stress was found to predict stress levels of nurses in `r length(unique(nursedf$hospital))` hospitals, beyond individual nurses' years of experience, age and gender (Parametric Bootstrap Likelihood Ratio Test statistic = `r pbs$test[2,"stat"]`, p`r map_chr(pbs$test[2,"p.value"], ~ifelse(.<.001, "<.001", paste0("=",.)))`). Having attended the training program was associated with a decrease in `r fixef(mod1)["expcon1"]` (Bootstrap 95% CI [`r paste(round(cis[7,],2), collapse=", ")`] ) standard deviations on the measure of job-related stress. 
 
 ---
 # testing that several parameters are simultaneously zero
+
+> Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
+
+__Likelihood Ratio Test__
+```{r}
+mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
+mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
+anova(mod0, mod1, test="Chisq")
+```
+
+---
+count:false
+# testing that several parameters are simultaneously zero
+
+> Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
+
+__Kenward-Rogers $df$-approximation__
+```{r}
+mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
+mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
+anova(mod0, mod1, test="Chisq")
+```
+
+---
+count:false
+# testing that several parameters are simultaneously zero
+
+> Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
+
+__Parametric Bootstrap__
+```{r eval=F}
+mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
+mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
+PBmodcomp(mod1, mod0)
+```
 
 
 ---
 # testing random effects 
 
-are you sure you want to?
+__are you sure you want to?__
+
+- Justify the random effect structure based on study design, theory, and practicalities more than tests of significance.
+
+- If needed, the __RLRsim__ package can test a single random effect (e.g. `lm()` vs `lmer()`).
+
+
+```{r}
+library(RLRsim)
+mod0 <- lm(stress ~ expcon + experien + age + gender + wardtype + hospsize, data = nursedf)
+mod1 <- lmer(stress ~ expcon + experien + age + gender + wardtype + hospsize + 
+               (1 | hospital), data = nursedf)
+exactLRT(m = mod1, m0 = mod0)
+```
+
 
 ---
 # Summary
@@ -758,5 +1234,5 @@ are you sure you want to?
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
-# End
+# End 
 

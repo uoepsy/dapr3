@@ -19,32 +19,26 @@ library(patchwork)
 **Preliminaries**  
  
 1. Open Rstudio, and **create a new project for this course!!** 
-2. Create a new RMarkdown document (giving it a title for this week). 
+2. Create a new RMarkdown document or R script (whichever you like) for this week. 
 
 :::
 
-:::statbox
-**A Note on terminology**
+# New Packages!  
+:::rtip
 
-The methods we're going to learn about in the first five weeks of this course are known by lots of different names: "multilevel models"; "hierarchical linear models"; "mixed-effect models"; "mixed models"; "nested data models"; "random coefficient models"; "random-effects models"; "random parameter models"... and so on).   
-
-What the idea boils down to is that **model parameters can vary at more than one level.** This week, we're going to motivate why we might want to be able to do this! 
-:::
-
-# New Toys!  
-
-`r qbegin("New package time!", qlabel=FALSE)`
 These are the main packages we're going to use in this block. It might make sense to install them now if you do not have them already (note, the rstudio.ppls.ed.ac.uk server already has `lme4` and `tidyverse` installed for you).  
 
-+ tidyverse  
-+ ICC
-+ lme4  
-+ effects  
-+ broom
-+ broom.mixed
-+ sjPlot
++ __tidyverse__ : for organising data  
++ __ICC__ : for quickly calculating intraclass correlation coefficient
++ __lme4__ : for fitting generalised linear mixed effects models
++ __lmeresampler__ : for bootstrapping!
++ __effects__ : for tabulating and graphing effects in linear models
++ __broom.mixed__ : tidying methods for mixed models
++ __sjPlot__ : for plotting models
++ __DHARMa__ : for simulating residuals to assess assumptions
++ __hlmDiag__ : for examining case diagnostics at multiple levels
 
-`r qend()`
+:::
 
 ```{r include=FALSE}
 library(tidyverse)
@@ -53,16 +47,13 @@ library(broom.mixed)
 library(effects)
 ```
 
-
-`r qbegin("New data time!", qlabel=FALSE)`
+:::frame
 Let's consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines:
 ```{r echo=FALSE, fig.cap = "[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)", out.width="300px",fig.align="center"}
 knitr::include_graphics("images/intro/reading.png")
 ```
   
-Let's suppose we have data on various types of toys, from Playmobil (pictured above) to Powerrangers, to farm animals.  
-
-You can find a dataset at https://uoepsy.github.io/data/toyexample.csv, and read it into your R environment using the code below: 
+Let's suppose we have data on various types of toys, from Playmobil (pictured above) to Powerrangers, to farm animals. You can find a dataset at https://uoepsy.github.io/data/toyexample.csv, and read it into your R environment using the code below: 
 ```{r eval=FALSE}
 toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
 ```
@@ -86,7 +77,7 @@ tibble(variable=names(toys_read),
 ```
 </div>
 
-`r qend()`
+:::
 
 
 
@@ -94,7 +85,7 @@ tibble(variable=names(toys_read),
 
 :::statbox
 
-Recall that in the course last semester we learned all about the linear regression model:
+Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:
 
 $$
 \begin{align}\\
@@ -114,18 +105,20 @@ $$
 :::
 
 `r qbegin("A1")`
-Plot the bivariate relationship between Reading Age and Hrs per Week practice, and then fit the simple linear model: 
+Read in the toy data from https://uoepsy.github.io/data/toyexample.csv and plot the bivariate relationship between Reading Age and Hrs per Week practice, and then fit the simple linear model: 
 $$
-\text{Reading Age} \sim \beta_0 + \beta_1 \cdot \text{Hours per week practice} + \varepsilon
+\text{Reading Age}_i = \beta_0 + \beta_1 \cdot \text{Hours per week practice}_i + \varepsilon_i
 $$
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv") 
+
+ggplot(data = toys_read, aes(x = hrs_week, y = R_AGE))+
   geom_point()+
   geom_smooth(method = "lm")
 
-simplemod <- lm(R_AGE~hrs_week, data=toys_read)
+simplemod <- lm(R_AGE ~ hrs_week, data = toys_read)
 summary(simplemod)
 ```
 
@@ -134,7 +127,7 @@ summary(simplemod)
 `r qbegin("A2")`
 Think about the assumptions we make about our model:
 $$
-\text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
+\text{where} \quad \varepsilon_i \sim N(0, \sigma) \text{ independently}
 $$
 Have we satisfied this assumption (specifically, the assumption of *independence* of errors)? 
 `r qend()`
@@ -179,17 +172,17 @@ From the second plot, we see a lot of the toy types appear to have a positive re
 We can consider the simple regression model (`lm(R_AGE ~ hrs_week, data = toys_read)`) to "pool" the information from all observations together. In this 'Complete Pooling' approach, we simply ignore the natural clustering of the toys, as if we were unaware of it. The problem is that this assumes the same regression line for all toy types, which might not be that appropriate:  
 
 ```{r echo=FALSE, out.width="350px", fig.align="center", fig.cap="Complete pooling can lead to bad fit for certain groups"}
-toys_read %>%
-  filter(str_detect(toy_type, "Scooby|Farm")) %>%
-ggplot(., aes(x=hrs_week, y=R_AGE, col=toy_type))+
-  geom_point(size=3)+
+ggplot(toys_read, aes(x=hrs_week, y=R_AGE))+
+  geom_point(size=3, alpha=.1)+
   geom_abline(intercept = coef(simplemod)[1], slope = coef(simplemod)[2], lwd=2)+
   geom_text(inherit.aes=F,x=4.5,y=8, label="Complete Pooling Line")+
-  theme(text=element_text(size=21))
+  theme(text=element_text(size=21))+
+  geom_point(data = filter(toys_read, str_detect(toy_type, "Scooby|Farm")), size=3, aes(col=toy_type))
 ```
+
   
-  
-**No Pooling**
+**No Pooling**  
+
 There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters"). With the tools you have learned in DAPR2, you may be tempted to try including toy type in the model as another predictor, to allow for some toy types being generally better than others:
 ```{r eval=FALSE}
 lm(R_AGE ~ hrs_week + toy_type, data = toys_read)
@@ -240,41 +233,11 @@ We can see that this model provides a better fit - it results in a significant r
 anova(mod1, mod2)
 ```
 
-But it comes at the expense of estimating many many different parameters, and not pooling information across groups to get one estimate for "the effect of practice on reading age".  
-
+But accounting for this heterogeneity over clusters in the effect of interest comes at the expense of not pooling information across groups to get one estimate for "the effect of practice on reading age". Additionally, these models will tend to have low statistical power because they are using fewer observations (only those within each cluster) to estimate parameters which only represent within-cluster effects.  
 `r solend()`
 
 
 # Exploring Clustering
-
-```{r include=FALSE}
-set.seed(987)
-N = 600                                  # total sample size
-n_groups = 30                          # number of groups
-g = rep(1:n_groups, e = N/n_groups)      # the group identifier
-x = rep(seq(-2,1.8,.2), 30)                             # an observation level continuous variable
-b = rep(0:1, each=15)  # a cluster level categorical variable
-b = b[g]
-jx = rbinom(N, 1, .8)
-
-sd_g = .7     # standard deviation for the random effect
-sigma = .9     # standard deviation for the observation
-sd_x = .5
-
-re0 = rnorm(n_groups, sd = sd_g)  # random effects
-re  = re0[g]
-rex = rnorm(n_groups, sd = sd_x)  # random effects
-re_x  = rex[g]
-lp = (4 + re) + (.3 + re_x)*x + .45*b -.2*b*x + 0.6*jx
-
-y = rnorm(N, mean = lp, sd = sigma)               # create a continuous target variable
-y_bin = rbinom(N, size = 1, prob = plogis(lp))    #- create a binary target variable
-
-hrvdat = tibble(stakes=19-as.numeric(cut(x,20)), condition = as.character(factor(b, labels=c("money","kudos"))), hrv = y, hr_abv = y_bin, sub = factor(g), t = jx)
-
-#ggplot(d, aes(x=x,y=y,group=g,col=factor(b)))+geom_smooth(method="lm",se=F, alpha=.2)+
-#  geom_point()+NULL
-```
 
 :::frame
 **Data: Raising the stakes**
@@ -283,7 +246,10 @@ hrvdat = tibble(stakes=19-as.numeric(cut(x,20)), condition = as.character(factor
 
 To examine the influence of the *type* of reward/loss on stress-levels, the study consisted of two conditions. In the monetary condition, (n = 15) participants were informed at the start of the study that the points corresponded to a monetary reward, and that they would be given their total score in £ at the end of the study. In the reputation condition, (n = 15) participants were informed that the points would be inputted on to a scoreboard and distributed around the local basketball clubs and in the league newsletter. 
 
-Throughout each trial, participants' heart rate variability (HRV) was measured via a chest strap. HRV is considered to be indirectly related to levels of stress. 
+Throughout each trial, participants' heart rate variability (HRV) was measured via a chest strap. HRV is considered to be indirectly related to levels of stress (i.e., higher HRV = less stress).
+
+The data is in **.xlsx** format, and can be downloaded from 
+https://uoepsy.github.io/data/basketballhrv.xlsx 
 :::
 
 
@@ -294,10 +260,42 @@ what varies *within* these clusters?
 what varies *between* these clusters?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
+todo
 `r solend()`
 
 
+`r qbegin()`
+Get the data into your R session. 
+
+__Note:__ This is a bit different to how we have given you data in previous exercises. We used to give you data as a __.csv__ file, which you could read directly into R from the link using, `read_csv("https://uoepsy.......)`.  
+
+However, in reality you are likely to be confronted with data in all sorts of weird formats. 
+Have a look around the internet to try and find any packages/functions/techniques for getting the data in to R. 
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+- Step 1: download the data to your computer  
+- Step 2: load the __readxl__ package.  
+- Step 3: use the `read_xlsx()` function to read in the data, pointing it to the relevant place on your computer. 
+
+You can actually do all these steps from within R.
+```{r}
+# Step 1
+download.file(url = "https://uoepsy.github.io/data/basketballhrv.xlsx", 
+              destfile = "baskeballdata.xlsx")
+# Step 2
+library(readxl)
+# Step 3
+bball <- read_xlsx("baskeballdata.xlsx")
+bball <- bball %>% mutate(sub = factor(sub))
+```
+```{r}
+head(bball)
+```
+
+
+`r solend()`
 
 `r qbegin()`
 Plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.  
@@ -305,18 +303,20 @@ Can you make a separate plot for each of the experimental conditions? (Hint: `fa
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-ggplot(hrvdat, aes(x=stakes,y=hrv))+geom_smooth(method="lm", alpha=.2)+
+ggplot(bball, aes(x=stakes,y=hrv))+geom_smooth(method="lm", alpha=.2)+
   geom_point() +
   facet_wrap(~condition)
 ```
 `r solend()`
 
 `r qbegin()`
+> How are stress levels (measured via HRV) influenced by the size of potential reward/loss?  
+
 Fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.  
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-simple_mod <- lm(hrv ~ stakes, data = hrvdat)
+simple_mod <- lm(hrv ~ stakes, data = bball)
 summary(simple_mod)
 ```
 
@@ -331,7 +331,7 @@ Plot the relationship between size of reward and HRV, with a separate line for e
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-ggplot(hrvdat, aes(x=stakes, y=hrv, group=sub, col=condition))+
+ggplot(bball, aes(x=stakes, y=hrv, group=sub, col=condition))+
   geom_smooth(method="lm",se=F, alpha=.2)+
   geom_point()+NULL
 ```
@@ -345,12 +345,12 @@ Remember, you can look up the help for a function by typing a `?` followed by th
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
 library(ICC)
-ICCbare(sub, hrv, hrvdat)
+ICCbare(x = sub, y = hrv, data = bball)
 ```
 `r solend()`
 
 `r optbegin("Optional - Extra difficult. Calculate ICC manually", olabel=F)`
-We have equal group sizes here (there are 30 groups, each with 20 observations), which makes calculating ICC by hand a lot easier, but it's still a bit tricky.  
+We have equal group sizes here (there are 2 $\times$ 15 participants, each with 20 observations), which makes calculating ICC by hand a lot easier, but it's still a bit tricky.  
 
 Let's take a look at the formula for ICC
 
@@ -375,7 +375,7 @@ So we're going to need to calculate the grand mean of $y$, the group means of $y
 
 The code below will give us a new column which is the overall mean of y. This bit is fairly straightforward. 
 ```{r eval=F}
-hrvdat %>% mutate(
+bball %>% mutate(
   grand_mean = mean(hrv)
 )
 ```
@@ -387,7 +387,7 @@ We have seen a lot of the combination of `group_by() %>% summarise()`, but we ca
 
 Try the following:
 ```{r eval=F}
-hrvdat %>% mutate(
+bball %>% mutate(
     grand_mean = mean(hrv)
   ) %>% 
   group_by(sub) %>%
@@ -404,7 +404,7 @@ Using `group_by()` can quite easily land you in trouble if you forget that you h
 
 Look at the output of `class()` when we have grouped the data. It still mentions something about the grouping. 
 ```{r}
-hrvdat <- hrvdat %>% mutate(
+bball <- bball %>% mutate(
     grand_mean = mean(hrv)
   ) %>% 
   group_by(sub) %>%
@@ -412,14 +412,14 @@ hrvdat <- hrvdat %>% mutate(
     group_mean = mean(hrv)
   )
 
-class(hrvdat)
+class(bball)
 ```
 
 To remove the grouping, we can use `ungroup()` (we could also just add this to the end of our code sequence above and re-run it):
 
 ```{r}
-hrvdat <- ungroup(hrvdat)
-class(hrvdat)
+bball <- ungroup(bball)
+class(bball)
 ```
 
 :::
@@ -427,7 +427,7 @@ class(hrvdat)
 Now we need to create a column which is the squared differences between the observations $y_{ij}$ and the group means $\bar{y_i}$.  
 We also want a column which is the squared differences between the group means $\bar{y_i}$ and the overall mean $\bar{y}$.  
 ```{r}
-hrvdat <- hrvdat %>% 
+bball <- bball %>% 
   mutate(
     within = (hrv-group_mean)^2,
     between = (group_mean-grand_mean)^2
@@ -436,8 +436,8 @@ hrvdat <- hrvdat %>%
 
 And then we want to sum them:
 ```{r}
-ssbetween = sum(hrvdat$between)
-sswithin = sum(hrvdat$within)
+ssbetween = sum(bball$between)
+sswithin = sum(bball$within)
 ```
 
 Finally, we divide them by the degrees of freedom. 
@@ -463,10 +463,10 @@ And calculate the ICC!!!
 Think about what ICC represents - the ratio of the variance between the groups to the total variance.  
 You can think of the "variance between the groups" as the group means varying around the overall mean (the black dots around the black line), and the total variance as that plus the addition of the variance of the individual observations around each group mean (each set of coloured points around their respective larger black dot):
 ```{r}
-ggplot(hrvdat, aes(x=sub, y=hrv))+
+ggplot(bball, aes(x=sub, y=hrv))+
   geom_point(aes(col=sub),alpha=.3)+
   stat_summary(geom = "pointrange")+
-  geom_hline(yintercept = mean(hrvdat$hrv))+
+  geom_hline(yintercept = mean(bball$hrv))+
   guides(col=FALSE)
 ```
 
@@ -526,8 +526,8 @@ __ICC = the expected correlation of a *randomly drawn pair* of observations from
 <!-- The code below creates a function for us to use. Can you figure out how it works?  -->
 <!-- ```{r} -->
 <!-- get_random_pair <- function(){ -->
-<!--   my_sub = sample(unique(hrvdat$sub), 1) -->
-<!--   my_obs = sample(hrvdat$hrv[hrvdat$sub == my_sub], size=2) -->
+<!--   my_sub = sample(unique(bball$sub), 1) -->
+<!--   my_obs = sample(bball$hrv[bball$sub == my_sub], size=2) -->
 <!--   my_obs -->
 <!-- } -->
 <!-- ``` -->
@@ -551,41 +551,92 @@ __ICC = the expected correlation of a *randomly drawn pair* of observations from
 :::
 
 
-# GEE
+<!-- # GEE -->
 
-if we're just interested in the effect of x on y and want to adjust for the clustering of the data, generalising estimation equations (GEE) can sometimes be useful. 
-They are more limited than multilevel models, but simplicity can often be a good thing.
+<!-- if we're just interested in the effect of x on y and want to adjust for the clustering of the data, generalising estimation equations (GEE) can sometimes be useful. They are in some ways more limited than multilevel models, but simplicity can often be a good thing. -->
 
+<!-- GEEs allow fitting of various correlation structures:  -->
 
-subjects are already arranged in order, but they need to be numeric.
-```{r}
-hrvdat$sub<-as.numeric(hrvdat$sub)
-```
+<!-- - "independence": the observations within the groups are uncorrelated. -->
+<!-- - "exchangeable": each pair of observations in a group has the same correlation. -->
+<!-- - "unstructured": each pair of observations in a group is allowed to have a different correlation. -->
+<!-- - "ar1": used to fit an autoregressive structure.  -->
 
+<!-- For repeated measures, "exchangeable" is recommended, but if there is some expected temporal correlation (e.g. participants are influenced by their previous trials) then you might consider an autoregressive structure.  -->
 
-```{r}
-library(geepack)
-geemod <- geeglm(hrv ~ stakes,
-       id=sub, data = hrvdat,
-       corstr="independence")
-summary(geemod)
-```
+<!-- Subjects are already arranged in order, but they need to be numeric. -->
+<!-- ```{r} -->
+<!-- ## make group id numeric an ordered -->
+<!-- bball %>% mutate( -->
+<!--   sub = as.numeric(sub) -->
+<!--   ) %>% arrange(sub) -->
+<!-- ``` -->
 
+<!-- ```{r} -->
+<!-- library(geepack) -->
+<!-- geemod <- geeglm(hrv ~ stakes, -->
+<!--        id=sub, data = bball, -->
+<!--        corstr="exchangeable") -->
+<!-- ``` -->
 
-
+<!-- `r qbegin()` -->
+<!-- Fit the GEE above, and examine the summary output. The package is designed to be interpreted similarly to `lm()` and `glm()`. -->
+<!-- `r qend()` -->
+<!-- `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)` -->
+<!-- ```{r} -->
+<!-- summary(geemod) -->
+<!-- ``` -->
+<!-- Note that the point estimate is the same (`coef(geemod)[2]`) as that from our simple model `lm(hrv ~ stakes, data = bball)` but the standard errors are wider (and the relationship is no longer significant).   -->
+<!-- `r solend()` -->
 
 # Revisiting interactions
 
-lm(y~x)
 
 `r qbegin()`
-Add to this the interaction between stakes and experimental condition and examine the parameter values (again, ignore the fact that we are violating our independence assumption here!).
+Let's suppose we want to account for the by-participant clustering in our data with the "No pooling" method (i.e., include participant as a fixed effect along with its interaction with explanatory variable of interest).  
 
-Remember to think about how HRV is considered to relate to stress, and whether the direction of any effect you see makes theoretical sense. 
+Fit the model, and use the `plot_model()` function (with `type = "int"`) to plot the interaction terms between `stakes` and each participant. 
+   
+__Note:__ When examining parameter values, remember to think about how HRV is considered to relate to stress, and whether the direction of any effect you see makes theoretical sense. 
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-simple_mod <- lm(hrv ~ condition*stakes, data = hrvdat)
+nopool_mod <- lm(hrv ~ stakes*sub, data=bball)
+sjPlot::plot_model(nopool_mod, type = "int")
+```
+`r solend()`
+
+
+`r qbegin()`
+We have fitted two models so far:  
+
+1. The complete pooling model: `lm(hrv ~ stakes, data = bball)`, which ignores the fact that our data has some inherent grouping (multiple datapoints per participant)
+2. The no pooling model: `lm(hrv ~ stakes*sub, data = bball)`, which estimates only participant-specific effects. 
+
+Compare the two models using `anova()`. Which model provides the best fit?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+pool_mod <- lm(hrv ~ stakes, data=bball)
+nopool_mod <- lm(hrv ~ stakes*sub, data=bball)
+anova(pool_mod, nopool_mod)
+```
+We can see that the no pooling model provides a significantly better fit to the data.
+`r solend()`
+
+
+`r qbegin()`
+Now let us suppose that we are interested in this question: 
+
+> Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake? 
+
+
+Extend your complete pooling model to include the interaction between stakes and experimental condition and examine the parameter values.
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+simple_mod <- lm(hrv ~ condition*stakes, data = bball)
 anova(simple_mod)
 summary(simple_mod)
 ```
@@ -594,24 +645,139 @@ res = summary(simple_mod)$coefficients %>% round(2)
 ```
 :::int
 Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two. 
-For a 1 point increase in stakes, HRV decreased by `r res[4,1]` ($SE=`r res[4,2]`,t(`r simple_mod[["df.residual"]]`)=`r res[4,3]`,p=`r res[4,4]`$) in the condition in which participants played for money relative to that in which participants played for kudos. 
+For a 1 point increase in stakes, HRV decreased by `r res[4,1]` ($SE=`r res[4,2]`,t(`r simple_mod[["df.residual"]]`)=`r res[4,3]`,p=`r res[4,4]`$)**** in the condition in which participants played for money relative to that in which participants played for kudos, suggesting that the size of the reward has a greater effect on stress levels when playing for money compared to playing for reputation.  
+   
+**** __Caveat:__ Our model did __not__ account for by-participant clustering of data, thereby violating the assumption that errors are iid (independent and identically distributed). 
 :::
 `r solend()`
 
 
+`r qbegin()`
+Let's suppose we want to examine the interaction here using the "no pooling" method (i.e., including participant as a fixed effect).  
 
-# Rpt measures anova
+We have the variable `stakes`, that varies __within__ each participant, and another variable `condition` that varies __between__ participants.  
 
+This becomes difficult because the `sub` variable (the participant id variable) uniquely identifies the two conditions. Note that if we fit the following model, some coefficients are not defined.
+Try it and see:  
+```{r eval=FALSE}
+lm(hrv ~ stakes*sub + stakes*condition, data=bball)
+```
+`r qend()`
+
+:::statbox
+
+This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA","mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example below should you be interested.  
+However, these techniques have a lot of constraints  ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating time as a factor, and it's not great with missing data. 
+The multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.  
+
+:::
+
+# Optional Extra: ANOVA
+
+:::imp
+This section is optional for this course, but may be useful for your dissertations should your field/supervisor prefer the ANOVA framework to that of the linear model. 
+
+This walks briefly through these models with the __ez__ package. There are many other packages available, and many good tutorials online should you desire extra resources in the future:
+
+- https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r
+- https://www.r-bloggers.com/2021/04/repeated-measures-of-anova-in-r-complete-tutorial/
+- https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/ 
+- https://www.datanovia.com/en/lessons/mixed-anova-in-r/  
+
+:::
+
+## Repeated Measures ANOVA
+
+For a repeated measures ANOVA, our independent variables are _within_ groups.  
+
+Following from the example study above, we might consider using it to answer the question below.  
+ 
+> __Question:__ What is the effect of the size of reward on stress levels (as measured by HRV)?
+
+The easiest way to conduct a repeated measures ANOVA in R is to use the __ez__ package.  
+It comes with some handy functions to visualise the experimental design.  
+We can see from below that every participant completed a trial for each value of reward-size (1-20 points):
 ```{r}
 library(ez)
-ezANOVA(data=hrvdat, dv=hrv, wid = sub, within = stakes, between = condition)
+ezDesign(data = bball, x = sub, y = stakes)
 ```
+`r qbegin()`
+The `ezANOVA()` function takes a few arguments. 
+
+The ones you will need for this are:
+
+- *data* the name of the dataframe
+- *dv* the column name for the dependent variable
+- *wid* the column name for the participant id variable
+- *within* the column name(s) for the predictor variable(s) that vary within participants 
+- *between* the column name(s) for any predictor variable(s) that vary between participants
+
+Fit a repeated measures ANOVA to examine the effect of the size of reward on HRV. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-mimo0 <- lmer(hrv~condition+(1|sub), hrvdat)
-mimo1 <- lmer(hrv~condition*stakes+(1+stakes|sub), hrvdat)
-anova(mimo0)
-anova(mimo1)
+ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes)
 ```
+`r solend()`
+
+## Mixed ANOVA 
+Mixed ANOVA can be used to investigate effects of independent variables that are at two different levels,  i.e. some are *within* clusters and some are *between*.  
+
+> __Question:__ Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake? 
+
+`r qbegin()`
+Look at the two lines below. Can you work out what the plots will look like _before_ you run them? 
+
+```{r eval=F}
+ezDesign(data = bball, x = condition, y = sub)
+ezDesign(data = bball, x = condition, y = stakes)
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Participants 1-15 are in one condition, and 16-30 are in another.  
+This should look like a two big blocks on the diagonal. 
+```{r}
+ezDesign(data = bball, x = condition, y = sub)
+```
+In each condition, the full set of stakes (1-20 points) were observed in the same number of trials.
+This should be a full grid:
+```{r}
+ezDesign(data = bball, x = condition, y = stakes)
+```
+`r solend()`
+
+
+`r qbegin()`
+Fit a mixed ANOVA to examine the interaction between size and type of reward on HRV. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes, between = condition)
+```
+`r solend()`
+
+
+`r qbegin()`
+The __ez__ package also contains some easy plotting functions for factorial experiments, such as `ezPlot()`. It takes similar arguments to the `ezANOVA()` function. 
+
+- look up the help documentation for `ezPlot()`. 
+- try to recreate the plot below using `ezPlot()` (__Note:__ you may need to make sure that the `stakes` variable is a factor).
+
+```{r echo=FALSE}
+bball <- bball %>% mutate(stakes = factor(stakes))
+ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = stakes, split = condition)
+```
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+bball <- bball %>% mutate(stakes = factor(stakes))
+ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = stakes, split = condition)
+```
+`r solend()`
+
 
 
 

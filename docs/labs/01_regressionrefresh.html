@@ -1,0 +1,1651 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Regression Refresh and Clustered Data</title>
+
+<script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/united.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+<script>
+function toggle_visibility(id1, id2) {
+var e = document.getElementById(id1);
+var f = document.getElementById(id2);
+e.style.display = ((e.style.display!='none') ? 'none' : 'block');
+if(f.classList.contains('fa-chevron-circle-right')) {
+    f.classList.add('fa-chevron-circle-down')
+    f.classList.remove('fa-chevron-circle-right')
+} else {
+    f.classList.add('fa-chevron-circle-right')
+    f.classList.remove('fa-chevron-circle-down')
+}
+}
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+<link rel="stylesheet" href="assets/style-labs.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"><strong>DAPR3</strong></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fas fa-home"></span>
+     
+  </a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Multi Level Models
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="01_regressionrefresh.html">1: Linear Regression | Clustered Data</a>
+    </li>
+    <li>
+      <a href="02_intromlm.html">2: LM to MLM</a>
+    </li>
+    <li class="dropdown-header">3: Assumptions, Diagnostics</li>
+    <li class="dropdown-header">4: Generalisations | Centering</li>
+    <li class="dropdown-header">5: Applied Examples</li>
+  </ul>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Dimension reduction &amp; SEM
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li class="dropdown-header">7: PCA</li>
+    <li class="dropdown-header">8: EFA 1</li>
+    <li class="dropdown-header">9: EFA 2</li>
+    <li class="dropdown-header">10: Path Analysis</li>
+    <li class="dropdown-header">11: Path Mediation</li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    <span class="fas fa-info-circle"></span>
+     
+    Help
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li class="dropdown-header">Getting started with R &amp; RStudio</li>
+  </ul>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Regression Refresh and Clustered Data</h1>
+
+</div>
+
+
+<div class="lo">
+<p><strong>Preliminaries</strong></p>
+<ol style="list-style-type: decimal">
+<li>Open Rstudio, and <strong>create a new project for this course!!</strong></li>
+<li>Create a new RMarkdown document (giving it a title for this week).</li>
+</ol>
+</div>
+<div id="new-toys" class="section level1">
+<h1>New Toys!</h1>
+<div class="question-begin">
+New package time!
+</div>
+<div class="question-body">
+<p>These are the main packages we’re going to use in this block. It might make sense to install them now if you do not have them already (note, the rstudio.ppls.ed.ac.uk server already has <code>lme4</code> and <code>tidyverse</code> installed for you).</p>
+<ul>
+<li>tidyverse<br />
+</li>
+<li>ICC</li>
+<li>lme4<br />
+</li>
+<li>effects<br />
+</li>
+<li>broom</li>
+<li>broom.mixed</li>
+<li>sjPlot</li>
+</ul>
+</div>
+<p class="question-end">
+</p>
+<div class="question-begin">
+New data time!
+</div>
+<div class="question-body">
+Let’s consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines:
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-2"></span>
+<img src="images/intro/reading.png" alt="[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)" width="300px" />
+<p class="caption">
+Figure 1: <a href="https://uoepsy.github.io/usmr/lectures/lecture_7.html#29">Image and example from USMR Week 8 Lecture</a>
+</p>
+</div>
+<p>Let’s suppose we have data on various types of toys, from Playmobil (pictured above) to Powerrangers, to farm animals. You can find a dataset at <a href="https://uoepsy.github.io/data/toyexample.csv" class="uri">https://uoepsy.github.io/data/toyexample.csv</a>, and read it into your R environment using the code below:</p>
+<pre class="r"><code>toys_read &lt;- read_csv(&quot;https://uoepsy.github.io/data/toyexample.csv&quot;)</code></pre>
+The dataset contains information on 132 different toy figures. You can see the variables in the table below<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
+<br>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+<p><img src="images/intro/toys.png" width="300px" style="display: block; margin: auto;" /></p>
+</div>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+<div id="xaaxpptaeg" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#xaaxpptaeg .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#xaaxpptaeg .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#xaaxpptaeg .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#xaaxpptaeg .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#xaaxpptaeg .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#xaaxpptaeg .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#xaaxpptaeg .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#xaaxpptaeg .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#xaaxpptaeg .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#xaaxpptaeg .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#xaaxpptaeg .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#xaaxpptaeg .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#xaaxpptaeg .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#xaaxpptaeg .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xaaxpptaeg .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#xaaxpptaeg .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#xaaxpptaeg .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#xaaxpptaeg .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#xaaxpptaeg .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#xaaxpptaeg .gt_left {
+  text-align: left;
+}
+
+#xaaxpptaeg .gt_center {
+  text-align: center;
+}
+
+#xaaxpptaeg .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#xaaxpptaeg .gt_font_normal {
+  font-weight: normal;
+}
+
+#xaaxpptaeg .gt_font_bold {
+  font-weight: bold;
+}
+
+#xaaxpptaeg .gt_font_italic {
+  font-style: italic;
+}
+
+#xaaxpptaeg .gt_super {
+  font-size: 65%;
+}
+
+#xaaxpptaeg .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 65%;
+}
+</style>
+<table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">variable</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">description</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td class="gt_row gt_left">toy_type</td>
+<td class="gt_row gt_left">Type of Toy</td></tr>
+    <tr><td class="gt_row gt_left">toy</td>
+<td class="gt_row gt_left">Character</td></tr>
+    <tr><td class="gt_row gt_left">hrs_week</td>
+<td class="gt_row gt_left">Hours of practice per week</td></tr>
+    <tr><td class="gt_row gt_left">age</td>
+<td class="gt_row gt_left">Age (in years)</td></tr>
+    <tr><td class="gt_row gt_left">R_AGE</td>
+<td class="gt_row gt_left">Reading Age</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+</div>
+<div id="linear-model-refresh" class="section level1">
+<h1>Linear model refresh</h1>
+<div class="statbox">
+<p>Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:</p>
+<p><span class="math display">\[
+\begin{align}\\
+&amp; \text{for observation }i \\
+&amp; \color{red}{Y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} X_{1i} \ + \ ... \ + \ \beta_p \cdot{} X_{pi}} + \varepsilon_i \\ 
+\end{align}
+\]</span></p>
+<p>And if we wanted to write this more simply, we can express <span class="math inline">\(X_1\)</span> to <span class="math inline">\(X_p\)</span> as an <span class="math inline">\(n \times p\)</span> matrix (samplesize <span class="math inline">\(\times\)</span> parameters), and <span class="math inline">\(\beta_0\)</span> to <span class="math inline">\(\beta_p\)</span> as a vector of coefficients:</p>
+<p><span class="math display">\[
+\mathbf{y} = \boldsymbol{X\beta} + \boldsymbol{\varepsilon}
+\quad \\
+\text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
+\]</span></p>
+</div>
+<div class="question-begin">
+Question A1
+</div>
+<div class="question-body">
+<p>Plot the bivariate relationship between Reading Age and Hrs per Week practice, and then fit the simple linear model:
+<span class="math display">\[
+\text{Reading Age}_i = \beta_0 + \beta_1 \cdot \text{Hours per week practice}_i + \varepsilon_i
+\]</span></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>ggplot(data = toys_read, aes(x = hrs_week, y = R_AGE))+
+  geom_point()+
+  geom_smooth(method = &quot;lm&quot;)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-6-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>simplemod &lt;- lm(R_AGE ~ hrs_week, data = toys_read)
+summary(simplemod)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = R_AGE ~ hrs_week, data = toys_read)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -12.9086  -3.2084   0.0047   3.0493  12.3262 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)  
+## (Intercept)   3.4554     2.0379   1.696   0.0924 .
+## hrs_week      0.7229     0.4866   1.486   0.1398  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 5.276 on 130 degrees of freedom
+## Multiple R-squared:  0.01669,    Adjusted R-squared:  0.009131 
+## F-statistic: 2.207 on 1 and 130 DF,  p-value: 0.1398</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A2
+</div>
+<div class="question-body">
+<p>Think about the assumptions we make about our model:
+<span class="math display">\[
+\text{where} \quad \varepsilon_i \sim N(0, \sigma) \text{ independently}
+\]</span>
+Have we satisfied this assumption (specifically, the assumption of <em>independence</em> of errors)?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<p>Our model from the previous question will assume that the residuals for all toys are independent of one another. But is this a reasonable assumption that we can make? Might we not think that the Playmobil characters could be generally better at reading than the Power Rangers? Or even that ScoobyDoo figurines might be more receptive to practice than the Sock Puppets are?</p>
+<p>The natural grouping of the toys into their respective type introduces a level of <em>dependence</em> which we would be best to account for.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A3
+</div>
+<div class="question-body">
+<p>Try running the code below.</p>
+<pre class="r"><code>ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
+  geom_point()+
+  geom_smooth(method=&quot;lm&quot;,se=FALSE)</code></pre>
+<p>Then try editing the code to include an aesthetic mapping from the type of toy to the color in the plot.<br />
+How do your thoughts about the relationship between Reading Age and Practice change?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
+  geom_point()+
+  geom_smooth(method=&quot;lm&quot;,se=FALSE)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-8-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE, col=toy_type))+
+  geom_point()+
+  geom_smooth(method=&quot;lm&quot;,se=FALSE)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-9-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p>From the second plot, we see a lot of the toy types appear to have a positive relationship (practice increases reading age). There seem to be differences between toy types in both the general reading level (Scooby Doo characters can read very well), and in how practice influences reading age (for instance, the Farm Animals don’t seem to improve at all with practice!).</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="frame">
+<p><strong>Complete Pooling</strong></p>
+<p>We can consider the simple regression model (<code>lm(R_AGE ~ hrs_week, data = toys_read)</code>) to “pool” the information from all observations together. In this ‘Complete Pooling’ approach, we simply ignore the natural clustering of the toys, as if we were unaware of it. The problem is that this assumes the same regression line for all toy types, which might not be that appropriate:</p>
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-10"></span>
+<img src="01_regressionrefresh_files/figure-html/unnamed-chunk-10-1.png" alt="Complete pooling can lead to bad fit for certain groups" width="350px" />
+<p class="caption">
+Figure 2: Complete pooling can lead to bad fit for certain groups
+</p>
+</div>
+<p><strong>No Pooling</strong></p>
+<p>There are various ways we could attempt to deal with the problem that our data are in groups (or “clusters”). With the tools you have learned in DAPR2, you may be tempted to try including toy type in the model as another predictor, to allow for some toy types being generally better than others:</p>
+<pre class="r"><code>lm(R_AGE ~ hrs_week + toy_type, data = toys_read)</code></pre>
+<p>Or even to include an interaction to allow for toy types to respond differently to practice:</p>
+<pre class="r"><code>lm(R_AGE ~ hrs_week * toy_type, data = toys_read)</code></pre>
+<p>This approach gets termed the “No Pooling” method, because the information from each cluster contributes <em>only</em> to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, but it means that a) we are estimating <em>a lot</em> of parameters, and b) we are not necessarily estimating the parameter of interest (the <em>overall</em> effect of practice on reading age). Furthermore, we’ll probably end up having high variance in the estimates at each group.</p>
+</div>
+<div class="question-begin">
+Question A4
+</div>
+<div class="question-body">
+<p>Fit a linear model which accounts for the grouping of toys into their different types, but holds the effect of practice-hours-per-week on reading age as constant across types:</p>
+<pre class="r"><code>mod1 &lt;- lm(R_AGE ~ hrs_week + toy_type, data = toys_read)</code></pre>
+<p>Can you construct a plot of the <strong>fitted</strong> values from this model, coloured by toy_type?<br />
+(Hint: you might want to use the <code>augment()</code> function from the <strong>broom</strong> package)</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>broom::augment(mod1) %&gt;%
+  ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
+  geom_line()</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-14-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A5
+</div>
+<div class="question-body">
+<p>What happens (to the plot, and to your parameter estimates) when you include the interaction between <code>toy_type</code> and <code>hrs_week</code>?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>mod2 &lt;- lm(R_AGE ~ hrs_week * toy_type, data = toys_read)
+
+broom::augment(mod2) %&gt;%
+  ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
+  geom_line()</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-15-1.png" width="80%" style="display: block; margin: auto;" />
+We can see now that our model is fitting a different relationship between reading age and practice for each toy type. This is good - we’re going to get better estimates for different types of toy (e.g. scooby doo’s reading age increases with practice, farm animals don’t).</p>
+<p>We can see that this model provides a better fit - it results in a significant reduction in the residual sums of squares:</p>
+<pre class="r"><code>anova(mod1, mod2)</code></pre>
+<pre><code>## Analysis of Variance Table
+## 
+## Model 1: R_AGE ~ hrs_week + toy_type
+## Model 2: R_AGE ~ hrs_week * toy_type
+##   Res.Df    RSS Df Sum of Sq      F  Pr(&gt;F)  
+## 1    111 555.72                              
+## 2     92 393.12 19    162.59 2.0026 0.01538 *
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>But it comes at the expense of estimating many many different parameters, and not pooling information across groups to get one estimate for “the effect of practice on reading age.”</p>
+<p>Additionally, TODO
+within only</p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="exploring-clustering" class="section level1">
+<h1>Exploring Clustering</h1>
+<div class="frame">
+<p><strong>Data: Raising the stakes</strong></p>
+<p>30 volunteers from an amateur basketball league participated in a study on stress induced by size and type of potential reward for successfully completing a throw. Each participant completed 20 trials in which they were tasked with throwing a basketball and scoring a goal in order to win a wager. The size of the wager varied between trials, ranging from 1 to 20 points, with the order randomised for each participant. If a participant successfully threw the ball in the basket, then their score increased accordingly. If they missed, their score decreased accordingly. Participants were informed of the size of the potential reward/loss prior to each throw.</p>
+<p>To examine the influence of the <em>type</em> of reward/loss on stress-levels, the study consisted of two conditions. In the monetary condition, (n = 15) participants were informed at the start of the study that the points corresponded to a monetary reward, and that they would be given their total score in £ at the end of the study. In the reputation condition, (n = 15) participants were informed that the points would be inputted on to a scoreboard and distributed around the local basketball clubs and in the league newsletter.</p>
+<p>Throughout each trial, participants’ heart rate variability (HRV) was measured via a chest strap. HRV is considered to be indirectly related to levels of stress (i.e., higher HRV = less stress).</p>
+<p>The data is in <strong>.xlsx</strong> format, and can be downloaded from
+<a href="https://uoepsy.github.io/data/basketballhrv.xlsx" class="uri">https://uoepsy.github.io/data/basketballhrv.xlsx</a></p>
+</div>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>what are the units of observations
+what are the groups/clusters?
+what varies <em>within</em> these clusters?
+what varies <em>between</em> these clusters?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>Get the data into your R session.</p>
+<p><strong>Note:</strong> This is a bit different to how we have given you data in previous exercises. We used to give you data as a <strong>.csv</strong> file, which you could read directly into R from the link using, <code>read_csv("https://uoepsy.......)</code>.</p>
+<p>However, in reality you are likely to be confronted with data in all sorts of weird formats.
+Have a look around the internet to try and find any packages/functions/techniques for getting the data in to R.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<ul>
+<li>Step 1: download the data to your computer<br />
+</li>
+<li>Step 2: load the <strong>readxl</strong> package.<br />
+</li>
+<li>Step 3: use the <code>read_xlsx()</code> function to read in the data, pointing it to the relevant place on your computer.</li>
+</ul>
+<p>You can actually do all these steps from within R.</p>
+<pre class="r"><code># Step 1
+download.file(url = &quot;https://uoepsy.github.io/data/basketballhrv.xlsx&quot;, 
+              destfile = &quot;baskeballdata.xlsx&quot;)
+# Step 2
+library(readxl)
+# Step 3
+bball &lt;- read_xlsx(&quot;baskeballdata.xlsx&quot;)
+bball &lt;- bball %&gt;% mutate(sub = factor(sub))</code></pre>
+<pre class="r"><code>head(bball)</code></pre>
+<pre><code>## # A tibble: 6 x 8
+##   stakes condition   hrv hr_abv sub   throw trial_no success_rate
+##    &lt;dbl&gt; &lt;chr&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;fct&gt; &lt;dbl&gt;    &lt;dbl&gt;        &lt;dbl&gt;
+## 1     13 money      5.47      1 1         1        1            1
+## 2     17 money      6.69      1 1         1        2            1
+## 3      7 money      2.72      1 1         1        3            1
+## 4      1 money      4.95      1 1         1        4            1
+## 5      2 money      5.96      1 1         1        5            1
+## 6      8 money      4.93      1 1         1        6            1</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>Plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.<br />
+Can you make a separate plot for each of the experimental conditions? (Hint: <code>facet_wrap()</code>)</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>ggplot(bball, aes(x=stakes,y=hrv))+geom_smooth(method=&quot;lm&quot;, alpha=.2)+
+  geom_point() +
+  facet_wrap(~condition)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-19-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<blockquote>
+<p>How are stress levels (measured via HRV) influenced by the size of potential reward/loss?</p>
+</blockquote>
+<p>Fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>simple_mod &lt;- lm(hrv ~ stakes, data = bball)
+summary(simple_mod)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = hrv ~ stakes, data = bball)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -5.6396 -0.8275  0.0418  0.8787  4.0314 
+## 
+## Coefficients:
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  4.978570   0.114654  43.423   &lt;2e-16 ***
+## stakes      -0.022790   0.009571  -2.381   0.0176 *  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 1.352 on 598 degrees of freedom
+## Multiple R-squared:  0.009392,   Adjusted R-squared:  0.007736 
+## F-statistic:  5.67 on 1 and 598 DF,  p-value: 0.01757</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>Plot the relationship between size of reward and HRV, with a separate line for each subject.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>ggplot(bball, aes(x=stakes, y=hrv, group=sub, col=condition))+
+  geom_smooth(method=&quot;lm&quot;,se=F, alpha=.2)+
+  geom_point()+NULL</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-21-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>Calculate the ICC, using the <code>ICCbare()</code> function from the <strong>ICC</strong> package.</p>
+<p>Remember, you can look up the help for a function by typing a <code>?</code> followed by the function name in the console.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>library(ICC)
+ICCbare(x = sub, y = hrv, data = bball)</code></pre>
+<pre><code>## [1] 0.3141482</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="optional-begin">
+<span id="opt-start-12" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-12&#39;, &#39;opt-start-12&#39;)"> Optional - Extra difficult. Calculate ICC manually</span>
+</div>
+<div id="opt-body-12" class="optional-body" style="display: none;">
+<p>We have equal group sizes here (there are 2 <span class="math inline">\(\times\)</span> 15 participants, each with 20 observations), which makes calculating ICC by hand a lot easier, but it’s still a bit tricky.</p>
+<p>Let’s take a look at the formula for ICC</p>
+<p><span class="math display">\[
+\begin{align}
+ICC \; (\rho) = &amp; \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\
+\qquad \\
+= &amp; \frac{\frac{MS_b - MS_e}{k}}{\frac{MS_b - MS_e}{k} + MS_e} \\
+\qquad \\
+= &amp; \frac{MS_b - MS_e}{MS_b + (k-1)MS_e} \\
+\qquad \\
+\qquad \\
+\text{Where:} &amp; \\ 
+k = &amp; \textrm{number of observations in each group} \\
+MS_b = &amp; \textrm{Mean Squares between groups} = \frac{\text{Sums Squares between groups}}{df_\text{groups}}
+= \frac{\sum\limits_{i=1}(\bar{y}_i - \bar{y})^2}{\textrm{n groups}-1}\\
+MS_e = &amp; \textrm{Mean Squares within groups} \frac{\text{Sums Squares within groups}}{df_\text{within groups}} 
+= \frac{\sum\limits_{i=1}\sum\limits_{j=1}(y_{ij} - \bar{y_i})^2}{\textrm{n obs}-\textrm{n groups}}\\
+\end{align}
+\]</span>
+So we’re going to need to calculate the grand mean of <span class="math inline">\(y\)</span>, the group means of <span class="math inline">\(y\)</span>, and then the various squared differences between group means and grand mean, and between observations and their respective group means.</p>
+<p>The code below will give us a new column which is the overall mean of y. This bit is fairly straightforward.</p>
+<pre class="r"><code>bball %&gt;% mutate(
+  grand_mean = mean(hrv)
+)</code></pre>
+<div class="rtip">
+<p>We have seen a lot of the combination of <code>group_by() %&gt;% summarise()</code>, but we can also combine <code>group_by()</code> with <code>mutate()</code>!</p>
+</div>
+<p>Try the following:</p>
+<pre class="r"><code>bball %&gt;% mutate(
+    grand_mean = mean(hrv)
+  ) %&gt;% 
+  group_by(sub) %&gt;%
+  mutate(
+    group_mean = mean(hrv)
+  )</code></pre>
+<div class="rtip">
+<p><strong>The grouping gets carried forward.</strong></p>
+<p>Using <code>group_by()</code> can quite easily land you in trouble if you forget that you have grouped the dataframe.</p>
+<p>Look at the output of <code>class()</code> when we have grouped the data. It still mentions something about the grouping.</p>
+<pre class="r"><code>bball &lt;- bball %&gt;% mutate(
+    grand_mean = mean(hrv)
+  ) %&gt;% 
+  group_by(sub) %&gt;%
+  mutate(
+    group_mean = mean(hrv)
+  )
+
+class(bball)</code></pre>
+<pre><code>## [1] &quot;grouped_df&quot; &quot;tbl_df&quot;     &quot;tbl&quot;        &quot;data.frame&quot;</code></pre>
+<p>To remove the grouping, we can use <code>ungroup()</code> (we could also just add this to the end of our code sequence above and re-run it):</p>
+<pre class="r"><code>bball &lt;- ungroup(bball)
+class(bball)</code></pre>
+<pre><code>## [1] &quot;tbl_df&quot;     &quot;tbl&quot;        &quot;data.frame&quot;</code></pre>
+</div>
+<p>Now we need to create a column which is the squared differences between the observations <span class="math inline">\(y_{ij}\)</span> and the group means <span class="math inline">\(\bar{y_i}\)</span>.<br />
+We also want a column which is the squared differences between the group means <span class="math inline">\(\bar{y_i}\)</span> and the overall mean <span class="math inline">\(\bar{y}\)</span>.</p>
+<pre class="r"><code>bball &lt;- bball %&gt;% 
+  mutate(
+    within = (hrv-group_mean)^2,
+    between = (group_mean-grand_mean)^2
+  )</code></pre>
+<p>And then we want to sum them:</p>
+<pre class="r"><code>ssbetween = sum(bball$between)
+sswithin = sum(bball$within)</code></pre>
+<p>Finally, we divide them by the degrees of freedom.</p>
+<pre class="r"><code># Mean Squares between
+msb = ssbetween / (30-1)
+# Mean Squares within 
+mse = sswithin / (600-30)</code></pre>
+<p>And calculate the ICC!!!</p>
+<pre class="r"><code># ICC
+(msb-mse) /(msb + (19*mse))</code></pre>
+<pre><code>## [1] 0.3141482</code></pre>
+</div>
+<p class="optional-end">
+</p>
+<div class="statbox">
+<p><strong>Understanding ICC a bit better</strong></p>
+<p>Think about what ICC represents - the ratio of the variance between the groups to the total variance.<br />
+You can think of the “variance between the groups” as the group means varying around the overall mean (the black dots around the black line), and the total variance as that plus the addition of the variance of the individual observations around each group mean (each set of coloured points around their respective larger black dot):</p>
+<pre class="r"><code>ggplot(bball, aes(x=sub, y=hrv))+
+  geom_point(aes(col=sub),alpha=.3)+
+  stat_summary(geom = &quot;pointrange&quot;)+
+  geom_hline(yintercept = mean(bball$hrv))+
+  guides(col=FALSE)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-31-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p>You can also think of the ICC as the correlation between two randomly drawn observations from the same group.
+This is a bit of a tricky thing to get your head round if you try to relate it to the type of “correlation” that you are familiar with. Pearson’s correlation (e.g think about a typical scatterplot) operates on <em>pairs of observations</em> (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on <em>data which is structured in groups</em>.</p>
+<div class="optional-begin">
+<span id="opt-start-13" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-13&#39;, &#39;opt-start-13&#39;)"> Optional - ICC as the expected correlation between two observations from same group</span>
+</div>
+<div id="opt-body-13" class="optional-body" style="display: none;">
+<p>Let’s suppose we had only 2 observations in each group.</p>
+<pre><code>##   cluster observation   y
+## 1 group_1           1   4
+## 2 group_1           2   2
+## 3 group_2           1   4
+## 4 group_2           2   2
+## 5 group_3           1   7
+## 6 group_3           2   5
+## 7     ...         ... ...</code></pre>
+<p>The ICC for this data is 0.18:</p>
+<p>Now suppose we <em>reshape</em> our data so that we have one row per group, and one column for each observation to look like this:</p>
+<pre><code>## # A tibble: 7 x 3
+##   cluster obs1  obs2 
+##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+## 1 group_1 4     2    
+## 2 group_2 4     2    
+## 3 group_3 7     5    
+## 4 group_4 2     7    
+## 5 group_5 3     8    
+## 6 group_6 6     7    
+## 7 ...     ...   ...</code></pre>
+<p>Calculating Pearson’s correlation on those two columns yields 0.2, which isn’t quite right. It’s close, but not quite..</p>
+<div class="imp">
+<p>The crucial thing here is that it is completely arbitrary which observations get called “obs1” and which get called “obs2.”<br />
+The data aren’t paired, but grouped.</p>
+</div>
+<p>Essentially, there are lots of different combinations of “pairs” here.
+There are the ones we have shown above:</p>
+<pre><code>## # A tibble: 7 x 3
+##   cluster obs1  obs2 
+##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+## 1 group_1 4     2    
+## 2 group_2 4     2    
+## 3 group_3 7     5    
+## 4 group_4 2     7    
+## 5 group_5 3     8    
+## 6 group_6 6     7    
+## 7 ...     ...   ...</code></pre>
+<p>But we might have equally chosen these:</p>
+<pre><code>## # A tibble: 7 x 3
+##   cluster obs1  obs2 
+##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+## 1 group_1 4     2    
+## 2 group_2 4     2    
+## 3 group_3 7     5    
+## 4 group_4 7     2    
+## 5 group_5 3     8    
+## 6 group_6 6     7    
+## 7 ...     ...   ...</code></pre>
+<p>or these:</p>
+<pre><code>## # A tibble: 7 x 3
+##   cluster obs1  obs2 
+##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+## 1 group_1 2     4    
+## 2 group_2 2     4    
+## 3 group_3 5     7    
+## 4 group_4 7     2    
+## 5 group_5 3     8    
+## 6 group_6 6     7    
+## 7 ...     ...   ...</code></pre>
+<p>If we take the correlation of all these combinations of pairings, then we get our ICC of 0.18!</p>
+<p><strong>ICC = the expected correlation of a <em>randomly drawn pair</em> of observations from the same group.</strong></p>
+<!-- We could even do this via simulation, and write our own customised function! -->
+<!-- The code below creates a function for us to use. Can you figure out how it works?  -->
+<!-- ```{r} -->
+<!-- get_random_pair <- function(){ -->
+<!--   my_sub = sample(unique(bball$sub), 1) -->
+<!--   my_obs = sample(bball$hrv[bball$sub == my_sub], size=2) -->
+<!--   my_obs -->
+<!-- } -->
+<!-- ``` -->
+<!-- Try it out, by running it several times.  -->
+<!-- ```{r} -->
+<!-- get_random_pair() -->
+<!-- ``` -->
+<!-- Now let's make our computer do it loads and loads of times: -->
+<!-- ```{r} -->
+<!-- # replicate is a way of making R execute the same code repeatedly, n times. -->
+<!-- sims <- replicate(1e6, get_random_pair()) -->
+<!-- # t() is short for "transpose" and simple rotates the object 90 degrees (so rows become columns and columns become rows) -->
+<!-- sims <- t(sims) -->
+<!-- cor(sims[,1], sims[,2]) -->
+<!-- ``` -->
+</div>
+<p class="optional-end">
+</p>
+</div>
+<!-- # GEE -->
+<!-- if we're just interested in the effect of x on y and want to adjust for the clustering of the data, generalising estimation equations (GEE) can sometimes be useful. They are in some ways more limited than multilevel models, but simplicity can often be a good thing. -->
+<!-- GEEs allow fitting of various correlation structures:  -->
+<!-- - "independence": the observations within the groups are uncorrelated. -->
+<!-- - "exchangeable": each pair of observations in a group has the same correlation. -->
+<!-- - "unstructured": each pair of observations in a group is allowed to have a different correlation. -->
+<!-- - "ar1": used to fit an autoregressive structure.  -->
+<!-- For repeated measures, "exchangeable" is recommended, but if there is some expected temporal correlation (e.g. participants are influenced by their previous trials) then you might consider an autoregressive structure.  -->
+<!-- Subjects are already arranged in order, but they need to be numeric. -->
+<!-- ```{r} -->
+<!-- ## make group id numeric an ordered -->
+<!-- bball %>% mutate( -->
+<!--   sub = as.numeric(sub) -->
+<!--   ) %>% arrange(sub) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- library(geepack) -->
+<!-- geemod <- geeglm(hrv ~ stakes, -->
+<!--        id=sub, data = bball, -->
+<!--        corstr="exchangeable") -->
+<!-- ``` -->
+<!-- 
+
+<div class='question-begin'>Question </div><div class='question-body'>
+
+ -->
+<!-- Fit the GEE above, and examine the summary output. The package is designed to be interpreted similarly to `lm()` and `glm()`. -->
+<!-- 
+
+</div><p class="question-end"></p>
+
+ -->
+<!-- 
+
+<div class="solution-begin"></div><div class="solution-body">
+
+ -->
+<!-- ```{r} -->
+<!-- summary(geemod) -->
+<!-- ``` -->
+<!-- Note that the point estimate is the same (`coef(geemod)[2]`) as that from our simple model `lm(hrv ~ stakes, data = bball)` but the standard errors are wider (and the relationship is no longer significant).   -->
+<!-- 
+
+</div><p class="solution-end"></p>
+
+ -->
+</div>
+<div id="revisiting-interactions" class="section level1">
+<h1>Revisiting interactions</h1>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<blockquote>
+<p>Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake?</p>
+</blockquote>
+<p>We have fitted the model <code>lm(hrv ~ stakes, data = bball)</code>, which ignores the fact that our data has some inherent grouping (multiple datapoints per participant).</p>
+<p>Extend this model to include the interaction between stakes and experimental condition and examine the parameter values (again, ignore the fact that we are violating our independence assumption here!).</p>
+<p>Remember to think about how HRV is considered to relate to stress, and whether the direction of any effect you see makes theoretical sense.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>simple_mod &lt;- lm(hrv ~ condition*stakes, data = bball)
+anova(simple_mod)</code></pre>
+<pre><code>## Analysis of Variance Table
+## 
+## Response: hrv
+##                   Df  Sum Sq Mean Sq F value    Pr(&gt;F)    
+## condition          1   36.62  36.621 20.8484 6.042e-06 ***
+## stakes             1   10.36  10.362  5.8989   0.01544 *  
+## condition:stakes   1    9.34   9.344  5.3194   0.02143 *  
+## Residuals        596 1046.91   1.757                      
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>summary(simple_mod)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = hrv ~ condition * stakes, data = bball)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -5.4250 -0.8292  0.0231  0.8821  4.1205 
+## 
+## Coefficients:
+##                        Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)            4.998385   0.158965  31.443   &lt;2e-16 ***
+## conditionmoney        -0.039631   0.224810  -0.176   0.8601    
+## stakes                -0.001148   0.013270  -0.087   0.9311    
+## conditionmoney:stakes -0.043284   0.018767  -2.306   0.0214 *  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 1.325 on 596 degrees of freedom
+## Multiple R-squared:  0.05106,    Adjusted R-squared:  0.04628 
+## F-statistic: 10.69 on 3 and 596 DF,  p-value: 7.494e-07</code></pre>
+<div class="int">
+<p>Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two.
+For a 1 point increase in stakes, HRV decreased by -0.04 (<span class="math inline">\(SE=0.02,t(596)=-2.31,p=0.02\)</span>)**** in the condition in which participants played for money relative to that in which participants played for kudos, suggesting that the size of the reward has a greater effect on stress levels when playing for money compared to playing for reputation.</p>
+<p>**** <strong>Caveat:</strong> Our model did <strong>not</strong> account for by-participant clustering of data, thereby violating the assumption that errors are iid (independent and identically distributed).</p>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="statbox">
+<p>Let’s suppose we want to fit this with the “No pooling” method (i.e., include participant as a fixed effect).</p>
+<p>We have a variable <code>stakes</code>, that varies <strong>within</strong> each participant, and another variable <code>condition</code> that varies <strong>between</strong> participants.</p>
+<p>This becomes difficult because the <code>sub</code> variable (the participant id variable) uniquely identifies the two conditions.
+Note that if we fit the following model, some coefficients are not defined (why not try it and see).</p>
+<pre class="r"><code>lm(hrv ~ stakes*sub + stakes*condition, data=bball)</code></pre>
+<p>Really, the participant variation is a nuisance in this context. We are interested in a between-participant effect (<code>condition</code>) and a within-participant effect (<code>stakes</code>), but one for which the levels are completely balanced across participants (they all complete trials with rewards from 1 to 20 points). This means that “high stakes” means the same thing for all participants.
+This sort of perfectly balanced design has traditionally been approached with repeated measures ANOVA, which you can read more about below should you be interested.
+However, the multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.</p>
+</div>
+</div>
+<div id="optional-extra-rpt-measures-anova" class="section level1">
+<h1>Optional Extra: Rpt measures ANOVA</h1>
+<div class="imp">
+<p>This section is optional for this course, but may be useful for your dissertations should your field/supervisor prefer the ANOVA framework to that of the linear model.</p>
+<p>This walks briefly through a repeated measures ANOVA with the <strong>ez</strong> package. There are many other packages available, and many good tutorials online should you desire extra resources in the future:</p>
+<ul>
+<li><a href="https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r" class="uri">https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r</a></li>
+<li><a href="https://www.r-bloggers.com/2021/04/repeated-measures-of-anova-in-r-complete-tutorial/" class="uri">https://www.r-bloggers.com/2021/04/repeated-measures-of-anova-in-r-complete-tutorial/</a></li>
+<li><a href="https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/" class="uri">https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/</a></li>
+</ul>
+</div>
+<p>The easiest way to conduct a repeated measures ANOVA in R is to use the <strong>ez</strong> package.<br />
+It comes with some handy functions to visualise the experimental design:</p>
+<pre class="r"><code>library(ez)
+ezDesign(data = bball, x = condition, y = stakes)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-41-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>Look at the two lines below. Can you work out what the plots will look like <em>before</em> you run them?</p>
+<pre class="r"><code>ezDesign(data = bball, x = condition, y = sub)
+ezDesign(data = bball, x = stakes, y = sub)</code></pre>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<p>Participants 1-15 are in one condition, and 16-30 are in another.<br />
+This should look like a two big blocks on the diagonal.</p>
+<pre class="r"><code>ezDesign(data = bball, x = condition, y = sub)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-43-1.png" width="80%" style="display: block; margin: auto;" />
+Every participant completed the same set of trials with the same stakes (1-20 points).
+This should be a full grid</p>
+<pre class="r"><code>ezDesign(data = bball, x = stakes, y = sub)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-44-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>The <code>ezANOVA()</code> function takes a few arguments.</p>
+<p>The ones you will need for this are:</p>
+<ul>
+<li><em>data</em> the name of the dataframe</li>
+<li><em>dv</em> the column name for the dependent variable</li>
+<li><em>wid</em> the column name for the participant id variable</li>
+<li><em>within</em> the column name(s) for the predictor variable(s) that vary within participants</li>
+<li><em>between</em> the column name(s) for the predictor variable(s) that vary between participants</li>
+</ul>
+<p>Fit a repeated measures ANOVA to examine the interaction between size and type of reward on HRV.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes, between = condition)</code></pre>
+<pre><code>## $ANOVA
+##             Effect DFn DFd        F          p p&lt;.05        ges
+## 1        condition   1  28 3.021712 0.09314393       0.06041768
+## 2           stakes   1  28 1.260498 0.27109204       0.01786900
+## 3 condition:stakes   1  28 1.136668 0.29546463       0.01614191</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question
+</div>
+<div class="question-body">
+<p>The <strong>ez</strong> package also contains some easy plotting functions for factorial experiments, such as <code>ezPlot()</code>. It takes similar arguments to the <code>ezANOVA()</code> function.</p>
+<ul>
+<li>look up the help documentation for <code>ezPlot()</code>.</li>
+<li>try to recreate the plot below using <code>ezPlot()</code> (<strong>Note:</strong> you may need to make sure that the <code>stakes</code> variable is a factor).</li>
+</ul>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-46-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+
+</div>
+<div class="solution-body">
+<pre class="r"><code>bball &lt;- bball %&gt;% mutate(stakes = factor(stakes))
+ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = stakes, split = condition)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-47-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
+
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>Image sources:<br><a href="http://tophatsasquatch.com/2012-tmnt-classics-action-figures/" class="uri">http://tophatsasquatch.com/2012-tmnt-classics-action-figures/</a><br><a href="https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/" class="uri">https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/</a><br><a href="https://www.wish.com/product/5da9bc544ab36314cfa7f70c" class="uri">https://www.wish.com/product/5da9bc544ab36314cfa7f70c</a><br><a href="https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp" class="uri">https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp</a><br><a href="https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html" class="uri">https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html</a><br><a href="https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby" class="uri">https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby</a><br><a href="https://www.fun.com/toy-story-4-figure-4-pack.html" class="uri">https://www.fun.com/toy-story-4-figure-4-pack.html</a><br><a href="https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461" class="uri">https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

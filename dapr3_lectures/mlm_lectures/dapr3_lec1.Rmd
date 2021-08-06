@@ -26,6 +26,7 @@ options(htmltools.dir.version = FALSE)
 options(digits=4,scipen=2)
 options(knitr.table.format="html")
 xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_tile_view()
 xaringanExtra::use_extra_styles(
   mute_unhighlighted_code = FALSE
 )
@@ -61,26 +62,54 @@ style_mono_accent(
   header_font_weight = 400,
   text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
   code_font_google = google_font("Source Code Pro"),
-  code_font_size = "0.8rem",
+  code_font_size = "0.7rem",
   extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
 )
 ```
 
+
 ---
 class: inverse, center, middle
 
-# Part 1<br>Linear Regression Refresh
+<h2>Part 1: Linear Regression Refresh</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Clustered Data</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Possible Approaches</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra: ANOVA & Repeated Measures (brief)</h2>
 
 ---
 
-# deterministic vs statistical model
+# Models
 
+.pull-left[
+__deterministic__  
 
-y = mx + c  
-$y = \alpha + \beta x + \varepsilon$  
+given the same input, deterministic functions return *exactly* the same output
 
-.br3.pa2.f3.white.bg-gray[
-$$ \textrm{outcome} = (\textrm{model}) + \textrm{error} $$
+- $y = mx + c$  
+
+- area of sphere = $4\pi r^2$  
+
+- height of fall = $1/2 g t^2$
+    - $g = \textrm{gravitational constant, }9.8m/s^2$
+    - $t = \textrm{time (in seconds) of fall}$
+
+]
+
+--
+
+.pull-right[
+__statistical__  
+
+.br2.f4.white.bg-gray[
+$$ 
+\textrm{outcome} = (\textrm{model}) + \color{black}{\textrm{error}}
+$$
+]
+
+- handspan = height + randomness  
+
+- cognitive test score = age + premorbid IQ + ... + randomness
+
 ]
 
 ---
@@ -92,7 +121,7 @@ $$
 \color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
 \color{red}{y_i} & = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \varepsilon_i \\
 \text{where } \\
-\varepsilon & \sim N(0, \sigma) \text{ independently} \\
+\varepsilon_i & \sim N(0, \sigma) \text{ independently} \\
 \end{align}
 $$
 ]
@@ -106,10 +135,6 @@ Our proposed model of the world:
 
 $\color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} x_i} + \varepsilon_i$  
   
-Our model _fitted_ to some data (note the $\widehat{\textrm{hats}}$):  
-
-$\hat{y}_i = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x_i}$  
-
 {{content}}
 ]
 .w-50.pa2[
@@ -139,11 +164,18 @@ p1 +
 
 --
 
+Our model _fitted_ to some data (note the $\widehat{\textrm{hats}}$):  
+
+$\hat{y}_i = \color{blue}{\hat \beta_0 \cdot{} 1 + \hat \beta_1 \cdot{} x_i}$  
+
+{{content}}
+
+--
+
 For the $i^{th}$ observation:
   - $\color{red}{y_i}$ is the value we observe for $x_i$   
   - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
   - $\color{red}{y_i} = \hat{y}_i + \varepsilon_i$  
-
 
 ---
 # An Example
@@ -173,7 +205,8 @@ p1 + ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) +
 --
 
 __e.g.__   
-for the observation $x_i = 1.2, y_i = 9.9$:
+for the observation $x_i = 1.2, \; y_i = 9.9$:  
+
 
 $$
 \begin{align}
@@ -187,13 +220,14 @@ $$
 # Extending the linear model
 ## Categorical Predictors
 
-.pull-left[
-```{r echo=FALSE}
+.pull-left[  
+```{r echo=FALSE, results="asis"}
 set.seed(993)
 tibble(
   x = sample(c("Category0","Category1"), size = 30, replace = T),
   y = 5 + 2*(x == "Category1") + rnorm(30,0,1) %>% round(2)
 ) %>% select(y,x) -> df
+cat("<br>")
 df %>% sample_n(6) %>% rbind(., c("...","...")) %>% kable()
 ```
 ]
@@ -212,7 +246,7 @@ ggplot(df,aes(x=as.numeric(x=="Category1"),y=y))+
                lty="dashed",col="blue")+
   annotate("text",x=0.9,y=6,label=expression(paste(beta[1], " (slope)")),
            size=5,parse=TRUE,colour="blue")+
-  labs(title="y ~ x", subtitle="(x is categorical)")+
+  labs(title="y ~ x    (x is categorical)")+
   themedapr3()
 ```
 ]
@@ -247,6 +281,8 @@ segments(obs$x, obs$y, pred$x, pred$y)
 
 ```
 ]
+
+--
 
 .pull-right[
 ```{r echo=FALSE, fig.asp=.8}
@@ -292,6 +328,9 @@ y <- dass
 p <- persp(x2,x1,y, theta = -89,phi=10, col = NA, main = "y~x1+x2+x1:x2")
 ```
 ]
+
+--
+
 .pull-right[
 ```{r echo=FALSE, fig.asp=.8}
 mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
@@ -326,19 +365,31 @@ $\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{\beta_0 \cdot
 $$
 \begin{align}
 \color{red}{y} = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & (-\infty, \infty) \\
+\qquad \\
+\qquad \\
 \color{red}{ln \left( \frac{p}{1-p} \right) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & [0,1] \\
+\qquad \\
+\qquad \\
+\color{red}{ln (y) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & (0, \infty) \\
 \end{align}
 $$  
 
 ---
 # Linear Models in R
 
+- Linear regression
 ```{r eval=FALSE, echo=TRUE}
-linear_model <- lm(y ~ x1 + x2 + x3*x4, data = df)
+linear_model <- lm(continuous_y ~ x1 + x2 + x3*x4, data = df)
 ```
 
+- Logistic regression
 ```{r eval=FALSE, echo=TRUE}
-logistic_model <- glm(y ~ x1 + x2 + x3*x4, data = df, family=binomial(link="logit"))
+logistic_model <- glm(binary_y ~ x1 + x2 + x3*x4, data = df, family=binomial(link="logit"))
+```
+
+- Poisson regression
+```{r eval=FALSE, echo=TRUE}
+poisson_model <- glm(count_y ~ x1 + x2 + x3*x4, data = df, family=poisson(link="log"))
 ```
 
 ---
@@ -376,21 +427,16 @@ Our model:
 
 $\color{red}{y} = \color{blue}{\mathbf{X \boldsymbol \beta}} + \varepsilon \\ \text{where } \boldsymbol \varepsilon \sim N(0, \sigma) \text{ independently}$
 
---
-
-Or put another way:  
-
-$\color{red}{\boldsymbol  y} \sim Normal(\color{blue}{\mathbf{X \boldsymbol \beta}}, \sigma)$
 
 --
 
-Recall, our ability to generalise from our model fitted on sample data to the wider population requires making some _assumptions_
+Our ability to generalise from the model we fit on sample data to the wider population requires making some _assumptions._
 
 --
 
 - assumptions about the nature of the **model** .tr[
 (linear)
-]
+]o
 
 --
 
@@ -398,49 +444,218 @@ Recall, our ability to generalise from our model fitted on sample data to the wi
 (normal)
 ]
 
+--
+
+.footnote[
+You can also phrase the linear model as: $\color{red}{\boldsymbol  y} \sim Normal(\color{blue}{\mathbf{X \boldsymbol \beta}}, \sigma)$
+]
 ---
 
-# The Broader Idea
+# The Broad Idea
 
+All our work here is in
+aim of making **models of the world**.  
 
-All our work here is in aim of making models of the world.
+--
 
-- Models are models. They are simplifications, and so wrong/imperfect.  
-- Our residuals ( $y - \hat{y}$ ) reflect everything that we don't account for in our model
-- In an ideal world, our model accounts for _all_ the systematic relationships. What is left over (our residuals) is just randomness. 
-    - If our model is mis-specified, or misses out something systematic, then our residuals will reflect this.
+- Models are models. They are simplifications. They are therefore wrong.  
+
+--
+
+![](jk_img_sandbox/joeymap.jpg)
+
+---
+count:false
+# The Broad Idea
+
+All our work here is in aim of making **models of the world**.  
+
+- Models are models. They are simplifications. They are therefore wrong.  
+
+- Our residuals ( $y - \hat{y}$ ) reflect everything that we **don't** account for in our model.  
+
+--
+
+- In an ideal world, our model accounts for _all_ the systematic relationships. The leftovers (our residuals) are just random noise.  
+
+--
+
+    - If our model is mis-specified, or we don't measure some systematic relationship, then our residuals will reflect this.
+    
+--
+
 - We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
-    - _this tends to get referred to as our "assumptions"_
-- We will never know whether our residuals contain only randomness - we can never observe everything! 
----
+    - _these ideas tend to get referred to as our "assumptions"_
+    
+--
 
+- We will **never** know whether our residuals contain only randomness - we can never observe everything! 
+
+---
 # Checking Assumptions
 
 .pull-left[
 
-residuals should be "zero mean and constant variance".  
-what does this look like? 
+What does "zero mean and constant variance" look like?  
 
-well, we want the mean of the residuals to be zero, and we want a close to normal distribution.
-furthermore, we want that spread to be constant across the fitted values. 
+- mean of the residuals = zero across the predicted values on the linear predictor.  
+
+- spread of residuals is normally distributed and constant across the predicted values on the linear predictor.  
+
 
 ]
 .pull-right[
 
-```{r echo=FALSE,fig.height=4}
+```{r echo=FALSE,fig.asp=.8}
+library(ggdist)
 library(tidyverse)
-df<-tibble(x=rnorm(1000),y=2*x+rnorm(1000))
-lm(y~x,df) %>% plot(which=1)
+df<-tibble(x=runif(1000,1,10),xr = round(x), y=1*x+rnorm(1000))
+#df$y[df$x==6]<-6+rnorm(100,0,3)
+df %>% group_by(xr) %>% summarise(m=mean(y), s=sd(y)) -> dfd
+p1 <- ggplot(df, aes(x=x,y=y))+
+  geom_point()+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y",c(0,5,10), breaks=c(0,5,10))+
+  themedapr3()
+p2 <- ggplot(df, aes(x=xr,y=y))+
+  geom_jitter(height=0,width=1, alpha=.3)+
+  stat_dist_halfeye(inherit.aes=F,data=dfd, aes(x=xr,dist="norm",arg1=m,arg2=s),alpha=.6, fill="orange")+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y",c(0,5,10), breaks=c(0,5,10))+
+  themedapr3()
+
+p1 / p2
+```
+
+]
+
+---
+count:false 
+# Checking Assumptions
+
+.pull-left[
+
+What does "zero mean and constant variance" look like?  
+
+- __mean of the residuals = zero across the predicted values on the linear predictor.__    
+
+- spread of residuals is normally distributed and constant across the predicted values on the linear predictor.  
+
+
+]
+.pull-right[
+
+
+```{r echo=FALSE,fig.asp=.8}
+library(ggdist)
+library(tidyverse)
+tibble(x = runif(1000,1,10),
+       xr = round(x),
+       s = abs(5-x)*2,
+       e = map_dbl(s,~rnorm(1,0,1)),
+       y = x + s + e) -> df
+
+df %>% group_by(xr) %>% summarise(m=mean(y), s=sd(y)) -> dfd
+p1 <- ggplot(df, aes(x=x,y=y))+
+  geom_point()+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y",c(0,5,10,15), breaks=c(0,5,10,15))+
+  themedapr3()
+p2 <- ggplot(df, aes(x=xr,y=y))+
+  geom_jitter(height=0,width=1, alpha=.3)+
+  stat_dist_halfeye(inherit.aes=F,data=dfd, aes(x=xr,dist="norm",arg1=m,arg2=s),alpha=.6, fill="orange")+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y",c(0,5,10,15), breaks=c(0,5,10,15))+
+  themedapr3()
+
+p1 / p2
+```
+
+]
+
+---
+count:false 
+# Checking Assumptions
+
+.pull-left[
+
+What does "zero mean and constant variance" look like?  
+
+- mean of the residuals = zero across the predicted values on the linear predictor.  
+
+- __spread of residuals is normally distributed and constant across the predicted values on the linear predictor.__  
+
+
+]
+.pull-right[
+
+```{r echo=FALSE,fig.asp=.8}
+library(ggdist)
+library(tidyverse)
+tibble(x = runif(1000,1,10),
+       xr = round(x),
+       s = abs(x)/2,
+       e = map_dbl(s,~rnorm(1,0,.)),
+       y = x + e) -> df
+
+df %>% group_by(xr) %>% summarise(m=mean(y), s=sd(y)) -> dfd
+p1 <- ggplot(df, aes(x=x,y=y))+
+  geom_point()+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y",c(0,5,10), breaks=c(0,5,10))+
+  themedapr3()
+p2 <- ggplot(df, aes(x=xr,y=y))+
+  geom_jitter(height=0,width=1, alpha=.3)+
+  stat_dist_halfeye(inherit.aes=F,data=dfd, aes(x=xr,dist="norm",arg1=m,arg2=s),alpha=.6, fill="orange")+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y",c(0,5,10), breaks=c(0,5,10))+
+  themedapr3()
+
+p1 / p2
+```
+]
+
+---
+count:false
+# Checking Assumptions
+
+.pull-left[
+
+What does "zero mean and constant variance" look like?  
+
+- mean of the residuals = zero across the predicted values on the linear predictor.  
+
+- spread of residuals is normally distributed and constant across the predicted values on the linear predictor.  
+
+
+
+]
+.pull-right[
+__`plot(model)`__
+
+```{r echo=FALSE}
+df<-tibble(x=runif(1000,1,10),xr = round(x), y=1*x+rnorm(1000))
+```
+
+```{r fig.asp=.8}
+my_model <- lm(y ~ x, data = df)
+plot(my_model, which = 1)
 ```
 
 ]
 
 
 ---
-
+count:false
 # Checking Assumptions
-## (the "recipe book" way)
-
+<br><br>
+<center>
 <div class="acronym">
 L
 </div> inearity<br>
@@ -453,27 +668,57 @@ N
 <div class="acronym">
 E
 </div> qual variance<br>
-
+</center>
 .footnote["Line without N is a Lie!" (Umberto)]
-
-
 
 ---
 
 # What if our model doesn't meet assumptions?
 
-- bootstrap!
+- is our model mis-specified?  
+  - is the relationship non-linear? higher order terms? (e.g. $y \sim x + x^2$)
+  - is there an omitted variable or interaction term? 
+  
+  
+--
 
-what about independence? 
+- transform the outcome variable?
+  - makes things look more "normal"
+  - but can make things more tricky to interpret:  
+    $y \sim x$ and $log(y) \sim x$ are quite different models
+
+--
+
+- bootstrap
+  - do many times: resample (w/ replacement) your data, and refit your model.
+  - obtain a distribution of parameter estimate of interest. 
+  - compute a confidence interval for estimate
+  - celebrate
+
+--
+
+But these don't help if have violated our assumption of independence...
 
 ---
 # Summary
 
-- we can fit a linear regression model which takes the form $\color{red}{y} = \color{blue}{\mathbf{X} \boldsymbol{\beta}} + \boldsymbol{\varepsilon}$
-- in R, we fit this with `lm(y ~ x1 + .... xk, data = mydata)`.
-- we can extend this to different link functions to model outcome variables which follow different distributions.
-- when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.
-- one of these is that the errors are independent.
+- we can fit a linear regression model which takes the form $\color{red}{y} = \color{blue}{\mathbf{X} \boldsymbol{\beta}} + \boldsymbol{\varepsilon}$  
+
+--
+
+- in R, we fit this with `lm(y ~ x1 + .... xk, data = mydata)`.  
+
+--
+
+- we can extend this to different link functions to model outcome variables which follow different distributions.  
+
+--
+
+- when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.  
+
+--
+
+  - one of these is that the errors are independent.
 
 
 ---
@@ -484,70 +729,86 @@ class: inverse, center, middle, animated, rotateInDownLeft
 ---
 class: inverse, center, middle
 
-# Part 2<br>Clustered Data
+<h2 style="text-align: left;opacity:0.3;">Part 1: Linear Regression Refresh</h2>
+<h2>Part 2: Clustered Data</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Possible Approaches</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra: ANOVA & Repeated Measures (brief)</h2>
 
 ---
 
 # What is clustered data?
 
-- children within schools
-- patients within clinics
-- observations within individuals
+--
 
-terms: "levels","hierarchical"
+.pull-left[
+- children within schools  
 
+- patients within clinics  
+
+- observations within individuals  
+]
+
+--
+
+TODO INCLUDE GRAPHIC FROM TOM
+
+--
+
+.pull-right[
+  
 - children within classrooms within schools within districts etc...  
 
+- patients within doctors within hospitals... 
+
+- time-periods within trials within individuals
+] 
+
+--
+
+.footnote[
+Other relevant terms you will tend to see: "grouping structure", "levels", "hierarchies". 
+]
+
 ---
-# Why is it relevant?  
+# Why is clustering worth thinking about?  
 
-- clustering will likely result in measurement on observational units within a given cluster being more similar to those of other clusters.  
-  - e.g. our measured outcome for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes
+Clustering will likely result in measurements on observational units within a given cluster being more similar to each other than to those in other clusters.  
 
-- clustering is expressed in terms of the correlation among the measurements within the same cluster
+--
+<br>
+  - For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
+
+--
+
+A lot of the data you will come across will have clusters. 
+  - multiple experimental trials per participant
+  - patients in clinics
+  - employees within departments
+  - children within classes
 
 ---
 # ICC (intra-class correlation coefficient)
 
-- various forms
-- variance within / total variance  
-- $\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\varepsilon}$
+Clustering is expressed in terms of the correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
 
+--
 
----
-# Why is clustered data a problem for lm?
+There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
 
-$$\varepsilon \sim N(0, \sigma) \textbf{ independently}$$ 
+<br>
+$\rho = \frac{\sigma^2_{a}}{\sigma^2_{b} + \sigma^2_e} \\ \qquad \\\textrm{Where:} \\ \sigma^2_{b} = \textrm{variance between clusters} \\ \sigma^2_e = \textrm{variance within clusters (residual variance)} \\$
 
-- clustering is something systematic that our model should (arguably) take into account. 
-- "independence" assumption.  
+--
 
----
-# HOW is clustered data a problem for lm?
-
-.pull-left[
-#### Standard errors
-
-We saw:
-$$SE(\hat \beta_1) = \sqrt{\frac{ SS_{Residual}/(n-k-1)}{\sum(x_i - \bar{x})^2}}$$
-
-suppose that $\rho = 1$. i.e., all the variation we see is due to the clustering. 
-
-if we ignore clustering, $SS_{Residual}$ 
-]
-.pull-right[
-#### Not always the effect of interest
-
-e.g. simpsons pdox
-
-
-]
-
+Can also be interpreted as the correlation between two observations from the same group. 
 
 ---
 # Various values of $\rho$
 
-```{r echo=FALSE, fig.asp=.9}
+The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
+
+.pull-left[
+```{r echo=FALSE, fig.asp=.8, fig.align="center"}
 iccgen <- function(j,n,e,icc,coef=0){
   v = (icc*e)/(1-icc)
   es = e/(v+e)
@@ -580,27 +841,28 @@ ggplot(sims, aes(x=j, y=y))+
   facet_grid(icc~.)+
   guides(col=F)+
   themedapr3() +
-  labs(x="cluster")+
-  theme(strip.text.y = element_blank()) -> p1
+  labs(x="cluster") -> p1
 
-ggplot(sims, aes(x=0, y=y))+
-  see::geom_violinhalf(aes(x=.5))+
-  geom_jitter(height=0,width=.5, size=2,aes(col=j), alpha=.5)+
-  scale_y_continuous(NULL, labels=NULL)+
-  scale_x_continuous(NULL, labels=NULL)+
-  #stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
-  facet_grid(icc~.)+
-  guides(col=F)+
-  themedapr3() -> p2
-
-p1 + p2 + plot_layout(widths=c(8,1))
+# ggplot(sims, aes(x=0, y=y))+
+#   see::geom_violinhalf(aes(x=.5))+
+#   geom_jitter(height=0,width=.5, size=2,aes(col=j), alpha=.5)+
+#   scale_y_continuous(NULL, labels=NULL)+
+#   scale_x_continuous(NULL, labels=NULL)+
+#   #stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
+#   facet_grid(icc~.)+
+#   guides(col=F)+
+#   themedapr3() -> p2
+# p1 + p2 + plot_layout(widths=c(8,1))
+p1
 ```
 
----
+]
 
-# Various values of $\rho$
+--
 
-```{r echo=FALSE, fig.asp=.9}
+.pull-right[
+
+```{r echo=FALSE, fig.asp=.8, fig.align="center"}
 set.seed(875)
 sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
         ~iccgen(j=10,n=100,e=1,icc=.,coef=.1), .id="icc")
@@ -612,119 +874,222 @@ ggplot(sims, aes(x=x, y=y))+
   themedapr3()+
   guides(col=F)+
   scale_y_continuous(NULL, labels=NULL)+
-  scale_x_continuous(NULL, labels=NULL)+
-  labs(x = "X")
+  scale_x_continuous("X", labels=NULL)
 ```
+]
 
 ---
+# Clustered data & lm
 
+.pull-left[
+#### Why is it a problem?
+
+Clustering is something **systematic** that our model should (arguably) take into account.  
+
+- remember, $\varepsilon \sim N(0, \sigma) \textbf{ independently}$ 
+
+]
+
+--
+
+.pull-right[
+#### HOW is it a problem?  
+
+Standard errors tend to be smaller than they should be, meaning that:  
+
+  - confidence intervals will be too narrow 
+  
+  - $t$-statistics will be too large  
+  
+  - $p$-values will be misleadingly small
+
+]
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Linear Regression Refresh</h2>
+<h2><b style="opacity:0.4;">Part 2: Clustered Data</b><b>A Practical Comment on Data</b></h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Possible Approaches</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra: ANOVA & Repeated Measures (brief)</h2>
+
+
+---
+# Wide Data/Long Data
+
+.pull-left[
+__Wide Data__  
+
+```{r echo=FALSE}
+tibble(
+  ID = sprintf("%03d",1:4), 
+  age = rdunif(4, 18, 75),
+  trial_1 = c(10, 7.5, 12, 10.5),
+  trial_2 = c(12.5, 7, 14.5, 17),
+  trial_3 = c(18, 5, 11, 14)
+) -> wided
+wided %>% rbind(.,"...")
+```
+
+
+
+]
+.pull-right[
+__Long Data__
+
+
+```{r echo=FALSE}
+tibble(
+  ID = sprintf("%03d",1:4), 
+  age = rdunif(4, 18, 75),
+  trial_1 = c(10, 7.5, 12, 10.5),
+  trial_2 = c(12.5, 7, 14.5, 17),
+  trial_3 = c(18, 5, 11, 14)
+) -> wided
+pivot_longer(wided, 3:5, names_to="trial", values_to="score") -> longd
+longd %>% rbind(.,"...")
+```
+
+
+]
+
+
+---
+# Wide Data/Long Data
+
+
+```{r echo=FALSE, fig.cap="Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)"}
+knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
+```
+
+
+---
+# Long is good for plotting. 
+
+.pull-left[
+__`group` aesthetic__  
+
+```{r fig.asp=.5}
+ggplot(longd, aes(x=trial,y=score, group=ID, col=ID))+
+  geom_point(size=4)+
+  geom_path()+
+  themedapr3()
+```
+
+]
+.pull-right[
+__`facet_wrap()`__  
+```{r fig.asp=.5}
+ggplot(longd, aes(x=trial,y=score))+
+  geom_point(size=4)+
+  geom_path(aes(group=1))+
+  themedapr3()+
+  facet_wrap(~ID)
+```
+]
+
+---
+# Long is good for describing by ID
+
+```{r}
+longd %>% 
+  group_by(ID) %>%
+  summarise(
+    ntrials = n_distinct(trial),
+    meanscore = mean(score),
+    sdscore = sd(score)
+  )
+```
+
+
+
+---
 # Summary
 
-- clustering can take many forms, and exist at many levels
-- clustering is something systematic that we would want our model to take into account
-- typically assessed using intra-class correlation coefficient (ICC) - the ratio of variance within clusters to the total variance $\rho = \frac{\sigma^2_u}{\sigma^2_u + \sigma^2_\varepsilon}$
+- Clustering can take many forms, and exist at many levels  
 
+--
+
+- Clustering is something systematic that we would want our model to take into account
+
+  - Ignoring it can lead to incorrect statistical inferences
+
+--
+
+- Clustering is typically assessed using intra-class correlation coefficient (ICC) - the ratio of variance within clusters to the total variance $\rho = \frac{\sigma^2_b}{\sigma^2_b + \sigma^2_e}$
+
+--
+
+- Tidying your data and converting it to *long* format (one observational unit per row, and a variable identifying the cluster ID) is a good start. 
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
 # End of Part 2
 
+
 ---
 class: inverse, center, middle
 
-# Part 3
-## Possible solutions
-
-```{r include=FALSE}
-set.seed(nchar("worms")^6)
-
-tibble(
-  gardenid = paste0("garden",1:12),
-  gardenmeanx = rnorm(12, 6, .7),
-  coeffbirdx = rnorm(12, 3, 2.5),
-  birdx = map(gardenmeanx, ~rnorm(10, .,1)),
-  birdt = map(gardenmeanx, ~sample(c("wren","blackbird"), 
-                                   size = 10, replace = TRUE, 
-                                   prob = c(.x/(max(.x)*2.5), 1-(.x/(max(.x)*2.5)))))
-) %>%
-  unnest(cols = c(birdx, birdt)) %>% # punny! 
-  mutate(
-    nworms = round(-40 - coeffbirdx*birdx + 15*gardenmeanx -1*(birdt=="blackbird") + .5*(birdt=="blackbird")*birdx + rnorm(n(),0,1)),
-    nworms = pmax(0,nworms),
-    arrival_time = round(birdx,2)
-  ) %>% select(gardenid, arrival_time, nworms, birdt) -> df
-
-df <- df %>% mutate(x = arrival_time, y = nworms, x2 = birdt, birdid=1:n(), cluster_var=gsub("garden","cluster",gardenid))
-
-df <- df %>% filter(!(birdid %in% c(31,33,34,35,37)))
-df$y[df$birdid==40]<-37
-df$nworms[df$birdid==40]<-37
-df$y[df$birdid==36]<-19
-df$nworms[df$birdid==36]<-19
-worms_data <- df %>% select(gardenid, birdid, arrival_time, nworms, birdt) %>% rename(arrivalt = arrival_time)
-```
+<h2 style="text-align: left;opacity:0.3;">Part 1: Linear Regression Refresh</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Clustered Data</h2>
+<h2>Part 3: Possible Approaches</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra: ANOVA & Repeated Measures (brief)</h2>
 
 ---
-# Some toy data
-
+# Our Data
 .pull-left[
-
 > Sample of 115 birds from 12 gardens, information captured on the arrival time (hours past midnight) and number of worms caught by the end of the day. 
 
 ```{r}
-# worms_data <- read_csv(".......")
+worms_data <- read_csv("https://uoepsy.github.io/data/worms.csv")
 head(worms_data)
 ```
 
-]
-
-.pull-right[
-
-```{r fig.align="center", fig.asp=.7}
-ggplot(worms_data, aes(x=arrivalt,y=nworms))+
-  geom_point(size=4)+
-  geom_smooth(method="lm")+
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
-  themedapr3()
+```{r}
+library(ICC)
+ICCbare(x = gardenid, y = nworms, data = worms_data)
 ```
-
-]
-
----
-count:false
-# Some toy data: plotting each group
-
-.pull-left[
-```{r eval=FALSE}
-ggplot(worms_data, aes(x=arrivalt,y=nworms, col=gardenid))+
-  geom_point(size=4)+
-  geom_smooth(method="lm", se=FALSE)+
-  facet_wrap(~gardenid)+
-  guides(col=FALSE)+
-  labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
-  themedapr3()
-```
-
 ]
 .pull-right[
 ```{r echo=FALSE, fig.align="center", fig.asp=.8}
+ggplot(worms_data, aes(x=arrivalt,y=nworms))+
+  geom_point(size=4)+
+  geom_smooth(method="lm", se=F)+
+  labs(x="",y="")+
+  themedapr3() -> p1
 ggplot(worms_data, aes(x=arrivalt,y=nworms, col=gardenid))+
   geom_point(size=4)+
   geom_smooth(method="lm", se=FALSE)+
-  facet_wrap(~gardenid)+
+  facet_wrap(~gardenid, scales="free_y")+
   guides(col=FALSE)+
   labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
-  themedapr3()
+  themedapr3() -> p2
+
+p1 / p2 + plot_layout(heights=c(1,2))
 ```
 ]
 
-
 ---
-# 1. Ignore it
+# Ignore the clustering
 
 .pull-left[
+__(Complete pooling)__  
+
++ `lm(y ~ 1 + x, data = df)`  
+
++ Information from all clusters is pooled together to estimate over x  
+
+```{r}
+model <- lm(nworms ~ arrivalt, data = worms_data)
+```
+```{r echo=FALSE, out.width="300px"}
+.pp(summary(model),l=list(c(10:12)))
+```
+]
+.pull-right[
 ```{r echo=FALSE}
+df <- worms_data %>% rename(y=nworms, x = arrivalt) %>% mutate(cluster_var = gsub("garden","cluster",gardenid))
 model <- lm(y ~ x, data = df)
 df %>% mutate(
   f = fitted(model)
@@ -736,10 +1101,16 @@ ggplot(.,aes(x=x,y=y))+geom_point(size=4)+
   themedapr3()
 ```
 ]
-.pull-right[
+
+---
+count:false
+# Ignore the clustering
+
+.pull-left[
 __(Complete pooling)__  
 
-+ `lm(y ~ 1 + x, data = df)`
++ `lm(y ~ 1 + x, data = df)`  
+
 + Information from all clusters is pooled together to estimate over x  
 
 ```{r}
@@ -749,16 +1120,15 @@ model <- lm(nworms ~ arrivalt, data = worms_data)
 .pp(summary(model),l=list(c(10:12)))
 ```
 
+But different clusters show different patterns. 
+Residuals are not independent.  
 ]
+.pull-right[
 
----
-
-# 1. Ignore it 
-
-.pull-left[
 ```{r echo=FALSE}
 library(ggfx)
 library(ggforce)
+model <- lm(y ~ x, data = df)
 df %>% mutate(
   f = fitted(model)
 ) -> pdat 
@@ -784,27 +1154,14 @@ ggplot(pdat,aes(x=x,y=y))+
   themedapr3()
 ```
 ]
-.pull-right[
-
-__(Complete pooling)__  
-
-+ `lm(y ~ 1 + x, data = df)`
-+ Information from all clusters is pooled together to estimate over x  
-
-```{r}
-model <- lm(nworms ~ arrivalt, data = worms_data)
-```
-```{r echo=FALSE, out.width="300px"}
-.pp(summary(model),l=list(c(10:12)))
-```
-
-But different clusters show different patterns. 
-Residuals are not independent.  
-]
 
 ---
-# 2. Lesser used solutions  
+class: extra
+# Lesser used approaches
 
+__Cluster Robust Standard Errors__
+
+.pull-left[
 <!-- https://rlbarter.github.io/Practical-Statistics/2017/05/10/generalized-estimating-equations-gee/ -->
 
 Don't include clustering as part of the model directly, but incorporate the dependency into our residuals term. 
@@ -814,23 +1171,12 @@ $$
 \color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error}^* \\
 \end{align}
 $$
+.footnote[`*` Where errors are clustered]
 
-.footnote[Where errors are correlated with clusters/with the error previously/etc.]
-
-
-- independence (observations over time are independent)
-- exchangeable (all observations over time have the same correlation)
-- AR(1) (correlation decreases as a power of how many timepoints apart two observations are)
-- unstructured (correlation between all timepoints may be different)
-
-
----
-
-# 2. Lesser used solutions  
-
-.pull-left[
-__Cluster Robust Standard Errors__
-
+]
+--
+.pull-right[
+Simply adjusts our standard errors:
 ```{r}
 library(plm)
 clm <- plm(nworms ~ 1 + arrivalt, data=worms_data, 
@@ -845,44 +1191,69 @@ sqrt(diag(vcovHC(clm,
                  cluster='group')))
 ```
 ]
-.pull-right[
+
+
+---
+class: extra
+count:false
+# Lesser used approaches
+
 __Generalised Estimating Equations (GEE)__  
 
+.pull-left[
+- Don't include clustering as part of the model directly, but incorporate the dependency into our residuals term. 
+
+$$
+\begin{align}
+\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error}^* \\
+\end{align}
+$$
+
+.footnote[`*` Where errors are clustered, and follow some form of correlational<br>structure within clusters (e.g. based on how many timepoints apart<br>two observations are).]
+
+
+]
+
+--
+.pull-right[
+Specifying a correlational structure for residuals within clusters can influence _what_ we are estimating
 ```{r}
 library(geepack)
-# needs to be arranged by cluster, and for cluster to be numeric
+# needs to be arranged by cluster, 
+# and for cluster to be numeric
 worms_data <- 
-  worms_data %>% arrange(gardenid) %>%
+  worms_data %>%
   mutate(
     cluster_id = as.numeric(as.factor(gardenid))
-  )
-
+  ) %>% arrange(cluster_id)
+# 
 geemod  = geeglm(nworms ~ 1 + arrivalt, 
                  data = worms_data, 
-                 corstr = 'independence', 
+                 corstr = 'exchangeable',
                  id = cluster_id)
 ```
 ```{r echo=FALSE}
-.pp(summary(geemod),l=list(c(5:8)))
+.pp(summary(geemod),l=list(c(6:9)))
 ```
 
 ]
 
 ---
-# 3. Fixed effects
+# Fixed effects
 
 .pull-left[
 
 __(No pooling)__  
 
-- `lm(y ~ x * cluster, data = df)`
+- `lm(y ~ x * cluster, data = df)`  
+
 - Information from a cluster contributes to estimate *for that cluster*, but information is not pooled to estimate an overall effect. 
 
 ```{r}
 model <- lm(nworms ~ 1 + arrivalt * gardenid, 
             data = worms_data)
 ```
-
+{{content}}
 ]
 .pull-right[
 ```{r echo=FALSE}
@@ -893,27 +1264,26 @@ df %>% mutate(
 ggplot(.,aes(x=x,y=y,col=cluster_var))+
   geom_point()+
   geom_line(aes(y=f,group=cluster_var))+
+  geom_smooth(df %>% mutate(f = fitted(model1)) %>% filter(cluster_var == "cluster1"), method="lm", se=F, fullrange = T , mapping=aes(x=x,y=y,col=cluster_var), lty="dashed", lwd=.5) +
   guides(col=FALSE)+
-  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.4) + 
   labs(x="arrival at garden\n(hrs past midnight)",y="number of worms caught")+
+  scale_x_continuous(limits=c(0,9), breaks=0:9)+
   themedapr3()
 ```
 ]
 
----
-
-# 3. Fixed effects 
+--
 
 + Lots of estimates (separate for each cluster). 
 + Variance estimates constructed based on information *only* within each cluster. 
 + No overall estimate of effect over x. 
-
 ```{r echo=FALSE}
 .pp(summary(model),l=list(c(10:34)))
 ```
 
 ---
-# 4. Random effects (LMM)
+# Random effects (MLM)
 
 .pull-left[
 __(Partial Pooling)__
@@ -954,7 +1324,8 @@ ggplot(., aes(x=x, y=y))+
 ]
 
 ---
-# 4. Random effects (LMM)
+count:false
+# Random effects (MLM)
 
 .pull-left[
 __(Partial Pooling)__
@@ -1062,13 +1433,316 @@ ggplot(pdat, aes(x=x, y=y))+
 ```
 ]
 
----
 
+---
 # Summary
 
+With clustered data, there are many possible approaches. Some of the main ones are:  
+
+- Ignore it (**complete pooling**)
+    - and make inappropriate inferences.
+
+--
+
+- Completely partition out any variance due to clustering into fixed effects for each cluster (__no pooling__).
+    - and limit our estimates to being cluster specific
+    
+--
+
+- Model cluster-level variance as randomly distributed around fixed parameters, and partially pool information across clusters.
+    - best of both worlds?  
+    
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+---
+class: extra, inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Linear Regression Refresh</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Clustered Data</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Possible Approaches</h2>
+<h2>Extra: ANOVA & Repeated Measures (brief)</h2>
+
+
+---
+class: extra
+# ANOVA revisited
+
+- ANOVA in it's simplest form is essentially a linear model with categorical predictor(s). It is used to examines differences in group means/differences in differences in group means etc.  
+
+--
+
+- It achieves this by partitioning variance. We can calculate it by hand!  
+
+--
+
+- Still quite popular in psychology because we often design experiments with discrete conditions.
+  - This means we can balance designs and examine mean differences between conditions. 
+
+---
+class: extra
+# quick simulating data
+
+.pull-left[
+```{r include=F}
+set.seed(9542)
+```
+
+```{r}
+testdata <- 
+  tibble(
+    groups = rep(c("A","B"), each = 30),
+    outcome = c(rnorm(30,10,5), rnorm(30,15,5))
+  )
+```
+].pull-right[
+```{r fig.asp=.8}
+with(testdata, boxplot(outcome ~ groups))
+```
+]
+
+---
+class: extra
+# lm vs anova
+
+.pull-left[
+```{r}
+summary(lm(outcome ~ groups, data = testdata))
+```
+]
+
+--
+
+.pull-right[
+```{r}
+summary(aov(outcome ~ groups, data = testdata))
+anova(lm(outcome ~ groups, data = testdata))
+```
+]
+
+--
+
+in this case (one predictor) the coefficient test $t = \sqrt{F}$
+```{r}
+sqrt(12.5)
+```
+
+---
+class: extra
+# more anova  
+```{r echo=FALSE}
+df <- read.table("~/Desktop/jk_codebits/wip/data/growth.txt", header=T) %>%
+  transmute(y = gain, 
+            x1 = fct_recode(factor(supplement), "horse"="control",
+                            "cat"="supergain",
+                            "dog"="supersupp",
+                            "parrot"="agrimore"), 
+            x2 = fct_recode(factor(diet),"scotland"="wheat",
+                            "england"="oats",
+                            "wales"="barley"),
+            x3 = rnorm(n())
+          ) %>% 
+  sample_n(40)
+```
+
+- ANOVA tests whether several parameters (differences between group means) are simultaneously zero.   
+- This is why it is referred to as the "omnibus"/"overall F" test. 
+
+.pull-left[
+```{r fig.asp=.8, echo=FALSE}
+with(df, boxplot(y~x1))
+```
+]
+
+--
+
+.pull-right[
+```{r highlight.output=c(5)}
+anova(lm(y~x1,df))
+```
+]
+
+---
+class: extra
+count:false
+# more anova
+
+- ANOVA tests whether several parameters (differences between group means) are simultaneously zero.   
+- This is why it is referred to as the "omnibus"/"overall F" test. 
+
+.pull-left[
+```{r fig.asp=.8, echo=FALSE}
+with(df, boxplot(y~x1))
+```
+]
+
+.pull-right[
+```{r highlight.output=c(20)}
+summary(lm(y~x1,df))
+```
+]
+
+
+---
+class: extra
+# partitioning variance
+
+```{r fig.asp=.7, echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/anova.png")
+```
+
+
+.footnote[
+The terminology here can be a nightmare.  
+$SS_{between}$ sometimes gets referred to as $SS_{model}$, $SS_{condition}$, $SS_{regression}$, or $SS_{treatment}$.  
+Meanwhile $SS_{residual}$ also gets termed $SS_{error}$.  
+To make it all worse, there are inconsistencies in the acronyms used, $SSR$ vs. $RSS$! 
+
+]
+
+
+---
+class: extra
+# more anova
+
+.pull-left[
+
+sums squares can be calculated differently
+
+sequential = order matters for unbalanced designs
+
+]
+.pull-right[
+__sequential SS__
+```{r}
+anova(lm(y~x1+x2,df))
+anova(lm(y~x2+x1,df))
+```
+]
+
+---
+class: extra
+count:false
+# more anova
+
+.pull-left[
+
+sums squares
+
+partial = each one as if its the last one in sequential
+
+]
+.pull-right[
+__partial SS__
+```{r}
+car::Anova(lm(y~x1+x2,df), type="III")
+car::Anova(lm(y~x2+x1,df), type="III")
+```
+
+]
+
+---
+# Why use lm vs ANOVA?
+
+ANOVA requires post-hoc test to compare specific differences, but it has the advantage of conducting fewer tests (initially). 
+
+- ANOVA asks the question:
+  - "*are there differences* between group means?
+  - "*is there an effect* of x?"
+  - "*does* x predict y?"  
+  
+- the coefficient tests from the linear model ask 
+  - "*what are the differences* between group means?
+  - "*what is the effect* of x?"
+  - "*how does* x predict y?"
+
+---
+class: extra
+# anova() as model comparison
+
+.pull-left[
+because ANOVA provides test of __set of parameters being simultaneously zero__, we can use this for model comparison. e.g.  
+- "does the addition of $\textrm{<predictor(s)>}$ improve our model of y?"
+
+```{r}
+m0<-lm(y~1, df)
+m1<-lm(y~x1, df)
+
+m2<-lm(y~x1+x2, df)
+m3<-lm(y~x1+x2+x3, df)
+```
+]
+.pull-right[
+`anova()` function to compare models. 
+```{r}
+anova(m1, m2)
+anova(m1, m3)
+```
+]
+
+---
+class: extra
+# Partitioning - ANOVA
+
+```{r fig.asp=.7, echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/anova.png")
+```
+
+---
+class: extra
+# Partitioning - ANOVA (Rpt Measures)
+
+```{r fig.asp=.7, echo=FALSE}
+knitr::include_graphics("jk_img_sandbox/rmanova.png")
+```
+
+---
+class: extra
+# Rpt Measures ANOVA in R
+
+.pull-left[
+```{r echo=FALSE, fig.asp=.9}
+tibble(
+  condition = letters[1:4],
+  cmean = c(0,2,3,3),
+  smeans = map(cmean, ~rnorm(10,.,1)),
+  sid = map(condition, ~paste0(.,1:10)),
+) %>% unnest(c(smeans,sid)) %>%
+  mutate(
+    data = map(smeans, ~tibble(t = 1:3, y = rnorm(3,.,.1)))
+  ) %>% unnest(data) -> df
+
+df$subject = df$sid
+
+#df %>% filter(sid !="a1") -> df
+df %>% mutate(
+  gg = as.numeric(factor(condition))+(as.numeric(gsub("a|b|c|d", "",sid))-5)/10
+) %>%
+  ggplot(.,aes(x=gg,y=y))+
+  geom_point(aes(group=gg, col=sid), alpha=.4,size=5)+
+  geom_boxplot(aes(group=condition, col=condition),alpha=.3)+
+  guides(col=FALSE,fill=FALSE)+
+  themedapr3()+
+  scale_x_continuous("condition",breaks=1:4, labels=c("a","b","c","d"))
+```
+]
+.pull-right[
+```{r}
+library(ez)
+ezANOVA(data = df, dv = y, wid = subject, 
+        between = condition)
+```
+]
+
+---
+class: extra
+# Summary
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
 
 # End
 

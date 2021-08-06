@@ -1,0 +1,167 @@
+---
+title: "<b>WEEK 4<br>Centering Predictors<br>Generalisations</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: "AY 2021-2022"
+output:
+  xaringan::moon_reader:
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+xaringanExtra::use_share_again()
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+knitr::opts_chunk$set(
+  dev = "png",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE
+)
+themedapr3 = function(){
+  theme_minimal() + 
+    theme(text = element_text(size=20))
+}
+source("jk_source/jk_presfuncs.R")
+```
+
+```{r xaringan-themer, include = FALSE}
+library(xaringanthemer)
+style_mono_accent(
+  # base_color = "#0F4C81", # DAPR1
+  # base_color = "#BF1932", # DAPR2
+  base_color = "#88B04B", # DAPR3 
+  # base_color = "#FCBB06", # USMR
+  # base_color = "#a41ae4", # MSMR
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  code_font_size = "0.7rem",
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: EXAMPLE 1</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: EXAMPLE 2</h2>
+
+---
+# EXAMPLE
+
+- experience sampling study
+- negative affect ~ stress
+- within / between 
+
+
+```{r eval=F, echo=F}
+filepath <- "https://quantdev.ssri.psu.edu/sites/qdev/files/AMIBshare_persons_2019_0501.csv"
+#read in the .csv file using the url() function
+AMIB_persons <- read.csv(file=url(filepath),header=TRUE)
+#subsetting to variables of interest
+AMIB_persons <- AMIB_persons[ ,c("id","bfi_n")]
+#set filepath for data file
+filepath <- "https://quantdev.ssri.psu.edu/sites/qdev/files/AMIBshare_daily_2019_0501.csv"
+#read in the .csv file using the url() function
+AMIB_daily <- read.csv(file=url(filepath),header=TRUE)
+#subsetting to variables of interest
+AMIB_daily <- AMIB_daily[ ,c("id","day","negaff","pss")]
+#reverse coding the pss variable into a new stress variable
+AMIB_daily$stress <- 4 - AMIB_daily$pss
+#describing new variable
+describe(AMIB_daily$stress)
+#histogram
+ggplot(data=AMIB_daily, aes(x=stress)) +
+  geom_histogram(fill="white", color="black",bins=20) +
+  labs(x = "Stress (high = more stressed)")
+AMIB_imeans <- ddply(AMIB_daily, "id", summarize,
+                       stress_trait = mean(stress, na.rm=TRUE),
+                       negaff_trait = mean(negaff, na.rm=TRUE))
+describe(AMIB_imeans)
+#merging into person-level file
+AMIB_persons <- merge(AMIB_persons, AMIB_imeans, by="id")   
+#make centered versions of the person-level scores
+AMIB_persons$bfi_n_c <- scale(AMIB_persons$bfi_n,center=TRUE,scale=FALSE)
+AMIB_persons$stress_trait_c <- scale(AMIB_persons$stress_trait,center=TRUE,scale=FALSE)
+#describe person-level data
+describe(AMIB_persons)
+#merging person-level data into daily data
+daily_long <- merge(AMIB_daily,AMIB_persons,by="id")
+#calculating state variables
+daily_long$stress_state <- daily_long$stress - daily_long$stress_trait
+daily_long$negaff_state <- daily_long$negaff - daily_long$negaff_trait
+#describing data
+describe(daily_long)
+```
+
+
+```{r eval=F, echo=F}
+daily_long %>%
+ggplot(., aes(x=stress,y=negaff))+
+  geom_point()+
+  geom_smooth(aes(group=id), se=F, method="lm", col="black",lwd=.5)
+
+lmer(negaff ~ stress + (1+stress|id), daily_long) %>% summary
+
+lmer(negaff_state~ stress + (1+stress|id), daily_long) %>%
+  broom.mixed::augment() %>% 
+  ggplot(.,aes(x=stress,y=.fitted,group=id))+
+  geom_line(alpha=.2)
+
+lmer(negaff_state ~ stress_state * bfi_n_c + (1+stress_state|id), daily_long) %>%
+  broom.mixed::augment() %>% 
+  ggplot(.,aes(x=bfi_n_c,y=.fitted,group=id))+
+  geom_line(alpha=.2)
+
+```
+
+---
+
+a write up/paper?
+
+Ram, N., Conroy, D. E., Pincus, A. L., Hyde, A. L., & Molloy, L. E. (2012). Tethering theory to method: Using measures of intraindividual variability to operationalize individuals’ dynamic characteristics. In G. Hancock & J. Harring (Eds.), Advances in longitudinal methods in the social and behavioral sciences (pp. 81-110). New York: Information Age.
+
+
+
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+
+
+---
+# End
+
