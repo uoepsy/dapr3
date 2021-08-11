@@ -135,9 +135,45 @@ $$
 
 ## Estimation
 
-### ML vs REML
+### Maximum Likelihood (ML)
 
-TODO 
+Remember back to DAPR2 when we introduced logistic regression, and we briefly discussed **Maximum likelihood** in an explanation of how models are fitted.  
+
+The key idea of *maximum likelihood estimation* (MLE) is that we (well, the computer) iteratively finds the set of estimates for our model which it considers to best reproduce our observed data. Recall our simple linear regression model of how practice (hrs per week) affects reading age: 
+$$
+\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{i}} + \varepsilon_i
+$$
+There are values of $\beta_0$ and $\beta_1$ and $\sigma_\varepsilon$ which maximise the probability of observing the data that we have. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. And we saw that this is not possible for more complex models (e.g., logistic), which is where we turn to MLE.  
+
+:::statbox
+To read about the subtle difference between "likelihood" and "probability", you can find a short explanation at https://uoepsy.github.io/lvp.html TODO 
+:::
+
+If we are estimating just one single parameter (e.g. a mean), then we can imagine the process of *maximum likelihood estimation* in a one-dimensional world - simply finding the top of the curve: 
+```{r echo=FALSE, out.width="350px", fig.cap="MLE"}
+knitr::include_graphics("images/intro/mle.png")
+```
+However, our typical models estimate a whole bunch of parameters. The simple regression model above is already having to estimate $\beta_0$, $\beta_1$ and $\sigma_\varepsilon$, and our multi-level models have far more! With lots of parameters being estimated and all interacting to influence the likelihood, our nice curved line becomes a complex surface (see Figure \@ref(fig:multisurf)).  
+So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities (see Figure \@ref(fig:maxima)).
+<div style="display:inline-block, max-width: 40%">
+```{r multisurf, echo=FALSE, out.width="350px",fig.cap="MLE for a more complex model"}
+knitr::include_graphics("images/multisurftb.png")
+```
+</div><div style="display:inline-block, max-width: 40%">
+```{r maxima, echo=FALSE, out.width="350px",fig.cap="The idea of local/global maxima and singularities"}
+knitr::include_graphics("images/intro/mle2.png")
+```
+</div>
+
+There are different techniques for doing this, which we apply by using different 'optimisers'. Technical problems to do with **model convergence** and **'singular fit'** come into play when the optimiser we are using either can't find a suitable maximum, or gets stuck in a singularity (think of it like a black hole of likelihood, which signifies that there is not enough variation in our data to construct such a complex model).  
+
+### Restricted Maximum Likelihood (REML)
+
+TODO
+
+:::rtip
+`lmer()` models are by default fitted with REML. This is better for small samples. 
+:::
 
 ### Model Convergence
 
@@ -152,27 +188,12 @@ lmer(y ~ 1 + x1 + ... + (1 + .... | g), data = df,
 
 `r optbegin("What *is* a convergence warning??", olabel=FALSE, toggle=params$TOGGLE)`
 
-Remember back to DAPR2 when we introduced logistic regression, and we briefly discussed **Maximum likelihood** in an explanation of how models are fitted.  
-
-The key idea of *maximum likelihood estimation* (MLE) is that we (well, the computer) iteratively finds the set of estimates for our model which it considers to best reproduce our observed data. Recall our simple linear regression model of how practice (hrs per week) affects reading age: 
-$$
-\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{i}} + \varepsilon_i
-$$
-There are values of $\beta_0$ and $\beta_1$ and which maximise the likelihood of observing our data. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. And we saw that this is not possible for more complex models (e.g., logistic), which is where we turn to MLE.  
-
-In a one-dimensional world, we could imagine the process of *maximum likelihood estimation* as simply finding the top of the curve: 
-```{r echo=FALSE, out.width="350px", fig.cap="MLE"}
-knitr::include_graphics("images/intro/mle.png")
-```
-However, our typical models estimate a whole bunch of parameters. The simple regression model above is already having to estimate $\beta_0$, $\beta_1$ and $\sigma_\varepsilon$, and our multi-level models have far more! So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities. 
-```{r echo=FALSE, out.width="350px",fig.cap="MLE for complex models"}
-knitr::include_graphics("images/intro/mle2.png")
-```
-There are different technques for doing this, which we apply by using different 'optimisers'. Technical problems to do with **model convergence** and **'singular fit'** come into play when the optimiser we are using either can't find a suitable maximum, or gets stuck in a singularity (think of it like a black hole of likelihood, which signifies that there is not enough variation in our data to construct such a complex model).  
 
 `r optend()`
 
-# exercises TODO name
+# Exercises
+
+## Toy Dataset
 
 :::frame
 <div style="display:inline-block; width: 45%;vertical-align: middle;">
@@ -358,8 +379,7 @@ augment(rs_model) %>%
 
 `r solend()`
 
-# Some Less Guided Exercises  
-
+## Less Guided
 
 While the toy example considers the groupings or 'clusters' of different types of toy, a much more common grouping in psychological research is that of several observations belonging to the same individual. One obvious benefit of this is that we can collect many more observations with fewer participants, and account for the resulting dependency of observations. Another very crucial advantage is that we can use the same methods to study how people change over time.  
 
@@ -464,8 +484,8 @@ anova(m.null, m.base, m.int, m.full)
 Conditions differed overall in weight change $\chi^2(2)=9.4, p = .009$  
 Conditions differed in change over assessment period $\chi^2(2)=40.4, p < .001$
 :::
-
-
+  
+However, we may instead want to bootstrap this test instead (especially if we have a small sample size):
 ```{r eval=FALSE}
 PBmodcomp(m.int, m.base)
 ```

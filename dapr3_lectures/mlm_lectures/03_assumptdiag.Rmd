@@ -1,0 +1,343 @@
+---
+title: "<b>Assumptions & Diagnostics<br>More random effects</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King, Umberto Noè, Tom Booth"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: "AY 2021-2022"
+output:
+  xaringan::moon_reader:
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_tile_view()
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+xaringanExtra::use_share_again()
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+knitr::opts_chunk$set(
+  dev = "png",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE
+)
+themedapr3 = function(){
+  theme_minimal() + 
+    theme(text = element_text(size=20))
+}
+source("jk_source/jk_presfuncs.R")
+```
+
+```{r xaringan-themer, include = FALSE}
+library(xaringanthemer)
+style_mono_accent(
+  # base_color = "#0F4C81", # DAPR1
+  # base_color = "#BF1932", # DAPR2
+  base_color = "#88B04B", # DAPR3 
+  # base_color = "#FCBB06", # USMR
+  # base_color = "#a41ae4", # MSMR
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  code_font_size = "0.7rem",
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+---
+class: inverse, center, middle
+
+<h2>Part 1: Assumptions</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Bootstrapping MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Case Diagnostics in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Random Effect Structures</h2>
+
+---
+# Assumptions in LM
+
+.pull-left[
+#### The general idea
+
+- $\varepsilon_i \sim N(0,\sigma^2)$ iid
+- "zero mean and constant variance"
+
+```{r echo=FALSE, fig.asp=.7}
+set.seed(20)
+tibble(
+  fitted_values = 1:1000,
+  residuals = rnorm(1000,0,20)
+) -> plotdat
+
+bb = seq(0,975,10)
+map_dbl(bb, ~filter(plotdat, between(fitted_values, ., .+10)) %>% summarise(s=sd(residuals)) %>% pull(s)) %>% 
+cbind(fitted_values = bb + 5, sd = .) %>%
+  cbind(., m = map_dbl(bb, ~filter(plotdat, between(fitted_values, ., .+10)) %>% summarise(m = mean(residuals)) %>% pull(m))) %>% as_tibble %>% mutate(
+    u = m + sd*2,
+    l = m - sd*2
+  ) -> prib
+
+
+ggplot(plotdat, aes(x=fitted_values, y=residuals))+
+  geom_point(alpha=.3) + 
+  geom_smooth(se=F)+
+  geom_smooth(data=prib, inherit.aes = F,
+              aes(x=fitted_values,y=u), alpha=.3, se=F, lty="dashed", col="darkorange")+
+  geom_smooth(data=prib, inherit.aes = F,
+              aes(x=fitted_values,y=l), alpha=.3, se=F, lty="dashed", col="darkorange")+
+  themedapr3()+
+  theme(axis.text = element_blank())
+```
+
+]
+
+--
+
+.pull-right[
+#### Recipe book
+
++ **L**inearity
++ **I**ndependence
++ **N**ormality
++ **E**qual Variances
+
+]
+
+
+---
+# What's different in MLM?
+
+- Not much is different!  
+- General idea is unchanged - error is random
+
+<!-- Consequently, we want to check for homoscedasiticity of the error term as well as normality of the error term’s distribution -->
+
+
+---
+# Random effects are level 2 residuals
+
+$\begin{align} & \text{for observation }j\text{ in group }i \\ \quad \\ & \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ & \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}$
+
+---
+# ?
+
+- look at your residuals
+  - mean zero, constant variance
+
+- look at your random effects
+  - mean zero, constant variance
+  - have you got "enough" groups? if small number (some suggest <6) then maybe jsut include as fixed
+
+```{r}
+#LMERConvenienceFunctions::mcp.fnc(full_model)
+#DHARMa::simulateResiduals(fittedModel = full_model, plot = T)
+```
+  
+
+---
+# ?
+
+> 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
+
+
+```{r echo=F}
+library(sjPlot)
+library(lme4)
+crq <- read_csv("https://uoepsy.github.io/data/crqdata.csv")
+full_model<-lmer(emot_dysreg ~ sleep + crq * int + (1 + crq | schoolid), data = crq)
+#plot_model(full_model,"pred")
+#plot_model(full_model,"int")
+#summary(full_model)
+#plot_model(full_model, type = "diag")
+pp <- plot_model(full_model, type = "diag")
+(pp[[1]] + pp[[2]]) / (pp[[3]] + pp[[4]])
+
+```
+
+
+---
+# When things look wrong: model mis-specification
+
+
+
+---
+# When things look wrong: Transformations
+
+transforming your outcome variable may help to satisfy model assumptions,
+*but* it comes at the expense of interpretability. 
+
+log(y)
+log((max(y)-y)+1)
+1/y
+forecast::boxcox(y)
+
+being one year older is associated with a 4.5 increase in log(y)
+
+
+---
+# When things look wrong: Robustlmm
+
+library(robustlmm)
+rlmer()
+
+
+---
+# Summary
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Assumptions</h2>
+<h2>Part 2: Bootstrapping MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Case Diagnostics in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Random Effect Structures</h2>
+
+---
+# What is "bootstrapping" again?
+
+basic idea: 
+
+1. take a sample (with replacement) from your data
+2. fit the model to your new sample
+3. based on all the models fitted in step 2, obtain a distribution of parameter estimate of interest. 
+4. based on the bootstrap distribution in step 3, compute a confidence interval for estimate
+5. celebrate
+
+why?
+
+- a way of simulating a *sampling distribution*
+- sampling distribution of x = what x would be if we collected a new sample and calculated x. 
+
+---
+
+# What do we (re)sample?
+
+resample based on the estimated distributions of parameters?  
+  - assumes explanatory variables are fixed, model specification and the distributions (e.g. $\zeta \sim N(0,\sigma_{\zeta})$ and $\varepsilon \sim N(0,\sigma_{\varepsilon})$) are correct.  
+  
+resample residuals
+  - $y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}$
+  - assumes explanatory variables are fixed, and model specification is correct. 
+  
+resample cases?
+  - minimal assumptions - just that we correctly specify hierarchical dependency of data
+  - BUT. do we resample:
+      - observations?
+      - clusters?
+      - both?
+resample wildly!
+
+
+---
+# Summary
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Assumptions</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Bootstrapping MLM</h2>
+<h2>Part 3: Case Diagnostics in MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Random Effect Structures</h2>
+
+
+hlmdiag
+influence.me
+http://aloy.github.io/HLMdiag/index.html 
+
+---
+# Summary
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Assumptions</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Bootstrapping MLM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Case Diagnostics in MLM</h2>
+<h2>Part 4: Random Effect Structures</h2>
+
+
+---
+# Nested
+
+biostats
+chicks in nests in trees in fields in ... 
+education
+children in classes in schools in districts in ... 
+
+nesting: the level n objects in a level n+1 group belong _only_ to that level n+1 group.
+
+---
+# Crossed
+
+everything else!
+
+---
+# Maximal structures
+
+- minimum number of groups?
+- 5 or 6?
+
+---
+# ranef correlations
+
+```{r}
+plot_model(full_model, type="re", grid = TRUE)
+```
+
+
+
+---
+# Model Convergence
+
+
+---
+
+
+---
+# Summary
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+

@@ -11,7 +11,7 @@
 
 
 
-<title>Introducing Mixed Effects Models</title>
+<title>Introducing Multi Level Models</title>
 
 <script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
@@ -342,7 +342,7 @@ div.tocify {
 </li>
 <li class="dropdown">
   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
-    Multi-level models
+    Multi Level Models
      
     <span class="caret"></span>
   </a>
@@ -350,7 +350,9 @@ div.tocify {
     <li>
       <a href="01_regressionrefresh.html">1: Linear Regression | Clustered Data</a>
     </li>
-    <li class="dropdown-header">2: LM to LMM</li>
+    <li>
+      <a href="02_intromlm.html">2: LM to MLM</a>
+    </li>
     <li class="dropdown-header">3: Assumptions, Diagnostics</li>
     <li class="dropdown-header">4: Generalisations | Centering</li>
     <li class="dropdown-header">5: Applied Examples</li>
@@ -393,420 +395,20 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Introducing Mixed Effects Models</h1>
+<h1 class="title toc-ignore">Introducing Multi Level Models</h1>
 
 </div>
 
 
-<div class="blue">
-<p><strong>Some background reading</strong></p>
-<ul>
-<li><a href="https://arxiv.org/abs/1308.5499">Winter, 2013</a><br />
-</li>
-<li><a href="http://dx.doi.org/10.1037/met0000159">Brauer &amp; Curtin, 2018</a>, <a href="https://dionysus.psych.wisc.edu/LabPubs/BrauerM2018a.pdf">(pdf)</a><br />
-</li>
-<li><a href="https://doi.org/10.3758/s13428-016-0809-y">Luke, 2017</a><br />
-</li>
-</ul>
-</div>
-<div class="red">
+<div class="lo">
 <p><strong>Preliminaries</strong></p>
 <ol style="list-style-type: decimal">
-<li>Open Rstudio, and <strong>create a new project for this course!!</strong></li>
-<li>Create a new RMarkdown document (giving it a title for this week).</li>
+<li>Create a new RMarkdown document or R script (whichever you like) for this week.</li>
 </ol>
-</div>
-<div class="frame">
 <p><strong>A Note on terminology</strong></p>
 <p>The methods we’re going to learn about in the first five weeks of this course are known by lots of different names: “multilevel models”; “hierarchical linear models”; “mixed-effect models”; “mixed models”; “nested data models”; “random coefficient models”; “random-effects models”; “random parameter models”… and so on).</p>
 <p>What the idea boils down to is that <strong>model parameters vary at more than one level.</strong> This week, we’re going to explore what that means.</p>
 </div>
-<div class="question-begin">
-New data time!
-</div>
-<div class="question-body">
-Let’s consider a little toy example in which we might use linear regression to determine how practice influences the reading age of Playmobil characters:
-<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-1"></span>
-<img src="images/intro/reading.png" alt="[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)" width="300px" />
-<p class="caption">
-Figure 1: <a href="https://uoepsy.github.io/usmr/lectures/lecture_7.html#29">Image and example from USMR Week 8 Lecture</a>
-</p>
-</div>
-<p>Let us know broaden our scope to the investigation of how practice affects reading age for <em>all</em> toys, (not just Playmobil characters).<br />
-You can find a dataset at <a href="https://uoepsy.github.io/data/toyexample.csv" class="uri">https://uoepsy.github.io/data/toyexample.csv</a></p>
-<pre class="r"><code>toys_read &lt;- read_csv(&quot;https://uoepsy.github.io/data/toyexample.csv&quot;)</code></pre>
-The datasets contains information on 132 different toy figures. This time, however, they come from a selection of different families/types of toy. You can see the variables in the table below<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
-<br>
-<div style="display:inline-block; width: 45%;vertical-align: middle;">
-<p><img src="images/intro/toys.png" width="300px" style="display: block; margin: auto;" /></p>
-</div>
-<div style="display:inline-block; width: 45%;vertical-align: middle;">
-<div id="wedrzryafn" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>html {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
-}
-
-#wedrzryafn .gt_table {
-  display: table;
-  border-collapse: collapse;
-  margin-left: auto;
-  margin-right: auto;
-  color: #333333;
-  font-size: 16px;
-  font-weight: normal;
-  font-style: normal;
-  background-color: #FFFFFF;
-  width: auto;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #A8A8A8;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #A8A8A8;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_heading {
-  background-color: #FFFFFF;
-  text-align: center;
-  border-bottom-color: #FFFFFF;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_title {
-  color: #333333;
-  font-size: 125%;
-  font-weight: initial;
-  padding-top: 4px;
-  padding-bottom: 4px;
-  border-bottom-color: #FFFFFF;
-  border-bottom-width: 0;
-}
-
-#wedrzryafn .gt_subtitle {
-  color: #333333;
-  font-size: 85%;
-  font-weight: initial;
-  padding-top: 0;
-  padding-bottom: 4px;
-  border-top-color: #FFFFFF;
-  border-top-width: 0;
-}
-
-#wedrzryafn .gt_bottom_border {
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_col_headings {
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D3D3D3;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_col_heading {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: normal;
-  text-transform: inherit;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: bottom;
-  padding-top: 5px;
-  padding-bottom: 6px;
-  padding-left: 5px;
-  padding-right: 5px;
-  overflow-x: hidden;
-}
-
-#wedrzryafn .gt_column_spanner_outer {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: normal;
-  text-transform: inherit;
-  padding-top: 0;
-  padding-bottom: 0;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
-#wedrzryafn .gt_column_spanner_outer:first-child {
-  padding-left: 0;
-}
-
-#wedrzryafn .gt_column_spanner_outer:last-child {
-  padding-right: 0;
-}
-
-#wedrzryafn .gt_column_spanner {
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  vertical-align: bottom;
-  padding-top: 5px;
-  padding-bottom: 6px;
-  overflow-x: hidden;
-  display: inline-block;
-  width: 100%;
-}
-
-#wedrzryafn .gt_group_heading {
-  padding: 8px;
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D3D3D3;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: middle;
-}
-
-#wedrzryafn .gt_empty_group_heading {
-  padding: 0.5px;
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D3D3D3;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  vertical-align: middle;
-}
-
-#wedrzryafn .gt_from_md > :first-child {
-  margin-top: 0;
-}
-
-#wedrzryafn .gt_from_md > :last-child {
-  margin-bottom: 0;
-}
-
-#wedrzryafn .gt_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  margin: 10px;
-  border-top-style: solid;
-  border-top-width: 1px;
-  border-top-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 1px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 1px;
-  border-right-color: #D3D3D3;
-  vertical-align: middle;
-  overflow-x: hidden;
-}
-
-#wedrzryafn .gt_stub {
-  color: #333333;
-  background-color: #FFFFFF;
-  font-size: 100%;
-  font-weight: initial;
-  text-transform: inherit;
-  border-right-style: solid;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-  padding-left: 12px;
-}
-
-#wedrzryafn .gt_summary_row {
-  color: #333333;
-  background-color: #FFFFFF;
-  text-transform: inherit;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#wedrzryafn .gt_first_summary_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_grand_summary_row {
-  color: #333333;
-  background-color: #FFFFFF;
-  text-transform: inherit;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-}
-
-#wedrzryafn .gt_first_grand_summary_row {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 5px;
-  padding-right: 5px;
-  border-top-style: double;
-  border-top-width: 6px;
-  border-top-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_striped {
-  background-color: rgba(128, 128, 128, 0.05);
-}
-
-#wedrzryafn .gt_table_body {
-  border-top-style: solid;
-  border-top-width: 2px;
-  border-top-color: #D3D3D3;
-  border-bottom-style: solid;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_footnotes {
-  color: #333333;
-  background-color: #FFFFFF;
-  border-bottom-style: none;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_footnote {
-  margin: 0px;
-  font-size: 90%;
-  padding: 4px;
-}
-
-#wedrzryafn .gt_sourcenotes {
-  color: #333333;
-  background-color: #FFFFFF;
-  border-bottom-style: none;
-  border-bottom-width: 2px;
-  border-bottom-color: #D3D3D3;
-  border-left-style: none;
-  border-left-width: 2px;
-  border-left-color: #D3D3D3;
-  border-right-style: none;
-  border-right-width: 2px;
-  border-right-color: #D3D3D3;
-}
-
-#wedrzryafn .gt_sourcenote {
-  font-size: 90%;
-  padding: 4px;
-}
-
-#wedrzryafn .gt_left {
-  text-align: left;
-}
-
-#wedrzryafn .gt_center {
-  text-align: center;
-}
-
-#wedrzryafn .gt_right {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-#wedrzryafn .gt_font_normal {
-  font-weight: normal;
-}
-
-#wedrzryafn .gt_font_bold {
-  font-weight: bold;
-}
-
-#wedrzryafn .gt_font_italic {
-  font-style: italic;
-}
-
-#wedrzryafn .gt_super {
-  font-size: 65%;
-}
-
-#wedrzryafn .gt_footnote_marks {
-  font-style: italic;
-  font-weight: normal;
-  font-size: 65%;
-}
-</style>
-<table class="gt_table">
-  
-  <thead class="gt_col_headings">
-    <tr>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">variable</th>
-      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">description</th>
-    </tr>
-  </thead>
-  <tbody class="gt_table_body">
-    <tr><td class="gt_row gt_left">toy_type</td>
-<td class="gt_row gt_left">Type of Toy</td></tr>
-    <tr><td class="gt_row gt_left">toy</td>
-<td class="gt_row gt_left">Character</td></tr>
-    <tr><td class="gt_row gt_left">hrs_week</td>
-<td class="gt_row gt_left">Hours of practice per week</td></tr>
-    <tr><td class="gt_row gt_left">age</td>
-<td class="gt_row gt_left">Age (in years)</td></tr>
-    <tr><td class="gt_row gt_left">R_AGE</td>
-<td class="gt_row gt_left">Reading Age</td></tr>
-  </tbody>
-  
-  
-</table>
-</div>
-</div>
-</div>
-<p class="question-end">
-</p>
 <div id="introducing-mlm" class="section level1">
 <h1>Introducing MLM</h1>
 <div class="yellow">
@@ -830,12 +432,12 @@ The datasets contains information on 132 different toy figures. This time, howev
 <p>We are now assuming <span class="math inline">\(\color{orange}{\zeta_0}\)</span>, <span class="math inline">\(\color{orange}{\zeta_1}\)</span>, and <span class="math inline">\(\varepsilon\)</span> to be normally distributed with a mean of 0, and we denote their variances as <span class="math inline">\(\sigma_{\color{orange}{\zeta_0}}^2\)</span>, <span class="math inline">\(\sigma_{\color{orange}{\zeta_1}}^2\)</span>, <span class="math inline">\(\sigma_\varepsilon^2\)</span> respectively.</p>
 <p>The <span class="math inline">\(\color{orange}{\zeta}\)</span> components also get termed the “random effects” part of the model, Hence names like “random effects model,” etc.</p>
 <div class="optional-begin">
-<span id="opt-start-14" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-14&#39;, &#39;opt-start-14&#39;)"> Optional Alternative notation</span>
+<span id="opt-start-1" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-1&#39;, &#39;opt-start-1&#39;)"> Optional Alternative notation</span>
 </div>
-<div id="opt-body-14" class="optional-body" style="display: none;">
+<div id="opt-body-1" class="optional-body" style="display: none;">
 <p>Many people use the symbol <span class="math inline">\(u\)</span> in place of <span class="math inline">\(\zeta\)</span>.<br />
 In various resources, you are likely to see <span class="math inline">\(\alpha\)</span> used to denote the intercept instead of <span class="math inline">\(\beta_0\)</span>.</p>
-<p>Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:</p>
+<p>Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading. This often fits with the name “mixed effects” for these models:</p>
 <p><span class="math display">\[
 \color{red}{y_{ij}} = (\color{blue}{\beta_0} + \color{orange}{\zeta_{0i}}) \cdot 1 + ( \color{blue}{\beta_{1}} + \color{orange}{\zeta_{1i}} ) \cdot x_{ij}  +  \varepsilon_{ij} \\
 \]</span></p>
@@ -852,7 +454,7 @@ In various resources, you are likely to see <span class="math inline">\(\alpha\)
 <h1>Fitting MLMs</h1>
 <div id="introducing-lme4" class="section level2">
 <h2>Introducing <strong>lme4</strong></h2>
-<div class="yellow">
+<div class="rtip">
 <p>We’re going to use the <code>lme4</code> package, and specifically the functions <code>lmer()</code> and <code>glmer()</code>.<br />
 “(g)lmer” here stands for “(generalised) linear mixed effects regression.”</p>
 You will have seen some use of these functions in the lectures. The broad syntax is:<br />
@@ -862,82 +464,128 @@ You will have seen some use of these functions in the lectures. The broad syntax
 </div>
 <p><br></p>
 <p>We write the first bit of our <strong>formula</strong> just the same as our old friend the normal linear model <code>y ~ 1 + x + x2 + ...</code>, where <code>y</code> is the name of our outcome variable, <code>1</code> is the intercept (which we don’t have to explicitly state as it will be included anyway) and <code>x</code>, <code>x2</code> etc are the names of our explanatory variables.</p>
-<p>But let us suppose that we wish to model our intercept not as a fixed constant, but as varying randomly according to some grouping around a fixed center. This would fit the model:
-<span class="math display">\[
+<p>With <strong>lme4</strong>, we now have the addition of __random effect terms)), specified in parenthesis with the <code>|</code> operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).<br />
+We use the <code>|</code> operator to separate the parameters (intercept, slope etc.) on the LHS, from the grouping variable(s) on the RHS, by which we would like to model these parameters as varying.</p>
+<p><strong>Random Intercept</strong><br />
+Let us suppose that we wish to model our intercept not as a fixed constant, but as varying randomly according to some grouping around a fixed center.
+We can such a model by allowing the intercept to vary by our grouping variable (<code>g</code> below):</p>
+<div class="statbox">
+<center>
+<code>lmer(y ~ 1 + x + (1|g), data = df)</code>
+</center>
+<p><span class="math display">\[
 \begin{align}
 &amp; \text{Level 1:} \\
 &amp; \color{red}{Y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot X_{ij}} + \varepsilon_{ij} \\
 &amp; \text{Level 2:} \\
 &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
 \end{align}
-\]</span>
-With <strong>lme4</strong>, we now have the addition of these such random effect terms, specified in parenthesis with the <code>|</code> operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).</p>
-<p>We use the <code>|</code> operator to separate the parameters (intercept, slope etc.) on the LHS, from the grouping variable(s) on the RHS, by which we would like to model these parameters as varying.</p>
-We can fit the model above by allowing the intercept to vary by our grouping variable (<code>g</code> below)<br />
-<br>
-<div style="margin-left:50px;">
-Random intercept model: <code>y ~ 1 + x + (1|g)</code>
+\]</span></p>
 </div>
-<p><br></p>
-And by extension we can also allow the effect <code>y~x</code> to vary between groups:<br />
-<br>
-<div style="margin-left:50px;">
-Random intercept &amp; slope model: <code>y ~ 1 + x + (1 + x|g)</code>
+<p><strong>Random Slope</strong><br />
+By extension we can also allow the effect <code>y~x</code> to vary between groups, by including the <code>x</code> on the left hand side of <code>|</code> in the random effects part of the call to <code>lmer()</code>.</p>
+<div class="statbox">
+<center>
+<code>lmer(y ~ 1 + x + (1 + x |g), data = df)</code>
+</center>
+<p><span class="math display">\[
+\begin{align}
+&amp; \text{Level 1:} \\
+&amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+&amp; \text{Level 2:} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+&amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\end{align}
+\]</span></p>
 </div>
-<p><br></p>
 </div>
 </div>
-<div id="estimation-problems" class="section level2">
-<h2>Estimation problems</h2>
-<p>For large datasets and/or complex models (lots of random-effects terms), it is quite common to get a <em>convergence warning</em>. There are lots of different ways to <a href="https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html">deal with these</a> (to try to rule out hypotheses about what is causing them).</p>
-<p>For now, if <code>lmer()</code> gives you convergence errors, you could try changing the optimizer. Bobyqa is a good one: add <code>control = lmerControl(optimizer = "bobyqa")</code> when you run your model.</p>
-<div class="optional-begin">
-<span id="opt-start-15" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-15&#39;, &#39;opt-start-15&#39;)"> What <em>is</em> a convergence warning??</span>
-</div>
-<div id="opt-body-15" class="optional-body" style="display: none;">
-<p>Remember back to <a href="https://uoepsy.github.io/usmr/labs/09_glm.html#Introducing_GLM">Week 10 of USMR</a>, when we introduced the generalised linear model (GLM) we briefly discussed <strong>Maximum likelihood</strong> in an explanation of how models are fitted.</p>
+<div id="estimation" class="section level2">
+<h2>Estimation</h2>
+<div id="ml-vs-reml" class="section level3">
+<h3>ML vs REML</h3>
+<p>Remember back to DAPR2 when we introduced logistic regression, and we briefly discussed <strong>Maximum likelihood</strong> in an explanation of how models are fitted.</p>
 <p>The key idea of <em>maximum likelihood estimation</em> (MLE) is that we (well, the computer) iteratively finds the set of estimates for our model which it considers to best reproduce our observed data. Recall our simple linear regression model of how practice (hrs per week) affects reading age:
 <span class="math display">\[
-\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{1i}} + \varepsilon_i
+\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{i}} + \varepsilon_i
 \]</span>
-There are values of <span class="math inline">\(\beta_0\)</span> and <span class="math inline">\(\beta_1\)</span> and which maximise the likelihood of observing our data. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. And we saw that this is not possible for more complex models (e.g., logistic), which is where we turn to MLE.</p>
-In a one-dimensional world, we could imagine the process of <em>maximum likelihood estimation</em> as simply finding the top of the curve:
-<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-5"></span>
+There are values of <span class="math inline">\(\beta_0\)</span> and <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\sigma_\varepsilon\)</span> which maximise the probability of observing the data that we have. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. And we saw that this is not possible for more complex models (e.g., logistic), which is where we turn to MLE.</p>
+<div class="statbox">
+<p>To read about the subtle difference between “likelihood” and “probability,” you can find a short explanation at <a href="https://uoepsy.github.io/lvp.html" class="uri">https://uoepsy.github.io/lvp.html</a> TODO</p>
+</div>
+If we are estimating just one single parameter (e.g. a mean), then we can imagine the process of <em>maximum likelihood estimation</em> in a one-dimensional world - simply finding the top of the curve:
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-1"></span>
 <img src="images/intro/mle.png" alt="MLE" width="350px" />
 <p class="caption">
-Figure 2: MLE
+Figure 1: MLE
 </p>
 </div>
-However, our typical models estimate a whole bunch of parameters, and our multi-level models have yet more! So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities.
-<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-6"></span>
-<img src="images/intro/mle2.png" alt="MLE for complex models" width="350px" />
+However, our typical models estimate a whole bunch of parameters. The simple regression model above is already having to estimate <span class="math inline">\(\beta_0\)</span>, <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\sigma_\varepsilon\)</span>, and our multi-level models have far more! With lots of parameters being estimated and all interacting to influence the likelihood, our nice curved line becomes a complex surface (see Figure <a href="#fig:multisurf">2</a>).<br />
+So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities (see Figure <a href="#fig:maxima">3</a>).
+<div style="display:inline-block, max-width: 40%">
+<div class="figure" style="text-align: center"><span id="fig:multisurf"></span>
+<img src="images/multisurftb.png" alt="MLE for a more complex model" width="350px" />
 <p class="caption">
-Figure 3: MLE for complex models
+Figure 2: MLE for a more complex model
 </p>
 </div>
-<p>There are different technques for doing this, which we apply by using different ‘optimisers.’ Technical problems to do with <strong>model convergence</strong> and <strong>‘singular fit’</strong> come into play when the optimiser we are using either can’t find a suitable maximum, or gets stuck in a singularity (think of it like a black hole of likelihood, which signifies that there is not enough variation in our data to construct such a complex model).</p>
+</div>
+<div style="display:inline-block, max-width: 40%">
+<div class="figure" style="text-align: center"><span id="fig:maxima"></span>
+<img src="images/intro/mle2.png" alt="The idea of local/global maxima and singularities" width="350px" />
+<p class="caption">
+Figure 3: The idea of local/global maxima and singularities
+</p>
+</div>
+</div>
+<p>There are different techniques for doing this, which we apply by using different ‘optimisers.’ Technical problems to do with <strong>model convergence</strong> and <strong>‘singular fit’</strong> come into play when the optimiser we are using either can’t find a suitable maximum, or gets stuck in a singularity (think of it like a black hole of likelihood, which signifies that there is not enough variation in our data to construct such a complex model).</p>
+</div>
+<div id="model-convergence" class="section level3">
+<h3>Model Convergence</h3>
+<p>For large datasets and/or complex models (lots of random-effects terms), it is quite common to get a <em>convergence warning</em>. There are lots of different ways to <a href="https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html">deal with these</a> (to try to rule out hypotheses about what is causing them).</p>
+<p>For now, if <code>lmer()</code> gives you convergence errors, you could try changing the optimizer. Bobyqa is a good one: add <code>control = lmerControl(optimizer = "bobyqa")</code> when you run your model.</p>
+<pre class="r"><code>lmer(y ~ 1 + x1 + ... + (1 + .... | g), data = df, 
+     control = lmerControl(optimizer = &quot;bobyqa&quot;))</code></pre>
+<div class="optional-begin">
+<span id="opt-start-2" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-2&#39;, &#39;opt-start-2&#39;)"> What <em>is</em> a convergence warning??</span>
+</div>
+<div id="opt-body-2" class="optional-body" style="display: none;">
+
 </div>
 <p class="optional-end">
 </p>
 </div>
-<div id="fitting-some-models" class="section level2">
-<h2>Fitting some models</h2>
+</div>
+</div>
+<div id="exercises" class="section level1">
+<h1>Exercises</h1>
+<div id="toy-dataset" class="section level2">
+<h2>Toy Dataset</h2>
+<div class="frame">
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+<p>Recall our toy example data in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines. We have data on various types of toys, from Playmobil to Powerrangers, to Farm Animals.</p>
+</div>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+<p><img src="images/intro/toys.png" width="300px" style="display: block; margin: auto;" /></p>
+</div>
+<pre class="r"><code>toys_read &lt;- read_csv(&quot;https://uoepsy.github.io/data/toyexample.csv&quot;)</code></pre>
+</div>
 <div class="question-begin">
 Question A3
 </div>
 <div class="question-body">
-<p>Using <code>lmer()</code> from the <strong>lme4</strong> package, fit a model of practice (<code>hrs_week</code>) predicting Reading age (<code>R_AGE</code>), with by-toytype random intercepts.
+<p>Using <code>lmer()</code> from the <strong>lme4</strong> package, fit a model of practice (<code>hrs_week</code>) predicting Reading age (<code>R_AGE</code>), with by-toytype random intercepts.<br />
 Pass the model to <code>summary()</code> to see the output.</p>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-16" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-16&#39;, &#39;sol-start-16&#39;)"> Solution </span>
+<span id="sol-start-3" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-3&#39;, &#39;sol-start-3&#39;)"> Solution </span>
 </div>
-<div id="sol-body-16" class="solution-body" style="display: none;">
+<div id="sol-body-3" class="solution-body" style="display: none;">
 <pre class="r"><code>library(lme4)
-rmodel1 &lt;- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
-summary(rmodel1)</code></pre>
+ri_model &lt;- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
+summary(ri_model)</code></pre>
 <pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
 ## Formula: R_AGE ~ hrs_week + (1 | toy_type)
 ##    Data: toys_read
@@ -945,19 +593,19 @@ summary(rmodel1)</code></pre>
 ## REML criterion at convergence: 653.1
 ## 
 ## Scaled residuals: 
-##     Min      1Q  Median      3Q     Max 
-## -2.3114 -0.6236  0.0581  0.6348  1.7107 
+##      Min       1Q   Median       3Q      Max 
+## -2.31139 -0.62361  0.05812  0.63477  1.71073 
 ## 
 ## Random effects:
 ##  Groups   Name        Variance Std.Dev.
-##  toy_type (Intercept) 23.19    4.82    
-##  Residual              5.01    2.24    
+##  toy_type (Intercept) 23.188   4.815   
+##  Residual              5.006   2.237   
 ## Number of obs: 132, groups:  toy_type, 20
 ## 
 ## Fixed effects:
 ##             Estimate Std. Error t value
-## (Intercept)    1.627      1.446    1.13
-## hrs_week       1.155      0.232    4.98
+## (Intercept)   1.6274     1.4462   1.125
+## hrs_week      1.1547     0.2317   4.983
 ## 
 ## Correlation of Fixed Effects:
 ##          (Intr)
@@ -971,39 +619,39 @@ Question A4
 <div class="question-body">
 <p>Sometimes the easiest way to start understanding your model is to visualise it.</p>
 <p>Load the package <strong>broom.mixed</strong>. Along with some handy functions <code>tidy()</code> and <code>glance()</code> which give us the information we see in <code>summary()</code>, there is a handy function called <code>augment()</code> which returns us the data in the model plus the fitted values, residuals, hat values, Cook’s D etc..</p>
-<pre class="r"><code>library(broom.mixed)
-rmodel1 &lt;- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
-augment(rmodel1)</code></pre>
-<pre><code>## # A tibble: 132 x 13
-##    R_AGE hrs_week toy_type        .fitted  .resid  .cooksd .fixed    .mu .offset
-##    &lt;dbl&gt;    &lt;dbl&gt; &lt;fct&gt;             &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
-##  1  9.31     3.84 Furby            10.0   -0.701   7.75e-3   6.06 10.0         0
-##  2 12.2      4.88 Toy Story        12.1    0.105   2.14e-4   7.26 12.1         0
-##  3  8.08     3.48 Stretch Armstr…   6.02   2.06    1.25e-1   5.64  6.02        0
-##  4  9.08     3.68 Peppa Pig         6.05   3.03    1.52e-1   5.87  6.05        0
-##  5  2.07     2.96 Lego Minifigur…   0.621  1.45    4.20e-2   5.04  0.621       0
-##  6 10.2      3.71 G.I.Joe          11.9   -1.67    4.41e-2   5.91 11.9         0
-##  7  8.05     3.73 Minecraft         7.97   0.0730  9.96e-5   5.94  7.97        0
-##  8 11.6      4.59 Polly Pocket      9.99   1.60    6.42e-2   6.92  9.99        0
-##  9 12.3      4.01 Star Wars        11.2    1.13    2.40e-2   6.25 11.2         0
-## 10  5.06     4.37 Sock Puppets      4.89   0.171   6.78e-4   6.67  4.89        0
+<pre class="r"><code>ri_model &lt;- lmer(R_AGE ~ hrs_week + (1 | toy_type), data = toys_read)
+library(broom.mixed)
+augment(ri_model)</code></pre>
+<pre><code>## # A tibble: 132 x 14
+##    R_AGE hrs_week toy_type   .fitted  .resid  .hat .cooksd .fixed    .mu .offset
+##    &lt;dbl&gt;    &lt;dbl&gt; &lt;fct&gt;        &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
+##  1  9.31     3.84 Furby       10.0   -0.701  0.122 7.75e-3   6.06 10.0         0
+##  2 12.2      4.88 Toy Story   12.1    0.105  0.142 2.14e-4   7.26 12.1         0
+##  3  8.08     3.48 Stretch A…   6.02   2.06   0.192 1.25e-1   5.64  6.02        0
+##  4  9.08     3.68 Peppa Pig    6.05   3.03   0.126 1.52e-1   5.87  6.05        0
+##  5  2.07     2.96 Lego Mini…   0.621  1.45   0.146 4.20e-2   5.04  0.621       0
+##  6 10.2      3.71 G.I.Joe     11.9   -1.67   0.122 4.41e-2   5.91 11.9         0
+##  7  8.05     3.73 Minecraft    7.97   0.0730 0.139 9.96e-5   5.94  7.97        0
+##  8 11.6      4.59 Polly Poc…   9.99   1.60   0.172 6.42e-2   6.92  9.99        0
+##  9 12.3      4.01 Star Wars   11.2    1.13   0.140 2.40e-2   6.25 11.2         0
+## 10  5.06     4.37 Sock Pupp…   4.89   0.171  0.163 6.78e-4   6.67  4.89        0
 ## # … with 122 more rows, and 4 more variables: .sqrtXwt &lt;dbl&gt;, .sqrtrwt &lt;dbl&gt;,
 ## #   .weights &lt;dbl&gt;, .wtres &lt;dbl&gt;</code></pre>
 <p>Add to the code below to plot the model fitted values, and color them according to toy type.<br />
-(you may need to edit <code>rmodel1</code> to be whatever name you assigned to your model).</p>
-<pre class="r"><code>augment(rmodel1) %&gt;%
+(you will need to edit <code>ri_model</code> to be whatever name you assigned to your model).</p>
+<pre class="r"><code>augment(ri_model) %&gt;%
   ggplot(aes(x = hrs_week, y = ...... </code></pre>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-17" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-17&#39;, &#39;sol-start-17&#39;)"> Solution </span>
+<span id="sol-start-4" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-4&#39;, &#39;sol-start-4&#39;)"> Solution </span>
 </div>
-<div id="sol-body-17" class="solution-body" style="display: none;">
-<pre class="r"><code>augment(rmodel1) %&gt;%
+<div id="sol-body-4" class="solution-body" style="display: none;">
+<pre class="r"><code>augment(ri_model) %&gt;%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-10-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-8-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
@@ -1011,24 +659,32 @@ augment(rmodel1)</code></pre>
 Question A5
 </div>
 <div class="question-body">
-<p>For our <span class="math inline">\(\beta\)</span> estimates from a multilevel model, we can use <code>fixef()</code>.</p>
-<pre class="r"><code>fixef(rmodel1)</code></pre>
+<p>We have just fitted the model:
+<span class="math display">\[
+\begin{align}
+&amp; \text{For toy } j \text{ of toy-type } i \\
+&amp; \color{red}{\textrm{Reading_Age}_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot \textrm{Practice}_{ij}} + \varepsilon_{ij} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+\]</span></p>
+<p>For our estimates of <span class="math inline">\(\gamma_{00}\)</span> (the fixed value around which toy-type intercepts vary) and <span class="math inline">\(\beta_1\)</span> (the fixed estimate of the relationship between reading age and practice), we can use <code>fixef()</code>.</p>
+<pre class="r"><code>fixef(ri_model)</code></pre>
 <pre><code>## (Intercept)    hrs_week 
-##       1.627       1.155</code></pre>
+##    1.627422    1.154725</code></pre>
 <p>Can you add to the plot in the previous question, a thick black line with the intercept and slope given by <code>fixef()</code>?</p>
 <p><strong>Hint:</strong> <code>geom_abline()</code></p>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-18" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-18&#39;, &#39;sol-start-18&#39;)"> Solution </span>
+<span id="sol-start-5" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-5&#39;, &#39;sol-start-5&#39;)"> Solution </span>
 </div>
-<div id="sol-body-18" class="solution-body" style="display: none;">
-<pre class="r"><code>augment(rmodel1) %&gt;%
+<div id="sol-body-5" class="solution-body" style="display: none;">
+<pre class="r"><code>augment(ri_model) %&gt;%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
-  geom_abline(intercept = fixef(rmodel1)[1], slope = fixef(rmodel1)[2], lwd = 2)</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-12-1.png" width="80%" style="display: block; margin: auto;" /></p>
+  geom_abline(intercept = fixef(ri_model)[1], slope = fixef(ri_model)[2], lwd = 2)</code></pre>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-10-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
@@ -1036,32 +692,40 @@ Question A5
 Question A6
 </div>
 <div class="question-body">
-<p>By now, you should have a plot which looks more or less like the below. We have added on the raw data too (the points).
-<img src="02_intromlm_files/figure-html/unnamed-chunk-13-1.png" width="80%" style="display: block; margin: auto;" />
-Let’s try to map the parts of the plot to the <code>summary()</code> output of the model.<br />
-Match the coloured sections in the image below to the descriptions A through D.</p>
-<ol style="list-style-type: upper-alpha">
-<li>where the black line cuts the y axis<br />
-</li>
-<li>the standard deviation of the distances from all the individual toy types lines to the black line.<br />
-</li>
-<li>the slope of the black line<br />
-</li>
-<li>the standard deviation of the distances from all the individual observations to the line for the toy type to which it belongs.</li>
-</ol>
-<div class="figure" style="text-align: center"><span id="fig:lmersummap"></span>
-<img src="images/intro/summarylmer.png" alt="Summary model output, lmer(R_AGE~hrs_week + (1|toy_type), data = toys_read)" width="400px" />
+By now, you should have a plot which looks more or less like the left-hand figure below (we have added on the raw data - the points).<br />
+
+<div style="display:inline-block; width: 55%;vertical-align: top;">
+<div class="figure" style="text-align: center"><span id="fig:modfit"></span>
+<img src="02_intromlm_files/figure-html/modfit-1.png" alt="Model fitted values" width="80%" />
 <p class="caption">
-Figure 4: Summary model output, lmer(R_AGE~hrs_week + (1|toy_type), data = toys_read)
+Figure 4: Model fitted values
 </p>
 </div>
+</div>
+<div style="display:inline-block; width: 40%;vertical-align: top;">
+<div class="figure" style="text-align: center"><span id="fig:lmersummap"></span>
+<img src="images/intro/summarylmer.png" alt="Summary model output&lt;br&gt;lmer(R_AGE~1 + hrs_week + (1|toy_type),&lt;br&gt;data = toys_read)" width="400px" />
+<p class="caption">
+Figure 5: Summary model output<br>lmer(R_AGE~1 + hrs_week + (1|toy_type),<br>data = toys_read)
+</p>
+</div>
+</div>
+<p><br>
+<br>
+We’re going to map the parts of the plot in Figure <a href="#fig:modfit">4</a> to the <code>summary()</code> output of the model in Figure <a href="#fig:lmersummap">5</a>. Match the coloured sections Red, Orange, Yellow and Blue in Figure <a href="#fig:lmersummap">5</a> to the descriptions below of <a href="#fig:modfit">4</a> A through D.</p>
+<ol style="list-style-type: upper-alpha">
+<li>where the black line cuts the y axis</li>
+<li>the standard deviation of the distances from all the individual toy types lines to the black lines</li>
+<li>the slope of the black lines</li>
+<li>the standard deviation of the distances from all the individual observations to the line for the toy type to which it belongs.</li>
+</ol>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-19" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-19&#39;, &#39;sol-start-19&#39;)"> Solution </span>
+<span id="sol-start-6" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-6&#39;, &#39;sol-start-6&#39;)"> Solution </span>
 </div>
-<div id="sol-body-19" class="solution-body" style="display: none;">
+<div id="sol-body-6" class="solution-body" style="display: none;">
 <ul>
 <li>Yellow = B<br />
 </li>
@@ -1078,7 +742,7 @@ Figure 4: Summary model output, lmer(R_AGE~hrs_week + (1|toy_type), data = toys_
 Question A7 - Harder
 </div>
 <div class="question-body">
-<p>Can you know map those same coloured sections in Figure <a href="#fig:lmersummap">4</a> to the mathematical terms in the model equation:</p>
+<p>Can you now map those same coloured sections in Figure <a href="#fig:lmersummap">5</a> to the mathematical terms in the model equation:</p>
 <p><span class="math display">\[
 \begin{align}
 &amp; \text{Level 1:} \\
@@ -1095,9 +759,9 @@ Question A7 - Harder
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-20" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-20&#39;, &#39;sol-start-20&#39;)"> Solution </span>
+<span id="sol-start-7" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-7&#39;, &#39;sol-start-7&#39;)"> Solution </span>
 </div>
-<div id="sol-body-20" class="solution-body" style="display: none;">
+<div id="sol-body-7" class="solution-body" style="display: none;">
 <ul>
 <li>Yellow = <span class="math inline">\(\sigma_{\color{orange}{\zeta_{0}}}\)</span><br />
 </li>
@@ -1120,15 +784,15 @@ Then, using <code>augment()</code> again, plot the model fitted values. What do 
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-21" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-21&#39;, &#39;sol-start-21&#39;)"> Solution </span>
+<span id="sol-start-8" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-8&#39;, &#39;sol-start-8&#39;)"> Solution </span>
 </div>
-<div id="sol-body-21" class="solution-body" style="display: none;">
-<pre class="r"><code>rmodel2 &lt;- lmer(R_AGE ~ 1 + hrs_week + (1 + hrs_week | toy_type), data = toys_read)
-augment(rmodel2) %&gt;%
+<div id="sol-body-8" class="solution-body" style="display: none;">
+<pre class="r"><code>rs_model &lt;- lmer(R_AGE ~ 1 + hrs_week + (1 + hrs_week | toy_type), data = toys_read)
+augment(rs_model) %&gt;%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
   geom_point(aes(y=R_AGE), alpha=.4)</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-14-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-11-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
@@ -1142,33 +806,32 @@ Do this for both the model with the random intercept only, and the model with bo
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-22" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-22&#39;, &#39;sol-start-22&#39;)"> Solution </span>
+<span id="sol-start-9" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-9&#39;, &#39;sol-start-9&#39;)"> Solution </span>
 </div>
-<div id="sol-body-22" class="solution-body" style="display: none;">
-<pre class="r"><code>augment(rmodel1) %&gt;%
+<div id="sol-body-9" class="solution-body" style="display: none;">
+<pre class="r"><code>augment(ri_model) %&gt;%
   filter(str_detect(toy_type, &quot;Scooby|Farm&quot;)) %&gt;%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
   geom_point(aes(y=R_AGE), alpha=.4)</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-15-1.png" width="80%" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>augment(rmodel2) %&gt;%
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-12-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>augment(rs_model) %&gt;%
   filter(str_detect(toy_type, &quot;Scooby|Farm&quot;)) %&gt;%
   ggplot(aes(x = hrs_week, y = .fitted, col = toy_type)) + 
   geom_line() + 
   geom_point(aes(y=R_AGE), alpha=.4)</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-15-2.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-12-2.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
 </div>
-</div>
-<div id="some-less-guided-exercises" class="section level1">
-<h1>Some Less Guided Exercises</h1>
+<div id="less-guided" class="section level2">
+<h2>Less Guided</h2>
 <p>While the toy example considers the groupings or ‘clusters’ of different types of toy, a much more common grouping in psychological research is that of several observations belonging to the same individual. One obvious benefit of this is that we can collect many more observations with fewer participants, and account for the resulting dependency of observations. Another very crucial advantage is that we can use the same methods to study how people change over time.</p>
 <div class="optional-begin">
-<span id="opt-start-23" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-23&#39;, &#39;opt-start-23&#39;)"> WeightMaintain Data Codebook</span>
+<span id="opt-start-10" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-10&#39;, &#39;opt-start-10&#39;)"> WeightMaintain Data Codebook</span>
 </div>
-<div id="opt-body-23" class="optional-body" style="display: none;">
+<div id="opt-body-10" class="optional-body" style="display: none;">
 <p>The weight maintenance data (<code>WeightMaintain3</code>), a made-up data set based on Lowe et al. (2014, Obesity, 22, 94-100), contains information on overweight participants who completed a 12-week weight loss program, and were then randomly assigned to one of three weight maintenance conditions:</p>
 <ul>
 <li>None (Control)<br />
@@ -1191,27 +854,27 @@ Question B1
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-24" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-24&#39;, &#39;sol-start-24&#39;)"> Solution </span>
+<span id="sol-start-11" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-11&#39;, &#39;sol-start-11&#39;)"> Solution </span>
 </div>
-<div id="sol-body-24" class="solution-body" style="display: none;">
+<div id="sol-body-11" class="solution-body" style="display: none;">
 <pre class="r"><code>load(url(&quot;https://uoepsy.github.io/data/WeightMaintain3.rda&quot;))
 summary(WeightMaintain3)</code></pre>
-<pre><code>##        ID      Condition    Assessment    WeightChange   
-##  101    :  4   None:240   Min.   :0.00   Min.   :-8.378  
-##  102    :  4   ED  :240   1st Qu.:0.75   1st Qu.:-0.502  
-##  103    :  4   MR  :240   Median :1.50   Median : 0.705  
-##  104    :  4              Mean   :1.50   Mean   : 1.444  
-##  105    :  4              3rd Qu.:2.25   3rd Qu.: 2.881  
-##  106    :  4              Max.   :3.00   Max.   :14.945  
+<pre><code>##        ID      Condition    Assessment    WeightChange    
+##  101    :  4   None:240   Min.   :0.00   Min.   :-8.3781  
+##  102    :  4   ED  :240   1st Qu.:0.75   1st Qu.:-0.5024  
+##  103    :  4   MR  :240   Median :1.50   Median : 0.7050  
+##  104    :  4              Mean   :1.50   Mean   : 1.4438  
+##  105    :  4              3rd Qu.:2.25   3rd Qu.: 2.8806  
+##  106    :  4              Max.   :3.00   Max.   :14.9449  
 ##  (Other):696</code></pre>
 <pre class="r"><code>head(WeightMaintain3)</code></pre>
 <pre><code>##    ID Condition Assessment WeightChange
-## 1 101      None          0     -0.11614
-## 2 101      None          1      0.33351
-## 3 101      None          2      1.67865
-## 4 101      None          3      2.75602
-## 5 102      None          0     -0.00442
-## 6 102      None          1      1.74673</code></pre>
+## 1 101      None          0 -0.116138529
+## 2 101      None          1  0.333508907
+## 3 101      None          2  1.678653492
+## 4 101      None          3  2.756023400
+## 5 102      None          0 -0.004420188
+## 6 102      None          1  1.746725487</code></pre>
 </div>
 <p class="solution-end">
 </p>
@@ -1223,35 +886,50 @@ Question B2
 <p>Q: Overall, did the participants maintain their weight loss or did their weights change?</p>
 </blockquote>
 <p>Each of our participants have measurements at 4 assessments.
-We need to think about what this means for our <em>random effect structure</em>. Would we like our models to accommodate individuals to vary in their starting weight change, to vary in their weight change over the course of the assessment period, or both?</p>
+We need to think about what this means for the <strong>random effects</strong> that we will include in our model (our <strong>random effect structure</strong>). Would we like our models to accommodate individuals to vary in their starting weight change, to vary in their weight change over the course of the assessment period, or both?</p>
 <p>To investigate whether weights changed over the course of the assessments, or whether they stayed the same, we can fit and compare 2 models:</p>
 <ol style="list-style-type: decimal">
 <li>The “null” or “intercept-only” model.</li>
 <li>A model with weight change predicted by assessment.</li>
 </ol>
-<p><em>Hint:</em> You can compare two <code>lmer()</code> models the same way you would compare two <code>lm()</code> models in R. However, note that the output will not give you an F-ratio, but a Chisq. This is because instead of comparing the residual sums of squares, we are comparing the model deviance (or <span class="math inline">\(-2 \times \text{LogLikelihood}\)</span> of our model). This is what is known as a <em>likelihood ratio test (LRT)</em>.</p>
+<p>And we can then compare them in terms of model fit. As discussed in the lecture, there are lots of ways to assess inference in multilevel models.</p>
+<p>Our sample size here (180 participants, each with 4 observations) is reasonably large given the relative simplicity of our model. We might consider running a straightforward Likelihood Ratio Test using <code>anova(restricted_model, full_model)</code> to compare our two models. This will assume that the difference in model deviances ( <span class="math inline">\(-2 \times \text{LogLikelihood}\)</span> ) is <span class="math inline">\(\chi^2\)</span>-distributed.<br />
+If we wish to use a more robust test, we might use the <code>PBmodcomp()</code> function from the <strong>pbkrtest</strong> package, in order to bootstrap the likelihood ratio statistic based on simulations based on the parameters of the model.</p>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-25" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-25&#39;, &#39;sol-start-25&#39;)"> Solution </span>
+<span id="sol-start-12" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-12&#39;, &#39;sol-start-12&#39;)"> Solution </span>
 </div>
-<div id="sol-body-25" class="solution-body" style="display: none;">
+<div id="sol-body-12" class="solution-body" style="display: none;">
 <pre class="r"><code>m.null &lt;- lmer(WeightChange ~ 1 + (1 + Assessment | ID), data=WeightMaintain3)
 m.base &lt;- lmer(WeightChange ~ Assessment + (1 + Assessment | ID), data=WeightMaintain3)
 
+# Straightforward LRT
 anova(m.null, m.base)</code></pre>
 <pre><code>## Data: WeightMaintain3
 ## Models:
 ## m.null: WeightChange ~ 1 + (1 + Assessment | ID)
 ## m.base: WeightChange ~ Assessment + (1 + Assessment | ID)
-##        npar  AIC  BIC logLik deviance Chisq Df Pr(&gt;Chisq)    
-## m.null    5 2638 2661  -1314     2628                        
-## m.base    6 2579 2607  -1284     2567  60.7  1    6.8e-15 ***
+##        npar    AIC    BIC  logLik deviance Chisq Df Pr(&gt;Chisq)    
+## m.null    5 2638.0 2660.9 -1314.0   2628.0                        
+## m.base    6 2579.4 2606.8 -1283.7   2567.4 60.66  1  6.782e-15 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code># parametric bootstrap LRT
+library(pbkrtest)
+PBmodcomp(m.base, m.null)</code></pre>
+<pre><code>## Bootstrap test; time: 40.55 sec; samples: 1000; extremes: 0;
+## Requested samples: 1000 Used samples: 723 Extremes: 0
+## large : WeightChange ~ Assessment + (1 + Assessment | ID)
+## WeightChange ~ 1 + (1 + Assessment | ID)
+##         stat df   p.value    
+## LRT    60.66  1 6.772e-15 ***
+## PBtest 60.66     0.001381 ** 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
 <div class="int">
-<p>Likelihood ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( <span class="math inline">\(\chi^2(1)\)</span> = 60.66, <span class="math inline">\(p &lt; .001\)</span>), suggesting that participants’ weights changed over course of 36 month assessment period.</p>
+<p>Parameetric Bootstrap Likelihood Ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( <span class="math inline">\(\chi^2(1)\)</span> = 60.66, p = 0.001), suggesting that participants’ weights changed over course of 36 month assessment period.</p>
 </div>
 </div>
 <p class="solution-end">
@@ -1275,17 +953,15 @@ Question B3
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-26" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-26&#39;, &#39;sol-start-26&#39;)"> Solution </span>
+<span id="sol-start-13" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-13&#39;, &#39;sol-start-13&#39;)"> Solution </span>
 </div>
-<div id="sol-body-26" class="solution-body" style="display: none;">
+<div id="sol-body-13" class="solution-body" style="display: none;">
 <pre class="r"><code>m.int &lt;- lmer(WeightChange ~ Assessment + Condition + (Assessment | ID), 
               data=WeightMaintain3)
 m.full &lt;- lmer(WeightChange ~ Assessment*Condition + (Assessment | ID), 
                data=WeightMaintain3)</code></pre>
-<p>We’re going to compare all our models so far, in order. This will compare each one to the previous one, so is equivalent to:</p>
-<pre class="r"><code>anova(m.null, m.base)
-anova(m.int, m.base)
-anova(m.full, m.int)</code></pre>
+<p>We’re going to compare each model to the previous one to examine the improvement in fit due to inclusion of each parameter.
+We could do this quickly with</p>
 <pre class="r"><code>anova(m.null, m.base, m.int, m.full)</code></pre>
 <pre><code>## Data: WeightMaintain3
 ## Models:
@@ -1293,16 +969,39 @@ anova(m.full, m.int)</code></pre>
 ## m.base: WeightChange ~ Assessment + (1 + Assessment | ID)
 ## m.int: WeightChange ~ Assessment + Condition + (Assessment | ID)
 ## m.full: WeightChange ~ Assessment * Condition + (Assessment | ID)
-##        npar  AIC  BIC logLik deviance Chisq Df Pr(&gt;Chisq)    
-## m.null    5 2638 2661  -1314     2628                        
-## m.base    6 2579 2607  -1284     2567 60.66  1    6.8e-15 ***
-## m.int     8 2574 2611  -1279     2558  9.44  2     0.0089 ** 
-## m.full   10 2538 2583  -1259     2518 40.38  2    1.7e-09 ***
+##        npar    AIC    BIC  logLik deviance   Chisq Df Pr(&gt;Chisq)    
+## m.null    5 2638.0 2660.9 -1314.0   2628.0                          
+## m.base    6 2579.4 2606.8 -1283.7   2567.4 60.6605  1  6.782e-15 ***
+## m.int     8 2573.9 2610.6 -1279.0   2557.9  9.4418  2   0.008907 ** 
+## m.full   10 2537.5 2583.3 -1258.8   2517.5 40.3814  2  1.703e-09 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
 <div class="int">
-<p>Conditions differed overall in weight change <span class="math inline">\(\chi^2(2)=9.4, p &lt; .01\)</span><br />
+<p>Conditions differed overall in weight change <span class="math inline">\(\chi^2(2)=9.4, p = .009\)</span><br />
 Conditions differed in change over assessment period <span class="math inline">\(\chi^2(2)=40.4, p &lt; .001\)</span></p>
+</div>
+<p>However, we may instead want to bootstrap this test instead (especially if we have a small sample size):</p>
+<pre class="r"><code>PBmodcomp(m.int, m.base)</code></pre>
+<pre><code>## Bootstrap test; time: 41.36 sec; samples: 1000; extremes: 8;
+## large : WeightChange ~ Assessment + Condition + (Assessment | ID)
+## WeightChange ~ Assessment + (1 + Assessment | ID)
+##          stat df  p.value   
+## LRT    9.4416  2 0.008908 **
+## PBtest 9.4416    0.008991 **
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>PBmodcomp(m.full, m.int)</code></pre>
+<pre><code>## Bootstrap test; time: 60.64 sec; samples: 1000; extremes: 0;
+## large : WeightChange ~ Assessment * Condition + (Assessment | ID)
+## WeightChange ~ Assessment + Condition + (Assessment | ID)
+##          stat df  p.value    
+## LRT    40.374  2 1.71e-09 ***
+## PBtest 40.374    0.000999 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<div class="int">
+<p>Conditions differed overall in weight change (bootstrap likelihood ratio = 9.4, <span class="math inline">\(p = .014\)</span> ).<br />
+Conditions differed in change over assessment period (bootstrap likelihood ratio = 40.4, <span class="math inline">\(p = .001\)</span> ).</p>
 </div>
 </div>
 <p class="solution-end">
@@ -1312,24 +1011,24 @@ Question B4
 </div>
 <div class="question-body">
 <p>We saw that we can get the coefficients using <code>fixef(model)</code>.
-We can also use <code>tidy(model)</code>, and similar to last semester, we can pull out the bit of the <code>summary()</code> using:</p>
+We can also use <code>tidy(model)</code>, and similar to models fitted with <code>lm()</code>, we can pull out the bit of the <code>summary()</code> using:</p>
 <pre class="r"><code>summary(model)$coefficients</code></pre>
 <p>From your model from the previous question which investigates whether conditions differed over in their rate of weight change, can you state how the conditions differed?</p>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-27" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-27&#39;, &#39;sol-start-27&#39;)"> Solution </span>
+<span id="sol-start-14" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-14&#39;, &#39;sol-start-14&#39;)"> Solution </span>
 </div>
-<div id="sol-body-27" class="solution-body" style="display: none;">
+<div id="sol-body-14" class="solution-body" style="display: none;">
 <pre class="r"><code>summary(m.full)$coefficients</code></pre>
-<pre><code>##                        Estimate Std. Error t value
-## (Intercept)             0.06039    0.09836  0.6139
-## Assessment              1.84918    0.18545  9.9715
-## ConditionED            -0.14303    0.13910 -1.0283
-## ConditionMR            -0.14945    0.13910 -1.0744
-## Assessment:ConditionED -1.74950    0.26226 -6.6708
-## Assessment:ConditionMR -0.83624    0.26226 -3.1886</code></pre>
+<pre><code>##                           Estimate Std. Error    t value
+## (Intercept)             0.06038642 0.09835879  0.6139402
+## Assessment              1.84917936 0.18544623  9.9715123
+## ConditionED            -0.14303302 0.13910033 -1.0282723
+## ConditionMR            -0.14944649 0.13910033 -1.0743792
+## Assessment:ConditionED -1.74949968 0.26226057 -6.6708452
+## Assessment:ConditionMR -0.83624053 0.26226057 -3.1885865</code></pre>
 <div class="int">
 <p>Compared to no intervention, weight (re)gain was 1.75 lbs/year slower for the ED intervention and 0.84 lbs/year slower for the MR intervention.</p>
 </div>
@@ -1352,9 +1051,9 @@ Question B5
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-28" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-28&#39;, &#39;sol-start-28&#39;)"> Solution </span>
+<span id="sol-start-15" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-15&#39;, &#39;sol-start-15&#39;)"> Solution </span>
 </div>
-<div id="sol-body-28" class="solution-body" style="display: none;">
+<div id="sol-body-15" class="solution-body" style="display: none;">
 <ol style="list-style-type: decimal">
 <li>Using the <code>effect()</code> function (and then adding the means and SEs from the original data):</li>
 </ol>
@@ -1365,7 +1064,7 @@ ggplot(ef, aes(Assessment, fit, color=Condition)) +
   stat_summary(data=WeightMaintain3, aes(y=WeightChange), 
                fun.data=mean_se, geom=&quot;pointrange&quot;, size=1) +
   theme_bw()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-24-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-25-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <ol start="2" style="list-style-type: decimal">
 <li>Using the <code>fitted()</code> function to extract and plot fitted values from the model:</li>
 </ol>
@@ -1373,7 +1072,7 @@ ggplot(ef, aes(Assessment, fit, color=Condition)) +
   stat_summary(fun.data=mean_se, geom=&quot;pointrange&quot;, size=1) + 
   stat_summary(aes(y=fitted(m.full)), fun=mean, geom=&quot;line&quot;) + 
   theme_bw()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-25-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-26-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <ol start="3" style="list-style-type: decimal">
 <li>Or using <code>augment()</code>:</li>
 </ol>
@@ -1382,7 +1081,7 @@ ggplot(., aes(Assessment, WeightChange, color=Condition)) +
   stat_summary(fun.data=mean_se, geom=&quot;pointrange&quot;, size=1) + 
   stat_summary(aes(y=.fitted), fun=mean, geom=&quot;line&quot;) + 
   theme_bw()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-26-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-27-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
@@ -1398,9 +1097,9 @@ summary(m.full)</code></pre>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-29" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-29&#39;, &#39;sol-start-29&#39;)"> Solution </span>
+<span id="sol-start-16" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-16&#39;, &#39;sol-start-16&#39;)"> Solution </span>
 </div>
-<div id="sol-body-29" class="solution-body" style="display: none;">
+<div id="sol-body-16" class="solution-body" style="display: none;">
 <pre class="r"><code>round(coef(summary(m.full)), 3)</code></pre>
 <pre><code>##                        Estimate Std. Error t value
 ## (Intercept)               0.060      0.098   0.614
@@ -1424,11 +1123,6 @@ summary(m.full)</code></pre>
 
 </div>
 </div>
-<div class="footnotes">
-<hr />
-<ol>
-<li id="fn1"><p>Image sources:<br><a href="http://tophatsasquatch.com/2012-tmnt-classics-action-figures/" class="uri">http://tophatsasquatch.com/2012-tmnt-classics-action-figures/</a><br><a href="https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/" class="uri">https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/</a><br><a href="https://www.wish.com/product/5da9bc544ab36314cfa7f70c" class="uri">https://www.wish.com/product/5da9bc544ab36314cfa7f70c</a><br><a href="https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp" class="uri">https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp</a><br><a href="https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html" class="uri">https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html</a><br><a href="https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby" class="uri">https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby</a><br><a href="https://www.fun.com/toy-story-4-figure-4-pack.html" class="uri">https://www.fun.com/toy-story-4-figure-4-pack.html</a><br><a href="https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461" class="uri">https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
-</ol>
 </div>
 
 

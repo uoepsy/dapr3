@@ -1,0 +1,319 @@
+---
+title: "Analysis Example 3: Many trials"
+output:
+  html_document:
+    code_folding: show
+    theme: flatly
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    css: assets/style-labs.css
+---
+```{r setup, include=F}
+knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
+```
+
+:::frame
+
+Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way:  
+
+  - First the data is introduced. For the purpose of these tutorials, I will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
+  - Second, the structure of the data is discussed so that we can more easily see what data structure the design creates, and how this aligns to the variables in the data.
+  - Third, we translate the research questions into formal equations, and then `lmer()` code. 
+  - Finally, we will follow those through for our example data.
+
+:::
+
+## Data structure
+This data comes from an undergraduate dissertation student. She ran an experiment looking at the way people's perception of the size of models influences the price they are willing to pay for products. Participants saw a series of pictures of a number of items of clothing. The images had been manipulated so that (a) all pictures were of the same model, and (b) the size of the model differed from a 6 to 16. In total participants saw 54 images. During the study, each picture was presented to participants with a sliding scale from ?0 to ?100 underneath. Participants simply had to drag the cursor to the appropriate point on the slide to indicate how much they would pay for the garment.
+
+This data was collected using Qualtrics. The resultant output was a wide format data set where each item (n=54) was a column. Along with each of these questions were a series of demogrpahic variables, and two short survey measures assessing participants attitude to thinness.
+
+The main ideas we were interested in looking at were whether: 
+
+(i) participants would pay more for garments on thinner models
+(ii) participants would pay more for items when the model size matched their actual size
+(iii) participants would pay more for items when the model size matched their ideal size
+(iv) the extent to which participants idealize thin figures would moderate (ii)
+
+## Equations
+
+# Analysis
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(kableExtra)
+```
+
+## Tidy data
+Unlike some of our examples, there was some fairly serious data cleaning needed with this data set. So let's work through it.
+
+```{r warning=FALSE, message=FALSE}
+df <- read_csv("data/data_HA.csv")
+head(df)
+```
+
+Our first job is to cut out a few variables that we will not work with in this example. These are a set of questions asking about clothing preferences. They all end in `P` and appear at the end of the data set.
+
+```{r}
+df1 <- 
+  df %>%
+  select(-ends_with("P"))
+```
+
+Now we want to create scores for the two surveys scored using Likert-type scales:
+
+```{r}
+# TI score
+df1 <- 
+  df1 %>%
+  select(contains("TII")) %>%
+  rowMeans(., na.rm=T) %>%
+  bind_cols(df1, TII_score = .)
+         
+# MA score
+df1 <- 
+  df1 %>%
+  select(contains("MO")) %>%
+  rowMeans(., na.rm=T) %>%
+  bind_cols(df1, MA_score = .)
+```
+
+Next, we need to make some changes to the coding of current and ideal size
+
+```{r}
+################ up to here
+df1 <- 
+  df1 %>%
+  mutate(
+    c.size = recode(`Current Size`, 6, 8, 10, 12, 14, 16),
+    i.size = recode(`Ideal Size`,  6, 8, 10, 12, 14, 16)
+  )
+```
+
+Always sensible to check our changes:
+
+```{r}
+df1 %>%
+  select(`Current Size`, c.size, `Ideal Size`, i.size)
+```
+
+Excellent, that has worked.
+
+Our next step (and this one is not strictly necessary) is that we are going to aggregate over the different types of top, bottoms and dresses. We could treat each individual garment of clothing as exactly that, but in this instance it was decided that this was not of interest, and to simplify the models, we would create scores for each broad catergory by size.
+
+```{r}
+df1 <- 
+  df1 %>%
+  mutate(Top_S6 = rowMeans(.[c("Top_6", "Top_6_1", "Top_6_2")]),
+         Top_S8 = rowMeans(.[c("Top_8", "Top_8_1", "Top_8_2")]),
+         Top_S10 = rowMeans(.[c("Top_10", "Top_10_1", "Top_10_2")]),
+         Top_S12 = rowMeans(.[c("Top_12", "Top_12_1", "Top_12_2")]),
+         Top_S14 = rowMeans(.[c("Top_14", "Top_14_1", "Top_14_2")]),
+         Top_S16 = rowMeans(.[c("Top_16", "Top_16_1", "Top_16_2")]),
+         Bottom_S6 = rowMeans(.[c("Bottom_6", "Bottom_6_1", "Bottom_6_2")]),
+         Bottom_S8 = rowMeans(.[c("Bottom_8", "Bottom_8_1", "Bottom_8_2")]),
+         Bottom_S10 = rowMeans(.[c("Bottom_10", "Bottom_10_1", "Bottom_10_2")]),
+         Bottom_S12 = rowMeans(.[c("Bottom_12", "Bottom_12_1", "Bottom_12_2")]),
+         Bottom_S14 = rowMeans(.[c("Bottom_14", "Bottom_14_1", "Bottom_14_2")]),
+         Bottom_S16 = rowMeans(.[c("Bottom_16", "Bottom_16_1", "Bottom_16_2")]),
+         Dress_S6 = rowMeans(.[c("Dress_6", "Dress_6_1", "Dress_6_2")]),
+         Dress_S8 = rowMeans(.[c("Dress_8", "Dress_8_1", "Dress_8_2")]),
+         Dress_S10 = rowMeans(.[c("Dress_10", "Dress_10_1", "Dress_10_2")]),
+         Dress_S12 = rowMeans(.[c("Dress_12", "Dress_12_1", "Dress_12_2")]),
+         Dress_S14 = rowMeans(.[c("Dress_14", "Dress_14_1", "Dress_14_2")]),
+         Dress_S16 = rowMeans(.[c("Dress_16", "Dress_16_1", "Dress_16_2")])
+         )
+```
+
+At this point, our next big step is to make the data long. But I am also going to make this a little more manageable by trimming out the variables we do not need. We want ID and age, gender is constant (all female sample), so we do not need this, and then we want the variables we have just created.
+
+```{r}
+df2 <- 
+  df1 %>%
+  select(`Response ID`, Age, 99:120)
+
+df2
+```
+
+OK, now we need to get the data from wide to long format.
+
+```{r}
+df_long <- 
+  df2 %>%
+  gather(key = Type, 
+         value = Price, 
+         Top_S6:Dress_S16)
+
+df_long
+```
+
+This looks good, but again, we need to check our working. Let's make sure the right columns are repeating.
+
+```{r}
+arrange(df_long, `Response ID`)
+```
+
+Not bad, but we now need to have variables that code for size and item type.
+
+```{r}
+df_analysis <- 
+  df_long %>%
+  separate(Type, c("Item", "Size"), "_S")
+
+df_analysis
+```
+
+And check....
+
+```{r}
+arrange(df_analysis, `Response ID`)
+```
+
+Finally, our last couple of steps. First, we want to calculate a couple of binary variables that code whether a give item being rated matches a participants actual or ideal size; second, we need to make sure our size and item variables are treated as factors.
+
+```{r}
+df_analysis <- 
+  df_analysis %>%
+  mutate(
+    c.match = if_else(c.size == Size, 1, 0),
+    i.match = if_else(i.size == Size, 1, 0),
+    Size = factor(Size),
+    Item = as.factor(Item),
+    ID = `Response ID`
+  )
+
+df_analysis[,c(1,5:11)]
+```
+
+## Describe
+Let's look at the average price paid by item type and size:
+
+```{r}
+df_analysis %>%
+  group_by(Size, Item) %>%
+  summarize(
+    Price = mean(Price, na.rm=T)
+  ) %>%
+  arrange(Item)
+```
+
+Ah, this shows us one more thing...we really want size to be in order...
+
+```{r}
+df_analysis <- 
+  df_analysis %>%
+  mutate(
+    Size = fct_relevel(Size, "6", "8", "10", "12", "14", "16")
+  )
+```
+
+```{r}
+df_analysis %>%
+  group_by(Size, Item) %>%
+  summarize(
+    Price = mean(Price, na.rm=T)
+  ) %>%
+  arrange(Item)
+```
+
+This looks a lot like we are seeing difference, averaged across all participants, in the price they would pay for different types of garment, but not a lot of difference by size.
+
+We can also calculate the ICC's
+```{r}
+m0 <- lmer(Price ~ 1 + 
+             (1|ID) + (1|Item),
+           data = df_analysis)
+ICC <- as.data.frame(VarCorr(m0))
+```
+
+For particpant:
+
+```{r}
+round((ICC[1,4]/sum(ICC[,4]))*100, 2)
+```
+
+And item:
+
+```{r}
+round((ICC[2,4]/sum(ICC[,4]))*100, 2)
+```
+
+So we can see we have a lot of between person variation, and some between item variation in our data. This suggests that there is potential value in our level 2 predictors concerning botht he items and between person characteristics.
+
+## Visualize
+
+## Run models
+First, the effect of size. We want to effects code size so we compare against the average.
+
+```{r}
+m1 <- lmer(Price ~ 1 + Size +
+             (1|ID) + (1|Item),
+           data = df_analysis)
+summary(m1)
+```
+
+```{r}
+anova(m0, m1)
+```
+
+What about the effect of item size matching your current size:
+
+```{r}
+m2 <- lmer(Price ~ 1 + Size + c.match + 
+             (1|ID) + (1|Item),
+           data = df_analysis)
+summary(m2)
+```
+
+Compare models for current size match:
+
+```{r}
+anova(m1,m2)
+```
+
+Or your ideal size:
+
+```{r}
+m3 <- lmer(Price ~ 1 + Size + c.match + i.match +
+             (1|ID) + (1|Item),
+           data = df_analysis)
+summary(m3)
+```
+
+Compare models for ideal size match:
+
+```{r}
+anova(m2,m3)
+```
+
+Fixed effects for thin ideals:
+
+```{r}
+m4 <- lmer(Price ~ 1 + Size + c.match + i.match + TII_score + 
+             (1|ID) + (1|Item),
+           data = df_analysis)
+summary(m4)
+```
+
+Compare models for thin ideal:
+
+```{r}
+anova(m3,m4)
+```
+
+Do they interact?
+
+```{r}
+m5 <- lmer(Price ~ 1 + Size + c.match + i.match + scale(TII_score) + c.match*scale(TII_score) +
+             (1|ID) + (1|Item),
+           data = df_analysis)
+summary(m5)
+```
+
+And compare:
+
+```{r}
+anova(m4,m5)
+```
