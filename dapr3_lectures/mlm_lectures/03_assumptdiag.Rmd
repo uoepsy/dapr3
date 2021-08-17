@@ -16,6 +16,8 @@ output:
       highlightStyle: github
       highlightLines: true
       countIncrementalSlides: false
+params: 
+    show_extra: true
 editor_options:
   chunk_output_type: console
 ---
@@ -130,60 +132,81 @@ ggplot(plotdat, aes(x=fitted_values, y=residuals))+
 # What's different in MLM?
 
 - Not much is different!  
-- General idea is unchanged - error is random
+
+--
+
+- General idea is unchanged: error is random  
 
 <!-- Consequently, we want to check for homoscedasiticity of the error term as well as normality of the error term’s distribution -->
 
 
 ---
-# Random effects are level 2 residuals
+# Random effects as level 2 residuals
 
 $\begin{align} & \text{for observation }j\text{ in group }i \\ \quad \\ & \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ & \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}$
 
----
-# ?
-
-- look at your residuals
-  - mean zero, constant variance
-
-- look at your random effects
-  - mean zero, constant variance
-  - have you got "enough" groups? if small number (some suggest <6) then maybe jsut include as fixed
-
-```{r}
-#LMERConvenienceFunctions::mcp.fnc(full_model)
-#DHARMa::simulateResiduals(fittedModel = full_model, plot = T)
-```
-  
+$\varepsilon, \, \color{orange}{\zeta_0}, \, \text{ and } \, \color{orange}{\zeta_1}$ are all assumed to be normally distributed with mean 0. 
 
 ---
-# ?
-
-> 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night.
-
-
-```{r echo=F}
+count:false
+# Random effects as level 2 residuals
+<!-- > 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night. -->
+```{r echo=FALSE}
 library(sjPlot)
 library(lme4)
-crq <- read_csv("https://uoepsy.github.io/data/crqdata.csv")
-full_model<-lmer(emot_dysreg ~ sleep + crq * int + (1 + crq | schoolid), data = crq)
-#plot_model(full_model,"pred")
-#plot_model(full_model,"int")
-#summary(full_model)
-#plot_model(full_model, type = "diag")
+crq <- read_csv("https://uoepsy.github.io/data/crqdata.csv") %>% mutate(slope = crq,cluster=schoolid)
+full_model<-lmer(emot_dysreg ~ sleep + slope + (1 + slope | cluster), data = crq)
 pp <- plot_model(full_model, type = "diag")
-(pp[[1]] + pp[[2]]) / (pp[[3]] + pp[[4]])
-
+model <- full_model
 ```
 
 
+.pull-left[
+
+$\varepsilon$  
+`resid(model)`  
+mean zero, constant variance  
+<br><br>
+```{r echo=FALSE, fig.asp=.5, out.width="400px"}
+pp[[1]]
+```
+
+]
+
+--
+
+.pull-right[
+$\color{orange}{\zeta}$  
+`ranef(model)`  
+mean zero, constant variance  
+
+```{r echo=FALSE, fig.asp=.5, out.width="400px"}
+pp[[2]]
+```
+
+]
+
 ---
-# When things look wrong: model mis-specification
+# A quick check
+
+```{r eval=FALSE}
+sjPlot::plot_model(model, type = "diag")
+```
+```{r echo=FALSE, fig.asp=.8}
+(pp[[1]] + pp[[2]]) / (pp[[3]] + pp[[4]])
+```
+
+---
+# When things look wrong
+
+## model mis-specification? 
 
 
 
 ---
-# When things look wrong: Transformations
+# When things look wrong
+
+## Transformations? 
 
 transforming your outcome variable may help to satisfy model assumptions,
 *but* it comes at the expense of interpretability. 
@@ -197,10 +220,19 @@ being one year older is associated with a 4.5 increase in log(y)
 
 
 ---
-# When things look wrong: Robustlmm
+# When things look wrong
+
+## robustlmm
 
 library(robustlmm)
 rlmer()
+
+---
+# When things look wrong
+
+## bootstrap
+
+
 
 
 ---
