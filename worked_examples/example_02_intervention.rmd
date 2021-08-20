@@ -8,13 +8,15 @@ output:
     toc_depth: 3
     toc_float: yes
     css: assets/style-labs.css
+    includes:
+      in_header: https://uoepsy.github.io/assets/ccfooter.html
 ---
 ```{r setup, include=F}
 knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
 ```
 
 :::frame
-
+ 
 Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way:  
 
   - First the data is introduced. For the purpose of these tutorials, I will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
@@ -26,12 +28,59 @@ Each of these pages provides an analysis run through for a different type of des
  
 # Overview 
 
+Intervention studies are where the researchers _intervenes_ (e.g. through administration of a drug or treatment) as part of the study
+
+The data used for this worked example are simulated to represent data from 50 participants, each measured at 3 different time-points (pre, during, and post) on a measure of stress. Half of the participants are in the control group, and half are in the treatment group (e.g. half received some cognitive behavioural therapy (CBT), half did not). 
+
+```{r}
+set.seed(983)
+library(tidyverse)
+simMIX <- tibble(
+  ppt = factor(rep(paste("ID", 1:50, sep=""),each=3)),
+  ppt_int = rep(rnorm(50,0,15), each=3), 
+  stress = round(
+    c(rnorm(75,c(50,45,42),sd=c(5, 6, 5)),
+      rnorm(75,c(55,30,20),sd=c(6, 10, 5))) + ppt_int,
+    0),
+  time = factor(rep(c("Pre", "During", "Post"), each=1,50)),
+  group = factor(c(rep("Control", 75), rep("Treatment", 75)))
+) 
+```
+
 # Data structure
 
-# Model specification
+Because we simulated our data, it is already nice and tidy. Each observation is a row, and we have variable indicating participant identifier (the `ppt` variable).  
+```{r}
+bind_rows(head(simMIX[,-2]),tail(simMIX[,-2]))
+```
 
-## Equations
+# Equations
 
+```{r}
+library(lme4)
+library(equatiomatic)
+m2 <- lmer(stress ~ 1 + time + group +
+             (1 | ppt), data = simMIX %>% mutate(across(c(time,group), factor)))
+extract_eq(m2, mean_separate = T)
+```
+$$
+\begin{aligned}
+  \operatorname{stress}_{ij}  &= \beta_{0i} + \beta_{1i}(\operatorname{timeDuring}_j) + \beta_{2i}(\operatorname{timePost}_j) + \varepsilon_{ij} \\
+  \beta_{0i} &= \gamma_{00} + \gamma_{01}(\operatorname{groupTreatment}_i) + \zeta_{0i} \\
+  \beta_{1i} &= \gamma_{10} + \gamma_{11}(\operatorname{groupTreatment}_i) \\
+  \beta_{2i} &= \gamma_{20} + \gamma_{21}(\operatorname{groupTreatment}_i) \\
+  & \text{for ppt i = 1,} \dots \text{, I}
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+  \operatorname{stress}_{i}  &\sim N \left(\mu, \sigma^2 \right) \\
+    \mu &=\alpha_{j[i]} + NA(\operatorname{time}_{\operatorname{Post}}) + NA(\operatorname{time}_{\operatorname{Pre}}) \\
+    \alpha_{j}  &\sim N \left(\gamma_{0}^{\alpha} + \gamma_{1}^{\alpha}(\operatorname{group}_{\operatorname{Treatment}}), \sigma^2_{\alpha_{j}} \right)
+    \text{, for ppt j = 1,} \dots \text{,J}
+\end{aligned}
+$$
 
 # Analysis
 
@@ -42,18 +91,6 @@ library(kableExtra)
 ```
 
 
-## Tidy data
-```{r}
-simMIX <- tibble(
-  ID = factor(rep(paste("ID", 1:50, sep=""),each=3)) ,
-  Stress = round(c(rnorm(75,c(40,45,42),sd=c(4, 6, 5)),rnorm(75,c(90,60,20),sd=c(6, 10, 5))),0),
-  Time = factor(rep(c("Pre", "During", "Post"), each=1,50)),
-  Group = factor(c(rep("Control", 75), rep("Treatment", 75)))
-)
-
-simMIX[c(1:3, 148:150),]
-```
-
 ## Describe
 
 We now have two factors of interest, scores over `Time` and by `Group`. So we do our descriptive statistics by multiple grouping factors.
@@ -61,11 +98,11 @@ We now have two factors of interest, scores over `Time` and by `Group`. So we do
 ```{r}
 sumMIX <- 
   simMIX %>%
-  group_by(Time, Group) %>%
+  group_by(time, group) %>%
   summarise(
-    N = n_distinct(ID),
-    Mean = round(mean(Stress, na.rm=T),2),
-    SD = round(sd(Stress, na.rm=T),2)
+    N = n_distinct(ppt),
+    Mean = round(mean(stress, na.rm=T),2),
+    SD = round(sd(stress, na.rm=T),2)
     )
 ```
 
@@ -76,11 +113,11 @@ kable(sumMIX) %>%
 
 ## Visualize Data
 
-We can use a similar violin plot to visualise our data.
+We can use a violin plot to visualise our data.
 
 ```{r warning=FALSE, message=FALSE}
 simMIX %>% 
-  ggplot(aes(Time, Stress, color=Group, fill=Group))  + 
+  ggplot(aes(x=time, y=stress, color=group, fill=group))  + 
   geom_violin(alpha = .25) + 
   geom_dotplot(binaxis='y', stackdir='center', position=position_dodge(1),
                dotsize = 0.5) +
@@ -91,44 +128,61 @@ simMIX %>%
 
 It is useful to note that the violin plot contains much of the same information that a more traditional boxplot would have, but provides more information on the actual distribution with groups as it draws on density plots.
 
-What we can see here is that over time, the control group shows little change, but the treatment group shows distinct declines.
+What we can see here is that over time, the control group shows little change, but the treatment group shows distinct declines.  
+We can also consider line plots with separate facets for each condition:
+```{r}
+simMIX %>% 
+  ggplot(aes(x=time, y=stress, group=ppt, col=group))  + 
+  geom_point(size=3, alpha=.4)+
+  geom_line(alpha=.3)+
+  facet_wrap(~group)+
+  scale_x_discrete(limits = c("Pre", "During", "Post")) +
+  labs(x="Time", y = "Stress Score", 
+       title="Stress over Time by Treat Vs Control", color="Condition", fill="Condition")+
+  theme_minimal()
+```
+
 
 ## Run models
+
 Base model:
 
 ```{r}
-m0 <- lmer(Stress ~ 1 +
-             (1 | ID), data = simMIX)
+m0 <- lmer(stress ~ 1 +
+             (1 | ppt), data = simMIX)
 summary(m0)
 ```
 
 Main effects: 
 ```{r}
-m1 <- lmer(Stress ~ 1 + Time + Group +
-             (1 | ID), data = simMIX)
+m1 <- lmer(stress ~ 1 + time + group +
+             (1 | ppt), data = simMIX)
 summary(m1)
 ```
 
 Interaction:
 ```{r}
-m2 <- lmer(Stress ~ 1 + Time + Group + Time*Group +
-             (1 | ID), data = simMIX)
+m2 <- lmer(stress ~ 1 + time + group + time*group +
+             (1 | ppt), data = simMIX)
 summary(m2)
 ```
 
-Compare all models
+For ease, lets compare all models with a likelihood ratio test:
 ```{r}
 anova(m0,m1,m2)
 ```
 
+
+:::frame
+__Comparison with `aov()`__  
 
 As we did with the simple repeated measures, we can also compare the sums of squares breakdown for the LMM (`m2`) by calling `anova()` on the `lmer()` model.
 
 First with `aov()`:
 
 ```{r}
-m3 <- aov(Stress ~ Time + Group + Time*Group +
-            Error(ID/Time), data = simMIX)
+m3 <- aov(stress ~ time + group + time*group +
+            Error(ppt), data = simMIX)
 summary(m3)
 ```
 
@@ -138,8 +192,12 @@ And then summarise:
 anova(m2)
 ```
 
+:::
 
 ## Check model
+
+
+
 
 ## Visualise model
 

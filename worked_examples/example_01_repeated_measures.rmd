@@ -8,6 +8,8 @@ output:
     toc_depth: 3
     toc_float: yes
     css: assets/style-labs.css
+    includes:
+      in_header: https://uoepsy.github.io/assets/ccfooter.html
 ---
 ```{r setup, include=F}
 knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
@@ -29,6 +31,7 @@ Each of these pages provides an analysis run through for a different type of des
 The idea behind "repeated measures" is that the same variable is measured on the same set of subjects over two or more time periods or under different conditions.  
 
 The data used for this worked example are simulated to represent data from 50 participants, each measured at 3 different time-points on an outcome variable of interest. This is a fairly simple design, leading from a question such as "how does [dependent variable] change over time?"
+You might easily think of the 3 time points as 3 different experimental conditions instead (condition1, condition2, condition3) and ask "how does [dv] change over depending on [independent variable]?"
 
 
 This is a very simple way to simulate repeated measures data structure (with long data). There are a good number of other approaches, but this will do for now as you may well be familiar with all the functions involved: 
@@ -37,7 +40,8 @@ set.seed(347)
 library(tidyverse)
 simRPT <- tibble(
   pid = factor(rep(paste("ID", 1:50, sep=""),each=3)),
-  dv = rnorm(150,c(40,50,70),sd=5),
+  ppt_int = rep(rnorm(50,0,10),each=3), # add some participantz random-ness
+  dv = rnorm(150,c(40,50,70),sd=10) + ppt_int,
   iv = factor(rep(c("T1", "T2", "T3"), each=1, 50))
 )
 ```
@@ -61,14 +65,24 @@ head(simRPT)
 ```
 
 
-
-
 # Equations
+
+We're going to fit this model, and examine the change in `dv` associated with moving from time-point 1 to each subsequent time-point.  
+Recall that because `iv` is categorical with 3 levels, we're going to be estimating 2 ($3-1$) coefficients. 
+$$
+\begin{aligned}
+  \operatorname{dv}_{ij} &= \beta_{0i} + \beta_1(\operatorname{iv}_{\operatorname{T2}_j}) + \beta_2(\operatorname{iv}_{\operatorname{T3}_j}) + \varepsilon_{ij} \\
+    \beta_{0i} &= \gamma_{00} + \zeta_{0i} \\ 
+    & \text{for }\operatorname{pid}\text{ i = 1,} \dots \text{,I}
+\end{aligned}
+$$
+
 
 # Analysis
 
 ```{r}
 library(lme4)
+library(knitr)
 library(kableExtra)
 ```
 
@@ -88,8 +102,6 @@ sumRPT
 ```
 We can make this a little prettier:
 ```{r}
-library(knitr)
-library(kableExtra)
 kable(sumRPT) %>%
   kable_styling("striped")
 ```
@@ -133,30 +145,21 @@ simRPT %>%
   theme_minimal()
 ```
 
-
-
 ## Run models
 Here we run an empty model so that we have something to compare our model which includes our iv. Other than to give us a reference model, we do not have a huge amount of interest in this.
 
 ```{r}
-m0 <- lmer(dv ~ 1 +
-             (1 | pid), 
-           data = simRPT
-           )
+m0 <- lmer(dv ~ 1 + (1 | pid), data = simRPT)
 ```
 
 Next, we specify our model. Here we include a fixed effect of our predictor (group membership, `iv`), and a random effect of participant (`iv`) to take account of the fact we have three measurements per person.
 
 ```{r}
-m1 <- lmer(dv ~ 1 + iv +
-             (1 | pid), 
-           data = simRPT
-           )
+m1 <- lmer(dv ~ 1 + iv + (1 | pid), data = simRPT)
 summary(m1)
 ```
 
-And we can compare our models:
-
+And we can compare our models.  
 ```{r}
 library(pbkrtest)
 PBmodcomp(m1, m0)
@@ -166,9 +169,14 @@ PBmodcomp(m1, m0)
 anova(m0,m1)
 ```
 
-OK, so we can see that we appear to have a significant effect of our repeated factor here. But this does not look like a typical ANOVA output. For piece of mind, it can be useful to compare models.
+OK, so we can see that we appear to have a significant effect of our repeated factor here. Our parametric bootstrap LRT is in agreement here. 
 
-## Comparison to `aov()`
+:::frame
+__Comparison to `aov()`__
+
+Using `anova()` to compare multilevel models will not give you a typical ANOVA output.  
+For piece of mind, it can be useful to compare how we might do this in `aov()`
+
 ```{r}
 m2 <- aov(dv ~ iv + Error(pid), data = simRPT)
 ```
@@ -184,28 +192,58 @@ summary(m2)
 ```{r}
 anova(m1)
 ```
+:::
+
 
 ## Check model
 
+The residuals look reasonably normally distributed, and there seems to be fairly constant variance across the linear predictor
 ```{r}
 plot(m1)
+qqnorm(resid(m1))
+```
+Random effects are roughly normally distributed:
+```{r}
 qqnorm(ranef(m1)$pid[,1])
 ```
 
 ## Visualise Model
 
-
 ```{r}
 library(sjPlot)
 plot_model(m1, type="pred")
-plot_model(m1, type="re")
-dotplot.ranef.mer(ranef(m1))
+plot_model(m1, type="re") # an alternative: dotplot.ranef.mer(ranef(m1))
 ```
 
 ## Interpret model
+
+__Parametric bootstrap 95% CIs:__
 
 ```{r}
 confint(m1, method = "boot")
 ```
 
+__Case-based bootstrapped 95% CIs:__
+
+```{r}
+library(lmeresampler)
+bootmodel <- bootstrap(m1, fixef, type = "case", B = 999, resample = c(TRUE,FALSE))
+confint(bootmodel, type = "perc")
+```
+
+```{r}
+res <- confint(bootmodel, type="perc")
+res <- res %>% mutate_if(is.numeric,~round(.,2))
+res
+```
+
+
+Writing up an interpretation of this is a bit clunky as we have abstract names for our variables like "dv" and "iv", but as a rough starting point: 
+
+:::int
+
+Change in [dv] over [iv] was modelled using a linear mixed effects model, with a fixed effect of [iv] and a by-[pid] random intercepts. At baseline, scores on [dv] were estimated at `r res[1,2]` (case-based bootstrap 95% CI: `r res[1,3]`--`r res[1,4]`). Results indicated that, relative to time-point 1, scores at time-point 2 increased by `r res[2,2]` (`r res[2,3]`--`r res[2,4]`), and at time-point 3 had increased by `r res[3,2]` (`r res[3,3]`--`r res[3,4]`). 
+
+
+:::
 
