@@ -350,9 +350,7 @@ div.tocify {
     <li>
       <a href="01_regressionrefresh.html">1: Linear Regression | Clustered Data</a>
     </li>
-    <li>
-      <a href="02_intromlm.html">2: LM to MLM</a>
-    </li>
+    <li class="dropdown-header">2: LM to MLM</li>
     <li class="dropdown-header">3: Assumptions, Diagnostics</li>
     <li class="dropdown-header">4: Generalisations | Centering</li>
     <li class="dropdown-header">5: Applied Examples</li>
@@ -365,11 +363,11 @@ div.tocify {
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu">
-    <li class="dropdown-header">7: PCA</li>
-    <li class="dropdown-header">8: EFA 1</li>
-    <li class="dropdown-header">9: EFA 2</li>
-    <li class="dropdown-header">10: Path Analysis</li>
-    <li class="dropdown-header">11: Path Mediation</li>
+    <li class="dropdown-header">7: Path Analysis</li>
+    <li class="dropdown-header">8: Path Analysis</li>
+    <li class="dropdown-header">9: Dimension Reduction</li>
+    <li class="dropdown-header">10: EFA 1</li>
+    <li class="dropdown-header">11: EFA 2</li>
   </ul>
 </li>
       </ul>
@@ -383,7 +381,9 @@ div.tocify {
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu">
-    <li class="dropdown-header">Getting started with R &amp; RStudio</li>
+    <li>
+      <a href="intro_r_rstudio.html">Getting started with R &amp; RStudio</a>
+    </li>
   </ul>
 </li>
       </ul>
@@ -423,16 +423,33 @@ div.tocify {
 <li><strong>DHARMa</strong> : for simulating residuals to assess assumptions</li>
 <li><strong>hlmDiag</strong> : for examining case diagnostics at multiple levels</li>
 </ul>
+<pre class="r"><code>install.packages(c(&quot;tidyverse&quot;,&quot;ICC&quot;,&quot;lme4&quot;,&quot;effects&quot;,&quot;broom.mixed&quot;,&quot;sjPlot&quot;,&quot;hlmDiag&quot;))
+# the lmeresampler package has had some recent updates. better to install the most recent version:
+devtools::install_github(&quot;aloy/lmeresampler&quot;)</code></pre>
+</div>
+</div>
+<div id="linear-model-refresh" class="section level1">
+<h1>Linear model refresh</h1>
+<div class="statbox">
+<p>Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:</p>
+<p><span class="math display">\[
+\begin{align}\\
+&amp; \text{for observation }i \\
+&amp; \color{red}{Y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} X_{1i} \ + \ ... \ + \ \beta_p \cdot{} X_{pi}} + \varepsilon_i \\ 
+\end{align}
+\]</span></p>
+<p>And if we wanted to write this more simply, we can express <span class="math inline">\(X_1\)</span> to <span class="math inline">\(X_p\)</span> as an <span class="math inline">\(n \times p\)</span> matrix (samplesize <span class="math inline">\(\times\)</span> parameters), and <span class="math inline">\(\beta_0\)</span> to <span class="math inline">\(\beta_p\)</span> as a vector of coefficients:</p>
+<p><span class="math display">\[
+\mathbf{y} = \boldsymbol{X\beta} + \boldsymbol{\varepsilon}
+\quad \\
+\text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
+\]</span></p>
 </div>
 <div class="frame">
-Let’s consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines:
-<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-2"></span>
-<img src="images/intro/reading.png" alt="[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)" width="300px" />
-<p class="caption">
-Figure 1: <a href="https://uoepsy.github.io/usmr/lectures/lecture_7.html#29">Image and example from USMR Week 8 Lecture</a>
-</p>
-</div>
-<p>Let’s suppose we have data on various types of toys, from Playmobil (pictured above) to Powerrangers, to farm animals. You can find a dataset at <a href="https://uoepsy.github.io/data/toyexample.csv" class="uri">https://uoepsy.github.io/data/toyexample.csv</a>, and read it into your R environment using the code below:</p>
+<p><strong>Data: Toy Data</strong></p>
+<p>Let’s consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines</p>
+<p>Imagine that we have data on various types of toys, from Playmobil, to Powerrangers, to farm animals.<br />
+You can find a dataset at <a href="https://uoepsy.github.io/data/toyexample.csv" class="uri">https://uoepsy.github.io/data/toyexample.csv</a>, and read it into your R environment using the code below:</p>
 <pre class="r"><code>toys_read &lt;- read_csv(&quot;https://uoepsy.github.io/data/toyexample.csv&quot;)</code></pre>
 The dataset contains information on 132 different toy figures. You can see the variables in the table below<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>.
 <br>
@@ -440,12 +457,12 @@ The dataset contains information on 132 different toy figures. You can see the v
 <p><img src="images/intro/toys.png" width="300px" style="display: block; margin: auto;" /></p>
 </div>
 <div style="display:inline-block; width: 45%;vertical-align: middle;">
-<div id="eyychltrpk" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<div id="whaaxxfleu" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
 <style>html {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
 }
 
-#eyychltrpk .gt_table {
+#whaaxxfleu .gt_table {
   display: table;
   border-collapse: collapse;
   margin-left: auto;
@@ -470,7 +487,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-left-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_heading {
+#whaaxxfleu .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -482,7 +499,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-right-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_title {
+#whaaxxfleu .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -492,7 +509,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-bottom-width: 0;
 }
 
-#eyychltrpk .gt_subtitle {
+#whaaxxfleu .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -502,13 +519,13 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-top-width: 0;
 }
 
-#eyychltrpk .gt_bottom_border {
+#whaaxxfleu .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_col_headings {
+#whaaxxfleu .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -523,7 +540,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-right-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_col_heading {
+#whaaxxfleu .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -543,7 +560,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   overflow-x: hidden;
 }
 
-#eyychltrpk .gt_column_spanner_outer {
+#whaaxxfleu .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -555,15 +572,15 @@ The dataset contains information on 132 different toy figures. You can see the v
   padding-right: 4px;
 }
 
-#eyychltrpk .gt_column_spanner_outer:first-child {
+#whaaxxfleu .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#eyychltrpk .gt_column_spanner_outer:last-child {
+#whaaxxfleu .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#eyychltrpk .gt_column_spanner {
+#whaaxxfleu .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -575,7 +592,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   width: 100%;
 }
 
-#eyychltrpk .gt_group_heading {
+#whaaxxfleu .gt_group_heading {
   padding: 8px;
   color: #333333;
   background-color: #FFFFFF;
@@ -597,7 +614,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   vertical-align: middle;
 }
 
-#eyychltrpk .gt_empty_group_heading {
+#whaaxxfleu .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -612,15 +629,15 @@ The dataset contains information on 132 different toy figures. You can see the v
   vertical-align: middle;
 }
 
-#eyychltrpk .gt_from_md > :first-child {
+#whaaxxfleu .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#eyychltrpk .gt_from_md > :last-child {
+#whaaxxfleu .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#eyychltrpk .gt_row {
+#whaaxxfleu .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -639,7 +656,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   overflow-x: hidden;
 }
 
-#eyychltrpk .gt_stub {
+#whaaxxfleu .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -651,7 +668,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   padding-left: 12px;
 }
 
-#eyychltrpk .gt_summary_row {
+#whaaxxfleu .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -661,7 +678,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   padding-right: 5px;
 }
 
-#eyychltrpk .gt_first_summary_row {
+#whaaxxfleu .gt_first_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -671,7 +688,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-top-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_grand_summary_row {
+#whaaxxfleu .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -681,7 +698,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   padding-right: 5px;
 }
 
-#eyychltrpk .gt_first_grand_summary_row {
+#whaaxxfleu .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -691,11 +708,11 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-top-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_striped {
+#whaaxxfleu .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#eyychltrpk .gt_table_body {
+#whaaxxfleu .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -704,7 +721,7 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-bottom-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_footnotes {
+#whaaxxfleu .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -718,13 +735,13 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-right-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_footnote {
+#whaaxxfleu .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding: 4px;
 }
 
-#eyychltrpk .gt_sourcenotes {
+#whaaxxfleu .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -738,41 +755,41 @@ The dataset contains information on 132 different toy figures. You can see the v
   border-right-color: #D3D3D3;
 }
 
-#eyychltrpk .gt_sourcenote {
+#whaaxxfleu .gt_sourcenote {
   font-size: 90%;
   padding: 4px;
 }
 
-#eyychltrpk .gt_left {
+#whaaxxfleu .gt_left {
   text-align: left;
 }
 
-#eyychltrpk .gt_center {
+#whaaxxfleu .gt_center {
   text-align: center;
 }
 
-#eyychltrpk .gt_right {
+#whaaxxfleu .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#eyychltrpk .gt_font_normal {
+#whaaxxfleu .gt_font_normal {
   font-weight: normal;
 }
 
-#eyychltrpk .gt_font_bold {
+#whaaxxfleu .gt_font_bold {
   font-weight: bold;
 }
 
-#eyychltrpk .gt_font_italic {
+#whaaxxfleu .gt_font_italic {
   font-style: italic;
 }
 
-#eyychltrpk .gt_super {
+#whaaxxfleu .gt_super {
   font-size: 65%;
 }
 
-#eyychltrpk .gt_footnote_marks {
+#whaaxxfleu .gt_footnote_marks {
   font-style: italic;
   font-weight: normal;
   font-size: 65%;
@@ -804,24 +821,6 @@ The dataset contains information on 132 different toy figures. You can see the v
 </div>
 </div>
 </div>
-</div>
-<div id="linear-model-refresh" class="section level1">
-<h1>Linear model refresh</h1>
-<div class="statbox">
-<p>Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:</p>
-<p><span class="math display">\[
-\begin{align}\\
-&amp; \text{for observation }i \\
-&amp; \color{red}{Y_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} X_{1i} \ + \ ... \ + \ \beta_p \cdot{} X_{pi}} + \varepsilon_i \\ 
-\end{align}
-\]</span></p>
-<p>And if we wanted to write this more simply, we can express <span class="math inline">\(X_1\)</span> to <span class="math inline">\(X_p\)</span> as an <span class="math inline">\(n \times p\)</span> matrix (samplesize <span class="math inline">\(\times\)</span> parameters), and <span class="math inline">\(\beta_0\)</span> to <span class="math inline">\(\beta_p\)</span> as a vector of coefficients:</p>
-<p><span class="math display">\[
-\mathbf{y} = \boldsymbol{X\beta} + \boldsymbol{\varepsilon}
-\quad \\
-\text{where} \quad \varepsilon \sim N(0, \sigma) \text{ independently}
-\]</span></p>
-</div>
 <div class="question-begin">
 Question A1
 </div>
@@ -833,16 +832,13 @@ Question A1
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-1" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-1&#39;, &#39;sol-start-1&#39;)"> Solution </span>
-</div>
-<div id="sol-body-1" class="solution-body" style="display: none;">
+<div style="display:none;">
 <pre class="r"><code>toys_read &lt;- read_csv(&quot;https://uoepsy.github.io/data/toyexample.csv&quot;) 
 
 ggplot(data = toys_read, aes(x = hrs_week, y = R_AGE))+
   geom_point()+
   geom_smooth(method = &quot;lm&quot;)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-6-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-7-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>simplemod &lt;- lm(R_AGE ~ hrs_week, data = toys_read)
 summary(simplemod)</code></pre>
 <pre><code>## 
@@ -879,9 +875,9 @@ Have we satisfied this assumption (specifically, the assumption of <em>independe
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-2" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-2&#39;, &#39;sol-start-2&#39;)"> Solution </span>
+<span id="sol-start-1" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-1&#39;, &#39;sol-start-1&#39;)"> Solution </span>
 </div>
-<div id="sol-body-2" class="solution-body" style="display: none;">
+<div id="sol-body-1" class="solution-body" style="display: none;">
 <p>Our model from the previous question will assume that the residuals for all toys are independent of one another. But is this a reasonable assumption that we can make? Might we not think that the Playmobil characters could be generally better at reading than the Power Rangers? Or even that ScoobyDoo figurines might be more receptive to practice than the Sock Puppets are?</p>
 <p>The natural grouping of the toys into their respective type introduces a level of <em>dependence</em> which we would be best to account for.</p>
 </div>
@@ -900,18 +896,15 @@ How do your thoughts about the relationship between Reading Age and Practice cha
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-3" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-3&#39;, &#39;sol-start-3&#39;)"> Solution </span>
-</div>
-<div id="sol-body-3" class="solution-body" style="display: none;">
+<div style="display:none;">
 <pre class="r"><code>ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE))+
   geom_point()+
   geom_smooth(method=&quot;lm&quot;,se=FALSE)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-8-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-9-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>ggplot(data = toys_read, aes(x=hrs_week, y=R_AGE, col=toy_type))+
   geom_point()+
   geom_smooth(method=&quot;lm&quot;,se=FALSE)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-9-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-10-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <p>From the second plot, we see a lot of the toy types appear to have a positive relationship (practice increases reading age). There seem to be differences between toy types in both the general reading level (Scooby Doo characters can read very well), and in how practice influences reading age (for instance, the Farm Animals don’t seem to improve at all with practice!).</p>
 </div>
 <p class="solution-end">
@@ -919,10 +912,10 @@ How do your thoughts about the relationship between Reading Age and Practice cha
 <div class="frame">
 <p><strong>Complete Pooling</strong></p>
 <p>We can consider the simple regression model (<code>lm(R_AGE ~ hrs_week, data = toys_read)</code>) to “pool” the information from all observations together. In this ‘Complete Pooling’ approach, we simply ignore the natural clustering of the toys, as if we were unaware of it. The problem is that this assumes the same regression line for all toy types, which might not be that appropriate:</p>
-<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-10"></span>
-<img src="01_regressionrefresh_files/figure-html/unnamed-chunk-10-1.png" alt="Complete pooling can lead to bad fit for certain groups" width="350px" />
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-11"></span>
+<img src="01_regressionrefresh_files/figure-html/unnamed-chunk-11-1.png" alt="Complete pooling can lead to bad fit for certain groups" width="350px" />
 <p class="caption">
-Figure 2: Complete pooling can lead to bad fit for certain groups
+Figure 1: Complete pooling can lead to bad fit for certain groups
 </p>
 </div>
 <p><strong>No Pooling</strong></p>
@@ -943,14 +936,12 @@ Question A4
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-4" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-4&#39;, &#39;sol-start-4&#39;)"> Solution </span>
-</div>
-<div id="sol-body-4" class="solution-body" style="display: none;">
-<pre class="r"><code>broom::augment(mod1) %&gt;%
+<div style="display:none;">
+<pre class="r"><code>library(broom)
+augment(mod1) %&gt;%
   ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
   geom_line()</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-14-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-15-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
@@ -962,16 +953,13 @@ Question A5
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-5" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-5&#39;, &#39;sol-start-5&#39;)"> Solution </span>
-</div>
-<div id="sol-body-5" class="solution-body" style="display: none;">
+<div style="display:none;">
 <pre class="r"><code>mod2 &lt;- lm(R_AGE ~ hrs_week * toy_type, data = toys_read)
 
 broom::augment(mod2) %&gt;%
   ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
   geom_line()</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-15-1.png" width="80%" style="display: block; margin: auto;" />
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-16-1.png" width="80%" style="display: block; margin: auto;" />
 We can see now that our model is fitting a different relationship between reading age and practice for each toy type. This is good - we’re going to get better estimates for different types of toy (e.g. scooby doo’s reading age increases with practice, farm animals don’t).</p>
 <p>We can see that this model provides a better fit - it results in a significant reduction in the residual sums of squares:</p>
 <pre class="r"><code>anova(mod1, mod2)</code></pre>
@@ -989,50 +977,73 @@ We can see now that our model is fitting a different relationship between readin
 <p class="solution-end">
 </p>
 </div>
-<div id="exploring-clustering" class="section level1">
-<h1>Exploring Clustering</h1>
+<div id="some-data-wrangling" class="section level1">
+<h1>Some Data Wrangling</h1>
 <div class="frame">
 <p><strong>Data: Raising the stakes</strong></p>
 <p>30 volunteers from an amateur basketball league participated in a study on stress induced by size and type of potential reward for successfully completing a throw. Each participant completed 20 trials in which they were tasked with throwing a basketball and scoring a goal in order to win a wager. The size of the wager varied between trials, ranging from 1 to 20 points, with the order randomised for each participant. If a participant successfully threw the ball in the basket, then their score increased accordingly. If they missed, their score decreased accordingly. Participants were informed of the size of the potential reward/loss prior to each throw.</p>
 <p>To examine the influence of the <em>type</em> of reward/loss on stress-levels, the study consisted of two conditions. In the monetary condition, (n = 15) participants were informed at the start of the study that the points corresponded to a monetary reward, and that they would be given their total score in £ at the end of the study. In the reputation condition, (n = 15) participants were informed that the points would be inputted on to a scoreboard and distributed around the local basketball clubs and in the league newsletter.</p>
 <p>Throughout each trial, participants’ heart rate variability (HRV) was measured via a chest strap. HRV is considered to be indirectly related to levels of stress (i.e., higher HRV = less stress).</p>
-<p>The data is in <strong>.xlsx</strong> format, and can be downloaded from
-<a href="https://uoepsy.github.io/data/basketballhrv.xlsx" class="uri">https://uoepsy.github.io/data/basketballhrv.xlsx</a></p>
+<p>The data is in stored in two separate files.</p>
+<ul>
+<li>Information on the conditions for each trial for each participant is stored in <strong>.csv</strong> format at <a href="https://uoepsy.github.io/data/basketballconditions.csv" class="uri">https://uoepsy.github.io/data/basketballconditions.csv</a>.</li>
+<li>Information on participants’ HRV for each trial is stored in <strong>.xlsx</strong> format, and can be downloaded from <a href="https://uoepsy.github.io/data/basketballhrv.xlsx" class="uri">https://uoepsy.github.io/data/basketballhrv.xlsx</a></li>
+</ul>
+</div>
+<p>We’re going to need to do some data wrangling now, so take a read through the boxes below on reshaping and merging data.</p>
+<div class="rtip">
+<p><strong>Pivot!</strong></p>
+<p>One of the more confusing things to get to grips with is the idea of reshaping a dataframe.<br />
+For different reasons, you might sometimes want to have data in wide, or in long format.</p>
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-18"></span>
+<img src="https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif" alt="Source: https://fromthebottomoftheheap.net/2019/10/25/pivoting-tidily/" width="80%" />
+<p class="caption">
+Figure 2: Source: <a href="https://fromthebottomoftheheap.net/2019/10/25/pivoting-tidily/" class="uri">https://fromthebottomoftheheap.net/2019/10/25/pivoting-tidily/</a>
+</p>
+</div>
+<p>When the data is wide, we can make it long using <code>pivot_longer()</code>. When we make data longer, we’re essentially making lots of columns into 2 longer columns. Above, in the animation, the wide variable <strong>x</strong>, <strong>y</strong> and <strong>z</strong> go into a new longer column called <strong>name</strong> that specifies which (x/y/z) it came from, and the values get put into the <strong>val</strong> column.</p>
+<p>The animation takes a shortcut in the code it displays above, but you could also use <code>pivot_longer(c(x,y,z), names_to = "name", values_to = "val")</code>. To reverse this, and put it back to being wide, we tell R which columns to take the names and values <em>from</em>: <code>pivot_wider(names_from = name, values_from = val)</code>.</p>
+</div>
+<div class="rtip">
+<p><strong>Joining data</strong></p>
+<p>Now comes a fun bit.
+You may have noticed that we have two datasets for this study. If we are interested in relationships between the heart rate variability (HRV) of participants during each trial, as well as the experimental manipulations (i.e., the condition of each trial), these are currently in different datasets.<br />
+Solution: we need to join them together!</p>
+<p>Provided that both data-sets contain information on participant number and trial number, which uniquely identify each observation, we can join them together matching on those variables!</p>
+<p>There are lots of different ways to join data-sets, depending on whether we want to keep rows from one data-set or the other, or keep only those in both data-sets etc.</p>
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-19"></span>
+<img src="images/messy/joins.png" alt="Check out the help documentation for them all using `?full_join`." width="80%" />
+<p class="caption">
+Figure 3: Check out the help documentation for them all using <code>?full_join</code>.
+</p>
+</div>
 </div>
 <div class="question-begin">
-Question
-</div>
-<div class="question-body">
-<p>what are the units of observations
-what are the groups/clusters?
-what varies <em>within</em> these clusters?
-what varies <em>between</em> these clusters?</p>
-</div>
-<p class="question-end">
-</p>
-<div class="solution-begin">
-<span id="sol-start-6" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-6&#39;, &#39;sol-start-6&#39;)"> Solution </span>
-</div>
-<div id="sol-body-6" class="solution-body" style="display: none;">
-<p>todo</p>
-</div>
-<p class="solution-end">
-</p>
-<div class="question-begin">
-Question
+Question B1
 </div>
 <div class="question-body">
 <p>Get the data into your R session.</p>
-<p><strong>Note:</strong> This is a bit different to how we have given you data in previous exercises. We used to give you data as a <strong>.csv</strong> file, which you could read directly into R from the link using, <code>read_csv("https://uoepsy.......)</code>.</p>
-<p>However, in reality you are likely to be confronted with data in all sorts of weird formats.
-Have a look around the internet to try and find any packages/functions/techniques for getting the data in to R.</p>
+<p><strong>Note:</strong> For one of the files, this is a bit different to how we have given you data in previous exercises. You may remember that for a <strong>.csv</strong> file, you can read directly into R from the link using, <code>read_csv("https://uoepsy.......)</code>.</p>
+<p>However, in reality you are likely to be confronted with data in all sorts of weird formats, such as <strong>.xlsx</strong> files from MS Excel. Have a look around the internet to try and find any packages/functions/techniques for getting both the datasets in to R.</p>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-7" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-7&#39;, &#39;sol-start-7&#39;)"> Solution </span>
+<span id="sol-start-2" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-2&#39;, &#39;sol-start-2&#39;)"> Solution </span>
 </div>
-<div id="sol-body-7" class="solution-body" style="display: none;">
+<div id="sol-body-2" class="solution-body" style="display: none;">
+<pre class="r"><code>bball &lt;- read_csv(&quot;https://uoepsy.github.io/data/basketballconditions.csv&quot;)
+head(bball)</code></pre>
+<pre><code>## # A tibble: 6 × 6
+##   stakes condition   sub throw trial_no success_rate
+##    &lt;dbl&gt; &lt;chr&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;           &lt;dbl&gt;
+## 1     13 money         1     1 trial_1             1
+## 2     17 money         1     1 trial_2             1
+## 3      7 money         1     1 trial_3             1
+## 4      1 money         1     1 trial_4             1
+## 5      2 money         1     1 trial_5             1
+## 6      8 money         1     1 trial_6             1</code></pre>
+<p>For the <strong>.xlsx</strong> data:</p>
 <ul>
 <li>Step 1: download the data to your computer<br />
 </li>
@@ -1043,60 +1054,151 @@ Have a look around the internet to try and find any packages/functions/technique
 <p>You can actually do all these steps from within R.</p>
 <pre class="r"><code># Step 1
 download.file(url = &quot;https://uoepsy.github.io/data/basketballhrv.xlsx&quot;, 
-              destfile = &quot;baskeballdata.xlsx&quot;)
+              destfile = &quot;baskeballhrvdata.xlsx&quot;)
 # Step 2
 library(readxl)
 # Step 3
-bball &lt;- read_xlsx(&quot;baskeballdata.xlsx&quot;)
-bball &lt;- bball %&gt;% mutate(sub = factor(sub))</code></pre>
-<pre class="r"><code>head(bball)</code></pre>
-<pre><code>## # A tibble: 6 x 8
-##   stakes condition   hrv hr_abv sub   throw trial_no success_rate
-##    &lt;dbl&gt; &lt;chr&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;fct&gt; &lt;dbl&gt;    &lt;dbl&gt;        &lt;dbl&gt;
-## 1     13 money      5.47      1 1         1        1            1
-## 2     17 money      6.69      1 1         1        2            1
-## 3      7 money      2.72      1 1         1        3            1
-## 4      1 money      4.95      1 1         1        4            1
-## 5      2 money      5.96      1 1         1        5            1
-## 6      8 money      4.93      1 1         1        6            1</code></pre>
+bballhrv &lt;- read_xlsx(&quot;baskeballhrvdata.xlsx&quot;)
+head(bballhrv)</code></pre>
+<pre><code>## # A tibble: 6 × 21
+##     sub trial_1 trial_2 trial_3 trial_4 trial_5 trial_6 trial_7 trial_8 trial_9
+##   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+## 1     1    5.47    6.69    2.72    4.95    5.96    4.93    4.62    4.70    5.78
+## 2     2    4.60    6.46    3.77    4.80    6.33    5.15    5.04    5.70    4.66
+## 3     3    5.14    5.98    4.30    4.40    4.97    5.16    4.71    4.60    5.94
+## 4     4    5.85    3.74    3.40    4.97    6.46    3.87    5.14    6.26    3.60
+## 5     5    7.46    5.83    4.83    6.26    3.52    5.92    4.24    4.39    5.75
+## 6     6    3.53    2.89    2.07    2.20    3.92    4.45    3.19    5.20    3.81
+## # … with 11 more variables: trial_10 &lt;dbl&gt;, trial_11 &lt;dbl&gt;, trial_12 &lt;dbl&gt;,
+## #   trial_13 &lt;dbl&gt;, trial_14 &lt;dbl&gt;, trial_15 &lt;dbl&gt;, trial_16 &lt;dbl&gt;,
+## #   trial_17 &lt;dbl&gt;, trial_18 &lt;dbl&gt;, trial_19 &lt;dbl&gt;, trial_20 &lt;dbl&gt;</code></pre>
 </div>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question B2
 </div>
 <div class="question-body">
-<p>Plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.<br />
-Can you make a separate plot for each of the experimental conditions? (Hint: <code>facet_wrap()</code>)</p>
+<p>Is each dataset in wide or long format? We want them both in long format, so try to reshape either/both if necessary.</p>
+<p>Hint - in the tidyverse functions, you can specify all columns between column <strong>x</strong> and column <strong>z</strong> by using the colon, <code>x:z</code>.</p>
 </div>
 <p class="question-end">
 </p>
 <div class="solution-begin">
-<span id="sol-start-8" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-8&#39;, &#39;sol-start-8&#39;)"> Solution </span>
+<span id="sol-start-3" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-3&#39;, &#39;sol-start-3&#39;)"> Solution </span>
 </div>
-<div id="sol-body-8" class="solution-body" style="display: none;">
-<pre class="r"><code>ggplot(bball, aes(x=stakes,y=hrv))+geom_smooth(method=&quot;lm&quot;, alpha=.2)+
-  geom_point() +
-  facet_wrap(~condition)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-19-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<div id="sol-body-3" class="solution-body" style="display: none;">
+<p>Only the HRV data is in wide format:</p>
+<pre class="r"><code>head(bballhrv)</code></pre>
+<pre><code>## # A tibble: 6 × 21
+##     sub trial_1 trial_2 trial_3 trial_4 trial_5 trial_6 trial_7 trial_8 trial_9
+##   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+## 1     1    5.47    6.69    2.72    4.95    5.96    4.93    4.62    4.70    5.78
+## 2     2    4.60    6.46    3.77    4.80    6.33    5.15    5.04    5.70    4.66
+## 3     3    5.14    5.98    4.30    4.40    4.97    5.16    4.71    4.60    5.94
+## 4     4    5.85    3.74    3.40    4.97    6.46    3.87    5.14    6.26    3.60
+## 5     5    7.46    5.83    4.83    6.26    3.52    5.92    4.24    4.39    5.75
+## 6     6    3.53    2.89    2.07    2.20    3.92    4.45    3.19    5.20    3.81
+## # … with 11 more variables: trial_10 &lt;dbl&gt;, trial_11 &lt;dbl&gt;, trial_12 &lt;dbl&gt;,
+## #   trial_13 &lt;dbl&gt;, trial_14 &lt;dbl&gt;, trial_15 &lt;dbl&gt;, trial_16 &lt;dbl&gt;,
+## #   trial_17 &lt;dbl&gt;, trial_18 &lt;dbl&gt;, trial_19 &lt;dbl&gt;, trial_20 &lt;dbl&gt;</code></pre>
+<pre class="r"><code>bballhrv &lt;-
+  bballhrv %&gt;%
+  pivot_longer(trial_1:trial_20, names_to = &quot;trial_no&quot;, values_to = &quot;hrv&quot;)
+
+head(bballhrv)</code></pre>
+<pre><code>## # A tibble: 6 × 3
+##     sub trial_no   hrv
+##   &lt;dbl&gt; &lt;chr&gt;    &lt;dbl&gt;
+## 1     1 trial_1   5.47
+## 2     1 trial_2   6.69
+## 3     1 trial_3   2.72
+## 4     1 trial_4   4.95
+## 5     1 trial_5   5.96
+## 6     1 trial_6   4.93</code></pre>
 </div>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question B3
+</div>
+<div class="question-body">
+<p>join the two datasets (both in long format) together.</p>
+<p>Note that the variables we are matching on need to have the information in the same format. For instance, R won’t be able to match <code>"trial_1","trial_2","trial_3"</code> with <code>1, 2, 3</code> because they are different things. We would need to edit one of them to be in the same format.</p>
+<p><strong>Hint:</strong> You should end up with 600 rows.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-4" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-4&#39;, &#39;sol-start-4&#39;)"> Solution </span>
+</div>
+<div id="sol-body-4" class="solution-body" style="display: none;">
+<pre class="r"><code>bball &lt;- full_join(bball, bballhrv)
+head(bball)</code></pre>
+<pre><code>## # A tibble: 6 × 7
+##   stakes condition   sub throw trial_no success_rate   hrv
+##    &lt;dbl&gt; &lt;chr&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;           &lt;dbl&gt; &lt;dbl&gt;
+## 1     13 money         1     1 trial_1             1  5.47
+## 2     17 money         1     1 trial_2             1  6.69
+## 3      7 money         1     1 trial_3             1  2.72
+## 4      1 money         1     1 trial_4             1  4.95
+## 5      2 money         1     1 trial_5             1  5.96
+## 6      8 money         1     1 trial_6             1  4.93</code></pre>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="exploring-clustering" class="section level1">
+<h1>Exploring Clustering</h1>
+<div class="question-begin">
+Question B4
+</div>
+<div class="question-body">
+<p>Continuing with our basketball/hrv study, consider the following questions:</p>
+<p>What are the units of observations?<br />
+What are the groups/clusters?<br />
+What varies <em>within</em> these clusters?<br />
+What varies <em>between</em> these clusters?</p>
+</div>
+<p class="question-end">
+</p>
+<div style="display:none;">
+<p>What are the units of observations? <strong>trials</strong><br />
+What are the groups/clusters? <strong>participants</strong>
+What varies <em>within</em> these clusters? <strong>size of reward</strong><br />
+What varies <em>between</em> these clusters? <strong>type of reward</strong></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B5
+</div>
+<div class="question-body">
+<p>Now that you have tidied and joined all the data together, plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.<br />
+Can you make a separate plot for each of the experimental conditions? (Hint: <code>facet_wrap()</code>)</p>
+</div>
+<p class="question-end">
+</p>
+<div style="display:none;">
+<pre class="r"><code>ggplot(bball, aes(x=stakes,y=hrv))+geom_smooth(method=&quot;lm&quot;, alpha=.2)+
+  geom_point() +
+  facet_wrap(~condition)</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-25-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B6
 </div>
 <div class="question-body">
 <blockquote>
 <p>How are stress levels (measured via HRV) influenced by the size of potential reward/loss?</p>
 </blockquote>
-<p>Fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.</p>
+<p>Ignore the clustering, and fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.</p>
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-9" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-9&#39;, &#39;sol-start-9&#39;)"> Solution </span>
-</div>
-<div id="sol-body-9" class="solution-body" style="display: none;">
+<div style="display:none;">
 <pre class="r"><code>simple_mod &lt;- lm(hrv ~ stakes, data = bball)
 summary(simple_mod)</code></pre>
 <pre><code>## 
@@ -1121,26 +1223,79 @@ summary(simple_mod)</code></pre>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question B7
 </div>
 <div class="question-body">
-<p>Plot the relationship between size of reward and HRV, with a separate line for each subject.</p>
+<p>Consider the following research question:</p>
+<blockquote>
+<p>How do size and type of reward/loss interact to influence levels of stress?</p>
+</blockquote>
+<p>Extend your model to include the interaction between stakes and experimental condition and examine the parameter values.</p>
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-10" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-10&#39;, &#39;sol-start-10&#39;)"> Solution </span>
+<div style="display:none;">
+<pre class="r"><code>simple_mod &lt;- lm(hrv ~ condition*stakes, data = bball)
+anova(simple_mod)</code></pre>
+<pre><code>## Analysis of Variance Table
+## 
+## Response: hrv
+##                   Df  Sum Sq Mean Sq F value    Pr(&gt;F)    
+## condition          1   36.62  36.621 20.8484 6.042e-06 ***
+## stakes             1   10.36  10.362  5.8989   0.01544 *  
+## condition:stakes   1    9.34   9.344  5.3194   0.02143 *  
+## Residuals        596 1046.91   1.757                      
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>summary(simple_mod)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = hrv ~ condition * stakes, data = bball)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -5.4250 -0.8292  0.0231  0.8821  4.1205 
+## 
+## Coefficients:
+##                        Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)            4.998385   0.158965  31.443   &lt;2e-16 ***
+## conditionmoney        -0.039631   0.224810  -0.176   0.8601    
+## stakes                -0.001148   0.013270  -0.087   0.9311    
+## conditionmoney:stakes -0.043284   0.018767  -2.306   0.0214 *  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 1.325 on 596 degrees of freedom
+## Multiple R-squared:  0.05106,    Adjusted R-squared:  0.04628 
+## F-statistic: 10.69 on 3 and 596 DF,  p-value: 7.494e-07</code></pre>
+<div class="int">
+<p>Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two.
+For a 1 point increase in stakes, HRV decreased by -0.04 (<span class="math inline">\(SE=0.02,t(596)=-2.31,p=0.02\)</span>)**** in the condition in which participants played for money relative to that in which participants played for kudos, suggesting that the size of the reward has a greater effect on stress levels when playing for money compared to playing for reputation.</p>
+<p>**** <strong>Caveat:</strong> Our model did <strong>not</strong> account for by-participant clustering of data, thereby violating the assumption that errors are iid (independent and identically distributed).</p>
 </div>
-<div id="sol-body-10" class="solution-body" style="display: none;">
-<pre class="r"><code>ggplot(bball, aes(x=stakes, y=hrv, group=sub, col=condition))+
-  geom_smooth(method=&quot;lm&quot;,se=F, alpha=.2)+
-  geom_point()+NULL</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-21-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question B8
+</div>
+<div class="question-body">
+<p>Let’s start to examine the clustering a bit more.<br />
+Plot the relationship between size of reward and HRV, with a separate line for each subject.</p>
+<p><strong>Hint:</strong> remember the <code>group =</code> aesthetic in ggplot!</p>
+</div>
+<p class="question-end">
+</p>
+<div style="display:none;">
+<pre class="r"><code>ggplot(bball, aes(x=stakes, y=hrv, group=sub, col=condition))+
+  geom_smooth(method=&quot;lm&quot;,se=F, alpha=.2)+
+  geom_point()+NULL</code></pre>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-29-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B9
 </div>
 <div class="question-body">
 <p>Calculate the ICC, using the <code>ICCbare()</code> function from the <strong>ICC</strong> package.</p>
@@ -1148,10 +1303,7 @@ Question
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-11" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-11&#39;, &#39;sol-start-11&#39;)"> Solution </span>
-</div>
-<div id="sol-body-11" class="solution-body" style="display: none;">
+<div style="display:none;">
 <pre class="r"><code>library(ICC)
 ICCbare(x = sub, y = hrv, data = bball)</code></pre>
 <pre><code>## [1] 0.3141482</code></pre>
@@ -1159,9 +1311,9 @@ ICCbare(x = sub, y = hrv, data = bball)</code></pre>
 <p class="solution-end">
 </p>
 <div class="optional-begin">
-<span id="opt-start-12" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-12&#39;, &#39;opt-start-12&#39;)"> Optional - Extra difficult. Calculate ICC manually</span>
+<span id="opt-start-5" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-5&#39;, &#39;opt-start-5&#39;)"> Optional - Extra difficult. Calculate ICC manually</span>
 </div>
-<div id="opt-body-12" class="optional-body" style="display: none;">
+<div id="opt-body-5" class="optional-body" style="display: none;">
 <p>We have equal group sizes here (there are 2 <span class="math inline">\(\times\)</span> 15 participants, each with 20 observations), which makes calculating ICC by hand a lot easier, but it’s still a bit tricky.</p>
 <p>Let’s take a look at the formula for ICC</p>
 <p><span class="math display">\[
@@ -1247,13 +1399,13 @@ You can think of the “variance between the groups” as the group means varyin
   stat_summary(geom = &quot;pointrange&quot;)+
   geom_hline(yintercept = mean(bball$hrv))+
   guides(col=FALSE)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-31-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-39-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <p>You can also think of the ICC as the correlation between two randomly drawn observations from the same group.
 This is a bit of a tricky thing to get your head round if you try to relate it to the type of “correlation” that you are familiar with. Pearson’s correlation (e.g think about a typical scatterplot) operates on <em>pairs of observations</em> (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on <em>data which is structured in groups</em>.</p>
 <div class="optional-begin">
-<span id="opt-start-13" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-13&#39;, &#39;opt-start-13&#39;)"> Optional - ICC as the expected correlation between two observations from same group</span>
+<span id="opt-start-6" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-6&#39;, &#39;opt-start-6&#39;)"> Optional - ICC as the expected correlation between two observations from same group</span>
 </div>
-<div id="opt-body-13" class="optional-body" style="display: none;">
+<div id="opt-body-6" class="optional-body" style="display: none;">
 <p>Let’s suppose we had only 2 observations in each group.</p>
 <pre><code>##   cluster observation   y
 ## 1 group_1           1   4
@@ -1265,7 +1417,7 @@ This is a bit of a tricky thing to get your head round if you try to relate it t
 ## 7     ...         ... ...</code></pre>
 <p>The ICC for this data is 0.18:</p>
 <p>Now suppose we <em>reshape</em> our data so that we have one row per group, and one column for each observation to look like this:</p>
-<pre><code>## # A tibble: 7 x 3
+<pre><code>## # A tibble: 7 × 3
 ##   cluster obs1  obs2 
 ##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
 ## 1 group_1 4     2    
@@ -1278,11 +1430,11 @@ This is a bit of a tricky thing to get your head round if you try to relate it t
 <p>Calculating Pearson’s correlation on those two columns yields 0.2, which isn’t quite right. It’s close, but not quite..</p>
 <div class="imp">
 <p>The crucial thing here is that it is completely arbitrary which observations get called “obs1” and which get called “obs2.”<br />
-The data aren’t paired, but grouped.</p>
+The data aren’t paired, but <strong>grouped.</strong></p>
 </div>
 <p>Essentially, there are lots of different combinations of “pairs” here.
 There are the ones we have shown above:</p>
-<pre><code>## # A tibble: 7 x 3
+<pre><code>## # A tibble: 7 × 3
 ##   cluster obs1  obs2 
 ##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
 ## 1 group_1 4     2    
@@ -1293,26 +1445,26 @@ There are the ones we have shown above:</p>
 ## 6 group_6 6     7    
 ## 7 ...     ...   ...</code></pre>
 <p>But we might have equally chosen these:</p>
-<pre><code>## # A tibble: 7 x 3
+<pre><code>## # A tibble: 7 × 3
 ##   cluster obs1  obs2 
 ##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
 ## 1 group_1 2     4    
-## 2 group_2 2     4    
+## 2 group_2 4     2    
 ## 3 group_3 7     5    
 ## 4 group_4 2     7    
-## 5 group_5 8     3    
+## 5 group_5 3     8    
 ## 6 group_6 6     7    
 ## 7 ...     ...   ...</code></pre>
 <p>or these:</p>
-<pre><code>## # A tibble: 7 x 3
+<pre><code>## # A tibble: 7 × 3
 ##   cluster obs1  obs2 
 ##   &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
-## 1 group_1 4     2    
+## 1 group_1 2     4    
 ## 2 group_2 4     2    
 ## 3 group_3 7     5    
-## 4 group_4 7     2    
-## 5 group_5 3     8    
-## 6 group_6 6     7    
+## 4 group_4 2     7    
+## 5 group_5 8     3    
+## 6 group_6 7     6    
 ## 7 ...     ...   ...</code></pre>
 <p>If we take the correlation of all these combinations of pairings, then we get our ICC of 0.18!</p>
 <p><strong>ICC = the expected correlation of a <em>randomly drawn pair</em> of observations from the same group.</strong></p>
@@ -1375,7 +1527,7 @@ There are the ones we have shown above:</p>
  -->
 <!-- 
 
-<div class="solution-begin"><span id='sol-start-14' class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-14', 'sol-start-14')">  Solution </span></div><div class="solution-body" id = "sol-body-14" style="display: none;">
+<div style="display:none;">
 
  -->
 <!-- ```{r} -->
@@ -1388,30 +1540,33 @@ There are the ones we have shown above:</p>
 
  -->
 </div>
-<div id="revisiting-interactions" class="section level1">
-<h1>Revisiting interactions</h1>
+<div id="fixed-effects" class="section level1">
+<h1>Fixed effects</h1>
 <div class="question-begin">
-Question
+Question C1
 </div>
 <div class="question-body">
-<p>Let’s suppose we want to account for the by-participant clustering in our data with the “No pooling” method (i.e., include participant as a fixed effect along with its interaction with explanatory variable of interest).</p>
-<p>Fit the model, and use the <code>plot_model()</code> function (with <code>type = "int"</code>) to plot the interaction terms between <code>stakes</code> and each participant.</p>
+<p>Let’s suppose we want to account for the by-participant clustering in our data with the “No pooling” method (i.e., in our multiple regression model, include participant ID as an additional predictor, along with its interaction with explanatory variable of interest).</p>
+<ol style="list-style-type: decimal">
+<li>Make sure that the participant ID variable is a factor!<br />
+</li>
+<li>Fit the model</li>
+<li>Use the <code>plot_model()</code> function (with <code>type = "int"</code>) to plot the interaction terms between <code>stakes</code> and each participant.</li>
+</ol>
 <p><strong>Note:</strong> When examining parameter values, remember to think about how HRV is considered to relate to stress, and whether the direction of any effect you see makes theoretical sense.</p>
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-15" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-15&#39;, &#39;sol-start-15&#39;)"> Solution </span>
-</div>
-<div id="sol-body-15" class="solution-body" style="display: none;">
-<pre class="r"><code>nopool_mod &lt;- lm(hrv ~ stakes*sub, data=bball)
+<div style="display:none;">
+<pre class="r"><code>bball &lt;- bball %&gt;% mutate(sub = factor(sub))
+nopool_mod &lt;- lm(hrv ~ stakes*sub, data=bball)
 sjPlot::plot_model(nopool_mod, type = &quot;int&quot;)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-38-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-46-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question C2
 </div>
 <div class="question-body">
 <p>We have fitted two models so far:</p>
@@ -1423,10 +1578,7 @@ Question
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-16" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-16&#39;, &#39;sol-start-16&#39;)"> Solution </span>
-</div>
-<div id="sol-body-16" class="solution-body" style="display: none;">
+<div style="display:none;">
 <pre class="r"><code>pool_mod &lt;- lm(hrv ~ stakes, data=bball)
 nopool_mod &lt;- lm(hrv ~ stakes*sub, data=bball)
 anova(pool_mod, nopool_mod)</code></pre>
@@ -1444,213 +1596,99 @@ anova(pool_mod, nopool_mod)</code></pre>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question C3
 </div>
 <div class="question-body">
-<p>Now let us suppose that we are interested in this question:</p>
-<blockquote>
-<p>Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake?</p>
-</blockquote>
-<p>Extend your complete pooling model to include the interaction between stakes and experimental condition and examine the parameter values.</p>
+<p>Recall our research question: “<strong>How are stress levels (measured via HRV) influenced by the size of potential reward/loss?</strong>”</p>
+<p>From the model <code>lm(hrv ~ stakes*sub, data=bball)</code>, do we estimate a parameter that allows us to complete the following sentence?:</p>
+<ul>
+<li><em>“For every 1 point increase in reward, heart rate variability changed by _ ? _ units.”</em></li>
+</ul>
 </div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-17" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-17&#39;, &#39;sol-start-17&#39;)"> Solution </span>
-</div>
-<div id="sol-body-17" class="solution-body" style="display: none;">
-<pre class="r"><code>simple_mod &lt;- lm(hrv ~ condition*stakes, data = bball)
-anova(simple_mod)</code></pre>
-<pre><code>## Analysis of Variance Table
-## 
-## Response: hrv
-##                   Df  Sum Sq Mean Sq F value    Pr(&gt;F)    
-## condition          1   36.62  36.621 20.8484 6.042e-06 ***
-## stakes             1   10.36  10.362  5.8989   0.01544 *  
-## condition:stakes   1    9.34   9.344  5.3194   0.02143 *  
-## Residuals        596 1046.91   1.757                      
-## ---
-## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
-<pre class="r"><code>summary(simple_mod)</code></pre>
-<pre><code>## 
-## Call:
-## lm(formula = hrv ~ condition * stakes, data = bball)
-## 
-## Residuals:
-##     Min      1Q  Median      3Q     Max 
-## -5.4250 -0.8292  0.0231  0.8821  4.1205 
-## 
-## Coefficients:
-##                        Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)            4.998385   0.158965  31.443   &lt;2e-16 ***
-## conditionmoney        -0.039631   0.224810  -0.176   0.8601    
-## stakes                -0.001148   0.013270  -0.087   0.9311    
-## conditionmoney:stakes -0.043284   0.018767  -2.306   0.0214 *  
-## ---
-## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
-## 
-## Residual standard error: 1.325 on 596 degrees of freedom
-## Multiple R-squared:  0.05106,    Adjusted R-squared:  0.04628 
-## F-statistic: 10.69 on 3 and 596 DF,  p-value: 7.494e-07</code></pre>
-<div class="int">
-<p>Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two.
-For a 1 point increase in stakes, HRV decreased by -0.04 (<span class="math inline">\(SE=0.02,t(596)=-2.31,p=0.02\)</span>)**** in the condition in which participants played for money relative to that in which participants played for kudos, suggesting that the size of the reward has a greater effect on stress levels when playing for money compared to playing for reputation.</p>
-<p>**** <strong>Caveat:</strong> Our model did <strong>not</strong> account for by-participant clustering of data, thereby violating the assumption that errors are iid (independent and identically distributed).</p>
-</div>
+<div style="display:none;">
+<p>Remember that when there is an interaction term, coefficients for individual variables included in the interaction term are <strong>conditional effects.</strong> In the model <code>lm(y ~ x * z)</code>, the coefficient for <code>x</code> is the estimated effect of <code>x</code> on <code>y</code> <em>when <code>z=0</code></em> (and vice versa). When one of these is categorical, 0 is a reference level.</p>
+<p>So we don’t really estimate a parameter for the overall effect of <code>stakes</code> on <code>hrv</code> - we simply have the participant-specific estimates.</p>
+<pre class="r"><code>summary(nopool_mod)$coefficients</code></pre>
+<pre><code>##                  Estimate Std. Error     t value     Pr(&gt;|t|)
+## (Intercept)   4.300458869 0.43677304  9.84598064 3.793839e-21
+## stakes        0.061259772 0.03646111  1.68014014 9.350841e-02
+## sub2          0.551948310 0.61769035  0.89356796 3.719512e-01
+## sub3          0.820197993 0.61769035  1.32784653 1.847898e-01
+## sub4          0.532046420 0.61769035  0.86134811 3.894286e-01
+## sub5          4.050033460 0.61769035  6.55673743 1.287653e-10
+## sub6         -1.487195643 0.61769035 -2.40767180 1.638893e-02
+## sub7         -0.176553063 0.61769035 -0.28582778 7.751196e-01
+## sub8          0.487065284 0.61769035  0.78852662 4.307348e-01
+## sub9          1.523370708 0.61769035  2.46623685 1.396366e-02
+## sub10        -0.227750652 0.61769035 -0.36871331 7.124859e-01
+## sub11         1.046044119 0.61769035  1.69347653 9.094150e-02
+## sub12        -0.943711183 0.61769035 -1.52780625 1.271462e-01
+## sub13         2.373490152 0.61769035  3.84252424 1.362505e-04
+## sub14        -0.456905318 0.61769035 -0.73969962 4.598037e-01
+## sub15         1.782354021 0.61769035  2.88551377 4.063958e-03
+## sub16         1.532933894 0.61769035  2.48171901 1.337812e-02
+## sub17         0.500646099 0.61769035  0.81051306 4.180024e-01
+## sub18         0.983211079 0.61769035  1.59175398 1.120252e-01
+## sub19         1.502042629 0.61769035  2.43170809 1.535192e-02
+## sub20         3.241516039 0.61769035  5.24780098 2.215398e-07
+## sub21         1.147792016 0.61769035  1.85819968 6.368464e-02
+## sub22        -0.612560929 0.61769035 -0.99169580 3.217901e-01
+## sub23        -0.205178646 0.61769035 -0.33217071 7.398893e-01
+## sub24         1.712626937 0.61769035  2.77263022 5.752586e-03
+## sub25         1.384399492 0.61769035  2.24125160 2.541529e-02
+## sub26        -2.317817283 0.61769035 -3.75239353 1.941184e-04
+## sub27         1.393567204 0.61769035  2.25609352 2.446399e-02
+## sub28        -0.425881245 0.61769035 -0.68947369 4.908214e-01
+## sub29         0.642571954 0.61769035  1.04028167 2.986746e-01
+## sub30        -0.010970790 0.61769035 -0.01776099 9.858361e-01
+## stakes:sub2  -0.012862460 0.05156379 -0.24944751 8.031095e-01
+## stakes:sub3  -0.035097345 0.05156379 -0.68065869 4.963792e-01
+## stakes:sub4  -0.029913376 0.05156379 -0.58012364 5.620732e-01
+## stakes:sub5  -0.386778846 0.05156379 -7.50097719 2.621397e-13
+## stakes:sub6  -0.018284698 0.05156379 -0.35460343 7.230251e-01
+## stakes:sub7  -0.045618976 0.05156379 -0.88470944 3.767071e-01
+## stakes:sub8  -0.111747546 0.05156379 -2.16717073 3.065825e-02
+## stakes:sub9  -0.225284706 0.05156379 -4.36904826 1.496785e-05
+## stakes:sub10 -0.055625358 0.05156379 -1.07876775 2.811729e-01
+## stakes:sub11 -0.143857500 0.05156379 -2.78989360 5.458818e-03
+## stakes:sub12 -0.166749061 0.05156379 -3.23384000 1.296027e-03
+## stakes:sub13 -0.192176570 0.05156379 -3.72696718 2.142290e-04
+## stakes:sub14  0.057197973 0.05156379  1.10926618 2.678091e-01
+## stakes:sub15 -0.218576167 0.05156379 -4.23894652 2.641414e-05
+## stakes:sub16 -0.207404000 0.05156379 -4.02227964 6.585414e-05
+## stakes:sub17 -0.087620016 0.05156379 -1.69925461 8.984716e-02
+## stakes:sub18 -0.160005481 0.05156379 -3.10305871 2.015560e-03
+## stakes:sub19 -0.025923824 0.05156379 -0.50275245 6.153433e-01
+## stakes:sub20 -0.202111254 0.05156379 -3.91963501 1.000874e-04
+## stakes:sub21 -0.075588319 0.05156379 -1.46591848 1.432525e-01
+## stakes:sub22 -0.046772269 0.05156379 -0.90707577 3.647713e-01
+## stakes:sub23  0.014323707 0.05156379  0.27778613 7.812829e-01
+## stakes:sub24 -0.116921035 0.05156379 -2.26750254 2.375390e-02
+## stakes:sub25 -0.056800361 0.05156379 -1.10155511 2.711459e-01
+## stakes:sub26  0.220232109 0.05156379  4.27106095 2.298973e-05
+## stakes:sub27 -0.093440459 0.05156379 -1.81213311 7.052092e-02
+## stakes:sub28  0.019860359 0.05156379  0.38516094 7.002698e-01
+## stakes:sub29 -0.120547800 0.05156379 -2.33783803 1.975988e-02
+## stakes:sub30  0.002596578 0.05156379  0.05035662 9.598568e-01</code></pre>
 </div>
 <p class="solution-end">
 </p>
 <div class="question-begin">
-Question
+Question C4
 </div>
 <div class="question-body">
-<p>Let’s suppose we want to examine the interaction here using the “no pooling” method (i.e., including participant as a fixed effect).</p>
+<p>Let’s suppose we want to examine the interaction between size and <em>type</em> of reward (<code>stakes * condition</code>), using the “no pooling” method (i.e., including participant as a fixed effect).</p>
 <p>We have the variable <code>stakes</code>, that varies <strong>within</strong> each participant, and another variable <code>condition</code> that varies <strong>between</strong> participants.</p>
 <p>This becomes difficult because the <code>sub</code> variable (the participant id variable) uniquely identifies the two conditions. Note that if we fit the following model, some coefficients are not defined.
 Try it and see:</p>
 <pre class="r"><code>lm(hrv ~ stakes*sub + stakes*condition, data=bball)</code></pre>
-</div>
-<p class="question-end">
-</p>
-<div class="statbox">
-<p>This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA (“repeated measures ANOVA,”“mixed ANOVA”). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example below should you be interested.<br />
-However, these techniques have a lot of constraints ANOVA has a lot of constraints - it can’t handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating time as a factor, and it’s not great with missing data.
+<p>This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA (“repeated measures ANOVA,”“mixed ANOVA”). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example below if you are interested. However, ANOVA has a lot of constraints - it can’t handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating variables suc as time as a factor, and it’s not great with missing data.
 The multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.</p>
 </div>
-</div>
-<div id="optional-extra-anova" class="section level1">
-<h1>Optional Extra: ANOVA</h1>
-<div class="imp">
-<p>This section is optional for this course, but may be useful for your dissertations should your field/supervisor prefer the ANOVA framework to that of the linear model.</p>
-<p>This walks briefly through these models with the <strong>ez</strong> package. There are many other packages available, and many good tutorials online should you desire extra resources in the future:</p>
-<ul>
-<li><a href="https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r" class="uri">https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r</a></li>
-<li><a href="https://www.r-bloggers.com/2021/04/repeated-measures-of-anova-in-r-complete-tutorial/" class="uri">https://www.r-bloggers.com/2021/04/repeated-measures-of-anova-in-r-complete-tutorial/</a></li>
-<li><a href="https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/" class="uri">https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/</a></li>
-<li><a href="https://www.datanovia.com/en/lessons/mixed-anova-in-r/" class="uri">https://www.datanovia.com/en/lessons/mixed-anova-in-r/</a></li>
-</ul>
-</div>
-<div id="repeated-measures-anova" class="section level2">
-<h2>Repeated Measures ANOVA</h2>
-<p>For a repeated measures ANOVA, our independent variables are <em>within</em> groups.</p>
-<p>Following from the example study above, we might consider using it to answer the question below.</p>
-<blockquote>
-<p><strong>Question:</strong> What is the effect of the size of reward on stress levels (as measured by HRV)?</p>
-</blockquote>
-<p>The easiest way to conduct a repeated measures ANOVA in R is to use the <strong>ez</strong> package.<br />
-It comes with some handy functions to visualise the experimental design.<br />
-We can see from below that every participant completed a trial for each value of reward-size (1-20 points):</p>
-<pre class="r"><code>library(ez)
-ezDesign(data = bball, x = sub, y = stakes)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-43-1.png" width="80%" style="display: block; margin: auto;" /></p>
-<div class="question-begin">
-Question
-</div>
-<div class="question-body">
-<p>The <code>ezANOVA()</code> function takes a few arguments.</p>
-<p>The ones you will need for this are:</p>
-<ul>
-<li><em>data</em> the name of the dataframe</li>
-<li><em>dv</em> the column name for the dependent variable</li>
-<li><em>wid</em> the column name for the participant id variable</li>
-<li><em>within</em> the column name(s) for the predictor variable(s) that vary within participants</li>
-<li><em>between</em> the column name(s) for any predictor variable(s) that vary between participants</li>
-</ul>
-<p>Fit a repeated measures ANOVA to examine the effect of the size of reward on HRV.</p>
-</div>
 <p class="question-end">
 </p>
-<div class="solution-begin">
-<span id="sol-start-18" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-18&#39;, &#39;sol-start-18&#39;)"> Solution </span>
-</div>
-<div id="sol-body-18" class="solution-body" style="display: none;">
-<pre class="r"><code>ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes)</code></pre>
-<pre><code>## $ANOVA
-##   Effect DFn DFd        F         p p&lt;.05        ges
-## 1 stakes   1  29 1.254585 0.2718695       0.04146761</code></pre>
-</div>
-<p class="solution-end">
-</p>
-</div>
-<div id="mixed-anova" class="section level2">
-<h2>Mixed ANOVA</h2>
-<p>Mixed ANOVA can be used to investigate effects of independent variables that are at two different levels, i.e. some are <em>within</em> clusters and some are <em>between</em>.</p>
-<blockquote>
-<p><strong>Question:</strong> Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake?</p>
-</blockquote>
-<div class="question-begin">
-Question
-</div>
-<div class="question-body">
-<p>Look at the two lines below. Can you work out what the plots will look like <em>before</em> you run them?</p>
-<pre class="r"><code>ezDesign(data = bball, x = condition, y = sub)
-ezDesign(data = bball, x = condition, y = stakes)</code></pre>
-</div>
-<p class="question-end">
-</p>
-<div class="solution-begin">
-<span id="sol-start-19" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-19&#39;, &#39;sol-start-19&#39;)"> Solution </span>
-</div>
-<div id="sol-body-19" class="solution-body" style="display: none;">
-<p>Participants 1-15 are in one condition, and 16-30 are in another.<br />
-This should look like a two big blocks on the diagonal.</p>
-<pre class="r"><code>ezDesign(data = bball, x = condition, y = sub)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-46-1.png" width="80%" style="display: block; margin: auto;" />
-In each condition, the full set of stakes (1-20 points) were observed in the same number of trials.
-This should be a full grid:</p>
-<pre class="r"><code>ezDesign(data = bball, x = condition, y = stakes)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-47-1.png" width="80%" style="display: block; margin: auto;" /></p>
-</div>
-<p class="solution-end">
-</p>
-<div class="question-begin">
-Question
-</div>
-<div class="question-body">
-<p>Fit a mixed ANOVA to examine the interaction between size and type of reward on HRV.</p>
-</div>
-<p class="question-end">
-</p>
-<div class="solution-begin">
-<span id="sol-start-20" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-20&#39;, &#39;sol-start-20&#39;)"> Solution </span>
-</div>
-<div id="sol-body-20" class="solution-body" style="display: none;">
-<pre class="r"><code>ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes, between = condition)</code></pre>
-<pre><code>## $ANOVA
-##             Effect DFn DFd        F          p p&lt;.05        ges
-## 1        condition   1  28 3.021712 0.09314393       0.06041768
-## 2           stakes   1  28 1.260498 0.27109204       0.01786900
-## 3 condition:stakes   1  28 1.136668 0.29546463       0.01614191</code></pre>
-</div>
-<p class="solution-end">
-</p>
-<div class="question-begin">
-Question
-</div>
-<div class="question-body">
-<p>The <strong>ez</strong> package also contains some easy plotting functions for factorial experiments, such as <code>ezPlot()</code>. It takes similar arguments to the <code>ezANOVA()</code> function.</p>
-<ul>
-<li>look up the help documentation for <code>ezPlot()</code>.</li>
-<li>try to recreate the plot below using <code>ezPlot()</code> (<strong>Note:</strong> you may need to make sure that the <code>stakes</code> variable is a factor).</li>
-</ul>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-49-1.png" width="80%" style="display: block; margin: auto;" /></p>
-</div>
-<p class="question-end">
-</p>
-<div class="solution-begin">
-<span id="sol-start-21" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-21&#39;, &#39;sol-start-21&#39;)"> Solution </span>
-</div>
-<div id="sol-body-21" class="solution-body" style="display: none;">
-<pre class="r"><code>bball &lt;- bball %&gt;% mutate(stakes = factor(stakes))
-ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = stakes, split = condition)</code></pre>
-<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-50-1.png" width="80%" style="display: block; margin: auto;" /></p>
-</div>
-<p class="solution-end">
-</p>
-<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
-
-</div>
-</div>
 </div>
 <div class="footnotes">
 <hr />
@@ -1659,6 +1697,8 @@ ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = 
 </ol>
 </div>
 
+<link rel="stylesheet" href="https://uoepsy.github.io/assets/css/ccfooter.css" />
+<div class="ccfooter"></div>
 
 
 </div>

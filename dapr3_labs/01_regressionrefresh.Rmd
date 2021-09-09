@@ -4,7 +4,7 @@ bibliography: references.bib
 biblio-style: apalike
 link-citations: yes
 params: 
-    SHOW_SOLS: TRUE
+    SHOW_SOLS: FALSE
     TOGGLE: TRUE
 ---
 
@@ -38,6 +38,16 @@ These are the main packages we're going to use in this block. It might make sens
 + __DHARMa__ : for simulating residuals to assess assumptions
 + __hlmDiag__ : for examining case diagnostics at multiple levels
 
+
+
+```{r eval=FALSE}
+install.packages(c("tidyverse","ICC","lme4","effects","broom.mixed","sjPlot","hlmDiag"))
+# the lmeresampler package has had some recent updates. better to install the most recent version:
+devtools::install_github("aloy/lmeresampler")
+```
+
+
+
 :::
 
 ```{r include=FALSE}
@@ -46,39 +56,6 @@ library(lme4)
 library(broom.mixed)
 library(effects)
 ```
-
-:::frame
-Let's consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines:
-```{r echo=FALSE, fig.cap = "[Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29)", out.width="300px",fig.align="center"}
-knitr::include_graphics("images/intro/reading.png")
-```
-  
-Let's suppose we have data on various types of toys, from Playmobil (pictured above) to Powerrangers, to farm animals. You can find a dataset at https://uoepsy.github.io/data/toyexample.csv, and read it into your R environment using the code below: 
-```{r eval=FALSE}
-toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
-```
-  
-  
-The dataset contains information on 132 different toy figures. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].
-<br>
-<div style="display:inline-block; width: 45%;vertical-align: middle;">
-```{r echo=FALSE, out.width="300px",fig.align="center"}
-knitr::include_graphics("images/intro/toys.png")
-```
-</div>
-<div style="display:inline-block; width: 45%;vertical-align: middle;">
-```{r echo=FALSE, message=FALSE,warning=FALSE}
-library(gt)
-toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
-tibble(variable=names(toys_read),
-       description=c("Type of Toy","Character","Hours of practice per week","Age (in years)","Reading Age")
-) %>% gt()
-
-```
-</div>
-
-:::
-
 
 
 # Linear model refresh   
@@ -103,6 +80,42 @@ $$
 $$
 
 :::
+
+:::frame
+__Data: Toy Data__  
+  
+Let's consider a little toy example in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines
+```{r eval=FALSE,echo=FALSE, fig.cap = "[(Image and example from USMR Week 8 Lecture](https://uoepsy.github.io/usmr/lectures/lecture_7.html#29))", out.width="100px",fig.align="center"}
+knitr::include_graphics("images/intro/reading.png")
+```
+  
+Imagine that we have data on various types of toys, from Playmobil, to Powerrangers, to farm animals.  
+You can find a dataset at https://uoepsy.github.io/data/toyexample.csv, and read it into your R environment using the code below: 
+```{r eval=FALSE}
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
+```
+  
+The dataset contains information on 132 different toy figures. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].
+<br>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+```{r echo=FALSE, out.width="300px",fig.align="center"}
+knitr::include_graphics("images/intro/toys.png")
+```
+</div>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(gt)
+toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
+tibble(variable=names(toys_read),
+       description=c("Type of Toy","Character","Hours of practice per week","Age (in years)","Reading Age")
+) %>% gt()
+
+```
+</div>
+
+:::
+
+
 
 `r qbegin("A1")`
 Read in the toy data from https://uoepsy.github.io/data/toyexample.csv and plot the bivariate relationship between Reading Age and Hrs per Week practice, and then fit the simple linear model: 
@@ -209,7 +222,8 @@ Can you construct a plot of the **fitted** values from this model, coloured by t
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
-broom::augment(mod1) %>%
+library(broom)
+augment(mod1) %>%
   ggplot(.,aes(x=hrs_week, y=.fitted, col=toy_type))+
   geom_line()
 ```
@@ -237,7 +251,7 @@ But accounting for this heterogeneity over clusters in the effect of interest co
 `r solend()`
 
 
-# Exploring Clustering
+# Some Data Wrangling
 
 :::frame
 **Data: Raising the stakes**
@@ -248,32 +262,65 @@ To examine the influence of the *type* of reward/loss on stress-levels, the stud
 
 Throughout each trial, participants' heart rate variability (HRV) was measured via a chest strap. HRV is considered to be indirectly related to levels of stress (i.e., higher HRV = less stress).
 
-The data is in **.xlsx** format, and can be downloaded from 
-https://uoepsy.github.io/data/basketballhrv.xlsx 
+The data is in stored in two separate files.  
+
+- Information on the conditions for each trial for each participant is stored in __.csv__ format at https://uoepsy.github.io/data/basketballconditions.csv. 
+- Information on participants' HRV for each trial is stored in **.xlsx** format, and can be downloaded from https://uoepsy.github.io/data/basketballhrv.xlsx 
+
 :::
 
 
-`r qbegin()`
-what are the units of observations
-what are the groups/clusters?
-what varies *within* these clusters?
-what varies *between* these clusters?
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-todo
-`r solend()`
+We're going to need to do some data wrangling now, so take a read through the boxes below on reshaping and merging data.
+
+:::rtip
+**Pivot!**    
+
+One of the more confusing things to get to grips with is the idea of reshaping a dataframe.  
+For different reasons, you might sometimes want to have data in wide, or in long format. 
+
+```{r echo=FALSE, fig.cap="Source: https://fromthebottomoftheheap.net/2019/10/25/pivoting-tidily/"}
+knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
+```
+
+When the data is wide, we can make it long using `pivot_longer()`. When we make data longer, we're essentially making lots of columns into 2 longer columns. Above, in the animation, the wide variable **x**, **y** and **z** go into a new longer column called **name** that specifies which (x/y/z) it came from, and the values get put into the **val** column.  
+
+The animation takes a shortcut in the code it displays above, but you could also use `pivot_longer(c(x,y,z), names_to = "name", values_to = "val")`. To reverse this, and put it back to being wide, we tell R which columns to take the names and values *from*: `pivot_wider(names_from = name, values_from = val)`.  
+:::
+
+:::rtip
+__Joining data__
+
+Now comes a fun bit. 
+You may have noticed that we have two datasets for this study. If we are interested in relationships between the heart rate variability (HRV) of participants during each trial, as well as the experimental manipulations (i.e., the condition of each trial), these are currently in different datasets.  
+Solution: we need to join them together!  
+
+Provided that both data-sets contain information on participant number and trial number, which uniquely identify each observation, we can join them together matching on those variables!  
+
+There are lots of different ways to join data-sets, depending on whether we want to keep rows from one data-set or the other, or keep only those in both data-sets etc. 
+
+```{r echo=FALSE, fig.cap="Check out the help documentation for them all using `?full_join`."}
+knitr::include_graphics("images/messy/joins.png")
+```
+
+:::
 
 
-`r qbegin()`
+`r qbegin("B1")`
 Get the data into your R session. 
 
-__Note:__ This is a bit different to how we have given you data in previous exercises. We used to give you data as a __.csv__ file, which you could read directly into R from the link using, `read_csv("https://uoepsy.......)`.  
+__Note:__ For one of the files, this is a bit different to how we have given you data in previous exercises. You may remember that for a __.csv__ file, you can read directly into R from the link using, `read_csv("https://uoepsy.......)`.  
 
-However, in reality you are likely to be confronted with data in all sorts of weird formats. 
-Have a look around the internet to try and find any packages/functions/techniques for getting the data in to R. 
+However, in reality you are likely to be confronted with data in all sorts of weird formats, such as __.xlsx__ files from MS Excel. Have a look around the internet to try and find any packages/functions/techniques for getting both the datasets in to R. 
 
 `r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+
+```{r}
+bball <- read_csv("https://uoepsy.github.io/data/basketballconditions.csv")
+head(bball)
+```
+
+For the __.xlsx__ data:
 
 - Step 1: download the data to your computer  
 - Step 2: load the __readxl__ package.  
@@ -283,22 +330,76 @@ You can actually do all these steps from within R.
 ```{r}
 # Step 1
 download.file(url = "https://uoepsy.github.io/data/basketballhrv.xlsx", 
-              destfile = "baskeballdata.xlsx")
+              destfile = "baskeballhrvdata.xlsx")
 # Step 2
 library(readxl)
 # Step 3
-bball <- read_xlsx("baskeballdata.xlsx")
-bball <- bball %>% mutate(sub = factor(sub))
+bballhrv <- read_xlsx("baskeballhrvdata.xlsx")
+head(bballhrv)
 ```
-```{r}
-head(bball)
-```
-
 
 `r solend()`
 
-`r qbegin()`
-Plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.  
+
+
+
+`r qbegin("B2")`
+Is each dataset in wide or long format? We want them both in long format, so try to reshape either/both if necessary.
+
+Hint - in the tidyverse functions, you can specify all columns between column **x** and column **z** by using the colon, `x:z`.  
+
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+Only the HRV data is in wide format:
+```{r}
+head(bballhrv)
+```
+
+```{r}
+bballhrv <-
+  bballhrv %>%
+  pivot_longer(trial_1:trial_20, names_to = "trial_no", values_to = "hrv")
+
+head(bballhrv)
+```
+`r solend()`
+
+`r qbegin("B3")`
+join the two datasets (both in long format) together. 
+
+Note that the variables we are matching on need to have the information in the same format. For instance, R won't be able to match `"trial_1","trial_2","trial_3"` with `1, 2, 3` because they are different things. We would need to edit one of them to be in the same format.  
+
+**Hint:** You should end up with 600 rows.  
+
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+```{r}
+bball <- full_join(bball, bballhrv)
+head(bball)
+```
+`r solend()`
+
+# Exploring Clustering
+
+`r qbegin("B4")`
+Continuing with our basketball/hrv study, consider the following questions:  
+  
+What are the units of observations?  
+What are the groups/clusters?  
+What varies *within* these clusters?  
+What varies *between* these clusters?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+What are the units of observations? __trials__  
+What are the groups/clusters? __participants__
+What varies *within* these clusters? __size of reward__    
+What varies *between* these clusters? __type of reward__  
+
+`r solend()`
+
+`r qbegin("B5")`
+Now that you have tidied and joined all the data together, plot the relationship between size of reward and HRV, ignoring the fact that there are repeated observations for each subject.  
 Can you make a separate plot for each of the experimental conditions? (Hint: `facet_wrap()`)
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -309,25 +410,48 @@ ggplot(bball, aes(x=stakes,y=hrv))+geom_smooth(method="lm", alpha=.2)+
 ```
 `r solend()`
 
-`r qbegin()`
+`r qbegin("B6")`
 > How are stress levels (measured via HRV) influenced by the size of potential reward/loss?  
 
-Fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.  
+Ignore the clustering, and fit a simple linear regression estimating how heart rate variability is influenced by how high the stakes are (i.e. how big the reward is) for a given throw.  
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
 simple_mod <- lm(hrv ~ stakes, data = bball)
 summary(simple_mod)
 ```
-
-
 `r solend()`
 
 
+`r qbegin("B7")`
+Consider the following research question:
 
+> How do size and type of reward/loss interact to influence levels of stress?  
 
-`r qbegin()`
+Extend your model to include the interaction between stakes and experimental condition and examine the parameter values.
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+simple_mod <- lm(hrv ~ condition*stakes, data = bball)
+anova(simple_mod)
+summary(simple_mod)
+```
+```{r include=F}
+res = summary(simple_mod)$coefficients %>% round(2)
+```
+:::int
+Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two. 
+For a 1 point increase in stakes, HRV decreased by `r res[4,1]` ($SE=`r res[4,2]`,t(`r simple_mod[["df.residual"]]`)=`r res[4,3]`,p=`r res[4,4]`$)**** in the condition in which participants played for money relative to that in which participants played for kudos, suggesting that the size of the reward has a greater effect on stress levels when playing for money compared to playing for reputation.  
+   
+**** __Caveat:__ Our model did __not__ account for by-participant clustering of data, thereby violating the assumption that errors are iid (independent and identically distributed). 
+:::
+`r solend()`
+
+`r qbegin("B8")`
+Let's start to examine the clustering a bit more.  
 Plot the relationship between size of reward and HRV, with a separate line for each subject. 
+  
+__Hint:__ remember the `group = ` aesthetic in ggplot!
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
@@ -337,7 +461,7 @@ ggplot(bball, aes(x=stakes, y=hrv, group=sub, col=condition))+
 ```
 `r solend()`
 
-`r qbegin()`
+`r qbegin("B9")`
 Calculate the ICC, using the `ICCbare()` function from the **ICC** package.  
 
 Remember, you can look up the help for a function by typing a `?` followed by the function name in the console. 
@@ -471,7 +595,8 @@ ggplot(bball, aes(x=sub, y=hrv))+
 ```
 
 You can also think of the ICC as the correlation between two randomly drawn observations from the same group. 
-This is a bit of a tricky thing to get your head round if you try to relate it to the type of "correlation" that you are familiar with. Pearson's correlation (e.g think about a typical scatterplot) operates on *pairs of observations* (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on *data which is structured in groups*. 
+This is a bit of a tricky thing to get your head round if you try to relate it to the type of "correlation" that you are familiar with. Pearson's correlation (e.g think about a typical scatterplot) operates on *pairs of observations* (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on *data which is structured in groups*.  
+  
 `r optbegin("Optional - ICC as the expected correlation between two observations from same group", olabel=F)`
 
 Let's suppose we had only 2 observations in each group.  
@@ -497,7 +622,7 @@ Calculating Pearson's correlation on those two columns yields `r cor(tempdat_wid
 
 :::imp 
 The crucial thing here is that it is completely arbitrary which observations get called "obs1" and which get called "obs2".  
-The data aren't paired, but grouped. 
+The data aren't paired, but __grouped.__ 
 :::
 
 Essentially, there are lots of different combinations of "pairs" here. 
@@ -589,26 +714,28 @@ __ICC = the expected correlation of a *randomly drawn pair* of observations from
 <!-- Note that the point estimate is the same (`coef(geemod)[2]`) as that from our simple model `lm(hrv ~ stakes, data = bball)` but the standard errors are wider (and the relationship is no longer significant).   -->
 <!-- `r solend()` -->
 
-# Revisiting interactions
+# Fixed effects
 
+`r qbegin("C1")`
+Let's suppose we want to account for the by-participant clustering in our data with the "No pooling" method (i.e., in our multiple regression model, include participant ID as an additional predictor, along with its interaction with explanatory variable of interest).  
 
-`r qbegin()`
-Let's suppose we want to account for the by-participant clustering in our data with the "No pooling" method (i.e., include participant as a fixed effect along with its interaction with explanatory variable of interest).  
-
-Fit the model, and use the `plot_model()` function (with `type = "int"`) to plot the interaction terms between `stakes` and each participant. 
+1. Make sure that the participant ID variable is a factor!  
+2. Fit the model
+3. Use the `plot_model()` function (with `type = "int"`) to plot the interaction terms between `stakes` and each participant. 
    
 __Note:__ When examining parameter values, remember to think about how HRV is considered to relate to stress, and whether the direction of any effect you see makes theoretical sense. 
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
+bball <- bball %>% mutate(sub = factor(sub))
 nopool_mod <- lm(hrv ~ stakes*sub, data=bball)
 sjPlot::plot_model(nopool_mod, type = "int")
 ```
 `r solend()`
 
 
-`r qbegin()`
+`r qbegin("C2")`
 We have fitted two models so far:  
 
 1. The complete pooling model: `lm(hrv ~ stakes, data = bball)`, which ignores the fact that our data has some inherent grouping (multiple datapoints per participant)
@@ -626,34 +753,27 @@ We can see that the no pooling model provides a significantly better fit to the 
 `r solend()`
 
 
-`r qbegin()`
-Now let us suppose that we are interested in this question: 
+`r qbegin("C3")`
+Recall our research question: "__How are stress levels (measured via HRV) influenced by the size of potential reward/loss?__"
 
-> Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake? 
+From the model `lm(hrv ~ stakes*sub, data=bball)`, do we estimate a parameter that allows us to complete the following sentence?:
 
+- *"For every 1 point increase in reward, heart rate variability changed by _ ? _ units."* 
 
-Extend your complete pooling model to include the interaction between stakes and experimental condition and examine the parameter values.
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Remember that when there is an interaction term, coefficients for individual variables included in the interaction term are __conditional effects.__ In the model `lm(y ~ x * z)`, the coefficient for `x` is the estimated effect of `x` on `y` _when `z=0`_ (and vice versa). When one of these is categorical, 0 is a reference level.  
+
+So we don't really estimate a parameter for the overall effect of `stakes` on `hrv` - we simply have the participant-specific estimates.  
+
 ```{r}
-simple_mod <- lm(hrv ~ condition*stakes, data = bball)
-anova(simple_mod)
-summary(simple_mod)
+summary(nopool_mod)$coefficients
 ```
-```{r include=F}
-res = summary(simple_mod)$coefficients %>% round(2)
-```
-:::int
-Heart Rate Variability (HRV) was found to be influenced by both the size of the potential reward/loss of a given trial, whether whether participants were playing for money or for a place on the scoreboard, and the interaction between the two. 
-For a 1 point increase in stakes, HRV decreased by `r res[4,1]` ($SE=`r res[4,2]`,t(`r simple_mod[["df.residual"]]`)=`r res[4,3]`,p=`r res[4,4]`$)**** in the condition in which participants played for money relative to that in which participants played for kudos, suggesting that the size of the reward has a greater effect on stress levels when playing for money compared to playing for reputation.  
-   
-**** __Caveat:__ Our model did __not__ account for by-participant clustering of data, thereby violating the assumption that errors are iid (independent and identically distributed). 
-:::
 `r solend()`
 
-
-`r qbegin()`
-Let's suppose we want to examine the interaction here using the "no pooling" method (i.e., including participant as a fixed effect).  
+`r qbegin("C4")`
+Let's suppose we want to examine the interaction between size and _type_ of reward (`stakes * condition`), using the "no pooling" method (i.e., including participant as a fixed effect).  
 
 We have the variable `stakes`, that varies __within__ each participant, and another variable `condition` that varies __between__ participants.  
 
@@ -662,124 +782,8 @@ Try it and see:
 ```{r eval=FALSE}
 lm(hrv ~ stakes*sub + stakes*condition, data=bball)
 ```
-`r qend()`
 
-:::statbox
-
-This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA","mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example below should you be interested.  
-However, these techniques have a lot of constraints  ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating time as a factor, and it's not great with missing data. 
+This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA","mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example below if you are interested. However, ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating variables suc as time as a factor, and it's not great with missing data. 
 The multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.  
 
-:::
-
-# Optional Extra: ANOVA
-
-:::imp
-This section is optional for this course, but may be useful for your dissertations should your field/supervisor prefer the ANOVA framework to that of the linear model. 
-
-This walks briefly through these models with the __ez__ package. There are many other packages available, and many good tutorials online should you desire extra resources in the future:
-
-- https://www.datanovia.com/en/lessons/repeated-measures-anova-in-r
-- https://www.r-bloggers.com/2021/04/repeated-measures-of-anova-in-r-complete-tutorial/
-- https://stats.idre.ucla.edu/r/seminars/repeated-measures-analysis-with-r/ 
-- https://www.datanovia.com/en/lessons/mixed-anova-in-r/  
-
-:::
-
-## Repeated Measures ANOVA
-
-For a repeated measures ANOVA, our independent variables are _within_ groups.  
-
-Following from the example study above, we might consider using it to answer the question below.  
- 
-> __Question:__ What is the effect of the size of reward on stress levels (as measured by HRV)?
-
-The easiest way to conduct a repeated measures ANOVA in R is to use the __ez__ package.  
-It comes with some handy functions to visualise the experimental design.  
-We can see from below that every participant completed a trial for each value of reward-size (1-20 points):
-```{r}
-library(ez)
-ezDesign(data = bball, x = sub, y = stakes)
-```
-`r qbegin()`
-The `ezANOVA()` function takes a few arguments. 
-
-The ones you will need for this are:
-
-- *data* the name of the dataframe
-- *dv* the column name for the dependent variable
-- *wid* the column name for the participant id variable
-- *within* the column name(s) for the predictor variable(s) that vary within participants 
-- *between* the column name(s) for any predictor variable(s) that vary between participants
-
-Fit a repeated measures ANOVA to examine the effect of the size of reward on HRV. 
 `r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-```{r}
-ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes)
-```
-`r solend()`
-
-## Mixed ANOVA 
-Mixed ANOVA can be used to investigate effects of independent variables that are at two different levels,  i.e. some are *within* clusters and some are *between*.  
-
-> __Question:__ Does the influence of the size of reward/loss on stress levels differ depending upon whether it is money vs reputation at stake? 
-
-`r qbegin()`
-Look at the two lines below. Can you work out what the plots will look like _before_ you run them? 
-
-```{r eval=F}
-ezDesign(data = bball, x = condition, y = sub)
-ezDesign(data = bball, x = condition, y = stakes)
-```
-
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-Participants 1-15 are in one condition, and 16-30 are in another.  
-This should look like a two big blocks on the diagonal. 
-```{r}
-ezDesign(data = bball, x = condition, y = sub)
-```
-In each condition, the full set of stakes (1-20 points) were observed in the same number of trials.
-This should be a full grid:
-```{r}
-ezDesign(data = bball, x = condition, y = stakes)
-```
-`r solend()`
-
-
-`r qbegin()`
-Fit a mixed ANOVA to examine the interaction between size and type of reward on HRV. 
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-```{r}
-ezANOVA(data=bball, dv=hrv, wid = sub, within = stakes, between = condition)
-```
-`r solend()`
-
-
-`r qbegin()`
-The __ez__ package also contains some easy plotting functions for factorial experiments, such as `ezPlot()`. It takes similar arguments to the `ezANOVA()` function. 
-
-- look up the help documentation for `ezPlot()`. 
-- try to recreate the plot below using `ezPlot()` (__Note:__ you may need to make sure that the `stakes` variable is a factor).
-
-```{r echo=FALSE}
-bball <- bball %>% mutate(stakes = factor(stakes))
-ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = stakes, split = condition)
-```
-
-
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-```{r}
-bball <- bball %>% mutate(stakes = factor(stakes))
-ezPlot(data=bball, dv=hrv, wid = sub, within = stakes, between = condition, x = stakes, split = condition)
-```
-`r solend()`
-
-
-
-
-
-<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
