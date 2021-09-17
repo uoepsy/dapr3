@@ -19,10 +19,12 @@ knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
  
 Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way:  
 
-  - First the data is introduced. For the purpose of these tutorials, I will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
-  - Second, the structure of the data is discussed so that we can more easily see what data structure the design creates, and how this aligns to the variables in the data.
-  - Third, we translate the research questions into formal equations, and then `lmer()` code. 
-  - Finally, we will follow those through for our example data.
+  - First the data and research context is introduced. For the purpose of these tutorials, we will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
+  - Second, we go through any tidying of the data that is required, before creating some brief descriptives and visualizations of the raw data.
+  - Then, we conduct an analysis. Where possible, we translate the research questions into formal equations prior to fitting the models in **lme4**. Model comparisons are conducted, along with checks of distributional assumptions on our model residuals. 
+  - Finally, we visualize and interpret our analysis.
+  
+Please note that there will be only minimal explanation of the steps undertaken here, as these pages are intended as example analyses rather than additional labs readings. Please also be aware that there are many decisions to be made throughout conducting analyses, and it may be the case that you disagree with some of the choices we make here. As always with these things, it is how we justify our choices that is important. We warmly welcome any feedback and suggestions to improve these examples: please email [ug.ppls.stats@ed.ac.uk](mailto:ug.ppls.stats@ed.ac.uk). 
 
 :::
  
@@ -42,56 +44,19 @@ simMIX <- tibble(
     c(rnorm(75,c(50,45,42),sd=c(5, 6, 5)),
       rnorm(75,c(55,30,20),sd=c(6, 10, 5))) + ppt_int,
     0),
-  time = factor(rep(c("Pre", "During", "Post"), each=1,50)),
-  group = factor(c(rep("Control", 75), rep("Treatment", 75)))
-) 
+  time = as_factor(rep(c("Pre", "During", "Post"), each=1,50)),
+  group = as_factor(c(rep("Control", 75), rep("Treatment", 75)))
+) %>% select(-ppt_int)
 ```
 
-# Data structure
+# Data Wrangling
 
 Because we simulated our data, it is already nice and tidy. Each observation is a row, and we have variable indicating participant identifier (the `ppt` variable).  
 ```{r}
-bind_rows(head(simMIX[,-2]),tail(simMIX[,-2]))
+summary(simMIX)
+bind_rows(head(simMIX), tail(simMIX))
 ```
-
-# Equations
-
-```{r}
-library(lme4)
-library(equatiomatic)
-m2 <- lmer(stress ~ 1 + time + group +
-             (1 | ppt), data = simMIX %>% mutate(across(c(time,group), factor)))
-extract_eq(m2, mean_separate = T)
-```
-$$
-\begin{aligned}
-  \operatorname{stress}_{ij}  &= \beta_{0i} + \beta_{1i}(\operatorname{timeDuring}_j) + \beta_{2i}(\operatorname{timePost}_j) + \varepsilon_{ij} \\
-  \beta_{0i} &= \gamma_{00} + \gamma_{01}(\operatorname{groupTreatment}_i) + \zeta_{0i} \\
-  \beta_{1i} &= \gamma_{10} + \gamma_{11}(\operatorname{groupTreatment}_i) \\
-  \beta_{2i} &= \gamma_{20} + \gamma_{21}(\operatorname{groupTreatment}_i) \\
-  & \text{for ppt i = 1,} \dots \text{, I}
-\end{aligned}
-$$
-
-$$
-\begin{aligned}
-  \operatorname{stress}_{i}  &\sim N \left(\mu, \sigma^2 \right) \\
-    \mu &=\alpha_{j[i]} + NA(\operatorname{time}_{\operatorname{Post}}) + NA(\operatorname{time}_{\operatorname{Pre}}) \\
-    \alpha_{j}  &\sim N \left(\gamma_{0}^{\alpha} + \gamma_{1}^{\alpha}(\operatorname{group}_{\operatorname{Treatment}}), \sigma^2_{\alpha_{j}} \right)
-    \text{, for ppt j = 1,} \dots \text{,J}
-\end{aligned}
-$$
-
-# Analysis
-
-```{r}
-library(tidyverse)
-library(lme4)
-library(kableExtra)
-```
-
-
-## Describe
+# Descriptives
 
 We now have two factors of interest, scores over `Time` and by `Group`. So we do our descriptive statistics by multiple grouping factors.
 
@@ -106,14 +71,16 @@ sumMIX <-
     )
 ```
 
+
 ```{r}
+library(kableExtra)
 kable(sumMIX) %>%
   kable_styling("striped")
 ```
 
-## Visualize Data
+# Visualizations
 
-We can use a violin plot to visualise our data.
+We can use a violin plot to visualize our data.
 
 ```{r warning=FALSE, message=FALSE}
 simMIX %>% 
@@ -121,7 +88,6 @@ simMIX %>%
   geom_violin(alpha = .25) + 
   geom_dotplot(binaxis='y', stackdir='center', position=position_dodge(1),
                dotsize = 0.5) +
-  scale_x_discrete(limits = c("Pre", "During", "Post")) +
   labs(x="Time", y = "Stress Score", 
        title="Stress over Time by Treat Vs Control", color="Condition", fill="Condition")
 ```
@@ -132,18 +98,38 @@ What we can see here is that over time, the control group shows little change, b
 We can also consider line plots with separate facets for each condition:
 ```{r}
 simMIX %>% 
-  ggplot(aes(x=time, y=stress, group=ppt, col=group))  + 
+  ggplot(aes(x=time, y=stress, col=group))  + 
   geom_point(size=3, alpha=.4)+
-  geom_line(alpha=.3)+
+  geom_line(aes(group=ppt), alpha=.3)+
+  stat_summary(geom="pointrange", col="black")+
   facet_wrap(~group)+
-  scale_x_discrete(limits = c("Pre", "During", "Post")) +
   labs(x="Time", y = "Stress Score", 
        title="Stress over Time by Treat Vs Control", color="Condition", fill="Condition")+
   theme_minimal()
 ```
 
 
-## Run models
+# Analysis
+
+## Equations
+
+
+$$
+\begin{aligned}
+  \operatorname{stress}_{i[j]}  &= \beta_{0i} + \beta_{1i}(\operatorname{timeDuring}_j) + \beta_{2i}(\operatorname{timePost}_j) + \varepsilon_{i[j]} \\
+  \beta_{0i} &= \gamma_{00} + \gamma_{01}(\operatorname{groupTreatment}_i) + \zeta_{0i} \\
+  \beta_{1i} &= \gamma_{10} + \gamma_{11}(\operatorname{groupTreatment}_i) \\
+  \beta_{2i} &= \gamma_{20} + \gamma_{21}(\operatorname{groupTreatment}_i) \\
+  & \text{for ppt i = 1,} \dots \text{, I}
+\end{aligned}
+$$
+
+## Fitting the models
+
+```{r}
+library(lme4)
+```
+
 
 Base model:
 
@@ -167,12 +153,6 @@ m2 <- lmer(stress ~ 1 + time + group + time*group +
 summary(m2)
 ```
 
-For ease, lets compare all models with a likelihood ratio test:
-```{r}
-anova(m0,m1,m2)
-```
-
-
 :::frame
 __Comparison with `aov()`__  
 
@@ -194,11 +174,91 @@ anova(m2)
 
 :::
 
-## Check model
+For ease, lets compare all models with a parametric bootstrap likelihood ratio test:
+```{r eval=F}
+library(pbkrtest)
+PBmodcomp(m1, m0)
+PBmodcomp(m2, m1)
+```
+```{r echo=F}
+library(pbkrtest)
+rescomp1 <- PBmodcomp(m1, m0)
+rescomp1
+rescomp2 <- PBmodcomp(m2, m1)
+rescomp2
+```
+And extract some bootstrap 95% CIs
+```{r}
+confint(m2,method="boot")
+```
 
 
+## Check Model
+
+The residuals look reasonably normally distributed, and there seems to be fairly constant variance across the linear predictor. We might be a little concerned about the potential tails of the plot below, at which residuals don't appear to have a mean of zero
+```{r}
+plot(m2, type = c("p","smooth"))
+plot(m2, sqrt(abs(resid(.)))~fitted(.))
+library(lattice)
+qqmath(m2)
+```
+Random effects are (roughly) normally distributed:
+```{r}
+rans <- as.data.frame(ranef(m2)$ppt)
+ggplot(rans, aes(sample = `(Intercept)`)) + 
+  stat_qq() + stat_qq_line() +
+  labs(title="random intercept")
+```
+
+# Visualise Model
+
+```{r}
+library(sjPlot)
+plot_model(m2, type="int")
+plot_model(m2, type="re") # an alternative: dotplot.ranef.mer(ranef(m1))
+```
+
+# Interpret model
+
+```{r echo=FALSE}
+resest <- cbind(c(0,0,fixef(m2)), confint(m2,method="boot"))
+resest <- round(resest,2)
+```
+
+:::int
+
+Stress at each study time-point (pre-, during- and post-intervention) was modeled using linear mixed effects models, with by-participant random intercepts, and the incremental addition of time, condition (control vs treatment) and their interaction. An interaction between time and condition improved model fit over the model without the interaction (Parametric bootstrap LRT `r round(as.data.frame(rescomp2)[2,1],2)`, p < .001), suggesting that patterns of change over time in stress levels differed for the treatment group from the control group.  
+Result show that for the control group, stress did not show clear change between time-points 1 and 2 (`r resest[4,1]`, 95% CI [`r resest[4,2]` -- `r resest[4,3]`]), but by time-point 3 had reduced relative to time-point 1 by `r resest[5,1]` [`r resest[5,2]` -- `r resest[5,3]`] points. Prior to the intervention (time-point 1), the treatment group did not appear to differ from the control group with respect to their level of stress, but showed an *additional* `r resest[7,1]` [`r resest[7,2]` -- `r resest[7,3]`] point change by time-point 2 and `r resest[8,1]` [`r resest[8,2]` -- `r resest[8,3]`] points by the end of the study (time-point 3). This pattern of results is shown in Figure 1. 
 
 
-## Visualise model
+```{r res, echo=F, fig.cap="Figure 1: Stress levels over time for control and treatment groups, with bootstrap prediction intervals (R = 2000)"}
+preddata <- 
+  expand_grid(
+    time = levels(simMIX$time),
+    group = levels(simMIX$group)
+  )
+myfun = function(fit){
+  predict(fit, newdata=preddata, re.form=NA)
+}
+plotdat <- bootMer(m2, myfun, nsim = 2000, use.u = FALSE)
+plotdat <- 
+  as_tibble(plotdat$t) %>% mutate(
+    sim = 1:n()
+  )
 
-## Interpret model
+names(plotdat)[1:6] <- as.character(interaction(preddata$time, preddata$group))
+
+plotdat %>% 
+  pivot_longer(1:6, names_to = "tc",values_to="est") %>%
+  separate(tc, into=c("time","group"),"\\.") %>%
+  ggplot(.,aes(x=time, y=est, col = group))+
+  geom_line(aes(group=interaction(sim,group)),alpha=.01)+
+  stat_summary(geom="path",aes(group=group), col="black", lty="dashed")+
+  stat_summary(geom="point",aes(fill=group), size = 4, shape = 21, col="black")+
+  scale_x_discrete(limits=c("Pre","During","Post"))+
+  theme_minimal()
+```
+
+:::
+
+

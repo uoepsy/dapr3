@@ -70,8 +70,8 @@ while (doit) {
         }
 }
 
-
-ggplot(df[df$xgs==1,],aes(x=x,y=y,col=l3p))+facet_wrap(xgs~ng2)+
+summary(m)
+ggplot(df[df$xgs==1,],aes(x=x,y=y,col=factor(l3p)))+facet_wrap(xgs~ng2)+
         geom_path(aes(group=factor(igs)),alpha=.3)+
         #geom_smooth(method="lm",se=F)+
         NULL
