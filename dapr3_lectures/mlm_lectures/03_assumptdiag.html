@@ -36,13 +36,14 @@ class: center, middle, inverse, title-slide
 
 
 
----
 class: inverse, center, middle
 
 &lt;h2&gt;Part 1: Assumptions&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Bootstrapping MLM&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Case Diagnostics in MLM&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Random Effect Structures&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Case Diagnostics in MLM&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Random Effect Structures&lt;/h2&gt;
+
+???
+the first thing we're going to discuss today is the set of assumptions that underly drawing inferences from our multilevel models
 
 ---
 # Assumptions in LM
@@ -57,6 +58,13 @@ class: inverse, center, middle
 
 ]
 
+???
+lets begin with simple linear regression. 
+recall that the broad idea of a linear model is that the structural model part (our betas and explanatory variables) are our way of specifying systematic relationships. 
+the residual, the epsilon bit, is, we hope, just leftover randomness. 
+and so what we term our "assumptions" are primarily concerned with checking that our residuals look random (that we haven't missed out something systematic). so we hope that, across the fitted values of the model, the residuals have zero mean and constant variance. 
+
+
 --
 
 .pull-right[
@@ -69,6 +77,8 @@ class: inverse, center, middle
 
 ]
 
+???
+the more formulaic approach to checking assumptions of linear regression is to evaluate the linearity, indepndence, normality, and equal variance of error.s
 
 ---
 # What's different in MLM?
@@ -81,6 +91,41 @@ class: inverse, center, middle
 
 &lt;!-- Consequently, we want to check for homoscedasiticity of the error term as well as normality of the error term’s distribution --&gt;
 
+--
+
+- We now have residuals at multiple levels!
+
+???
+nothing really changes when we move to the multilevel model.  
+we're still concerned with residuals - we'll want to check for homoscedasiticity of the error term as well as normality of the error term’s distribution.  
+the key difference is that we now have residuals at multiple levels! 
+
+
+
+---
+# Random effects as level 2 residuals
+
+&lt;img src="jk_img_sandbox/lmmwodot.png" width="1535" style="display: block; margin: auto auto auto 0;" /&gt;
+
+???
+remember that the random effects are normally distributed with a mean of 0. 
+the blue line here is the fixed effect, and the lines for each cluster are in green. 
+the deviations for each cluster from the overall slope are in red. we have a deviation for the intercept, and a deviation for the slope. 
+the model is estimating the variance of all these deviations, and assumes them to be normally distributed. 
+just like a residual, but at a higher level. 
+this fits with the idea that when specifying random effects, we are treating our level 2 groups as if they are a random sample from a larger population of these level 2 units. because we treat them as a random sample, we expect random deviations for each group. 
+
+---
+count:false
+# Random effects as level 2 residuals
+
+&lt;img src="jk_img_sandbox/lmmwdot.png" width="1535" style="display: block; margin: auto auto auto 0;" /&gt;
+
+???
+in additional to these level 2 residuals, we have the level 1 residuals. these are the random deviations of the lower level observations around each cluster specific line.  
+so if we imagine we have randomly sampled some children from a random sample of schools, then we can think of each line as a school, and each school has a random deviation. some schools are higher on the outcome, some lower. some have steeper slopes, some less steep. 
+then within each school, the randomly sampled children will deviate randomly around that schools specific line. some children will be higher than expected for that school, some lower etc. 
+
 
 ---
 # Random effects as level 2 residuals
@@ -88,6 +133,12 @@ class: inverse, center, middle
 `\(\begin{align} &amp; \text{for observation }j\text{ in group }i \\ \quad \\ &amp; \text{Level 1:} \\ &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ &amp; \text{Level 2:} \\ &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ &amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}\)`
 
 `\(\varepsilon, \, \color{orange}{\zeta_0}, \, \text{ and } \, \color{orange}{\zeta_1}\)` are all assumed to be normally distributed with mean 0. 
+
+???
+We can see this also in our model equations. 
+in this example, with a random intercept and random slope, we have the level 1 equation, with the random part (the epsilon), 
+and then with the level 2 equations, we have the random part, the zeta. 
+and because we are assuming these to be random, we are assuming them to be normally distributed with mean of 0
 
 ---
 count:false
@@ -102,9 +153,13 @@ count:false
 `resid(model)`  
 mean zero, constant variance  
 &lt;br&gt;&lt;br&gt;
-&lt;img src="03_assumptdiag_files/figure-html/unnamed-chunk-3-1.png" width="400px" /&gt;
+&lt;img src="03_assumptdiag_files/figure-html/unnamed-chunk-5-1.png" width="400px" /&gt;
 
 ]
+
+???
+recall that in a QQplot, we are plotting our observed data, in against the theoretical quantiles of the normal distribution. So if we have 100 residuals, then each one is plotted against the 1st, 2nd, 3rd, and so on percentile of the standard normal distribution.
+so we have the level 1 residuals...
 
 --
 
@@ -118,60 +173,429 @@ mean zero, constant variance
 ## $cluster
 ```
 
-&lt;img src="03_assumptdiag_files/figure-html/unnamed-chunk-4-1.png" width="400px" /&gt;
+&lt;img src="03_assumptdiag_files/figure-html/unnamed-chunk-6-1.png" width="400px" /&gt;
+
+]
+
+???
+and we have the level 2 residuals. our random effects.
+
+---
+# Assumption Plots: Residuals vs Fitted
+
+
+```r
+plot(model, type=c("p","smooth"))
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-7-1.png)&lt;!-- --&gt;
+
+???
+so let's look at some different visualisations that we can use to assess the extent to which we believe our assumptions to hold.   
+first off, we have the residuals vs fitted plot. so these are our  residuals (our level 1 residuals, that is) on the y axis, and the fitted values of the model on the x. across the fitted values of the model, we want our residuals to have a mean of zero.  
+the smooth here provides an indication of this. 
+
+---
+# Assumption Plots: qqplots
+
+
+```r
+library(lattice)
+qqmath(model, id=.05)
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
+
+???
+we've already seen qqplots.  
+the lattice package has a nice functionality for labelling the extreme ends of the distribution.  
+
+
+---
+# Assumption Plots: Scale-Location
+
+
+```r
+plot(model, 
+     form = sqrt(abs(resid(.))) ~ fitted(.),
+     type = c("p","smooth"))
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-9-1.png)&lt;!-- --&gt;
+
+???
+scale location or, spread location, is a similar plot to the residuals vs fitted. 
+however, in this one  the y axis is the sqrt of the absolute value of the residuals. 
+if you think a second about what this is doing, it is removing any negative sign, and squarerooting to normalise it. 
+what this means is that the mean of the sqrt abs residuals will reflect changes in the spread/variance of the residuals. 
+
+
+---
+count:false
+# Assumption Plots: Scale-Location
+
+
+```r
+plot(model, 
+     form = sqrt(abs(resid(.))) ~ fitted(.) | cluster,
+     type = c("p","smooth"))
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+
+
+---
+# Assumption Plots: Ranefs
+
+.pull-left[
+
+```r
+qqmath(ranef(model))
+```
+
+```
+## $cluster
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-11-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+
+```r
+rans &lt;- as.data.frame(ranef(model)$cluster)
+
+ggplot(rans, aes(sample = `(Intercept)`)) + 
+  stat_qq() + stat_qq_line() +
+  labs(title="random intercept")
+
+ggplot(rans, aes(sample = x1)) + 
+  stat_qq() + stat_qq_line()
+  labs(title="random slope")
+```
+![](03_assumptdiag_files/figure-html/unnamed-chunk-13-1.png)&lt;!-- --&gt;
 
 ]
 
 ---
-# A quick check
+# for a quick check
+
+if nothing else... 
 
 
 ```r
 sjPlot::plot_model(model, type = "diag")
 ```
-![](03_assumptdiag_files/figure-html/unnamed-chunk-6-1.png)&lt;!-- --&gt;
+![](03_assumptdiag_files/figure-html/unnamed-chunk-15-1.png)&lt;!-- --&gt;
+
+
+---
+
+class: inverse, center, middle
+
+&lt;h2&gt;&lt;b style="opacity:0.4;"&gt;Part 1: Assumptions &lt;/b&gt;&lt;b&gt;Troubleshooting&lt;/b&gt;&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Case Diagnostics in MLM&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Random Effect Structures&lt;/h2&gt;
+
+---
+# Some Data
+
+.pull-left[
+
+&gt; 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eleven of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum.  
+  
+  
+&gt;Adjusting for levels of daily routines, do children from schools partaking in the intervention present with lower levels of emotional dysregulation? 
+
+]
+.pull-right[
+![](03_assumptdiag_files/figure-html/unnamed-chunk-16-1.png)&lt;!-- --&gt;
+]
 
 ---
 # When things look wrong
 
-## model mis-specification? 
 
-
-
----
-# When things look wrong
-
-## Transformations? 
-
-transforming your outcome variable may help to satisfy model assumptions,
-*but* it comes at the expense of interpretability. 
-
-log(y)
-log((max(y)-y)+1)
-1/y
-forecast::boxcox(y)
-
-being one year older is associated with a 4.5 increase in log(y)
-
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq + int + (1 | schoolid), data = crq)
+```
+![](03_assumptdiag_files/figure-html/unnamed-chunk-18-1.png)&lt;!-- --&gt;
 
 ---
 # When things look wrong
+### __Model mis-specification?__
 
-## robustlmm
+.pull-left[
 
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq + int + (1 | schoolid), data = crq)
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-20-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq + age + int + (1 | schoolid), data = crq)
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-22-1.png)&lt;!-- --&gt;
+]
+
+---
+# When things look wrong
+### __Transformations?__  
+
+- Transforming your outcome variable may help to satisfy model assumptions
+
+
+--
+
+  - log(y)
+  - 1/y
+  - sqrt(y)
+  - forecast::BoxCox(y)
+
+---
+count:false
+# When things look wrong
+### __Transformations?__  
+
+
+
+
+- Transforming your outcome variable may help to satisfy model assumptions
+
+
+.pull-left[
+
+```r
+lmer(y ~ x1 + g + (1 | cluster), df)
+```
+![](03_assumptdiag_files/figure-html/unnamed-chunk-25-1.png)&lt;!-- --&gt;
+
+]
+.pull-right[
+
+```r
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+```
+![](03_assumptdiag_files/figure-html/unnamed-chunk-27-1.png)&lt;!-- --&gt;
+]
+
+---
+count:false
+# When things look wrong
+### __Transformations?__  
+
+- Transforming your outcome variable may help to satisfy model assumptions **but it comes at the expense of interpretability.**  
+
+.pull-left[
+
+```r
+lmer(y ~ x1 + g + (1 | cluster), df)
+```
+
+```
+## (Intercept)          x1           g 
+##      36.137       1.615      10.020
+```
+
+]
+.pull-right[
+
+```r
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+```
+
+```
+## (Intercept)          x1           g 
+##    1.733760    0.006857    0.048426
+```
+]
+
+---
+count:false
+class: extra
+exclude: TRUE
+# When things look wrong
+### __robustlmm__
+
+.pull-left[
+
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq * int + age + (1 | schoolid), data = crq)
+summary(mymodel)$coefficients
+```
+
+```
+##                  Estimate Std. Error t value
+## (Intercept)        1.0570   0.148701   7.108
+## crq               -0.1338   0.018791  -7.119
+## intTreatment      -0.3300   0.147007  -2.245
+## age                0.2720   0.007679  35.425
+## crq:intTreatment   0.0676   0.026673   2.534
+```
+]
+.pull-right[
+
+```r
 library(robustlmm)
-rlmer()
+mymodelr &lt;- rlmer(emot_dysreg ~ crq * int + age + (1 | schoolid), data = crq)
+summary(mymodelr)$coefficients
+```
+
+```
+##                  Estimate Std. Error t value
+## (Intercept)       1.01142   0.153154   6.604
+## crq              -0.13198   0.018039  -7.317
+## intTreatment     -0.33984   0.159706  -2.128
+## age               0.27408   0.007374  37.171
+## crq:intTreatment  0.07173   0.025609   2.801
+```
+]
+
 
 ---
 # When things look wrong
 
-## bootstrap
+### __Bootstrap?__
+
+basic idea: 
+
+1. do many many times:  
+    &amp;ensp;a. take a sample (e.g. sample with replacement from your data, or simulated from your model parameters)  
+    &amp;ensp;b. fit the model to the sample  
+2. then:  
+    &amp;ensp;a. based on all the models fitted in step 1, obtain a distribution of parameter estimate of interest.  
+    &amp;ensp;b. based on the bootstrap distribution from 2a, compute a confidence interval for estimate.  
+    &amp;ensp;c. celebrate  
+
+--
+
+why?
+
+- doesn't make distributional assumptions about our _data_, and so can lead to more accurate inferences for small sample sizes and when the data are not well behaved.
+- a way of simulating a *sampling distribution*
+    - sampling distribution of x = "probability of obtaining different values of x if we were to collecting a new sample and calculate x". 
 
 
+---
+# Bootstrap: What do we (re)sample?
 
+resample based on the estimated distributions of parameters?  
+  - assumes explanatory variables are fixed, model specification and the distributions (e.g. `\(\zeta \sim N(0,\sigma_{\zeta})\)` and `\(\varepsilon \sim N(0,\sigma_{\varepsilon})\)`) are correct.  
+
+--
+
+resample residuals
+  - `\(y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}\)`
+  - assumes explanatory variables are fixed, and model specification is correct. 
+  
+
+--
+
+resample cases
+  - **minimal** assumptions - that we have correctly specified the hierarchical structure of data
+  - **But** do we resample:
+      - observations?
+      - clusters?
+      - both?
+      
+---
+# Bootstrap: Parametric
+
+
+```r
+reducedmodel &lt;- lmer(emot_dysreg ~ crq + age + (1 | schoolid), data = crq)
+mymodel &lt;- lmer(emot_dysreg ~ crq + age + int + (1 | schoolid), data = crq)
+```
+
+- bootstrap LRT
+    
+    ```r
+    library(pbkrtest)
+    PBmodcomp(mymodel, reducedmodel)
+    ```
+
+- bootstrap CIs
+    
+    ```r
+    confint(mymodel, method="boot")
+    ```
+
+--
+
+- __lmeresampler__ package bootstrap() function
+    
+    ```r
+    library(lmeresampler)
+    mymodelBS &lt;- bootstrap(mymodel, .f = fixef, type = "parametric", B = 2000)
+    confint(mymodelBS, type = "norm")
+    ```
+
+.footnote[At time of writing, there is a minor bug with the version of **lmeresampler** that you can download from CRAN, so we recommend installing directly from the package maintainer: `devtools::install_github("aloy/lmeresampler")`]
+
+---
+# Bootstrap: Cases
+.pull-left[
+
+```r
+# devtools::install_github("aloy/lmeresampler")
+library(lmeresampler)
+# resample only children, not schools
+mymodelBScase &lt;- bootstrap(mymodel, .f = fixef, 
+                           type = "case", B = 2000, 
+                           resample = c(FALSE, TRUE))
+summary(mymodelBScase)
+```
+
+
+&lt;!-- If the level-2 units are individuals and the level-1 units are repeatedmeasures of some variables for these individuals [58, 59, 66], it makessense to resample only the individuals and keep the values of they,X,andZvariables constant for each individual. Thus, only level-2 units areresampled and once a level-2 unit enters the bootstrap sample, all level-1units within this level-2 unit are collected from the original sample andare not resampled. --&gt;
+
+&lt;!-- If the level-2 units are countries and the level-1 units are individualsfrom these countries, it makes sense to resample only the individuals andkeep the countries and the country-specific (level-2) variables constant.Now only level-1 units are resampled within each level-2 unit. The level-2 units and their variables are taken from the original sample and are notresampled. --&gt;
+
+]
+.pull-right[
+
+```r
+confint(mymodelBScase, type = "basic")
+```
+]
+
+.footnote[For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
+For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11 ]
+
+---
+count:false
+# Bootstrap: Cases
+.pull-left[
+
+```r
+# devtools::install_github("aloy/lmeresampler")
+library(lmeresampler)
+# resample only children, not schools
+mymodelBScase &lt;- bootstrap(mymodel, .f = fixef, 
+                           type = "case", B = 2000, 
+                           resample = c(FALSE, TRUE))
+summary(mymodelBScase)
+```
+
+
+]
+.pull-right[
+
+```r
+plot(mymodelBScase,"intTreatment")
+```
+]
+
+.footnote[For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
+For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11 ]
 
 ---
 # Summary
+
+TODO 
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -182,72 +606,205 @@ class: inverse, center, middle, animated, rotateInDownLeft
 class: inverse, center, middle
 
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Assumptions&lt;/h2&gt;
-&lt;h2&gt;Part 2: Bootstrapping MLM&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Case Diagnostics in MLM&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Random Effect Structures&lt;/h2&gt;
+&lt;h2&gt;Part 2: Case Diagnostics in MLM&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Random Effect Structures&lt;/h2&gt;
 
 ---
-# What is "bootstrapping" again?
+# Influence
 
-basic idea: 
+Just like standard `lm()`, observations can have unduly high influence on our model through a combination of high leverage and outlyingness. 
 
-1. take a sample (with replacement) from your data
-2. fit the model to your new sample
-3. based on all the models fitted in step 2, obtain a distribution of parameter estimate of interest. 
-4. based on the bootstrap distribution in step 3, compute a confidence interval for estimate
-5. celebrate
-
-why?
-
-- a way of simulating a *sampling distribution*
-- sampling distribution of x = what x would be if we collected a new sample and calculated x. 
+&lt;img src="03_assumptdiag_files/figure-html/unnamed-chunk-43-1.png" style="display: block; margin: auto;" /&gt;
 
 ---
+# multiple levels...
 
-# What do we (re)sample?
+- Both observations (level 1 units) __and__ clusters (level 2+ units) can be influential. 
 
-resample based on the estimated distributions of parameters?  
-  - assumes explanatory variables are fixed, model specification and the distributions (e.g. `\(\zeta \sim N(0,\sigma_{\zeta})\)` and `\(\varepsilon \sim N(0,\sigma_{\varepsilon})\)`) are correct.  
-  
-resample residuals
-  - `\(y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}\)`
-  - assumes explanatory variables are fixed, and model specification is correct. 
-  
-resample cases?
-  - minimal assumptions - just that we correctly specify hierarchical dependency of data
-  - BUT. do we resample:
-      - observations?
-      - clusters?
-      - both?
-resample wildly!
+--
 
+- several packages, but current recommendation is **HLMdiag:** http://aloy.github.io/HLMdiag/index.html 
+
+
+---
+# Level 1 influential points
+
+.pull-left[
+
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq + age + 
+                  int + (1 | schoolid), 
+                data = crq)
+qqmath(mymodel, id=0.05)
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-44-1.png)&lt;!-- --&gt;
+]
+
+--
+
+.pull-right[
+
+```r
+library(HLMdiag)
+infl &lt;- hlm_influence(mymodel, level = 1)
+infl
+```
+
+```
+## # A tibble: 174 × 11
+##       id emot_dysreg   crq   age int       schoolid     cooksd    mdffits covtrace covratio leverage.overall
+##    &lt;int&gt;       &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;fct&gt;     &lt;fct&gt;         &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;            &lt;dbl&gt;
+##  1     1        4.12  1.92    14 Treatment school1  0.0000660  0.0000659  0.000869     1.00            0.108
+##  2     2        3.22  1.65    11 Treatment school1  0.00749    0.00734    0.0194       1.02            0.124
+##  3     3        4.86  3.56    16 Treatment school1  0.0185     0.0180     0.0252       1.03            0.129
+##  4     4        4.79  1.45    16 Treatment school1  0.0000195  0.0000192  0.0169       1.02            0.122
+##  5     5        3.58  0.81    12 Treatment school1  0.00692    0.00679    0.0185       1.02            0.123
+##  6     6        4.41  2.71    15 Treatment school1  0.00000410 0.00000407 0.00601      1.01            0.112
+##  7     7        4.23  3.01    14 Treatment school1  0.00104    0.00104    0.00620      1.01            0.112
+##  8     8        3.66  1.61    12 Treatment school1  0.000102   0.000101   0.00897      1.01            0.115
+##  9     9        4.22  2.17    14 Treatment school1  0.00000750 0.00000750 0.000568     1.00            0.107
+## 10    10        4.42  2.28    14 Treatment school2  0.000254   0.000253   0.00466      1.00            0.124
+## # … with 164 more rows
+```
+]
+
+---
+count:false
+# Level 1 influential points
+
+.pull-left[
+
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq + age + 
+                  int + (1 | schoolid), 
+                data = crq)
+qqmath(mymodel, id=0.05)
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-46-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+
+```r
+infl1 &lt;- hlm_influence(mymodel, level = 1)
+dotplot_diag(infl1$cooksd, cutoff = "internal")
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-47-1.png)&lt;!-- --&gt;
+]
+
+---
+# Level 2 influential clusters
+
+.pull-left[
+
+```r
+mymodel &lt;- lmer(emot_dysreg ~ crq + age + 
+                  int + (1 | schoolid), 
+                data = crq)
+qqmath(mymodel, id=0.05)
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-48-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+
+```r
+infl2 &lt;- hlm_influence(mymodel, level = "schoolid")
+dotplot_diag(infl2$cooksd, cutoff = "internal", index=infl2$schoolid)
+```
+![](03_assumptdiag_files/figure-html/unnamed-chunk-50-1.png)&lt;!-- --&gt;
+]
+
+---
+# What to do?
+
+- In this context (children from schools), I would be inclined not to worry too much about the individual children who have high values on cook's distance, __if__ we plan on bootstrapping our inferential tests (and plan on resampling the level 1 units - the children). 
+
+--
+
+- It's worth looking into school 6 a bit further. 
+
+--
+
+- `mdffits` is a measure of multivariate "difference in fixed effects"
+    
+    ```r
+    infl2 %&gt;% arrange(desc(mdffits))
+    ```
+    
+    ```
+    ## # A tibble: 20 × 6
+    ##    schoolid  cooksd mdffits covtrace covratio leverage.overall
+    ##    &lt;fct&gt;      &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;            &lt;dbl&gt;
+    ##  1 school6  0.369   0.330      0.253     1.27            0.107
+    ##  2 school8  0.144   0.128      0.245     1.26            0.131
+    ##  3 school17 0.134   0.121      0.267     1.29            0.108
+    ##  4 school1  0.112   0.104      0.193     1.20            0.117
+    ##  5 school4  0.116   0.103      0.267     1.29            0.111
+    ##  6 school5  0.108   0.0992     0.239     1.26            0.129
+    ##  7 school11 0.107   0.0990     0.229     1.24            0.110
+    ##  8 school7  0.0767  0.0701     0.283     1.31            0.148
+    ##  9 school18 0.0730  0.0675     0.118     1.12            0.126
+    ## 10 school16 0.0680  0.0620     0.195     1.21            0.122
+    ## 11 school15 0.0522  0.0503     0.185     1.19            0.122
+    ## 12 school20 0.0451  0.0426     0.242     1.26            0.105
+    ## 13 school2  0.0427  0.0411     0.148     1.15            0.171
+    ## 14 school9  0.0420  0.0405     0.186     1.20            0.122
+    ## 15 school12 0.0281  0.0259     0.256     1.28            0.126
+    ## 16 school14 0.0265  0.0255     0.208     1.22            0.106
+    ## 17 school3  0.0129  0.0116     0.218     1.23            0.118
+    ## 18 school19 0.0100  0.00949    0.246     1.27            0.108
+    ## 19 school13 0.00844 0.00784    0.197     1.21            0.120
+    ## 20 school10 0.00578 0.00559    0.199     1.21            0.237
+    ```
+
+
+---
+count:false
+# What to do?
+
+- In this context (children from schools), I would be inclined not to worry too much about the individual children who have high values on cook's distance, __if__ we plan on bootstrapping our inferential tests (and plan on resampling the level 1 units - the children). 
+
+- It's worth looking into school 6 a bit further. 
+
+- examine fixed effects upon deletion of schools 6
+    
+    ```r
+    delete6 &lt;- case_delete(mymodel, level = "schoolid", type = "fixef", delete = "school6")
+    cbind(delete6$fixef.original, delete6$fixef.delete)
+    ```
+    
+    ```
+    ##                 [,1]     [,2]
+    ## (Intercept)   0.9563  1.06034
+    ## crq          -0.1004 -0.08985
+    ## age           0.2727  0.26519
+    ## intTreatment -0.1520 -0.18202
+    ```
+
+---
+# Sensitivity Analysis?
+
+Would our conclusions change if we excluded these schools?  
+
+
+```r
+mymodelrm6 &lt;- lmer(emot_dysreg ~ crq + age +
+                  int + (1 | schoolid), 
+                data = crq %&gt;% 
+                  filter(!schoolid %in% c("school6")))
+mymodelrm6BS &lt;- bootstrap(mymodelrm6, .f = fixef, 
+                           type = "case", B = 2000, 
+                           resample = c(FALSE, TRUE))
+confint(mymodelrm6BS, type = "basic")
+```
 
 ---
 # Summary
 
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End of Part 2
-
----
-class: inverse, center, middle
-
-
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Assumptions&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Bootstrapping MLM&lt;/h2&gt;
-&lt;h2&gt;Part 3: Case Diagnostics in MLM&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Random Effect Structures&lt;/h2&gt;
-
-
-hlmdiag
-influence.me
-http://aloy.github.io/HLMdiag/index.html 
-
----
-# Summary
-
+TODO
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -258,53 +815,295 @@ class: inverse, center, middle, animated, rotateInDownLeft
 class: inverse, center, middle
 
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Assumptions&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Bootstrapping MLM&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Case Diagnostics in MLM&lt;/h2&gt;
-&lt;h2&gt;Part 4: Random Effect Structures&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Case Diagnostics in MLM&lt;/h2&gt;
+&lt;h2&gt;Part 3: Random Effect Structures&lt;/h2&gt;
 
+---
+# What have we seen so far?
+
+- children within schools
+
+- birds within gardens
+
+- measurements within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+&lt;!-- - suppose we have data from various schools. now consider a random child in our dataset. does she attend multiple schools, or just the one?  --&gt;
 
 ---
 # Nested
 
-biostats
-chicks in nests in trees in fields in ... 
-education
-children in classes in schools in districts in ... 
+- the level `\(j\)` observations in a level `\(i\)` group belong __only__ to that level `\(i\)` group. 
 
-nesting: the level n objects in a level n+1 group belong _only_ to that level n+1 group.
+--
+
+&lt;img src="https://media.gettyimages.com/photos/albatross-chick-between-parents-feet-falkland-islands-picture-id642348358?s=2048x2048" width="450px" style="display: block; margin: auto;" /&gt;
+
+---
+count:false
+# Nested
+
+- the level `\(j\)` observations in a level `\(i\)` group belong __only__ to that level `\(i\)` group.  
+
+- __`(1 | school/class)`__ or __`(1 | school) + (1 | class:school)`__
+
+&lt;img src="jk_img_sandbox/structure_id.png" width="1460" style="display: block; margin: auto;" /&gt;
+
+---
+count:false
+# Nested
+
+- the level `\(j\)` observations in a level `\(i\)` group belong __only__ to that level `\(i\)` group.  
+
+- If labels are unique, __`(1 | school) + (1 | class)`__ is the same as __`(1 | school/class)`__  
+
+&lt;img src="jk_img_sandbox/structure_nested.png" width="1460" style="display: block; margin: auto;" /&gt;
 
 ---
 # Crossed
 
-everything else!
+- "crossed" = not nested!
+
+--
+
+- __`(1 | school) + (1 | class)`__  
+
+&lt;img src="jk_img_sandbox/structure_crossed.png" width="668" height="450px" style="display: block; margin: auto;" /&gt;
 
 ---
-# Maximal structures
+# Fixed or random
 
-- minimum number of groups?
-- 5 or 6?
+.pull-left[
+
+| Criterion: | Repetition: &lt;br&gt; _If the experiment were repeated:_ | Desired inference: &lt;br&gt; _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed effects  | &lt;center&gt;Same levels would be used&lt;/center&gt;     |    &lt;center&gt;The levels used &lt;/center&gt;                                   |
+| Random effects | &lt;center&gt;Different levels would be used&lt;/center&gt;   | &lt;center&gt;A population from which the levels used&lt;br&gt; are just a (random) sample&lt;/center&gt; |
+
+]
+
+--
+
+.pull-right[
+
+- If only small number of clusters, estimating variance components may be unstable.  
+
+- Partialling out cluster-differences as fixed effects *may* be preferable. 
+
+]
 
 ---
-# ranef correlations
+# Maximal Structures
+
+- "maximal" = the most complex random effect structure that you can fit to the data
+
+--
+
+- requires sufficient variance at all levels (for both intercepts and slopes where relevant). Which is often not the case.  
+
+--
+
+.pull-left[
+16 items each occur in 4 different combinations:  
+condition A vs B `\(\times\)` type 1 vs 2.  
+40 participants see all items in all conditions (64 trials each participant).
+
+
 
 
 ```r
-plot_model(full_model, type="re", grid = TRUE)
+mmod &lt;- lmer(outcome ~ condition * type + 
+          (1 + condition * type | ppt) + 
+          (1 + condition * type | item), 
+        data = kelly)
 ```
 
-![](03_assumptdiag_files/figure-html/unnamed-chunk-7-1.png)&lt;!-- --&gt;
+```
+## boundary (singular) fit: see ?isSingular
+```
+]
+.pull-left[
 
+```r
+maxmodel &lt;- lmer(emot_dysreg ~ crq + age + int + 
+                   (1 + crq + age| schoolid), 
+                 data = crq)
+```
+
+```
+## Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv, : Model failed to converge with
+## max|grad| = 0.00275817 (tol = 0.002, component 1)
+```
+]
+
+---
+# correlations between random effects
+
+
+```
+##  Groups   Name             Std.Dev. Corr             
+##  ppt      (Intercept)       91.7                     
+##           conditionB        59.1    -0.21            
+##           type2             27.6     0.25 -0.42      
+##           conditionB:type2  22.4    -0.32 -0.86  0.27
+##  item     (Intercept)       37.1                     
+##           conditionB        35.8    -0.18            
+##           type2             20.3     0.13 -0.40      
+##           conditionB:type2  65.6     0.25  0.27 -0.92
+##  Residual                  203.2
+```
+
+---
+count:false
+# correlations between random effects
+
+.pull-left[
+__perfect correlations__
+
+
+
+```r
+m1 &lt;- lmer(y ~ 1 + x1 + 
+             (1 + x1 | clusterid), data = df)
+VarCorr(m1)
+```
+
+```
+##  Groups    Name        Std.Dev. Corr
+##  clusterid (Intercept) 0.759        
+##            x1          0.117    1.00
+##  Residual              0.428
+```
+
+```
+## $clusterid
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-64-1.png)&lt;!-- --&gt;
+]
+
+--
+
+.pull-right[
+__zero correlations__
+
+
+```r
+zcpmodel &lt;- lmer(y ~ 1 + x1 + 
+                   (1 + x1 || clusterid), data = df)
+VarCorr(zcpmodel)
+```
+
+```
+##  Groups      Name        Std.Dev.
+##  clusterid   (Intercept) 0.751   
+##  clusterid.1 x1          0.104   
+##  Residual                0.432
+```
+
+```
+## $clusterid
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-66-1.png)&lt;!-- --&gt;
+
+]
+
+---
+count:false
+# correlations between random effects
+
+.pull-left[
+__perfect correlations__
+
+
+
+```r
+m1 &lt;- lmer(y ~ 1 + x1 + 
+             (1 + x1 | clusterid), data = df)
+VarCorr(m1)
+```
+
+```
+##  Groups    Name        Std.Dev. Corr
+##  clusterid (Intercept) 0.759        
+##            x1          0.117    1.00
+##  Residual              0.428
+```
+
+```
+## $clusterid
+```
+
+![](03_assumptdiag_files/figure-html/unnamed-chunk-69-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+__zero correlations__
+
+
+```r
+zcpmodel &lt;- lmer(y ~ 1 + x1 + 
+                   (1 + x1 || clusterid), data = df)
+VarCorr(zcpmodel)
+```
+
+```
+##  Groups      Name        Std.Dev.
+##  clusterid   (Intercept) 0.751   
+##  clusterid.1 x1          0.104   
+##  Residual                0.432
+```
+
+When should we remove them?
+
+{{content}}
+
+]
+
+--
+ 
+__When it makes theoretical sense to do so.__
 
 
 ---
 # Model Convergence
 
+- Don't report results from a model that doesn't converge. You cannot trust the estimates. 
+
+--
+
+- Try a different optimiser, adjust the max iterations, or the stopping tolerances
+
+&lt;img src="jk_img_sandbox/tolerance.png" width="557" /&gt;
 
 ---
+count:false
+# Model Convergence
+
+- Don't report results from a model that doesn't converge. You will probably not be able to trust the estimates. 
+
+- Try a different optimiser, adjust the max iterations, or the stopping tolerances
+
+&lt;br&gt;&lt;br&gt;
+
+- Remove random effects with least variance until model converges (see Barr et al., 2013)
+
+- Use a criterion for model selection to choose a random effect structure that is supported by the data (see Matsuchek et al., 2017)
+
+--
+
+- __No right answer__
 
 
 ---
 # Summary
+
+TODO
+
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft

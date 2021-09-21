@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Centering Predictors Generalisations</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Josiah King, Umberto Noè, Tom Booth" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+# <b>Centering Predictors<br>Generalisations</b>
+## Data Analysis for Psychology in R 3
+### Josiah King, Umberto Noè, Tom Booth
+### Department of Psychology<br/>The University of Edinburgh
+### AY 2021-2022
+
+---
+
+
+
+
+
+
+
+class: inverse, center, middle
+
+&lt;h2&gt;Part 1: Centering Predictors&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: GLMM&lt;/h2&gt;
+
+
+---
+# Centering predictors in LM
+
+.pull-left[
+
+
+
+```r
+m1 &lt;- lm(y~x,data=df)
+m2 &lt;- lm(y~scale(x),data=df)
+m3 &lt;- lm(y~scale(x, center=T,scale=F),data=df)
+m4 &lt;- lm(y~I(5-x), data=df)
+anova(m1,m2,m3,m4)
+```
+
+```
+## Analysis of Variance Table
+## 
+## Model 1: y ~ x
+## Model 2: y ~ scale(x)
+## Model 3: y ~ scale(x, center = T, scale = F)
+## Model 4: y ~ I(5 - x)
+##   Res.Df RSS Df Sum of Sq F Pr(&gt;F)
+## 1    198 177                      
+## 2    198 177  0         0         
+## 3    198 177  0         0         
+## 4    198 177  0         0
+```
+]
+--
+.pull-right[
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-3-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Big-fish little pond.. 
+
+__things are different when we have clustered data__  
+
+
+
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-5-1.png" style="display: block; margin: auto;" /&gt;
+
+
+???
+is it better to be a big fish?
+
+---
+count:false
+# Big-fish little pond 
+
+__things are different when we have clustered data__  
+
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-6-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+# Centering predictors in MLM
+
+
+
+&lt;br&gt; 
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
+
+---
+count:false
+# Centering predictors in MLM
+
++ grand mean centering - doesn't do anything
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-9-1.png)&lt;!-- --&gt;
+
+---
+count:false
+# Centering predictors in MLM
+
++ groups may have different mean values for a predictor.
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+
+---
+# Centering predictors in MLM
+
++ groups may have different mean values for a predictor.
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-11-1.png)&lt;!-- --&gt;
+
+---
+# Separating out within and between effects
+
+.pull-left[
+
+&lt;center&gt;__ `\(\bar{x}_i\)` __&lt;/center&gt;
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-12-1.png" style="display: block; margin: auto;" /&gt;
+]
+.pull-right[
+&lt;center&gt;__ `\(x_{ij} - \bar{x}_i\)` __&lt;/center&gt; 
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-13-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Separating out within and between effects
+### Big-fish little pond 
+
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-14-1.png" style="display: block; margin: auto;" /&gt;
+
+
+
+---
+# Separating out within and between effects
+
+.pull-left[
+**RE model**  
+$$
+`\begin{align}
+y_{ij} &amp;= \beta_{0i} + \beta_{1}(x_j) + \varepsilon_{ij} \\
+\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}`
+$$
+
+
+
+```r
+rem &lt;- lmer(tgu ~ phys + 
+              (1 | patient), data=tgudat)
+fixef(rem)
+```
+
+```
+## (Intercept)        phys 
+##    24.60723    -0.07214
+```
+
+
+]
+
+.pull-right[
+**Within-between model**  
+$$
+`\begin{align}
+y_{ij} &amp;= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}`
+$$
+
+
+```r
+tgudat &lt;- 
+  tgudat %&gt;% group_by(patient) %&gt;%
+    mutate(
+      physgrpm = mean(phys),
+      physgrpc = phys - mean(phys)
+    ) %&gt;% ungroup
+
+wbm &lt;- lmer(tgu ~ physgrpm + physgrpc + 
+              (1 | patient), data=tgudat)
+fixef(wbm)
+```
+
+```
+## (Intercept)    physgrpm    physgrpc 
+##    30.88732    -0.19021    -0.06334
+```
+
+
+
+]
+
+???
+Problems, however, arise if you fail to include the group means in the model when using the raw scale or grand-mean centered predictor. If you do that, you will get a mish mosh effect estimate for the Level 1 predictor that represents neither represents the between-group nor the within-group effect. Instead, it confounds these two effects together into a single value that may not resemble either. To make matters worse, this mish mosh also doesn’t represent the total effect, as it weights the within- and between-group effects differently. The obtained estimate is difficult to interpret, outside of a few special cases.
+
+---
+# Separating out within and between effects
+
+.pull-left[
+**Within-between model**  
+$$
+`\begin{align}
+y_{ij} &amp;= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}`
+$$
+
+
+```r
+tgudat &lt;- 
+  tgudat %&gt;% group_by(patient) %&gt;%
+    mutate(
+      physgrpm = mean(phys),
+      physgrpc = phys - mean(phys)
+    ) %&gt;% ungroup
+
+wbm &lt;- lmer(tgu ~ physgrpm + physgrpc + 
+              (1 | patient), data=tgudat)
+fixef(wbm)
+```
+
+```
+## (Intercept)    physgrpm    physgrpc 
+##    30.88732    -0.19021    -0.06334
+```
+
+
+]
+
+.pull-right[
+
+```r
+broom.mixed::augment(wbm) %&gt;%
+  ggplot(.,aes(x=physgrpm+physgrpc, y=.fitted, group=patient))+
+  geom_line() +
+  themedapr3()
+```
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-18-1.png)&lt;!-- --&gt;
+]
+
+---
+# Summary
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Centering Predictors&lt;/h2&gt;
+&lt;h2&gt;Part 2: GLMM&lt;/h2&gt;
+
+---
+# Recall lm() and glm()
+
+.pull-left[
+lm() is for gaussian/"normal" outcomes
+
+$y ~ xb + $
+
+]
+.pull-right[
+
+glm() is more generalised. 
+
+glm(y~x, family = gaussian) = lm()
+glm(y~x, family = binomial(link = "logit"))
+
+link function to model outcomes different distributions
+
+]
+
+---
+# lmer() and glmer()
+
+.pull-left[
+lmer() is for gaussian/"normal" outcomes
+
+`\(y ~ xb + e\)`  
+
+] 
+.pull-right[
+
+glmer() is more generalised. 
+
+glmer(y~x, family = gaussian) = lmer
+glmer(y~x, family = binomial(link = "logit"))
+
+link function to model outcomes different distributions
+
+]
+
+---
+# fitting a glmer()
+
+
+
+
+
+
+
+
+---
+# glmer fits can be tricky
+
+scale parameters may help
+why? think of a bowl, trying to find min point.
+
+
+---
+# interpretation
+
+- model is non-linear (logit)
+- effects are conditional upon random effects
+
+???
+this means that effects are cluster-specific. 
+effects for subjects with the same random effect value
+
+
+---
+# Population average vs Cluster Specific  
+
+- **Population average** effects are the association between `\(x\)` and `\(y\)`, averaged over clusters
+
+- **Cluster specific** effects are the association between `\(x\)` and `\(y\)`, *holding the cluster constant*. 
+
+&lt;!-- cluster specific:  --&gt;
+&lt;!-- represents the odds of the person being employed if married compared with the odds of the SAME person being employed if not married. --&gt;
+
+&lt;!-- population average: --&gt;
+&lt;!-- represents the odds of an AVERAGE married person being employed compared with the odds of an AVERAGE unmarried person being employed. --&gt;
+
+&lt;!-- Rather than saying “AVERAGE”, sometimes I speak loosely and say the odds of a married person “picked at random” being employed compared with the odds of another unmarried person “picked at random” being employed. --&gt;
+
+---
+# why?
+
+consider..
+
+identity link function   
+`lmer(respiratory_rate ~ treatment + (1|hospital))`
+
+patient `\(j\)` from hospital `\(i\)` = control  
+patient `\(j'\)` from hospital `\(i'\)` = treatment  
+
+how does our model explain difference in outcome between patient `\(j\)` and patient `\(j'\)`?  
+outcome for patient `\(j'\)` should be the "the effect of having treatment" plus the random effect differences between hospitals i and i'  
+
+model for patient `\(j\)` from hospital `\(i\)`  
+`\(\hat{y}_{ij} = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
+
+model for patient `\(j'\)` from hospital `\(i'\)`  
+`\(\hat{y}_{i'j'} = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
+
+difference:  
+`\(\hat{y}_{i'j'} - \hat{y}_{ij} = \beta_1 + (\zeta_{0i'} - \zeta_{0i})\)`
+
+
+
+???
+the zeta differences here will be, on average 0. 
+hist(replicate(1000, mean(map_dbl(combn(rnorm(100),2, simplify=F), diff))),breaks=20)
+
+
+---
+# why?
+
+consider..
+
+non-linear link function  
+`glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+
+patient j from hospital i = control  
+patient j' from hospital i' = treatment  
+we're now modeling difference __in probability of outcome__ between patient j and patient j'?  
+probability of outcome for patient j' is "the effect of having treatment" plus the random effect differences between hospitals i and i'  
+
+model for patient X from hospital `\(i\)`  
+`\(log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
+
+model for patient Y from hospital `\(i'\)`  
+`\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
+
+difference (log odds):  
+`\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) - log \left( \frac{p_{ij}}{1 - p_{ij}} \right) = \beta_1 + (\zeta_{0i'} - \zeta_{0i})\)`
+
+---
+# why?
+
+consider..
+
+non-linear link function 
+`glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+
+patient j from hospital i = control  
+patient j' from hospital i' = treatment  
+we want the difference between patients x and y to be "the effect of having treatment", plus the adjustment between hospitals i and i'  
+
+model for patient X from hospital `\(i\)`  
+`\(log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
+
+model for patient Y from hospital `\(i'\)`  
+`\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
+
+difference (odds ratio):  
+`\(\frac{p_{i'j'}/(1 - p_{i'j'})}{p_{ij}/(1 - p_{ij})} = \exp(\beta_1 + (\zeta_{0i'} - \zeta_{0i})) \neq \exp(\beta_1)\)`
+
+
+
+
+---
+# interpreting coefficients in glmer
+
+`glmer(needs_op ~ treatment + (1|hospital), family="binomial")` 
+
+Hence, the interpretation of `\(e^{\beta_1}\)` is not the odds ratio for the effect of treatment averaged over hospitals, but rather for patients from the same hospital. 
+
+---
+# coefficients with an identity link (lm/lmer)
+
+coef(lm(y~x,d))
+`\(\beta\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit and all other covariates are fixed.
+
+ in lmer()
+`\(\beta\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit.
+
+Advantageous feature: population + cluster-specific predictions
+ `\(\gamma\)` describes mean changes in the population
+ `\(\gamma + \zeta_i\)` describes individual cluster effects
+ 
+in glmm
+ `\(e^{\gamma + \zeta_i}\)` describes individual cluster effects
+ `\(e^\gamma\)` describes mean effect in the population, holding cluster constant
+ 
+ 
+
+
+```
+## (Intercept)       slope 
+##     4.43772    -0.05166
+```
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-21-1.png)&lt;!-- --&gt;
+
+
+---
+# Summary
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+ 
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
