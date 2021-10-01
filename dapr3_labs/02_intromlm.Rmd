@@ -545,26 +545,42 @@ If we wish to use a more robust test, we might use the `PBmodcomp()` function fr
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-
+This is our null model:
 ```{r}
-m.null <- lmer(WeightChange ~ 1 + (1 + Assessment | ID), data=WeightMaintain3)
-m.base <- lmer(WeightChange ~ Assessment + (1 + Assessment | ID), data=WeightMaintain3)
+m.null <- lmer(WeightChange ~ 1 + (1 | ID), data=WeightMaintain3)
+summary(m.null)
+```
+We can see the `3.77 / (3.77 + 6.43)`, or `r (3.77 / (3.77 + 6.43)) %>% round(.,2)` of the total variance is attributable to participant-level variation. 
 
+Now lets suppose we want to compare this null model with a model with an effect of `Assessment` (to assess whether there is overall change over time).
+Which model should we compare `m.null` to?  
+```{r}
+modA <- lmer(WeightChange ~ 1 + Assessment + (1 + Assessment | ID), data=WeightMaintain3)
+modB <- lmer(WeightChange ~ 1 + Assessment + (1 | ID), data=WeightMaintain3)
+```
+A comparison between these `m.null` and `modA` will not be assessing the influence of _only_ the fixed effect of Assessment. Remember, we shouldn't compare models with different random effect structures.   
+However, `modB` doesn't include our by-participant random effects of assessment, so comparing this to `m.null` is potentially going to misattribute random deviations in participants' change to being an overall effect of assessment.  
+
+If we want to conduct a model comparison to establish whether there is a significant overall change over time (a fixed effect of `Assessment`), we _might_ want to isolate the fixed effect by comparing these two models:
+```{r}
+m.base0 <- lmer(WeightChange ~ 1 + (1 + Assessment | ID), data=WeightMaintain3)
+m.base <- lmer(WeightChange ~ 1 + Assessment + (1 + Assessment | ID), data=WeightMaintain3)
 # Straightforward LRT
-anova(m.null, m.base)
+anova(m.base0, m.base)
 ```
 ```{r eval=F}
 # parametric bootstrap LRT
 library(pbkrtest)
-PBmodcomp(m.base, m.null)
+PBmodcomp(m.base, m.base0)
 ```
 ```{r echo=FALSE}
 load("data/02intromlm_pbmod.rdata")
+res0$test
 ```
 
 :::int
 
-Parametric Bootstrap Likelihood Ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( $\chi^2(1)$ = `r round(res$test$stat[2],2)`, `r ifelse(res$test$p.value[2]<.001, "p < .001", paste0("p = ",round(res$test$p.value[2], 3)))`), suggesting that participants' weights changed over course of 36 month assessment period. 
+Parametric Bootstrap Likelihood Ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( $\chi^2(1)$ = `r round(res0$test$stat[2],2)`, `r ifelse(res0$test$p.value[2]<.001, "p < .001", paste0("p = ",round(res0$test$p.value[2], 3)))`), suggesting that participants' weights changed over course of 36 month assessment period. 
 
 :::
 
@@ -595,7 +611,7 @@ m.full <- lmer(WeightChange ~ Assessment*Condition + (Assessment | ID),
 We're going to compare each model to the previous one to examine the improvement in fit due to inclusion of each parameter. 
 We could do this quickly with
 ```{r}
-anova(m.null, m.base, m.int, m.full)
+anova(m.base0, m.base, m.int, m.full)
 ```
 :::int 
 Conditions differed overall in weight change $\chi^2(2)=9.4, p = .009$  
@@ -607,13 +623,13 @@ However, we may instead want to bootstrap this test instead (especially if we ha
 PBmodcomp(m.int, m.base)
 ```
 ```{r echo=FALSE}
-load("data/02intromlm_pbmod.rdata")
+res1$test
 ```
 ```{r eval=FALSE}
 PBmodcomp(m.full, m.int)
 ```
 ```{r echo=FALSE}
-load("data/02intromlm_pbmod.rdata")
+res2$test
 ```
 
 :::int 
