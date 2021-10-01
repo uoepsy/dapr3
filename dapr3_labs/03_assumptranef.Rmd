@@ -261,6 +261,45 @@ There are lots of different things which you could do which *might* help your mo
 
 :::
 
+
+`r qbegin("C1")`
+Recall Questions C1-C6 in last week's exercises, we used the `WeightMaintain3` dataset and fitted some models:
+
+```{r}
+load(url("https://uoepsy.github.io/data/WeightMaintain3.rda"))
+m.base <- lmer(WeightChange ~ Assessment + (1 + Assessment | ID), data=WeightMaintain3)
+m.int <- lmer(WeightChange ~ Assessment + Condition + (1 + Assessment | ID), data=WeightMaintain3)
+m.full <- lmer(WeightChange ~ Assessment * Condition + (1 + Assessment | ID), data=WeightMaintain3)
+```
+
+Many of these were singular fits, and we ignored them, e.g:
+```{r}
+isSingular(m.base)
+```
+Think carefully about how you might simplify the random effect structure for these models, and pay close attention to the study design. What do we think the baseline weight change should be? Should it be the same for everyone? If so, might we want to remove the random intercept, which we can do by setting it to 0.  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Think about what these models are fitting. Why (in this very specific research design) might it make sense to not model by-participant variation around the intercept?  
+The "baseline" visit is the starting point for the study, and (based on the description we were given) it doesn't make sense to think of participants' weights as having changed by their baseline visit - changed since when? As baseline is at the very start of the weight maintenance, it makes sense that we wouldn't have very much (if any) participant variation in change at this point. 
+Note that by removing the estimation of this parameter, our models now converge!
+```{r}
+m.base <- lmer(WeightChange ~ 1 + Assessment + (0 + Assessment | ID), data=WeightMaintain3)
+m.int <- lmer(WeightChange ~ 1 + Assessment + Condition + (0 + Assessment | ID), data=WeightMaintain3)
+m.full <- lmer(WeightChange ~ 1 + Assessment * Condition + (0 + Assessment | ID), data=WeightMaintain3)
+```
+
+```{r}
+isSingular(m.base)
+```
+
+
+`r solend()`
+
+
+
+
 # Random effects
 
 :::statbox
@@ -342,7 +381,7 @@ head(tx) %>%
 
 :::
 
-`r qbegin("C1")`
+`r qbegin("D1")`
 Load and visualise the data. Does it look like the treatment had an effect on the performance score?
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -366,7 +405,7 @@ ggplot(tx, aes(session, Score, color=group)) +
 
 
 
-`r qbegin("C2")`
+`r qbegin("D2")`
 Consider these questions when you're designing your model(s) and use your answers to motivate your model design and interpretation of results:  
 
 a. What are the levels of nesting? How should that be reflected in the random effect structure?
@@ -379,7 +418,7 @@ a. Looks like linear change, don't need polynomials. Good to know that there is 
 
 
 
-`r qbegin("C3")`
+`r qbegin("D3")`
 Test whether the treatment had an effect using mixed-effects modelling.  
 
 Try to fit the **maximal** model.  
@@ -409,7 +448,7 @@ isSingular(m1)
 
 
 
-`r qbegin("C4")`
+`r qbegin("D4")`
 Try adjusting your model by removing random effects or correlations, examine the model again, and so on..  
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -441,7 +480,7 @@ summary(m3)$coefficients
 
 
 
-`r qbegin('C5: Optional')`
+`r qbegin('D5: Optional')`
 
 Try the code below to use the `allFit()` function to fit your final model with all the available optimizers.^[If you have an older version of `lme4`, then `allFit()` might not be directly available, and you will need to run the following: `source(system.file("utils", "allFit.R", package="lme4"))`.]  
   
@@ -455,35 +494,6 @@ summary(sumfits)
 `r qend()` 
 
 
-`r qbegin("C6: Open-ended")`
-Recall Questions C1-C6 in last week's exercises, we used the `WeightMaintain3` dataset and fitted some models:
-
-```{r}
-load(url("https://uoepsy.github.io/data/WeightMaintain3.rda"))
-m.null <- lmer(WeightChange ~ 1 + (1 + Assessment | ID), data=WeightMaintain3)
-m.base <- lmer(WeightChange ~ Assessment + (1 + Assessment | ID), data=WeightMaintain3)
-m.int <- lmer(WeightChange ~ Assessment + Condition + (1 + Assessment | ID), data=WeightMaintain3)
-m.full <- lmer(WeightChange ~ Assessment * Condition + (1 + Assessment | ID), data=WeightMaintain3)
-```
-
-Many of these were singular fits, and we ignored them, e.g:
-```{r}
-isSingular(m.null)
-```
-Think carefully about how you might simplify the random effect structure for these models, and pay close attention to the study design. What do we think the baseline weight change should be? Should it be the same for everyon? If so, might we want to remove the random intercept, which we can do by setting it to 0.  
-
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
-Think about what these models are fitting. Why (in this very specific research design) might it make sense to not model an intercept, or by-participant variation around it?   
-```{r}
-m.null <- lmer(WeightChange ~ 0 + (0 + Assessment | ID), data=WeightMaintain3)
-m.base <- lmer(WeightChange ~ Assessment + (0 + Assessment | ID), data=WeightMaintain3)
-m.int <- lmer(WeightChange ~ Assessment + Condition + (0 + Assessment | ID), data=WeightMaintain3)
-m.full <- lmer(WeightChange ~ Assessment * Condition + (0 + Assessment | ID), data=WeightMaintain3)
-```
-
-`r solend()`
 
 
 
@@ -524,7 +534,7 @@ head(tel) %>%
 :::
 
 
-`r qbegin(6)`
+`r qbegin("E1")`
 Load and plot the data. Does it look like the effect was replicated?
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -553,7 +563,7 @@ That looks like test-enhanced learning to me!
 
 
 
-`r qbegin(7)`
+`r qbegin("E2")`
 Test the critical hypothesis using a mixed-effects model. Fit the maximal random effect structure supported by the experimental design.  
 
 Some questions to consider:  
@@ -574,7 +584,7 @@ m <- lmer(Rtime ~ Delay*Group +
 ```
 `r solend()` 
 
-`r qbegin(8)`
+`r qbegin("E3")`
 The model with maximal random effects will probably not converge, or will obtain a singular fit. Simplify the model until you achieve convergence.  
 <br>
 What we're aiming to do here is to follow [Barr et al.'s](https://doi.org/10.1016/j.jml.2012.11.001) advice of defining our maximal model and then removing only the terms to allow a non-singular fit.  
@@ -616,7 +626,7 @@ summary(m2)
 ```
 `r solend()` 
 
-`r qbegin(9)`
+`r qbegin("E4")`
 Load the **effects** package, and try running this code:
 ```{r}
 library(effects)
@@ -636,7 +646,7 @@ ggplot(ef, aes(Delay, fit, color=Group)) +
 
 `r solend()`
 
-`r qbegin(10)`
+`r qbegin("E5")`
 Can we get a similar plot using `plot_model()` from the __sjPlot__ package? 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -648,7 +658,7 @@ plot_model(m2, type="int")
 `r solend()`
  
 
-`r qbegin(11)`
+`r qbegin("E6")`
 What should we do with this information? How can we apply test-enhanced learning to learning R and statistics?
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -676,7 +686,7 @@ tibble(variable = names(bnt),
 
 :::
 
-`r qbegin()`
+`r qbegin("E7")`
 Fit a model examining the interaction between the effects of school year and mono/bilingual teaching on word retrieval, with random intercepts only for children and schools.  
 **tip:** make sure your variables are of the right type first - e.g. numeric, factor etc  
 <br>
@@ -754,7 +764,7 @@ dotplot_diag(infschool$cooksd, cutoff = "internal", index = infschool$school_id)
 ```
 `r solend()`
 
-`r qbegin()`
+`r qbegin("E8")`
 Using a method of your choosing, conduct inferences from your model and write up the results. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`

@@ -949,14 +949,14 @@ Question B2
 ##          -0.043283505</code></pre>
 <pre class="r"><code>confint(mod, method=&quot;boot&quot;)</code></pre>
 <pre><code>##                             2.5 %      97.5 %
-## .sig01                 0.92496838  1.61675289
-## .sig02                -0.91985997 -0.60678592
-## .sig03                 0.07445765  0.13447617
-## .sigma                 0.88472413  0.99339208
-## (Intercept)            4.34471775  5.63946919
-## stakes                -0.05552719  0.05471896
-## conditionmoney        -0.89997492  0.86317975
-## stakes:conditionmoney -0.12401637  0.02949021</code></pre>
+## .sig01                 0.90694121  1.63940249
+## .sig02                -0.91181158 -0.59581678
+## .sig03                 0.07506242  0.13275703
+## .sigma                 0.87462489  0.99434218
+## (Intercept)            4.30331105  5.62547439
+## stakes                -0.05346993  0.05260393
+## conditionmoney        -1.05445866  0.90371150
+## stakes:conditionmoney -0.11927525  0.03712472</code></pre>
 <p>The intercept is about 5, and there is no significant difference between the reward and money conditions, so both lines will start around 5 (the “money” line will be -0.04 lower). The coefficient for <code>stakes</code> is pretty much 0, so we know that the line for the reference group (condition = “kudos” will be fairly flat). The interaction indicates that when we move from the “kudos” to the “money” condition, we adjust the effect of <code>stakes</code> by -0.04, so the line for the “money” condition will be going slightly more downward than that for the “kudos” condition. However, 0 is well within the 95% CI for this interaction term, so we would expect the errorbars around the lines to be overlapping.</p>
 <pre class="r"><code>library(sjPlot)
 plot_model(mod, type = &quot;int&quot;)</code></pre>
@@ -1069,10 +1069,11 @@ Which model should we compare <code>m.null</code> to?</p>
 modB &lt;- lmer(WeightChange ~ 1 + Assessment + (1 | ID), data=WeightMaintain3)</code></pre>
 <p>A comparison between these <code>m.null</code> and <code>modA</code> will not be assessing the influence of <em>only</em> the fixed effect of Assessment. Remember, we shouldn’t compare models with different random effect structures.<br />
 However, <code>modB</code> doesn’t include our by-participant random effects of assessment, so comparing this to <code>m.null</code> is potentially going to misattribute random deviations in participants’ change to being an overall effect of assessment.</p>
-<p>If we want to conduct a model comparison to establish whether there is a significant overall change over time (a fixed effect of <code>Assessment</code>), we <em>might</em> want to isolate the fixed effect by comparing these two models:</p>
+<p>If we want to conduct a model comparison to isolate the effect of overall change over time (a fixed effect of <code>Assessment</code>), we <em>might</em> want to compare these two models:</p>
 <pre class="r"><code>m.base0 &lt;- lmer(WeightChange ~ 1 + (1 + Assessment | ID), data=WeightMaintain3)
-m.base &lt;- lmer(WeightChange ~ 1 + Assessment + (1 + Assessment | ID), data=WeightMaintain3)
-# Straightforward LRT
+m.base &lt;- lmer(WeightChange ~ 1 + Assessment + (1 + Assessment | ID), data=WeightMaintain3)</code></pre>
+<p>The first of these models is a bit weird to think about - how can we have by-participant random deviations of <code>Assessment</code> if we don’t have a fixed effect of <code>Assessment</code>? That makes very little sense. What it is actually fitting is a model where there is assumed to be <strong>no overall effect</strong> of Assessment. So the fixed effect is 0.</p>
+<pre class="r"><code># Straightforward LRT
 anova(m.base0, m.base)</code></pre>
 <pre><code>## Data: WeightMaintain3
 ## Models:
@@ -1215,7 +1216,7 @@ ggplot(ef, aes(Assessment, fit, color=Condition)) +
   stat_summary(data=WeightMaintain3, aes(y=WeightChange), 
                fun.data=mean_se, geom=&quot;pointrange&quot;, size=1) +
   theme_bw()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-33-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-34-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <ol start="2" style="list-style-type: decimal">
 <li>Using the <code>fitted()</code> function to extract and plot fitted values from the model:</li>
 </ol>
@@ -1223,7 +1224,7 @@ ggplot(ef, aes(Assessment, fit, color=Condition)) +
   stat_summary(fun.data=mean_se, geom=&quot;pointrange&quot;, size=1) + 
   stat_summary(aes(y=fitted(m.full)), fun=mean, geom=&quot;line&quot;) + 
   theme_bw()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-34-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-35-1.png" width="80%" style="display: block; margin: auto;" /></p>
 <ol start="3" style="list-style-type: decimal">
 <li>Or using <code>augment()</code>:</li>
 </ol>
@@ -1232,7 +1233,7 @@ ggplot(., aes(Assessment, WeightChange, color=Condition)) +
   stat_summary(fun.data=mean_se, geom=&quot;pointrange&quot;, size=1) + 
   stat_summary(aes(y=.fitted), fun=mean, geom=&quot;line&quot;) + 
   theme_bw()</code></pre>
-<p><img src="02_intromlm_files/figure-html/unnamed-chunk-35-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-36-1.png" width="80%" style="display: block; margin: auto;" /></p>
 </div>
 <p class="solution-end">
 </p>
