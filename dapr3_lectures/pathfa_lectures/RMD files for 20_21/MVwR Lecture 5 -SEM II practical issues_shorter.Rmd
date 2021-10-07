@@ -1,0 +1,471 @@
+---
+title: "Multivariate Statistics and Methodology using R"
+author: "Aja Murray; Aja.Murray@ed.ac.uk"
+output: slidy_presentation
+subtitle: Practical Issues in Structural Equation Modeling 
+---
+
+## This week
+
+- Techniques
+    - Full structural equation modeling with:
+        - Non-normal data
+        - Ordered-categorical items
+        - Missing data
+        
+- Functions
+  - sem( ) and cfa( ) from lavaan
+  
+- Reading
+    - lavaan tutorial: http://lavaan.ugent.be/tutorial/tutorial.pdf (sections 10 and 12)
+    - *SEM Practical Issues* on Learn
+    
+## Learning outcomes
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/learning outcomes.jpg)
+</center>
+- Know how to deal with non-normal data in SEM
+- Know how to fit structural equation models with ordered-categorical items
+- Understand the distinction between different missing data mechanisms and how to deal with missingness in SEM
+
+## SEM with continuous normally distributed items
+
+- Thus far we have been assuming that our items approximate continuous distributions
+- Justifiable if:
+    - We have a truly continuous measure OR
+    - We have at least 5 response options AND
+    - All 5 response options are used by participants AND
+    - The distribution of responses is close to a normal distribution
+    
+- If these conditions are met, we can happily use maximum likelihood estimation to fit our models
+
+## Why item distributions matter
+
+- In SEM, non-normality matters because SEM uses the sample covariance matrix 
+- The sample covariance matrix completely summarises the variation in observed variables only if there is multivariate normality
+- If not, information from higher-order moments (skewness, kurtosis) needs to be taken into account
+
+
+## SEM with continuous non-normally distributed items
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/Unicorn_article.png)
+</center>
+
+- Continuous but non-normal data is extremely common in psychology
+
+
+## SEM with continuous non-normally distributed items
+
+```{r create non-normal data, echo=F, warning=F, message=F}
+library(sn)
+skewed<-rsn(1000, alpha=10)
+d <- density(skewed) # returns the density data
+plot(d, main='', xlab='', ylab=' ') # plots the results
+```
+
+- Consequences of non-normality in SEM are:
+  - Model fit is underestimated
+  - Standard errors of parameter estimates are under-estimated
+  - Statistical significance is overestimated
+
+    
+    
+## Using a robust estimator for non-normally distributed items
+
+- Robust maximum likelihood estimation:
+    - Gives the same parameter estimates as ML
+    - Corrects the fit statistics using a **correction factor**
+    - The correction factor depends on the degree of non-normality
+    - More non-normality = a bigger correction
+    - Corrects the standard errors using a conceptually similar mechanism
+    
+## Example in lavaan
+
+- A researcher wants to test whether a one-factor CFA fits for her 4-item aggression scale 
+- She collects n=500 datapoints from a set of emerging adults
+- The data looks like...
+
+
+```{r simulate skew-normal data, include=F}
+
+library(lavaan)
+set.seed(29)
+
+nn_model<-'Agg=~0.5*item1+0.5*item2+0.5*item3+0.5*item4
+Agg~~1*Agg
+item1~~0.75*item1
+item2~~0.75*item2
+item3~~0.75*item3
+item4~~0.75*item4
+item3~~0.1*item4
+item1~~0.1*item2
+'
+Agg_data<-simulateData(nn_model, skewness=c(2,3,3,2), kurtosis=c(5,4,5,5))
+```
+```{r descriptives, message=F}
+library(psych)
+describe(Agg_data)
+```
+
+## Observed variable distributions
+
+```{r observed variable distributions, echo=F}
+
+par(mfrow=c(2,2))
+
+d1 <- density(Agg_data$item1) # returns the density data
+plot(d1, main='', xlab='', ylab=' ') # plots the results
+d2 <- density(Agg_data$item2) # returns the density data
+plot(d1, main='', xlab='', ylab=' ') # plots the results
+d3 <- density(Agg_data$item3) # returns the density data
+plot(d1, main='', xlab='', ylab=' ') # plots the results
+d4 <- density(Agg_data$item4) # returns the density data
+plot(d1, main='', xlab='', ylab=' ') # plots the results
+```
+
+
+## Fitting the model ignoring non-normality
+
+- First, let's fit the model ignoring non-normality
+- No obvious signs that anything is amiss...
+- Important to use descriptive and graphical checks prior to model-fitting
+
+```{r ignore non-normal}
+model1<-'Agg=~item1+item2+item3+item4'
+model1.est<-cfa(model1, data=Agg_data)
+summary(model1.est, fit.measures=T, standardized=T)
+```
+    
+## Using a robust estimator for non-normal data
+
+- We can use a robust estimator by setting:
+    - estimator='MLR' or estimator='MLM'
+    - each provides a slightly different correction method
+    - MLM only works with complete (no missing) data
+    
+## Using MLM for non-normal data
+
+
+```{r model estimation mlm}
+model1<-'Agg=~item1+item2+item3+item4'
+model1.est<-cfa(model1, data=Agg_data, estimator='MLM')
+summary(model1.est, fit.measures=T, standardized=T, ci=T)
+```
+
+
+## Using MLR for non-normal data
+
+
+```{r model estimation mlr}
+model1<-'Agg=~item1+item2+item3+item4'
+model1.est<-cfa(model1, data=Agg_data, estimator='MLR')
+summary(model1.est, fit.measures=T, standardized=T, ci=T)
+```
+
+## Summary of what to do when you have non-normal continuous data
+
+- Use MLR to:
+    - Obtain corrected model fit statistics
+    - Parameter significance tests that are based on corrected standard errors
+    - The parameter estimates are the same as from normal ML estimation
+- We discussed an example using the cfa() function but this generalises to the sem() function as well
+
+
+## BREAK 1
+
+- Time for a pause
+- Quiz question:
+    - Which of these is the best solution for dealing with non-normal data in SEM:
+        - 1) log-transform all the variables
+        - 2) convert all the variables to z-scores
+        - 3) use a correlation matrix rather than a covariance matrix
+        - 4) use robust maximum likelihood estimation
+        
+## WELCOME BACK 1
+
+- Welcome back!
+- The answer to the quiz question is...
+- Quiz question:
+    - Which of these is the best solution for dealing with non-normal data in SEM:
+        - 1) log-transform all the variables
+        - 2) convert all the variables to z-scores
+        - 3) use a correlation matrix rather than a covariance matrix
+        - 4) **use robust maximum likelihood estimation**
+    
+## Ordinal-categorical data
+
+- Ordinal-categorical data is also very common in SEM
+  - Items usually have a Likert-type scale
+  - When there are less than 5 response options that can adversely affect SEM models
+- Consequences include:
+    - Underestimated correlations between items and associated parameter bias
+        - Lower loadings, factor correlations etc.
+    - Underestimated model fit
+
+
+## Solutions for ordinal-categorical data
+
+- Use a **categorical estimator** instead of maximum likelihood estimation
+- It is possible to treat ordinal-categorical items 'as if' there is a latent continuous variable underlying them
+- A series of k-1 thresholds on this continuous distribution is imagined
+    - k= number of categories
+       - E.g., for a binary item there is one threshold
+        - Those below the threshold get a score of 0, those above get a score of 1 for the item
+- It is then possible to fit the model based on the assumed associations between the underlying latent continuous variable
+
+
+
+## Example: Ordinal data
+
+- Imagine (the more realistic scenario), where our four aggression items are on a binary response scale
+
+```{r simulate ordinal data, include=F}
+
+library(lavaan)
+set.seed(29)
+
+nn_model<-'Agg=~0.5*item1+0.5*item2+0.5*item3+0.5*item4
+Agg~~1*Agg
+item1~~0.75*item1
+item2~~0.75*item2
+item3~~0.75*item3
+item4~~0.75*item4
+item1~~0.2*item2
+item3~~0.2*item4
+'
+Agg_data2<-simulateData(nn_model, skewness=c(2,1,0,-1))
+
+Agg_data2<-as.data.frame(apply(Agg_data2, 2, cut, breaks=2, labels=F))
+
+```
+
+```{r simulate describe ordinal data, echo=F}
+
+par(mfrow=c(2,2))
+hist(Agg_data2$item1, breaks=c(0,1,2), xlab='')
+hist(Agg_data2$item2, breaks=c(0,1,2), xlab='')
+hist(Agg_data2$item3, breaks=c(0,1,2), xlab='')
+hist(Agg_data2$item4, breaks=c(0,1,2), xlab='')
+```
+    
+    
+## Fitting a model with ordinal-categorical data
+
+- Let's first fit the model ignoring the ordinal-categorical nature of the items
+
+```{r categorical model as if continuous}
+
+model1<-'Agg=~item1+item2+item3+item4'
+model1.est<-cfa(model1, data=Agg_data2)
+summary(model1.est, fit.measures=T, standardized=T)
+```
+
+
+
+## Fitting a model with a categorical estimator
+
+- We can request categorical estimation by setting estimator by letting lavaan know which items are categorical
+- We do this using the 'ordered' argument in the cfa() function
+
+```{r categorical model}
+
+model1<-'Agg=~item1+item2+item3+item4'
+model1.est<-cfa(model1, data=Agg_data2, ordered=c('item1','item2','item3','item4'))
+summary(model1.est, fit.measures=T, standardized=T)
+```
+
+## Summary of what to do with ordered-categorical items
+
+- Declare your items as 'ordered' and use a categorical estimator
+- This gives you parameter estimates/fit statistics 'as if' analysing the associations between underlying continous variables
+
+
+## BREAK 2
+
+- Time for a pause
+- Quiz question:
+  - Using a categorical estimator, how many thresholds would an item with 3 response options have:
+      - 1) 1
+      - 2) 2
+      - 3) 3
+      - 4) 4
+
+## Welcome back 2
+
+- Welcome back!
+- The answer to the quiz question is...
+  - Using a categorical estimator, how many thresholds would an item with 3 response options have:
+      - 1) 1
+      - 2) **2**
+      - 3) 3
+      - 4) 4
+
+
+## Missing data
+
+- Missing data is a near-universal feature of real data
+- It reduces our sample size
+    - Less precision and statistical power
+- If missingness is 'non-random' it can also bias our parameter estimates
+
+
+## Missing data mechanisms
+
+- Rubin defined three different possible missing data mechanisms:
+    - **Missing completely at random (MCAR)**
+    - **Missing at random (MAR)**
+    - **Missing not at random (MNAR)**
+
+- The effects of missingness depend on a combination of the missing data mechanism and the method we use to deal with it
+       
+    
+## MAR
+
+- Missing at random (MAR) means:
+    - When the probability of missing data on a variable Y is related to other variables in the model but not to the values of Y itself
+- Example:
+    - X = self-control and Y= aggression.
+    - People with lower self-control are more likely to have missing data on aggression
+    - After taking into account self-control, people who are high in aggression are no more likely to have missing data on aggression
+    - Challenge is that there is no way to confirm that there is no relation between aggression scores and missing data on aggression because that would knowledge of the missing scores
+- Common misconception is that Little’s test can be used to confirm MAR
+
+## MCAR
+
+- Genuinely random missingness
+- No relation between Y or any other variable in the model and missingness on Y
+- The data you have are a simple random sample of the complete data
+- The ideal missing data scenario!
+- Example:
+    - X = self-control and Y= aggression
+    - People of all levels of self-control and aggression are equally likely to have missing data on aggression
+
+
+## MNAR
+
+- Missing not random (MNAR) means:
+- When the probability of missingness on Y is related to the values of Y itself
+- Example:
+  - X= self-control, Y= aggression
+  - Those high in aggression are more likely to have missing data on the aggression variable, even after taking into account self-control
+- As with MAR, there is no way to verify that data are MNAR without knowledge of the missing values
+
+
+
+## Methods of dealing with missingness
+
+- Deletion methods:
+    - Listwise deletion
+    - Pairwise deletion
+- Imputation methods:
+    - Mean imputation
+    - Regression imputation
+    - Multiple imputation
+- Maximum likelihood estimation
+- Methods for MNAR data:
+    - Pattern mixture models
+    - Random coefficient models
+
+
+## Listwise deletion
+- ‘complete case analysis’
+- Example:
+    - Delete everyone from the analysis who has missing data on either self-control or aggression
+- Will give biased results unless data are MCAR
+- Even if data are MCAR, power will be reduced by reducing the sample size
+- Bottom line: **not recommended**
+
+## Pairwise deletion
+- ‘available-case analysis’
+- Uses available data for each analysis
+- Different cases contribute to different correlations in a correlation matrix
+- Example:
+    - Cases 2,3,7,18, 56, 100 not used in the self-control- aggression correlation
+    - Cases 2,7,18,77, 103 not used in the aggression-substance use correlation
+- Doesn’t reduce power as much as listwise deletion
+- But still gives biased results whenever data are not MCAR
+- Bottom line: **not recommended**
+
+## Mean imputation
+
+- Replace missing values with the mean on that variable
+- Example:
+    - Replace missing aggression values with the mean of the aggression variable
+- Two major issues:
+    - artificially reduces the variability of the data
+    - can give very biased estimates even when data are MCAR
+- Bottom line: **not recommended**
+- ‘possibly the worst missing data handling method available… you should absolutely avoid this approach’ Enders (2011)
+
+## Regression imputation
+
+- Replaces the missing values with values predicted from a regression
+- Estimate a set of regression equations where the incomplete variables are predicted from the complete variables
+- Use the regression equations to calculate the predicted values on the incomplete variables
+- Based on the principle of using information from the complete data to estimate the missing data
+- Two forms:
+  - ‘normal’ regression imputation 
+  - Stochastic regression imputation (adds a residual term to overcome loss of variance)
+- Stochastic regression is preferred and gives unbiased results if data are MAR
+
+## Multiple imputation
+
+- Procedure:
+  - Imputes missing data several times to create multiple complete datasets
+  - Can include many more predictor variables in imputation model than analysis model
+  - Analyses are conducted for each dataset
+  - Analysis results are pooled across datasets to get parameter estimates and standard errors
+  - 3-5 datasets are often enough but more is better and 20+ is ideal
+- Unlike in most single imputation approaches, the standard errors take account of the additional uncertainty due to missingness
+- Gives unbiased parameter estimates under MAR
+- Can be cumbersome if pooling has to be done by hand but usually pooling can be automated
+- Bottom line: **recommended** method if data are likely to be MAR
+
+## Full Information Maximum Likelihood (FIML) Estimation method 
+
+- Makes use of all the information in the model to arrive at the parameter estimates  ‘as if’ the data were complete
+- Does not ‘impute’ individual values
+- Gives unbiased estimates under MAR
+- Even under MCAR it is superior to listwise and pairwise deletion because it uses more information from the observed data
+- Practical advantage= easy to implement, usually much more so than multiple imputation
+- Bottom line: **recommended** method if data are likely to be MAR
+
+
+## Missingness in lavaan
+
+- The default method of dealing with missingness in lavaan is listwise deletion
+- If data are continuous we can easily switch to one of the recommended methods: FIML
+
+```{r FIML}
+model1<-'Agg=~item1+item2+item3+item4'
+model1.est<-cfa(model1, data=Agg_data, missing='ML')
+summary(model1.est, fit.measures=T, standardized=T)
+```
+
+
+## Advanced topics in missingness
+
+- Missingness with ordered-categorical data:
+  - Unfortunately the FIML option is not available with ordered-categorical data
+  - Instead we must use multiple imputation
+    - mice package + lavaan.survey package
+    - mice can create the imputed datasets for us
+    - lavaan.survey can be used to pool them
+
+- MNAR data:
+- If we suspect that the data are not MAR or MCAR there are other options available
+  - Random coefficient models
+  - Selection models
+- However, these methods are based on strong, untestable assumptions
+- If these assumptions are false, can result in even greater bias
+- Many, therefore, argue that multiple imputation  or MAR are best even if MNAR is suspected
+
+
+## Summary of missingess
+
+- The lavaan default is listwise deletion but this is a suboptimal method
+    - Biased parameter estimates unless data are MCAR
+    - Inefficient even if data are MCAR
+- FIML can be easily used with continuous data
+- Multiple imputation (not covered in this course) is needed for categorical data
+

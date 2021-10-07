@@ -1,0 +1,549 @@
+---
+title: "Multivariate Statistics and Methodology using R"
+subtitle: Structural equation modeling
+output: slidy_presentation
+author: Aja Murray; Aja.Murray@ed.ac.uk
+---
+
+## This week
+
+- Techniques
+    - Full structural equation modeling (SEM)
+    - Reliability analysis
+    
+- Functions
+  - sem() from the lavaan package
+  - omega() from the psych package
+
+
+- Reading
+    - http://lavaan.ugent.be/tutorial/tutorial.pdf (sections 5 and 6)
+    - *Full Structural Equation Modeling* chapter on Learn
+    
+## Learning outcomes
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/learning outcomes.jpg)
+</center>
+
+- Understand the potential benefits of using SEM over path analysis 
+- Estimate internal consistency values in R
+- Specify, estimate, and interpret SEM models in R
+
+
+## SEM: bringing CFA and path analysis together
+
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/hand_hold.png){width=50%}
+</center>
+
+- We previously talked about how we can test latent variable models for constructs using CFA
+    - e.g., a two-factor model of aggression
+- We separately talked about how we can use path analysis to test sets of regression models
+    - e.g., a model to test whether peer rejection mediates the association between aggression and depression
+- SEM combines CFA and path analysis
+    
+## A structural equation model
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/SEM example.png){width=80%}
+</center>
+- SEM models regression paths between latent variables (the '**structural**' part of the model)
+- The latent variables are from CFA measurement models (the '**measurement**' part of the model)
+
+## Why use a SEM model?
+
+- Our measures of psychological constructs have imperfect **reliability**
+- Means scores have a degree of **measurement error** associated with them
+- When we want to evaluate the relations between constructs, measurement error gets in they way
+- Specifically, we are liable to underestimate the strength of relations between constructs when there is measurement error
+- This is called **attenuation due to unreliability**
+- Lower reliability measures lead to greater attenuation
+- SEM allows disattenuated estimates to be obtained
+
+## BREAK 1
+
+- Time for a pause
+- Quiz question
+- What is the main difference between path analysis and full SEM ?:
+    - 1) full SEM includes latent common factors 
+    - 2) path analysis allows disattenuated estimates of construct relations
+    - 3) path analysis includes a CFA measurement model
+    - 4) full SEM assumes perfect reliability of constructs
+    
+## WELCOME BACK 1
+
+- Welcome back!
+- The answer to the quiz question is...
+- What is the main difference between path analysis and full SEM ?:
+    - 1) **full SEM includes latent common factors** 
+    - 2) path analysis allows disattenuated estimates of construct relations
+    - 3) path analysis includes a CFA measurement model
+    - 4) full SEM assumes perfect reliability of constructs
+    
+
+## A brief detour into reliability
+
+- Reliability theory suggests that:
+
+$$Observed Score= True Score + Error$$
+
+- We can try to estimate how much of the variance in observed scores is due to error variance based on consistency of scores:
+    - across repeated administration of a measure over time (e.g., two weeks apart) (**test-retest reliability**)
+    - across parallel forms of a test (**alternate forms reliability**)
+        - used to try and avoid practice effects
+    - across different raters (**inter-rater reliability**)
+        - e.g., teacher versus parent reports of aggression
+    - across items within a test (**internal consistency**)
+
+## Internal consistency reliability
+
+- Concerns correlations between items within same scale
+- Logic is that if a measure is reliable, items within the measure should be correlated because they all reflect the construct well
+- Traditional method was **split-half** reliability
+    - Divide test in two and correlate scores across the two halves
+    - However, many possible ways to divide a test in two...
+
+    
+## Cronbach's alpha
+
+$$\large \alpha$$
+
+- **Cronbach's alpha** is a generalisation of split half-reliability
+- Can be roughly interpreted as a measure of average correlation between all possible two-way splits of a measure
+- Ranges from 0 to 1
+- Values > .70 considered acceptable
+- Most popular measure of reliability
+- **However**, it assumes that all items are equally strongly correlated with underlying construct 
+    - i.e., assumes equal factor loadings
+- Rarely true and is a big limitation of Cronbach's alpha
+
+## Omega 
+
+$$ \large \omega $$
+
+- **Omega** is an alternative measure of internal consistency reliability
+- Based on the loadings from a factor analysis
+- It is an estimate of the variance in the sum of all items ('total score') attributable to the latent factor(s)
+- Ranges from 0 to 1
+- Values > .70 considered acceptable
+- Does not assume that the loadings are equal for all items
+    - This makes it a better measure of internal consistency than Cronbach's alpha
+- **Use omega rather than Cronbach's alpha to assess internal consistency**
+
+## Alpha and omega in R
+
+- We could compute alpha and omega for our aggression data from the PCA, EFA and CFA lectures
+- Recall:
+  - we had 10 aggression items 
+  - We determined using an EFA and then a CFA in new data that a model with two correlated factors was best
+  - the two factors were labelled 'verbal aggression' and 'physical aggression'
+
+```{r simulate_data, include=FALSE}
+nF=2 #number of factors
+nV=10 #number of variables
+
+set.seed(29)
+
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00,0.00,
+                   0.00,1.00),byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2
+               data=c(0.70, 0.10, # item1
+                      0.80, 0.08, # item2
+                      0.70, 0.06, # item3
+                      0.65, 0.10, # item4
+                      0.84, 0.04, # item5
+                      0.01, 0.65, # item6
+                      0.10, 0.88, # item7
+                      0.03, 0.90, #item8
+                      0.10, 0.67,  #item9
+                      0.02, 0.70), #item10
+                byrow=T)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+      data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item1
+             0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
+             0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
+             0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
+             0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
+             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, #item6
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, #item7
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, #item8
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, #item9
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2), #item10
+      byrow=T) 
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+#simulate data
+library(MASS)
+agg.items<-as.data.frame(mvrnorm(n=1000, mu=rep(0,10), Sigma=Sigma))
+names(agg.items)<-c('item1','item2','item3','item4','item5','item6','item7','item8','item9','item10')
+```
+
+```{r two factor aggression model, include=F}
+library(lavaan)
+library(semPlot)
+agg_m<-
+  'Vagg=~item1+item2+item3+item4+item5
+  
+   Pagg=~item6+item7+item8+item9+item10
+   
+   Vagg~~Pagg'
+
+agg_m.est<-cfa(agg_m, data=agg.items)
+
+```
+
+```{r two factor, echo=F}
+
+semPaths(agg_m.est)
+
+```
+
+
+## Alpha and omega for our aggression subscales
+
+- We can use the omega() function from the psych package to compute internal consistency for each set of 5 items
+- We let omega() know which items we wish to compute internal consistency for 
+    - Here the first five items of our aggression measure
+- We let omega() know that these items consistute one factor by setting nfactors=1
+
+```{r omega function, warning=F}
+library(psych)
+omega_verbal<-omega(agg.items[ ,c(1:5)], nfactors=1) ##omega for the verbal aggression factor (items 1-5)
+
+```
+
+
+## omega() output
+
+```{r omega output}
+omega_verbal
+```
+- 'Alpha' gives us our Cronbach's alpha value
+- 'omega Total' gives us our omega value
+
+
+## Alpha and omega 
+
+- We can do the same for the physical aggression items
+
+```{r omega function 3, warning=F}
+
+omega_physical<-omega(agg.items[ ,c(6:10)], nfactors=1) ## calculate alpha and omega for the physical aggression factor 
+
+```
+
+## omega() output for physical aggression
+
+```{r phy agg output}
+omega_physical
+```
+## How to solve the problem of attenuation due to unreliability?
+
+- Traditional method was to apply a formula to correct correlations for unreliability:
+
+$$\frac{r_{xy}}{r_{xx}*r_{yy}}$$
+
+- Where:
+      - $r_{xy}$ is the uncorrected correlation between variables $x$ and $y$
+      - $r_{xx}$ is an estimate of the reliability of variable $x$
+      - $r_{yy}$ is an estimate of the reliability of variable $y$
+    
+- However, this requires multiple steps (compute reliability, correct correlations)
+- Further complicated when it's a whole correlation matrix that requires correction 
+- SEM can solve the problem in a single step
+
+
+## BREAK 2
+
+- Time for a pause
+- Quiz question:
+- Which of these R functions from the psych package can be used to calculate Cronbach's alpha?:
+    - 1) gamma()
+    - 2) beta()
+    - 3) delta()
+    - 4) omega()
+    
+    
+## WELCOME BACK 2
+
+- Welcome back!
+- The answer to the quiz question is...
+- Quiz question:
+- Which of these R functions from the psych package can be used to calculate Cronbach's alpha?:
+    - 1) gamma()
+    - 2) beta()
+    - 3) delta()
+    - 4) **omega()**
+
+
+
+## Addressing attenuation due to unreliability with SEM
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/Example CFA model 2 factors for SEM.png){width=80%}
+</center>
+- SEM can solve the problem of attenuation due to unreliability 
+- It uses latent variable measurement models from CFA
+- These models separate out systematic variance (latent common factors) and measurement error variance (residual factors)
+- The relations between constructs are tested using the latent common factors i.e., the error-free parts
+
+## Fitting structural equation models
+
+- Fitting SEMs follows the same process as CFA and path analyis:
+    - Model specification
+    - Model estimation
+    - Model evaluation
+    - (Model modification)
+    - Model interpretation
+
+- However, we usually want to test our measurement models first using CFAs for each construct
+
+## An example SEM model
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/aggression2.png){width=20%}
+</center>
+
+- Imagine we wanted to know whether verbal and physical aggression predicted peer rejection in children, accounting for imperfect reliability
+- We have a sample of n=570
+- We have a 10-item aggression measure to measure verbal and physical aggression (5 items each)
+- We have a 5-item peer rejection measure
+- We can fit a SEM to assess whether latent verbal and physical aggression factors predict a latent peer rejection factor
+
+## Our model
+
+- The model we want to test looks like:
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/SEM example 2.png){width=80%}
+</center>
+
+```{r simulate_data 2, include=FALSE}
+nF=3 #number of factors
+nV=15 #number of variables
+
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00, 0.60, 0.40,
+                   0.60, 1.00, 0.40,
+                   0.40, 0.40, 1.00), byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2   #F3
+               data=c(0.70, 0.10, 0.00,   # item1
+                      0.80, 0.08, 0.00,     # item2
+                      0.70, 0.06, 0.00,     # item3
+                      0.65, 0.10, 0.00,    # item4
+                      0.84, 0.04, 0.00,   # item5    
+                      0.01, 0.65, 0.00,      # item6
+                      0.10, 0.88, 0.00,    # item7
+                      0.03, 0.90, 0.00,     #item8
+                      0.10, 0.67, 0.00,    #item9
+                      0.02, 0.70, 0.00,    #item 10
+                      0.00, 0.00, 0.75,    # PR item 1
+                      0.00, 0.00, 0.80,    #PR item 2    
+                      0.00, 0.00, 0.90,    # PR item 3 
+                      0.00, 0.00, 0.85,   #PR item 4
+                      0.00, 0.00, 0.77),  #PR item 5
+                byrow=T)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+              #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+              data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,#item1
+                     0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
+                     0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
+                     0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
+                     0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
+                     0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item6
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item7
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item8
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item9
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item10
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.75^2-0.00^2, 0.00, 0.00, 0.00, 0.00, #item11
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.80^2-0.00^2, 0.00, 0.00, 0.00, #item12
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.90^2-0.00^2, 0.00, 0.00, #item13
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.85^2-0.00^2, 0.00, #item14
+                     0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00,  1-0.77^2-0.00^2),#item15
+              byrow=T) 
+
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+#simulate data
+library(MASS)
+agg.PR.data<-as.data.frame(mvrnorm(n=570, mu=rep(0,15), Sigma=Sigma))
+names(agg.PR.data)<-c('agg1','agg2','agg3','agg4','agg5','agg6','agg7','agg8','agg9','agg10', 'PR1','PR2','PR3','PR4','PR5')
+```
+
+## Step 1: check the measurement models
+
+- First we would conduct a CFA for aggression and a CFA for peer rejection
+    - i.e., we first test our proposed measurement models
+- We do this as a first step because mis-fit is most often due to measurement rather than structural part of the model
+
+
+## CFA for aggression
+
+- We fit a two-factor CFA with correlated factors for aggression
+- By default, the first loading for each factor will be fixed to 1 for scaling/identification
+```{r CFAs of agg}
+
+##CFA for aggression
+
+agg.CFA<-'Vagg=~agg1+agg2+agg3+agg4+agg5
+  
+   Pagg=~agg6+agg7+agg8+agg9+agg10
+   
+   Vagg~~Pagg'
+
+agg.CFA.est<-cfa(agg.CFA, data=agg.PR.data)
+summary(agg.CFA.est, fit.measures=T, standardized=T)
+```
+
+## CFA for peer rejection
+
+- We fit a CFA for peer rejection
+- By default, the loading for the first item will be fixed to 1 for scaling/identification
+
+```{r CFAs of  PR}
+
+##CFA for aggression
+
+PR.CFA<-'PR=~PR1+PR2+PR3+PR4+PR5'
+  
+
+PR.CFA.est<-cfa(PR.CFA, data=agg.PR.data)
+summary(PR.CFA.est, fit.measures=T, standardized=T)
+```
+
+
+## Step 2: specify the SEM model
+
+- Assuming the measurement models show good fit, we proceed to specifying the full SEM
+- The SEM specification combines the measurement models with the hypothesised structural relations between the latent variables
+- Just as with CFA and path analysis,  model must be identified
+    - The number of 'knowns' are at least as many as the 'unknowns'
+
+```{r agg and PR SEM}
+
+agg.PR.model<-'
+# aggression measurement model
+   Vagg=~agg1+agg2+agg3+agg4+agg5     
+  
+   Pagg=~agg6+agg7+agg8+agg9+agg10     
+   
+   Vagg~~Pagg
+   
+# peer rejection measurement model
+   PR=~PR1+PR2+PR3+PR4+PR5
+
+#structural part of the model
+
+  PR~Vagg + Pagg        # Peer rejection is regressed on verbal and physical aggression'
+
+
+```
+
+## Step 3: estimate the SEM model
+
+- As for CFA and path analysis, we can use maximum likelihood estimation to estimate the parameters
+- As for path analysis we can do this using the sem() function from lavaan
+- We provide the name of the model and the dataset
+
+```{r estimate the model}
+
+agg.PR.est<-sem(agg.PR.model, data= agg.PR.data)
+
+```
+
+## Step 4: evaluate the model
+
+- We look at the fit statistics and check they are satisfactory
+- We are looking for TLI and CFI>.95; RMSEA and SRMR<.05
+- We can inspect the fit statistics using the summary() function, setting fit.measures=T
+
+```{r look at model fit}
+summary(agg.PR.est, fit.measures=T)
+```
+
+
+## Step 5: interpret the model
+
+- We can see whether the regression paths are significant using the summary() function
+- We can also look at the standardised coefficients by setting standardized=T
+
+```{r look at model parameters}
+summary(agg.PR.est, fit.measures=T, standardized=T)
+```
+
+## Making model modifications in SEM
+
+- Our initially hypothesised model may not be optimal
+    - We didn't include paths that we should have (check expected parameter changes and modification indices)
+    - Some included paths are non-significant and could be trimmed
+- These issues may affect the measurement or structural part of the model
+    - But more often mis-fit relates to the measurement part
+    - Aim to make any modifications in the measurement part in initial CFAs before fitting the full SEM
+- Carefully consider before making modifications
+    - Can they be theoretically justified?
+    - Am I likely to be just capitalising on chance?
+- Aim to replicate the modified model in new data
+    
+## Check modification indices and expected parameter changes
+
+```{r look at modindices}
+modindices(agg.PR.est, sort=T)
+```
+
+
+## Reporting SEMs
+
+- Main principles: transparency and reproducibility
+
+- Method
+    - Describe the measurement model specification and criteria used to evaluate it (model fit etc.)
+    - Describe the SEM model specification and criteria used to evaluate it
+    - Explain how the model specification operationalises your hypothesis/hypotheses
+
+- Results
+    - Fit for the initial CFAs
+    - Fit for the SEM (SRMR, RMSEA, TLI, CFI)
+    - Any modifications made and why
+    - All parameter estimates from the SEM
+        - diagram can again be helpful for visualising model
+        - may need to show  the structural and measurement parts of the model separately for visual clarity
+
+
+## Cautions regarding the use of SEM
+
+- We assume  the paths represent causal relations but this is an assumption
+    - Especially when using cross-sectional data
+- Well-fitting models do not guarantee that we have found the 'correct' model
+- Our parameter estimates are correct only if the model is correctly specified
+
+
+## Path vs SEM models
+
+- SEM models can adjust for attenuation due to unreliability
+- This means that structural associations tend to be larger (and arguably more accurate)
+- It makes SEM preferable to path analysis
+
+
+## SEM summary
+
+- Full SEM models combine CFA and path analysis
+- The steps in a SEM are:
+    - Test the measurement models (specification, estimation, evaluation & modification)
+    - Specify the full SEM
+    - Estimate the full SEM
+    - Evaluate the full SEM
+- Paths are usally assumed to represent causal effects but this is only an assumption

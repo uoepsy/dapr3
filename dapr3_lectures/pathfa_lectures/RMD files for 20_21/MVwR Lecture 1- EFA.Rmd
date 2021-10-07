@@ -1,0 +1,449 @@
+---
+title: "Multivariate Statistics and Methodology using R"
+subtitle: "Exploratory Factor Analysis"
+author: "Aja Murray, Aja.Murray@ed.ac.uk"
+output: slidy_presentation
+---
+## Exploratory factor analysis (EFA)
+
+- EFA used for developing a model of the number and nature of dimensions that describe a psychological construct and their inter-relations
+- Procedurally similar to PCA but differs in important ways
+    - Uses only the common variance in its calculation
+    - Can give quite different results to PCA under some circumstances
+    - The resulting dimensions are called **factors**
+    - EFA based on a **latent variable model**
+    
+
+## Latent variable models
+- Divides the world into **observed variables** and **latent variables** (factors)
+    - Observed variables can be measured directly
+        - e.g., scores on IQ subtests
+    - Latent variables inferred based on patterns of observed variable associations
+        - e.g., Spearman's *g*
+- Latent variables generate the correlations between observed variables        
+    - e.g., higher *g* causes higher subtest scores
+- Observed variables are imperfect **indicators** (measures) of latent variables
+    - Observed variable scores have both a systematic and a random error component 
+
+## Latent variable models as an SEM diagram
+
+![](D:/Teaching and Supervision/Psychology/MVwR_2021/RMD files for 20_21/figs/LV model.png){width=80%}
+
+- Latent variables are ellipses
+- Observed variables are rectangles
+- Single-headed arrows go from the latent variables to the observed variables
+- There are also unique variances for the observed variables
+
+
+## Doing EFA
+
+- Like PCA, there are a number of decisions:
+    - How many factors?
+    - Which rotation?
+    - **Which extraction method?**
+-  In EFA we also have to choose an extraction/estimation method
+    
+## How many factors?
+
+- As in PCA, we can use the following tools to help us decide how many factors to retain:
+    - Scree test
+    - Parallel analysis
+    - MAP test
+- It is also important to examine the factor solutions for varying numbers of factors
+    - Which solutions make more sense based on our background knowledge of the construct?
+    - Do some solutions have deficiencies such as minor factors?
+
+##  Our running example
+
+- Let's return to our aggression example and now run an EFA  
+- We had n=1000 participants with data on the following 10 items:
+
+  1. I hit someone
+  2. I kicked someone 
+  3. I shoved someone 
+  4. I battered someone 
+  5. I physically hurt someone on purpose 
+  6. I deliberately insulted someone
+  7. I swore at someone
+  8. I threatened to hurt someone
+  9. I called someone a nasty name to their face
+  10. I shouted mean things at someone
+
+
+```{r simulate_data, include=FALSE}
+nF=2 #number of factors
+nV=10 #number of variables
+
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00,0.00,
+                   0.00,1.00),byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2
+               data=c(0.70, 0.10, # item1
+                      0.80, 0.08, # item2
+                      0.70, 0.06, # item3
+                      0.65, 0.10, # item4
+                      0.84, 0.04, # item5
+                      0.01, 0.65, # item6
+                      0.10, 0.88, # item7
+                      0.03, 0.90, #item8
+                      0.10, 0.67,  #item9
+                      0.02, 0.70), #item10
+                byrow=T)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+      data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item1
+             0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
+             0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
+             0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
+             0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
+             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, #item6
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, #item7
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, #item8
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, #item9
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2), #item10
+      byrow=T) 
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+#simulate data
+library(MASS)
+agg.items<-as.data.frame(mvrnorm(n=1000, mu=rep(0,10), Sigma=Sigma))
+names(agg.items)<-c('item1','item2','item3','item4','item5','item6','item7','item8','item9','item10')
+```
+
+## How many aggression factors? Scree test
+
+- We can plot the eigenvalues and look for a kink in the plot:
+```{r Scree plot}
+eigenvalues<-eigen(cor(agg.items))$values
+plot(eigenvalues, type = 'b', pch = 16, 
+     main = "Scree Plot", xlab="", ylab="Eigenvalues")
+axis(1, at = 1:10, labels = 1:10)
+
+
+```
+
+## How many aggresion factors? Parallel analysis
+
+- We can conduct a parallel analysis using fa.parallel( )from the psych package:
+```{r parallel analysis}
+library(psych)
+fa.parallel(agg.items, n.iter=500)
+```
+
+## How many aggression factors? MAP
+- We can conduct a MAP test using vss( ):
+```{r MAP test, eval =F}
+library(psych)
+vss(agg.items, plot='false')
+```
+
+
+
+![](D:/Teaching and Supervision/Psychology/MVwR_2021/RMD files for 20_21/figs/MAP_highlighted.png){width=80%}
+
+
+## Examining the factor solutions
+
+- Finally, we draw on information from the factor solutions themselves
+- We run a series of factor analysis models with different numbers of factors
+- Look at the loadings and factor correlations:
+  - Are important distinctions blurred when the number of factors is smaller?
+  - Are there minor or 'methodological' factors when the number of factors is larger?
+  - Are the factor correlations very high?
+  - Do the factor solutions make theoretical sense?
+- In this case, given the MAP, scree and parallel analysis results we would likely want to examine the 1,2, and 3 factor solutions
+  
+## Conducting EFA in R
+
+- We can run our factor analyses using the fa() function
+- The first argument is the dataset with the items we want to factor analyse
+- We also need to mention the number of factors we want to extract, e.g.,  nfactors=1
+
+```{r aggression one factor example, eval=F}
+onef<-fa(agg.items, nfactors=1) #EFA with 1 factor
+```
+
+
+## The one-factor solution
+ 
+- To help us choose an optimal number of factors, we can look at the one-factor solution...
+```{r aggression one factor}
+onef<-fa(agg.items, nfactors=1) #EFA with 1 factor
+onef$loadings #inspect the factor loadings
+```
+
+## The two-factor solution
+- And compare with the two-factor solution...
+```{r aggression two factors}
+library(psych)
+twof<-fa(agg.items, nfactors=2, rotate='oblimin') #EFA with 2 factors
+twof$loadings ##inspect the factor loadings
+```
+## The two-factor solution factor correlations
+
+```{r 2factor correlations}
+twof$Phi  ## inspect the factor correlations
+```
+
+## The three-factor solution
+- And the three-factor solution
+```{r aggression three factors}
+library(psych)
+threef<-fa(agg.items, nfactors=3, rotate='oblimin') #EFA with 3 factors
+threef$loadings #inspect the factor loadings
+```
+
+## The three-factor solution factor correlations
+```{r three factor correlations}
+threef$Phi # inpsect the factor correlations
+```
+
+## BREAK 1 
+
+- Time for a pause!
+- Quiz question:
+    - In an SEM diagram how are latent variables represented?
+        - A) rectangles
+        - B) triangles
+        - C) diamonds
+        - D) ellipses
+
+## Welcome back 1
+
+- Welcome back!
+- The answer to the quiz question is...
+    - In an SEM diagram how are latent variables represented?
+        - A) rectangles
+        - B) triangles
+        - C) diamonds
+        - D) **ellipses**
+        
+## reminder: SEM diagram
+
+![](D:/Teaching and Supervision/Psychology/MVwR_2021/RMD files for 20_21/figs/LV model.png){width=80%}
+
+
+## Factor extraction in EFA
+- **Factor extraction** refers to the method of deriving the factors
+- PCA is itself an extraction method
+- In EFA there are a number of factor extraction options:
+    - principal axis factoring (PAF)
+    - ordinary least squares (OLS)
+    - weighted least squares (WLS)
+    - minres
+    - maximum likelihood (ML)
+    
+## Principal axis factoring (PAF)
+- Traditional method
+- An eigendecomposition of a reduced form of correlation matrix
+    - Diagonals are replaced by communalities
+    - Communalities estimates used as starting point
+        - Estimates of the variance shared with other indicators
+        - Based on e.g. multiple squared R
+    - Iteratively updated across successive PAFs
+    - Process terminates when estimates change little across iterations
+- Focus on *common* rather than all variance is key EFA vs PCA distinction
+    
+## Other extraction methods
+
+- **OLS** finds the factor solution that minimises difference between observed and model-implied covariance matrices
+    - specifically, minimises the sum of squared residuals
+- **WLS** up-weights the variables with higher communalities
+- **minres** ignores the diagonals
+- **ML** finds the factor solution that maximises the likelihood of the observed covariance matrix
+
+
+## Which to use?
+
+- PAF is a good option
+- minres can provide EFA solutions when other methods fail 
+    - minres is the default for the fa( ) function
+- choice of extraction method usually makes little difference if:
+    - communalities are similar 
+    - sample size is large
+    - the number of variables is large
+    
+## PAF 
+
+- We can do a factor analysis with PAF by setting fm='pa' in the fa() function:
+
+```{r aggression two factors PAF}
+library(psych)
+twof<-fa(agg.items, nfactors=2, rotate='oblimin', fm='pa') #EFA with 2 factors
+twof$loadings ##inspect the factor loadings
+twof$Phi  ## inspect the factor correlations
+```
+
+
+## minres 
+
+- minres is the default method but we can also explicitly set fm='minres':
+```{r aggression two factors minres}
+library(psych)
+twof<-fa(agg.items, nfactors=2, rotate='oblimin', fm='minres') #EFA with 2 factors
+twof$loadings ##inspect the factor loadings
+twof$Phi  ## inspect the factor correlations
+```
+
+## Factor rotation
+
+- Like in PCA:
+  - Rotation needed to make solution interpretable
+  - Main choice is between oblique vs orthogonal
+  - Oblique often preferable as allows correlated or uncorrelated factors
+  - Orthogonal rotation yields one loading matrix
+  - Oblique yields both pattern and structure loading matrices
+      - Pattern matrix is usually used as basis for interpretation
+
+## Interpreting the factor solution
+
+- Label factors on basis of high loading items
+
+```{r aggression two factors minres for interpretation}
+library(psych)
+twof<-fa(agg.items, nfactors=2, rotate='oblimin', fm='minres') #EFA with 2 factors
+twof$loadings ##inspect the factor loadings
+```
+
+
+## Interpreting the factor solution
+
+- Factor 1 could be labelled *verbal aggression* and factor 2 could be labelled *physical aggression*
+
+  1. **I hit someone**
+  2. **I kicked someone**
+  3. **I shoved someone** 
+  4. **I battered someone** 
+  5. **I physically hurt someone on purpose** 
+  6. I deliberately insulted someone
+  7. I swore at someone
+  8. I threatened to hurt someone
+  9. I called someone a nasty name to their face
+  10. I shouted mean things at someone
+
+## The magnitude of factor loadings
+
+- How large are the loadings?
+- Comfrey & Lee (1992) offered the following rules of thumb:
+    - >.71 (50% overlapping variance) are considered excellent
+    - >.63 (40% overlapping variance) is very good
+    -	>.55 (30% overlapping variance) is good
+    - >.45 (20% overlapping variance) is fair
+    - >.32 (10% overlapping variance) is poor
+
+
+## The magnitude of factor correlations
+
+- How distinct are the factors?
+```{r aggression two factors minres correlations}
+library(psych)
+twof<-fa(agg.items, nfactors=2, rotate='oblimin', fm='minres') #EFA with 2 factors
+twof$Phi  ## inspect the factor correlations
+```
+
+## How much variance is accounted for by the factors?
+
+- We can also check how much variance overall is accounted for by the factors
+```{r two factor variance accounted for}
+twof
+```
+
+## BREAK 2
+
+- Time for a pause
+- Quiz question:
+  - Which of these best describe principal axis factoring extraction?
+      - A PCA of a correlation matrix with communalities on the diagonals?
+      - A PCA of a correlation matrix ignoring the diagonals?
+      - A PCA of a correlation matrix where the the off-diagonals are replaced with communalities?
+      - A PCA of a correlation matrix where all elements are replaced by communalities?
+      
+## Welcome back 2
+
+- Welcome back!
+- The answer to the quiz question is...
+  - Which of these best describe principal axis factoring extraction?
+      - **A PCA of a correlation matrix with communalities on the diagonals?**
+      - A PCA of a correlation matrix ignoring the diagonals?
+      - A PCA of a correlation matrix where the the off-diagonals are replaced with communalities?
+      - A PCA of a correlation matrix where all elements are replaced by communalities?
+
+## Checking the suitability of data for EFA
+
+- The first step in an EFA is actually to check the appropriateness of the data:
+    - Does the data look multivariate normal?
+    - Do the relations look linear?
+    - Does the correlation matrix have good factorability?
+    
+## Multivariate normality
+
+- Do the variables have (approximately) continuous measurement scales?
+    - 5 or more response options
+- Examining univariate distributions using histograms
+
+```{r histograms, echo=T, warning=F}
+
+hist(agg.items[ ,1])
+```
+
+## Linearity
+
+- Plot linear and lowess lines for pairwise relations and compare
+
+```{r linear and lowess, warning=F}
+library(car)
+scatterplotMatrix(agg.items[ ,1:2], pch='.', col='black', plot.points=T, diagonal='histogram')
+```
+
+## Factorability
+
+- EFA focuses on variance **common** to items
+    - Not much point in an EFA if little variance in common
+- Use Kaiser-Meyer-Olkin (KMO) test 
+    - Provides measure of proportion of variance shared between variables
+    - Can be computed for individual variables or whole correlation matrix
+    - Overall values >.60 and no variable <.50 is ideal
+
+## KMO in R
+
+```{r KMO}
+KMO(agg.items)
+```
+
+
+## Reporting EFA
+
+- Transparency and reproducibility
+- Methods
+  - Methods to determine number of factors
+  - Extraction method
+  - Rotation method
+- Results
+  - Information about data suitability for EFA
+  -  Number of factors (and why)
+  - Loading matrix
+  - Factor correlations
+  - Interpretation of factors (and why)
+  - Variance explained by factors 
+
+
+## Summary
+
+- Steps in EFA are similar to PCA but...
+    - The underlying theory  and interpretation is quite different
+    - Their results can differ if there is not a lot of common variance
+- EFA involves:
+    - Checking data suitability
+    - Choosing number of factors
+    - Factor extraction
+    - Rotation
+    - Interpretation of factors
+    

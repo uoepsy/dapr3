@@ -1,0 +1,701 @@
+---
+title: Multivariate Statistics and Methodology using R
+subtitle: Confirmatory Factor Analysis 
+author: "Aja Murray"
+date: "Aja.Murray@ed.ac.uk"
+output: slidy_presentation
+---
+
+
+
+## This Week
+
+- Techniques
+    - Confirmatory Factor Analysis (CFA)
+- Key Functions
+    - cfa( ) from lavaan package
+- Reading
+  - lavaan tutorial: http://lavaan.ugent.be/tutorial/tutorial.pdf (sections 1-4)
+  - lavaan paper: https://www.jstatsoft.org/article/view/v048i02
+  - *Confirmatory Factor Analysis* chapter on Learn
+  
+## Learning Outcomes
+
+<center>
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/learning outcomes.jpg)
+</center>
+
+- Know what it means to specify, estimate, and evaluate a CFA model
+- Fit and interpret CFA models in R using the cfa( ) function
+- Visualise CFA models using SEM diagrams
+
+
+## Overview of this lecture
+
+- Introduction to CFA
+- Model Specification
+- Model Identification
+- Model Estimation
+- Model Evaluation
+- Model Modification
+  
+## Introduction to CFA
+
+- Used to test a factor structure for a set of variables
+- EFA is used when we have no fixed idea of our factor structure
+- CFA is used to test a particular factor structure
+- CFA tests how well our proposed factor structure fits the data
+- Like EFA, CFA is a latent variable model
+    - observed variables serve as **indicators** of underlying latent factors
+- Unlike EFA, only specific loadings are included in the model
+    
+## The variance-covariance matrix
+
+- Our starting point for CFA is the variance-covariance matrix for our items
+- CFA models represent these variances/covariances in terms of a set of latent factors
+
+```{r simulate data 1, include=FALSE}
+nF=2 #number of factors
+nV=10 #number of variables
+
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00,0.00,
+                   0.00,1.00),byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2
+               data=c(0.70, 0.10, # item1
+                      0.80, 0.08, # item2
+                      0.70, 0.06, # item3
+                      0.65, 0.10, # item4
+                      0.84, 0.04, # item5
+                      0.01, 0.65, # item6
+                      0.10, 0.88, # item7
+                      0.03, 0.90, #item8
+                      0.10, 0.67,  #item9
+                      0.02, 0.70), #item10
+                byrow=T)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+      data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item1
+             0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
+             0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
+             0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
+             0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
+             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, #item6
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, #item7
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, #item8
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, #item9
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2), #item10
+      byrow=T) 
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+#simulate data
+library(MASS)
+agg.items<-as.data.frame(mvrnorm(n=1000, mu=rep(0,10), Sigma=Sigma))
+names(agg.items)<-c('item1','item2','item3','item4','item5','item6','item7','item8','item9','item10')
+```
+
+```{r covariance matrix}
+round(cov(agg.items),2)
+```
+
+## SEM Diagrams
+
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/SEM diagrams.png){width=80%}
+
+
+## Exogenous versus endogeneous variables
+
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/ex vs end.png){width=50%}
+
+- **exogenous** variables receive input from no other variables
+    - they emanate but are not on the end of single-headed arrow paths
+    - they are the 'independent variables' or 'predictors'
+- **endogenous** variables receive input from other variables
+    - they are on the end of single-headed arrow paths
+    - they are the 'dependent variables' or 'outcomes'
+    - they may also be predictors of other variables in the model
+
+## SEM diagram for a simple regression model
+```{r Regression models, include=F}
+
+library(semPlot)
+library(lavaan)
+
+data<-matrix(nrow=8, ncol=8,
+            # 1    2    3   4    5    6     7   8
+      data=c(1.0, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+             0.4, 1.0, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4,
+             0.4, 0.4, 1.0, 0.4, 0.4, 0.4, 0.4, 0.4,
+             0.4, 0.4, 0.4, 1.0, 0.4, 0.4, 0.4, 0.4,
+             0.4, 0.4, 0.4, 0.4, 1.0, 0.4, 0.4, 0.4,
+             0.4, 0.4, 0.4, 0.4, 0.4, 1.0, 0.4, 0.4, 
+             0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 1.0, 0.4, 
+             0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 1.0), byrow=T)
+library(MASS)
+dataset<-as.data.frame(mvrnorm(n=1000, mu=rep(0,8), Sigma=data))
+library(psych)
+describe(data)
+
+```
+
+```{r regression illustrations, echo=F}
+
+library(lavaan)
+library(semPlot)
+
+regression<-'V2~V1'
+reg.est<-sem(regression, data=dataset)
+semPaths(reg.est, rotation=2, residuals=F, intercepts=T)
+```
+
+## SEM diagram for a covariance
+```{r covariance, echo=F}
+cov<-'V2~~V1'
+cov.est<-sem(cov, data=dataset)
+semPaths(cov.est, rotation=1, residuals=F, intercepts=T)
+```
+
+## SEM diagram for a path analysis model
+
+```{r Path Analysis, echo=F,warning=F}
+
+PA<-'V2~V1
+    V1~V3'
+
+PA.est<-sem(PA, data=dataset)
+semPaths(PA.est, residuals=F, intercepts=T, rotation=2)
+
+```
+
+## SEM diagram for another path analysis model
+```{r Path Analysis 2, echo=F, warning=F}
+
+PA2<-'V2~V1
+    V1~V3
+     V2~V3'
+
+PA2.est<-sem(PA2, data=dataset)
+semPaths(PA2.est, residuals=F, intercepts=T, rotation=2)
+
+```
+
+## SEM diagram for a more complex model
+
+```{r SEM, echo=F, warning=F}
+
+SEM<-'LV1=~V1+V2+V3+V4
+LV2=~V5+V6+V7+V8
+LV1~LV2'
+SEM.est<-sem(SEM, data=dataset)
+semPaths(SEM.est, residuals=F, intercepts=T)
+```
+
+## BREAK 1 
+
+- Time for a pause
+- Quiz question:
+    - Which of these are differences between an EFA and a CFA:
+      - 1) EFA only involves observed variables but CFA involves both observed and latent variables
+      - 2) EFA estimates all possible loadings but CFA usually only estimates some
+      - 3) EFA can include multiple latent variables but CFA can only include one
+      - 4) CFA tests causality while EFA can only test correlation
+
+## Welcome back 1
+
+- Welcome back!
+- The answer to the quiz question is...
+
+    - 1) EFA only involves observed variables but CFA involves both observed and latent variables
+    - 2) **EFA estimates all possible loadings but CFA usually only estimates some**
+    - 3) EFA can include multiple latent variables but CFA can only include one
+    - 4) CFA tests causality while EFA can only test correlation
+
+
+## The CFA model
+
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/Example CFA model 2 factors v2.png){width=80%}
+
+## The parameters of a CFA
+
+- Latent factor variances and covariances
+    - The variability of and associations between the latent factors
+- Factor loadings
+    - Regression of the latent variables on the observed variables
+    - Strength of relation between underlying latent variables and observed variables
+- Residual variances
+  - Variance in the observed variables not explained by the latent variables
+- Residual covariances
+  - The covariances between observed variables that exist over and above their covariance due to their shared relation with a latent factor
+- CFAs involve finding (or specifying) values for all of these parameters 
+
+## Model specification
+
+- Defining the model we want to test
+    - i.e., which **parameters** do we want to estimate?
+        - How many factors?
+        - Which items do we think go with which factors?
+        - Are the factors correlated?
+- Based on theory or past research (e.g., previous EFAs)
+        
+    
+## Latent variable scaling
+
+- Latent variable scaling is a key aspect of model specification
+- Latent variables have no inherent scale, so we have to define one
+- Two commonly used scaling methods:
+    - Method 1: Fix the variance of each latent variable to 1
+    - Method 2: Fix one factor loading for each latent variable to 1
+- Note that the necessity of scaling also applies to the residual factors
+    - Typically uses Method 2
+
+## Scaling the latent variables by fixing factor variances
+
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/Example CFA model 2 factors variances identification.png){width=80%}
+
+## Scaling the latent variables by fixing factor loadings
+
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/Example CFA model 2 factors indicator identification.png){width=80%}
+
+
+
+## Model identification
+
+- More generally, we need to ensure that the model we specify is **identified**
+- Identification concerns the number of 'knowns' versus 'unknowns'
+- There must be more knowns than unknowns in order to be able to test a CFA
+- In CFA, the knowns are variances and covariances of the observed variables
+- The unknowns are the parameters we want to estimate
+- **Degrees of freedom** are the difference between knowns and unknowns
+
+
+## Levels of identification
+
+- There are three levels of identification:
+- **Under-identified** models: have < 0 degrees of freedom 
+- **Just Identified** models: have 0 degrees of freedom
+- **Over-Identified** models: have > 0 degrees of freedom
+
+
+## Model identification illustration 
+
+- Chou & Bentler (1995) provide an illustration based on simultaneous linear equations:
+  - Eq.1: $x + y = 5$
+  - Eq.2: $2x + y = 8$
+  - Eq.3: $x + 2y = 9$
+- Eq.1 is on its own is  *under-identified*
+- Eq.1 & 2 are together *just identified*
+- Eq.1, 2 & 3 are together *over identified*
+
+## The number of knowns
+
+- To ensure model identification, we need to know the number of knowns
+- We can calculate the knowns by:
+  
+  $$
+  \frac{\left(k+1 \right)\left(k \right)}{2}
+$$
+  
+- where *k* is the number of observed variables.
+
+
+## The number of knowns
+
+- This is the number of unique elements in the variance-covariance matrix for our observed variables
+    - e.g., if we had three observed variables:
+    
+```{r simulate_data, include=FALSE, warning=F}
+library(MASS)
+
+Cov<-matrix(nrow=3, ncol=3,     
+            data=c(1.00,0.30,0.40,
+                   0.30,1.00,0.60,
+                   0.40,0.60,1.00), byrow=T)
+
+Three.variables<-as.data.frame(mvrnorm(n=1000, mu=rep(0,3), Sigma=Cov))
+
+
+```
+```{r covariance matrix for three variables}
+
+round(cov(Three.variables),2)
+
+```
+-  We have 6 unique elements (3 variances and 3 covariances)
+
+
+## Implications for CFA
+
+- We usually need a minimum of three observed variables for a just identified model
+
+![](D:/Teaching and Supervision/Psychology/MVwR_1920/Draft Lectures/Three indicators.png){width=80%}
+
+## BREAK 2
+
+- Time for a pause
+- Quiz question:
+    - A CFA model with 3 degrees of freedom would be best described as:
+        - Under-identified
+        - Over-identified
+        - Just identified
+        - Negatively identified
+        
+## Welcome back 2
+
+ - Welcome back!
+ - The answer to the quiz question is:
+    - A CFA model with 3 degrees of freedom would be best described as:
+        - Under-identified
+        - **Over-identified**
+        - Just identified
+        - Negatively identified
+
+## Model estimation
+
+- After we have specified our model (& checked it is identified) we proceed to **estimation**
+- Model estimation refers to finding the 'best' values for the unknown parameters
+
+## Specifying which parameters to estimate...
+
+```{r estimation, echo=F, warning=F, message=F}
+library(lavaan)
+library(semPlot)
+cfa<-'LV=~item1+item2+item3+item4+item5'
+
+cfa.est<-cfa(cfa, data=agg.items)
+semPaths(cfa.est)
+```
+
+
+
+## Finding the parameter values
+```{r parameters estimation, echo=F, warning=F, message=F}
+cfa<-'LV=~item1+item2+item3+item4+item5'
+cfa.est<-cfa(cfa,data=agg.items)
+semPaths(cfa.est, what='est')
+```
+
+## Maximum likelihood estimation
+- Maximum likelihood estimation is most commonly used
+- Finds the parameters that maximise the likelihood of the data 
+- Begins with a set of starting values
+- Iterative process of improving these values
+    - i.e. to minimise the difference between the sample covariance matrix and the covariance matrix implied by the parameter values
+- Terminates when the values are no longer substantially improved across iterations
+  - At this point **convergence** is said to have been reached
+  
+
+## No convergence?
+
+- Sometimes estimation fails
+- Common reasons are:
+    - The model is not identified
+    - The model is very mis-specified
+    - The model is very complex so more iterations are needed than the program default
+    
+    
+## Maximum likelihood estimation assumptions
+
+- Large sample size
+- Multivariate normality
+- Variables are on a continuous scale
+
+## Alternative estimators
+
+- Robust maximum likelihood estimation
+    - For non-normal data
+- Weighted least squares, unweighted least squares or diagonally weighted least squares
+    - For ordinal data
+    
+## BREAK 3
+
+- Time for a pause
+- Quiz question:
+    - Which of these is most likely to result in a model failing to converge using maximum likelihood estimation:
+      - Model under-identification
+      - Skewed variables
+      - A sample size of only n=100
+      - Ordinal variables with 5 response options
+      
+## Welcome back 3
+
+- Welcome back!
+- The answer to the quiz question is...
+    - Which of these is most likely to result in a model failing to converge using maximum likelihood estimation:
+      - **Model under-identification**
+      - Skewed variables
+      - A sample size of only n=100
+      - Ordinal variables with 5 response options
+
+## Model evaluation
+
+- Once the model has been evaluated, we ask: *how good is the model?*
+  - Global fit
+  - Local fit
+
+## Global fit
+
+- $\chi^2$
+    - When we use maximum likelihood estimation we obtain a $\chi^2$ value for the model
+    - This can be compared to a $\chi^2$ distribution with degrees of freedom equal to our model degrees of freedom
+    - Statistically significant $\chi^2$ suggests the CFA model does not do a good job of reproducing the observed variance-covariance matrix  
+- However, $\chi^2$ does not work well in practice
+    - Leads to the rejection of models that are only trivially mis-specified
+    
+## Alternatives to $\chi^2$
+
+- Absolute fit
+  - Standardised root mean square residual (**SRMR**)
+    - measures the discrepancy between the observed correlation matrix and model-implied correlation matrix
+    - ranges from 0 to 1 with 0=perfect fit
+    - values <.05 considered good
+
+- Parsimony-corrected
+  - Corrects for the complexity of the model
+  - Adds a penalty for having more degrees of freedom
+  - Root mean square square error of approximation (**RMSEA**)
+    - 0=perfect fit
+    - values <.05 considered good
+    
+
+## Incremental fit indices
+
+- Compares the model to a more restricted baseline model
+    - Usually an 'independence' model where all observed variable covariances fixed to 0
+- Comparative fit index (**CFI**)
+    - ranges between 0 and 1 with 1=perfect fit
+    - values > .95 considered good
+- Tucker-Lewis index (**TLI**)
+    - includes a parsimony penalty
+    - values >.95 considered good
+
+  
+## Local fit
+
+- It is also possible to examine **local** areas of mis-fit
+- **Modification indices** estimate the improvement in $\chi^2$ that could be expected from including an additional parameter
+    - e.g., a cross-loading, residual covariance or latent variable covariance
+- **Expected parameter changes** estimate the value of the parameter were it to be included
+
+
+## Making model modifications
+
+- Modification indices and expected parameter changes can be helpful for identifying how to improve the model
+- However:
+    - Modifications should be made iteratively
+    - Don't go overboard: may just be capitalising on chance
+    - Make sure the modifications can be justified on substantive grounds
+    - Be aware that this becomes an exploratory modeling practice
+    - Ideally replicate the new model in an independent sample
+    
+## Other considerations in model evaluation
+
+- Ideally:
+    - Factor loadings should be statistically significant
+    - Standardised factor loadings should be >|.30|
+    - Else some items/parameters could be trimmed from the model
+    - (with the same caveats as on previous slide)
+    
+- Check for **Heywood cases**
+    - Parameter estimates that are outside the permissable range
+    - E.g., correlations >1, negative residual variances
+    - May require modifications to the model to address
+    
+## BREAK 4
+
+- Time for a pause
+- Quiz question
+- Which of these fit indices compares a CFA model fit to an 'independence model' fit:
+    - Comparative fit index (CFI)
+    - Root Mean Square Error of Approximation (RMSEA)
+    - Standardised Root Mean Square Residual (SRMR)
+    - Chi-square
+
+
+## Welcome back 4
+
+- Welcome back!
+- Which of these fit indices compares a CFA model fit to an 'independence model' fit:
+    - **Comparative fit index (CFI)**
+    - Root Mean Square Error of Approximation (RMSEA)
+    - Standardised Root Mean Square Residual (SRMR)
+    - Chi-square
+
+
+## Interpreting a CFA
+
+- To aid interpretation we can request a fully **standardised solution**
+- Converts loadings/covariances to a correlation metric
+- Thereafter, the interpretation is similar to EFA:
+    - Loadings tell us strength of association between latent factor and items
+    - Factor correlations tell us how strongly associated latent factors are
+    
+
+## Conducting a CFA model using lavaan
+
+- Lavaan = **La**tent **Va**riable **An**alysis
+- Used to specify and estimate latent variable models
+- Three steps:
+
+```{r lavaan in three steps, eval=F}
+
+#step 1: specify the model
+ 
+model<-'LV=~V1+V2+V3+V4'
+  # we write the model using lavaan syntax enclosed in single quote marks
+
+#step2: estimate the model
+
+model.est<-cfa(model=model, data=df)  
+   # 'model= ' refers to a lavaan syntax object with the model specification
+   # 'data= ' gives name of the dataframe in which to find the variables
+#step3: inspect the results
+
+summary(model.est)
+    # the summary function shows us output from a fitted model
+
+```
+
+## Model specification
+- Specification uses lavaan syntax:
+
+```{r lavaan syntax, eval=F}
+
+# simple regression model 
+
+Regression<-'DV~IV'
+
+# multiple regression model
+
+Multiple.regression<-'DV~IV1+IV2+IV3'
+
+#covariance between two variables
+
+Covariance<-'V1~~V2'
+
+#latent factor specification
+
+CFA<-'LV=~V1+V2+V3+V4'
+```
+## Model specification for our aggression example
+
+  1. I hit someone
+  2. I kicked someone 
+  3. I shoved someone 
+  4. I battered someone 
+  5. I physically hurt someone on purpose 
+  6. I deliberately insulted someone
+  7. I swore at someone
+  8. I threatened to hurt someone
+  9. I called someone a nasty name to their face
+  10. I shouted mean things at someone
+
+
+```{r Aggression CFA}
+
+agg_m<-
+  'Pagg=~item1+item2+item3+item4+item5
+  
+   Vagg=~item6+item7+item8+item9+item10
+   
+   Pagg~~Vagg'
+  
+```
+
+## Model estimation in lavaan
+
+- To estimate the model, we then feed the object we just created into the cfa( ) function
+- We also name the dataset containing the model
+    - Lavaan will compute the variance-covariance matrix internally
+
+```{r estimate the model}
+agg_m.est<-cfa(agg_m, data=agg.items)
+```
+
+## Scaling constraints
+
+- By default, cfa( ) will scale the latent variables by fixing the first indicator for each latent factor to 1
+- To override this and fix latent factor variances instead, we can write:
+
+```{r estimate model with std_lv}
+
+agg_m.est<-cfa(agg_m, data=agg.items, std.lv=T)
+
+```
+
+## Model evaluation
+
+- We can check the model fit using the summary( ) function:
+
+```{r check model fit}
+
+summary(agg_m.est, fit.measures=T)
+
+```
+## Model evaluation
+
+- We can examine local mis-specifications using the modindices() function
+
+```{r standardised model results}
+
+modindices(agg_m.est, sort=T)
+
+```
+
+## Standardised parameter estimates
+
+- We can also inspect the standardised parameter estimates
+
+```{r stand estimates}
+
+summary(agg_m.est, standardized=T)
+```
+
+## Visualising the model
+
+- Sempaths() from the semPlot package can be used to visual a model as a SEM diagram
+
+```{r sempaths}
+
+semPaths(agg_m.est, what='stand')
+```
+
+## Writing up a CFA model
+
+- Methods
+    - Model(s) being tested
+    - Scaling /identifcation method
+    - Estimation method
+    - Criteria that used to judge fit 
+- Results
+    - Model fit ($\chi^2$ test, CFI, TLI, RMSEA, SRMR)
+    - Any modifications made and why
+    - Model parameters (in a SEM diagram or table)
+    
+## Cautions regarding CFA
+
+- Good fit doesn't guarantee that the model is 'correct'
+- Be careful about 'reifying' latent variables
+- Even when there are no common factors, CFA models can fit well
+
+
+## Summary
+
+CFA involves testing a hypothesised factor structure
+
+- Specifying a model
+    - Identification and scaling
+- Estimating that model
+    - e.g., maximum likelihood estimation
+- Seeing how well that model fits the data
+    - Global and local fit
+- Interpreting the model
+
+
