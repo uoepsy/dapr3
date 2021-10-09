@@ -66,16 +66,6 @@ style_mono_accent(
 )
 ```
 
-# Weeks 7 to 11 Overview
-- Section introduction (w7)
-- Path analysis (w7)
-- Path mediation (w8)
-- Data Reduction:
-  - Principal Components Analysis (w9)
-  - Exploratory Factor Analysis (w10 & 11)
-- Where next? (w11)
-
----
 # Learning Objectives
 1. Understand the core principle of path modelling
 2. Be able to use `lavaan` to estimate linear models and simple path models
@@ -88,6 +78,128 @@ class: inverse, center, middle
 <h2 style="text-align: left;opacity:0.3;">Part 2: Introducing `lavaan`</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 3: Model Estimation</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 4: Model Evaluation</h2>
+
+---
+# Weeks 7 to 11 Overview
+- Section introduction (w7)
+- Path analysis (w7)
+- Path mediation (w8)
+- Data Reduction:
+  - Principal Components Analysis (w9)
+  - Exploratory Factor Analysis (w10 & 11)
+- Where next? (w11)
+
+---
+# What issue do these methods solve?
+- Path models
+  - Sometimes we have more than one variable that needs to be treated as an outcome/dependent variable
+  - We cant do this in a linear model.
+  - **A path model allows us to test several linear models together as a set**
+  - Good way to learn basics of *structural equation modelling*
+  
+- Data reduction
+  - Psychology uses many surveys and psychometric tools
+  - Here we asked lots of questions we believe relate to some construct
+  - We need a way to:
+    - Check the relationships between each question
+    - Produce plausible scores that represent this construct
+
+- We will start with path models...
+
+---
+# Diagramatic Conventions
+
+.pull-left[
+
+- Some conventions
+  - Square = observed/measured
+  - Circle/elipse = latent/unobserved
+  - Two-headed arrow = covariance
+  - Single headed arrow = regression path
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("Conventions.pdf",pages = 1)
+```
+]
+
+---
+# Terminology
+- A couple of distinctions are also useful here.
+
+- Broadly, variables can be categorised as either exogenous or endogenous.
+
+- **Exogenous:** are essentially independent variables. 
+    - Only have directed arrows going out.
+
+- **Endogenous:** are dependent variables in at least one part of the model. 
+    - They have directed arrows going in.
+    - In a linear model there is only one endogenous variable, but in a path model we can have multiple.
+    - They also have an associated residual variance.
+      - Just like in a `lm`
+      - If something predicts (explains variance) a variable, there will be something left unexplained
+
+- So how does this relate to practical research problem?
+
+---
+# A hypothetical example
+- Suppose we are interested in how Neuroticism predicts psychological well-being and physical health outcomes.
+    - Neuroticism measured by a questionnaire with 5 items (5-point scale).
+    - Well-being is measured by a questionnaire with 5 items (7-point scale).
+    - Physical health is measured based on BMI, V02 max, and presence or absence of cancer (binary).
+
+- How do we test our model?
+
+---
+# A hypothetical example
+
+.pull-left[
+- **Approach 1**: Aggregate everything into composite scores and use 2 regression models.
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("Simple1.pdf",pages = 1)
+
+```
+
+```{r echo=FALSE}
+magick::image_read_pdf("Simple2.pdf",pages = 1)
+```
+]
+
+---
+# A hypothetical example
+
+.pull-left[
+- **Approach 2**: Aggregate everything, and use a path model to simultaneously estimate model with 2 outcomes.
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("TwoDV.pdf",pages = 1)
+```
+]
+
+---
+# A hypothetical example
+
+.pull-left[
+- **Approach 3**: Use a mix of latent and composite variables to simultaneously estimate model with 2 outcomes.
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("SEM1.pdf",pages = 1)
+```
+]
+
+
+
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
@@ -100,6 +212,151 @@ class: inverse, center, middle
 <h2>Part 2: Introducing `lavaan`</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 3: Model Estimation</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 4: Model Evaluation</h2>
+
+---
+# `lavaan`
+- The package we will use to fit our path models is called `lavaan`.
+
+- Using `lavaan` requires us to write...
+  - code to specify our model
+  - code to run the model
+
+- This is because we (a) generally use path models for slightly bigger models, and (b) have lots more options when running our model than in a `lm` 
+
+---
+# Model statements in `lavaan`
+
+.pull-left[
+
+- When a variable is observed, we use the name it has in our data set.
+  - Here `X1`, `X2`, `X3`, `Y1`
+
+- When a variable is latent (more on this in the data reduction section) we give it a new name.
+  - Here `Latent`
+
+- To specify a covariance, we use `~~`
+
+- To specify a regression path, we use `~`
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("Conventions.pdf",pages = 1)
+```
+]
+
+
+---
+# `lavaan` model code: Approach 1
+
+.pull-left[
+- **Approach 1**: Aggregate everything into composite scores and use 2 regression models.
+
+```{r, eval=FALSE}
+a1a = '
+wb ~ n
+'
+```
+
+```{r, eval=FALSE}
+a1b = '
+health ~ n
+'
+```
+
+- But this gains us nothing
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("Simple1.pdf",pages = 1)
+
+```
+
+```{r echo=FALSE}
+magick::image_read_pdf("Simple2.pdf",pages = 1)
+```
+]
+
+---
+# `lavaan` model code: Approach 2
+
+.pull-left[
+- **Approach 2**: Aggregate everything, and use a path model to simultaneously estimate model with 2 outcomes.
+
+```{r, eval=FALSE}
+a2 = '
+wb ~ n
+health ~ n
+wb ~~ health
+'
+```
+
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("TwoDV.pdf",pages = 1)
+```
+]
+
+---
+# `lavaan` model code: Approach 1
+
+.pull-left[
+- **Approach 3**: Use a mix of latent and composite variables to simultaneously estimate model with 2 outcomes.
+  - This one is just for fun (we wont get this far on this course)
+  - I will include some examples of this in the final week for anyone interested
+
+```{r, eval=FALSE}
+a3 <- '
+n =~ n1 + n2 + n3 + n4 + n5
+wb =~ wb1 + wb2 + wb3 + wb4 + wb5
+health ~ n
+wb ~ n
+'
+```
+
+]
+
+.pull-right[
+```{r echo=FALSE}
+magick::image_read_pdf("SEM1.pdf",pages = 1)
+```
+]
+
+---
+# Running a `lavaan` model
+- Once we have our model statement, we then need to run our model.
+  - There are a number of functions to do this, we will only use `sem()`
+
+```{r, eval=FALSE}
+library(lavaan)
+m1 <- sem(model, # your model statement
+          orderd = c(), # if variables are ordered categories list them
+          estimator ="ml" , # name of the estimation method you wish to use
+          missing = "" , # name of the missing data method you wish to use
+          data = tbl) # your data set
+```
+
+- `lavaan` has sensible defaults, meaning most of the time you will only need to state you model and data.
+
+- There is **lots** of information on using `lavaan` with lots of examples [on-line](https://lavaan.ugent.be/)
+
+---
+# Viewing the results
+- Lastly, we need to use a `summary` function (like in `lm` and `glm`) to see results. 
+
+```{r, eval=FALSE}
+summary(m1, # name given to our results object
+        fit.measures = T, # model fit information
+        standardized = T # provides standardized coefficients
+        )
+```
+
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
