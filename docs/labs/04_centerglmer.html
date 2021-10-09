@@ -356,7 +356,9 @@ div.tocify {
     <li>
       <a href="03_assumptranef.html">3: Assumptions, Diagnostics</a>
     </li>
-    <li class="dropdown-header">4: Generalisations | Centering</li>
+    <li>
+      <a href="04_centerglmer.html">4: Centering | Logistic</a>
+    </li>
     <li class="dropdown-header">5: Applied Examples</li>
   </ul>
 </li>
@@ -414,22 +416,1706 @@ div.tocify {
 <li>Create a new RMarkdown document or R script (whichever you like) for this week.</li>
 </ol>
 </div>
-<div id="centering-predictors" class="section level1">
-<h1>Centering Predictors</h1>
-<p>re-centering</p>
-<p>standardising</p>
-<p>compare in lm</p>
-<p>group centering
-group by and mutate
-group mean, group mean centered</p>
-<p>lmer</p>
-<p>ignoring the group mean</p>
-<p>interpretation</p>
+<div id="thinking-about-research-questions" class="section level1">
+<h1>Thinking about research questions</h1>
+<p>One of the biggest challenges in conducting research comes in the translation of our broader research aims to the specification of a statistical model or test. Questions which appear clear-cut and straightforward can turn out to be somewhat confusing when we think in more depth about what exactly it is that we have measured.</p>
+<p>These first exercises are designed to help you think through the steps to get from a description of a research study to a model specification.</p>
+<div class="frame">
+<p><strong>The study: Hangry hypothesis</strong></p>
+<p>The study is interested in evaluating whether hunger influences peoples’ levels of irritability (i.e., “the hangry hypothesis”), and whether this is different for people following a diet that includes fasting. 81 participants were recruited into the study. Once a week for 5 consecutive weeks, participants were asked to complete two questionnaires, one assessing their level of hunger, and one assessing their level of irritability. The time and day at which participants were assessed was at a randomly chosen hour between 7am and 7pm each week. 46 of the participants were following a five-two diet (five days of normal eating, 2 days of fasting), and the remaining 35 were following no specific diet.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+variable
+</th>
+<th style="text-align:left;">
+description
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+q_irritability
+</td>
+<td style="text-align:left;">
+Score on irritability questionnaire (0:100)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+q_hunger
+</td>
+<td style="text-align:left;">
+Score on hunger questionnaire (0:100)
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ppt
+</td>
+<td style="text-align:left;">
+Participant
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+fivetwo
+</td>
+<td style="text-align:left;">
+Whether the participant follows the five-two diet
+</td>
+</tr>
+</tbody>
+</table>
 </div>
-<div id="glmer" class="section level1">
-<h1>glmer</h1>
+<div class="question-begin">
+Question A1
+</div>
+<div class="question-body">
+<p>What is our outcome variable?</p>
+<p><em>hint: The research is looking at how hunger influences irritability, and whether this is different for people on the fivetwo diet.</em></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-62" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-62&#39;, &#39;sol-start-62&#39;)"> Solution </span>
+</div>
+<div id="sol-body-62" class="solution-body" style="display: none;">
+<p>Our outcome is irritability here, because it is the thing that we are trying to explain through peoples’ hunger levels and diets.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A2
+</div>
+<div class="question-body">
+<p>What are our explanatory variables?</p>
+<p><em>hint: The research is looking at how hunger influences irritability, and whether this is different for people on the fivetwo diet.</em></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-63" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-63&#39;, &#39;sol-start-63&#39;)"> Solution </span>
+</div>
+<div id="sol-body-63" class="solution-body" style="display: none;">
+<p>The explanatory variables of interest here are a person’s level of hunger, and whether they are on the five-two diet.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A3
+</div>
+<div class="question-body">
+<p>Is there any grouping (or “clustering”) of our data that we consider to be a random sample? If so, what are the groups?</p>
+<p><em>hint: We can split our data in to groups of each participant. We can also split it into groups of each diet. Which of these groups have we randomly sampled? Do we have a random sample of participants? Do we have a random sample of diets? Another way to think of this is “if i repeated the experiment, what these groups be different?”</em></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-64" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-64&#39;, &#39;sol-start-64&#39;)"> Solution </span>
+</div>
+<div id="sol-body-64" class="solution-body" style="display: none;">
+<p>If we did this experiment again, would we have different participants?<br />
+Yes.</p>
+<p>If we did this experiment again, would we have different diets?<br />
+No, because we’re interested in the specific differences between the five-two diet and no dieting.</p>
+<p>This means we will likely want to by-participant random deviations (e.g. the <code>( ... | participant)</code> bit in <code>lmer</code>). But we won’t have by-diet random effects because they are the specific differences we wish to test.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A4
+</div>
+<div class="question-body">
+<p>Based on previous questions, we are starting to be able to think of how our model would look in lmer syntax:</p>
+<pre><code>outcome ~ explanatory variables + (???? | grouping)</code></pre>
+<p>In the explanatory variables, we are interested in the effect of hunger, and whether this effect is different for the five-two diet. So we are interested in the interaction:</p>
+<pre class="r"><code>lmer(irritability ~ 1 + hunger + diet + hunger:diet  + (???? | participant))</code></pre>
+<p>(remember that <code>hunger + diet + hunger:diet</code> is just a more explicit way of writing <code>hunger*diet</code>).</p>
+<p>Let’s try and think about the maximal random effect structure.
+What <strong>can</strong> we model as randomly varying between participants?<br />
+some options:</p>
+<ol style="list-style-type: decimal">
+<li>participants vary in how irritable they are on average<br />
+(the intercept, <code>1 | participant</code>)</li>
+<li>participants vary in how much hunger influences their irritability<br />
+(the effect of hunger, <code>hunger | participant</code>)</li>
+<li>participants vary in how much diet influences irritability<br />
+(the effect of diet, <code>diet | participant</code>)</li>
+<li>participants vary in how much diet effects hunger’s influence on irritability<br />
+(the interaction between diet and hunger, <code>diet:hunger | participant</code>)</li>
+</ol>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-65" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-65&#39;, &#39;sol-start-65&#39;)"> Solution </span>
+</div>
+<div id="sol-body-65" class="solution-body" style="display: none;">
+<p>We can vary 1 and 2, but not 3 and 4.
+This is because each participant is either following the five-two diet or they are not. So for a <em>single</em> participant, we can’t assess “the effect diet has” on anything, because we haven’t seen that participant under different diets. if we try to plot a single participants’ data, we can see that it is impossible for us to assess “the effect of diet”:
+<img src="04_centerglmer_files/figure-html/unnamed-chunk-3-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<p>By contrast, we <strong>can</strong> vary the intercept and the effect of hunger, because each participant has multiple values of irritability, and multiple different observations of hunger. We can think about a single participant’s “effect of hunger on irritability” and how we might fit a line to their data:
+<img src="04_centerglmer_files/figure-html/unnamed-chunk-4-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="frame">
+<p><strong>The data: hangry.csv</strong></p>
+<p>The data is available at: <a href="https://uoepsy.github.io/data/hangry.csv" class="uri">https://uoepsy.github.io/data/hangry.csv</a></p>
+</div>
+<div class="question-begin">
+Question A5
+</div>
+<div class="question-body">
+<p>Read the data into R and fit the maximal model.<br />
+If the model doesn’t converge, try fitting it with a different optimiser before considering simplifying the model structure.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-66" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-66&#39;, &#39;sol-start-66&#39;)"> Solution </span>
+</div>
+<div id="sol-body-66" class="solution-body" style="display: none;">
+<pre class="r"><code>library(tidyverse)
+library(lme4)
+hangry &lt;- read_csv(&quot;https://uoepsy.github.io/data/hangry.csv&quot;)
+hangry &lt;- hangry %&gt;% mutate(fivetwo=factor(fivetwo))
+
+mmod &lt;- lmer(q_irritability ~ q_hunger * fivetwo + 
+         (1 + q_hunger | ppt), data = hangry,
+         control = lmerControl(optimizer=&quot;bobyqa&quot;))
+summary(mmod)</code></pre>
+<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
+## Formula: q_irritability ~ q_hunger * fivetwo + (1 + q_hunger | ppt)
+##    Data: hangry
+## Control: lmerControl(optimizer = &quot;bobyqa&quot;)
+## 
+## REML criterion at convergence: 2753.9
+## 
+## Scaled residuals: 
+##      Min       1Q   Median       3Q      Max 
+## -2.38188 -0.58360 -0.01485  0.60444  2.48921 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  ppt      (Intercept) 307.0154 17.5219       
+##           q_hunger      0.1046  0.3235  -0.90
+##  Residual              25.2331  5.0233       
+## Number of obs: 405, groups:  ppt, 81
+## 
+## Fixed effects:
+##                   Estimate Std. Error t value
+## (Intercept)       10.12250    3.49163   2.899
+## q_hunger           0.17037    0.06625   2.571
+## fivetwo1          -7.30981    4.68193  -1.561
+## q_hunger:fivetwo1  0.36824    0.08898   4.138
+## 
+## Correlation of Fixed Effects:
+##             (Intr) q_hngr fivtw1
+## q_hunger    -0.920              
+## fivetwo1    -0.746  0.686       
+## q_hngr:fvt1  0.685 -0.745 -0.921</code></pre>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="centering-scaling-revisited" class="section level1">
+<h1>Centering &amp; Scaling revisited</h1>
+<div class="frame">
+<p>We’re going to quickly return to the data used right back at the beginning of DAPR2. You can find it at: <a href="https://uoepsy.github.io/data/dapr2_report1.csv" class="uri">https://uoepsy.github.io/data/dapr2_report1.csv</a></p>
+<p>A description is here:</p>
+<p><em>Researchers were interested in assessing the degree to which urban environments and personality traits contribute towards perceptions of health. They conducted a survey study (n = 750) assessing individual’s personality - as measured by a self report Big Five measure from the International Personality Item Pool (IPIP; 6point Likert scale ranging from 1 to 6), as well as individual’s age, location of residence (city, suburb, countryside) and multiple self-ratings of different aspects of health (sleep, diet, physical health, mental health - high scores = better health). These variables were combined into a single z-score composite variable.</em></p>
+</div>
+<div class="question-begin">
+Question B1
+</div>
+<div class="question-body">
+<p>Read in the data, and fit a simple linear regression (one predictor) to evaluate how neuroticism (variable <code>N</code> in the dataset) influences self reported health (variable <code>srh</code> in the dataset).</p>
+<p>Provide an interpretation of the intercept and the coefficient for neuroticism.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-67" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-67&#39;, &#39;sol-start-67&#39;)"> Solution </span>
+</div>
+<div id="sol-body-67" class="solution-body" style="display: none;">
+<pre class="r"><code>dap2 &lt;- read_csv(&quot;https://uoepsy.github.io/data/dapr2_report1.csv&quot;)
+m1 &lt;- lm(srh ~ N, data = dap2)
+summary(m1)$coefficients</code></pre>
+<pre><code>##                Estimate Std. Error   t value     Pr(&gt;|t|)
+## (Intercept)  2.47104672 0.18685338  13.22452 4.978180e-36
+## N           -0.09863145 0.00734244 -13.43306 5.202168e-37</code></pre>
+<div class="int">
+<ul>
+<li>Someone scoring zero on the neuroticism domain of the Big Five measure from the International Personality Item Pool (IPIP) is estimated to self report thier health 2.47 standard deviations above average.<br />
+</li>
+<li>For every increase of one score on the neuroticism domain of the IPIP, self reported health is estimated to decrease by -0.1 standard deviations.</li>
+</ul>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B2
+</div>
+<div class="question-body">
+<p>Mean center your predictor and fit the model again. What (if anything) has changed, and why?</p>
+<p>Provide an interpretation of the intercept and the coefficient for neuroticism.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-68" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-68&#39;, &#39;sol-start-68&#39;)"> Solution </span>
+</div>
+<div id="sol-body-68" class="solution-body" style="display: none;">
+<pre class="r"><code>dap2 &lt;- dap2 %&gt;% mutate(Nmc = N - mean(N))
+m2 &lt;- lm(srh ~ Nmc, data = dap2)
+summary(m2)$coefficients</code></pre>
+<pre><code>##                  Estimate Std. Error       t value     Pr(&gt;|t|)
+## (Intercept)  1.098386e-16 0.03279682  3.349063e-15 1.000000e+00
+## Nmc         -9.863145e-02 0.00734244 -1.343306e+01 5.202168e-37</code></pre>
+<div class="int">
+<ul>
+<li>Someone scoring zero on the neuroticism domain of the Big Five measure from the International Personality Item Pool (IPIP) is estimated to self report their health at the sample average.</li>
+<li>For every increase of one score on the neuroticism domain of the IPIP, self reported health is estimated to decrease by -0.1 standard deviations.</li>
+</ul>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B3
+</div>
+<div class="question-body">
+<p>Standardise your predictor and fit the model again. What (if anything) has changed, and why?</p>
+<p>Provide an interpretation of the intercept and the coefficient for neuroticism.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-69" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-69&#39;, &#39;sol-start-69&#39;)"> Solution </span>
+</div>
+<div id="sol-body-69" class="solution-body" style="display: none;">
+<pre class="r"><code>dap2 &lt;- dap2 %&gt;% mutate(Nz = scale(N))
+m3 &lt;- lm(srh ~ Nz, data = dap2)
+summary(m3)$coefficients</code></pre>
+<pre><code>##                  Estimate Std. Error       t value     Pr(&gt;|t|)
+## (Intercept)  1.034644e-16 0.03279682  3.154710e-15 1.000000e+00
+## Nz          -4.408557e-01 0.03281870 -1.343306e+01 5.202168e-37</code></pre>
+<div class="int">
+<ul>
+<li>Someone scoring zero on the neuroticism domain of the Big Five measure from the International Personality Item Pool (IPIP) is estimated to self report their health at the sample average.</li>
+<li>For every increase of one <strong>standard deviation</strong> on the neuroticism domain of the IPIP, self reported health is estimated to decrease by -0.44 standard deviations.</li>
+</ul>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B4
+</div>
+<div class="question-body">
+<p>Conduct a model comparison between the 3 models you have just fitted, examining whether any of them show a significant reduction in the residual sums of squares.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-70" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-70&#39;, &#39;sol-start-70&#39;)"> Solution </span>
+</div>
+<div id="sol-body-70" class="solution-body" style="display: none;">
+<pre class="r"><code>anova(m1,m2,m3)</code></pre>
+<pre><code>## Analysis of Variance Table
+## 
+## Model 1: srh ~ N
+## Model 2: srh ~ Nmc
+## Model 3: srh ~ Nz
+##   Res.Df    RSS Df   Sum of Sq F Pr(&gt;F)
+## 1    748 603.43                        
+## 2    748 603.43  0 -2.2737e-13         
+## 3    748 603.43  0  0.0000e+00</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B5
+</div>
+<div class="question-body">
+<p>Think about what changes when you center or scale a predictor in a standard regression model.</p>
+<ul>
+<li>The variance explained by the predictor remains exactly the same</li>
+<li>The intercept will change to be the estimated mean outcome where that predictor is 0 (the significance test will therefore change because the intercept has a different meaning)</li>
+<li>The slope of the predictor will change according to any scaling (e.g. if you divide your predictor by 10, the slope will multiply by 10).</li>
+<li>The <strong>test</strong> of the slope of the predictor remains exactly the same</li>
+</ul>
+<p>Consider the two models you have just fitted:</p>
+<pre class="r"><code>dap2 &lt;- dap2 %&gt;% mutate(Nz = scale(N))
+# raw N
+m1 &lt;- lm(srh ~ N, data = dap2)
+# standardized N
+m3 &lt;- lm(srh ~ Nz, data = dap2)</code></pre>
+<p>What will you need to multiply the coefficient of <strong>N</strong> from model <code>m1</code> by in order to obtain the coefficient of <strong>Nz</strong> from model <code>m3</code>?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-71" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-71&#39;, &#39;sol-start-71&#39;)"> Solution </span>
+</div>
+<div id="sol-body-71" class="solution-body" style="display: none;">
+<p>Remember that the <code>scale(N)</code> is subtracting the mean from each value, then dividing those by the standard deviation.
+The standard deviation of <code>dap2$N</code> is:</p>
+<pre class="r"><code>sd(dap2$N)</code></pre>
+<pre><code>## [1] 4.469727</code></pre>
+<p>so in our variable <code>dap2$Nz</code>, a change of 4.47 gets scaled to be a change of 1 (because we are dividing by <code>sd(dap2$N)</code>).</p>
+<pre class="r"><code>coef(m1)[2] * sd(dap2$N)</code></pre>
+<pre><code>##          N 
+## -0.4408557</code></pre>
+<pre class="r"><code>coef(m3)[2]</code></pre>
+<pre><code>##         Nz 
+## -0.4408557</code></pre>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="group-centering" class="section level1">
+<h1>Group Centering</h1>
+<p>Returning to the <strong>Hangry Hypothesis</strong> study, let’s think about our continuous predictor: the level of hunger. It has a mean:</p>
+<pre class="r"><code>mean(hangry$q_hunger)</code></pre>
+<pre><code>## [1] 47.37037</code></pre>
+<p>But it also has a mean <em>for each participant</em>:</p>
+<pre class="r"><code>hangry %&gt;% group_by(ppt) %&gt;%
+    summarise(mean_hunger = mean(q_hunger))</code></pre>
+<pre><code>## # A tibble: 81 × 2
+##    ppt   mean_hunger
+##    &lt;chr&gt;       &lt;dbl&gt;
+##  1 N1p1         26.6
+##  2 N1p10        66.2
+##  3 N1p11        80.8
+##  4 N1p12        78.8
+##  5 N1p2         32.6
+##  6 N1p3         43.2
+##  7 N1p4         46.6
+##  8 N1p5         52.6
+##  9 N1p6         53.4
+## 10 N1p7         63  
+## # … with 71 more rows</code></pre>
+<div class="question-begin">
+Question C1
+</div>
+<div class="question-body">
+<p>Returning to the <strong>hangry.csv</strong> dataset, add a column to the data which is the average hungriness score for each participant.</p>
+<p><em>hint: <code>group_by() %&gt;% mutate()</code></em></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-72" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-72&#39;, &#39;sol-start-72&#39;)"> Solution </span>
+</div>
+<div id="sol-body-72" class="solution-body" style="display: none;">
+<pre class="r"><code>hangry &lt;- 
+    hangry %&gt;% group_by(ppt) %&gt;%
+        mutate(
+            avg_hunger = mean(q_hunger)
+        )</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C2
+</div>
+<div class="question-body">
+<p>Using the new variable you created in the previous question, plot each participants’ average hunger-score against all of their irritability scores. Can you use <code>stat_summary</code> to make it easier to interpret?</p>
+<p>Does it look like hungry people are more irritable than less hungry people?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-73" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-73&#39;, &#39;sol-start-73&#39;)"> Solution </span>
+</div>
+<div id="sol-body-73" class="solution-body" style="display: none;">
+<p>We can just plot all the points:</p>
+<pre class="r"><code>ggplot(hangry,aes(x=avg_hunger,y=q_irritability))+
+    geom_point()</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-16-1.png" width="80%" style="display: block; margin: auto;" />
+But we might find it easier to look at a plot where each participant is represented as their mean plus an indication of their range of irritability scores:</p>
+<pre class="r"><code>ggplot(hangry,aes(x=avg_hunger,y=q_irritability))+
+    stat_summary(geom=&quot;pointrange&quot;)</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-17-1.png" width="80%" style="display: block; margin: auto;" />
+There appears to be a slight positive relationship between a persons’ average hunger and their irritability scores.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C3
+</div>
+<div class="question-body">
+<p>Adjust your plot so that you have some means of telling apart those people who are on the five-two diet vs those who are not.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-74" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-74&#39;, &#39;sol-start-74&#39;)"> Solution </span>
+</div>
+<div id="sol-body-74" class="solution-body" style="display: none;">
+<p>We can do things like colour, or facet wrap</p>
+<pre class="r"><code>library(patchwork) # for arranging multiple ggplots
+ggplot(hangry,aes(x=avg_hunger,y=q_irritability, col=fivetwo))+
+    stat_summary(geom=&quot;pointrange&quot;) +
+ggplot(hangry,aes(x=avg_hunger,y=q_irritability))+
+    stat_summary(geom=&quot;pointrange&quot;) +
+    facet_wrap(~fivetwo)</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-18-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C4
+</div>
+<div class="question-body">
+<p>Add a column to the data, which is the deviation from each person’s hunger score tothat person’s average hunger score.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-75" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-75&#39;, &#39;sol-start-75&#39;)"> Solution </span>
+</div>
+<div id="sol-body-75" class="solution-body" style="display: none;">
+<pre class="r"><code>hangry &lt;- 
+    hangry %&gt;% 
+        mutate(
+            hunger_gc = q_hunger - avg_hunger
+        )</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C5
+</div>
+<div class="question-body">
+<p>Plot each participant’s deviations from their average hunger scores against their irritability scores.
+Does it look like when people are more hungry than normal, they are more angry?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-76" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-76&#39;, &#39;sol-start-76&#39;)"> Solution </span>
+</div>
+<div id="sol-body-76" class="solution-body" style="display: none;">
+<pre class="r"><code>ggplot(hangry,aes(x=hunger_gc,y=q_irritability, group=ppt))+
+    geom_point()+
+    geom_line(alpha=.1)</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-20-1.png" width="80%" style="display: block; margin: auto;" />
+This is harder to tell what the relationship is, because there are a lot of lines. Let’s plot a sample of participants:</p>
+<pre class="r"><code># these are all our unique ppt IDs: unique(hangry$ppt)
+# let&#39;s take a sample of them:
+toplot &lt;- sample(unique(hangry$ppt), size=12)
+hangry %&gt;% filter(ppt %in% toplot) %&gt;%
+ggplot(.,aes(x=hunger_gc,y=q_irritability, group=ppt))+
+    geom_point()+
+    geom_line(alpha=.1)+
+    facet_wrap(~ppt)</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-21-1.png" width="80%" style="display: block; margin: auto;" />
+I think there might be a positive trend in here, in that participants tend to be higher irritability when they are higher )for them) on the hunger score.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C6
+</div>
+<div class="question-body">
+<p>Adjust your plot so that you have some means of telling apart those people who are on the five-two diet vs those who are not.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-77" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-77&#39;, &#39;sol-start-77&#39;)"> Solution </span>
+</div>
+<div id="sol-body-77" class="solution-body" style="display: none;">
+<pre class="r"><code>ggplot(hangry,aes(x=hunger_gc,y=q_irritability, group=ppt, col=fivetwo))+
+    geom_point()+
+    geom_line(alpha=.1) +
+ggplot(hangry,aes(x=hunger_gc,y=q_irritability, group=ppt))+
+    geom_point()+
+    geom_line(alpha=.1) +
+    facet_wrap(~fivetwo)</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-22-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="centering-in-the-mlm" class="section level1">
+<h1>Centering in the MLM</h1>
+<p><strong>Recall our research aim:</strong></p>
+<p><em>The study is interested in evaluating whether hunger influences peoples’ levels of irritability (i.e., “the hangry hypothesis”)</em>, and whether this is different for people following a diet that includes fasting.</p>
+<p>Thinking just about the relationship between irritability and hunger (i.e., ignoring the aim of evaluating whether it is different for different diets), how did you initially interpreted what the research aimed to study?<br />
+Was it:</p>
+<p>A: “Are people more irritable if they are, <strong>on average</strong>, more hungry <strong>than other people</strong>?”<br />
+B: “Are people more irritable if they are, <strong>for them</strong>, more hungry <strong>than they usually are</strong>?”<br />
+C: Both<br />
+D: Unsure</p>
+<p>This is just one demonstration of how the statistical methods we use can constitute an integral part of our development of a research project, and part of the reason that data analysis for scientific cannot be so easily outsourced after designing the study and collecting the data.</p>
+<div class="question-begin">
+Question C8
+</div>
+<div class="question-body">
+<p>We already have variables (created in the questions above) that capture the mean hunger score for each person, and the deviations from the mean hunger score for each person.</p>
+<p>We also have our model, which we wrote as something like:</p>
+<pre class="r"><code>mmod &lt;- lmer(q_irritability ~ q_hunger * fivetwo + 
+         (1 + q_hunger | ppt), data = hangry,
+         control = lmerControl(optimizer=&quot;bobyqa&quot;))</code></pre>
+<p>We know that the raw hunger scores we were working with are basically <code>hunger_average + hunger deviation</code>, and that these represent different features of a person that can influence the irritability.</p>
+<p>So maybe we simply separate out these two aspects of hunger in our model?<br />
+Why won’t this model work?</p>
+<pre class="r"><code>lmer(irritability ~ 1 + avg_hunger + hunger_gc + diet + 
+                        avg_hunger:diet + hunger_gc:diet + 
+         (1 + avg_hunger + hunger_gc  | ppt))</code></pre>
+<p>(this is a tricky question. hint: it’s because of the random effects).</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-78" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-78&#39;, &#39;sol-start-78&#39;)"> Solution </span>
+</div>
+<div id="sol-body-78" class="solution-body" style="display: none;">
+<p>Recall that we discussed how we cannot have a random effect of diet, because “an effect of diet” makes no sense for a single participant (they are either on the diet or they are not, so there is no ‘effect’).</p>
+<p>The same is true of a random effect of “average hungriness.”<br />
+For a single participant in our data, we can’t really comprehend “an effect of being on average more hungry,” because each participant has only one value for their average hungriness, which is their average hungriness.</p>
+<p>Consider the plot of <code>irritability ~ avg_hunger</code> for the first participant. How can we draw a slope?</p>
+<pre class="r"><code>hangry %&gt;% filter(ppt == &quot;N1p1&quot;) %&gt;%
+ggplot(., aes(x=avg_hunger, y=q_irritability))+
+  geom_point()</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-25-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C9
+</div>
+<div class="question-body">
+<p>Fit the following model:</p>
+<pre class="r"><code>hangrywb &lt;- lmer(q_irritability ~ (avg_hunger + hunger_gc)* fivetwo + 
+                (1 + hunger_gc | ppt), data = hangry,
+            control = lmerControl(optimizer=&quot;bobyqa&quot;))</code></pre>
+<p>Look at the confidence intervals for the fixed effect estimates from the model below. <em>We will not conduct a thorough model criticism here as we are focusing on the interpretation of the coefficients.</em></p>
+<pre class="r"><code>cbind(est = fixef(hangrywb), 
+      confint(hangrywb, method=&quot;boot&quot;)[5:10,])</code></pre>
+<pre><code>##                               est        2.5 %     97.5 %
+## (Intercept)          17.130958625   6.31490446 27.8425798
+## avg_hunger            0.003863468  -0.21254025  0.2210129
+## hunger_gc             0.185773032   0.03942128  0.3300954
+## fivetwo1            -10.854713234 -23.33247543  2.0035176
+## avg_hunger:fivetwo1   0.465896991   0.21337066  0.7255080
+## hunger_gc:fivetwo1    0.381411846   0.19613151  0.5855832</code></pre>
+<p>Try to provide an answer for each of these questions:</p>
+<ul>
+<li>For those following no diet, is there evidence to suggest that people who are <em>on average</em> more hungry are more irritable?</li>
+<li>Is there evidence to suggest that this is different for those following the five-two diet? In what way?</li>
+<li>Do people following no diet tend to be more irritable when they are more hungry than they usually are?</li>
+<li>Is there evidence to suggest that this is different for those following the five-two diet? In what way?</li>
+</ul>
+<p>Trickier question:
+- What does the fivetwo coefficient represent?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-79" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-79&#39;, &#39;sol-start-79&#39;)"> Solution </span>
+</div>
+<div id="sol-body-79" class="solution-body" style="display: none;">
+<p><strong>Q: For those following no diet, is there evidence to suggest that people who are <em>on average</em> more hungry are more irritable?</strong><br />
+A: No diet is the reference level of the five-two variable, and because we have an interaction, that means the <code>avg_hunger</code> coefficient will provide the relevant estimate. There is no evidence to suggest that when not dieting, hungrier people are more irritable than less hungry people. A value of 0 for this effect is within our 95% confidence intervals.</p>
+<p><strong>Q: Is there evidence to suggest that this is different for those following the five-two diet? In what way?</strong><br />
+A: This is the interaction between <code>avg_hunger:fivetwo1</code>. We can see that, for every increase of 1 in average hunger, irritability is estimated to increase by 0.47 more for those in the five-two diet than it does for those following no diet.<br />
+These units are still in terms of the original scale (i.e. 0 to 100).</p>
+<p><strong>Q: Do people following no diet tend to be more irritable when they are more hungry than they usually are?</strong>
+A: This is the estimate for the coefficient of <code>hunger_gc</code>. For people following no diet, there is an estimated 0.19 increase in irritability for every 1 unit more hungry they become.</p>
+<p><strong>Q: Is there evidence to suggest that this is different for those following the five-two diet? In what way?</strong>
+A: This effect of a 1 unit change on within-person hunger increasing irritability is increased for those who are following the five-two diet by an additional 0.38</p>
+<p><strong>Q: What does the <code>fivetwo1</code> coefficient represent?</strong>
+A: This represents the group difference of irritability between those on the five-two diet vs those not dieting, for someone who has an average hunger score of 0.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C10
+</div>
+<div class="question-body">
+<p>Construct two plots showing the two model estimated interactions.</p>
+<p><em>hint: this isn’t as difficult as it sounds. the sjPlot package can do it in one line of code!</em></p>
+<p>Think about your answers to the previous question, and check that they match with what you are seeing in the plots (do not underestimate the utility of this activity for helping understanding!).</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-80" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-80&#39;, &#39;sol-start-80&#39;)"> Solution </span>
+</div>
+<div id="sol-body-80" class="solution-body" style="display: none;">
+<pre class="r"><code>library(sjPlot)
+plot_model(hangrywb, type = &quot;int&quot;)</code></pre>
+<pre><code>## [[1]]</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-28-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<pre><code>## 
+## [[2]]</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-28-2.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="logistic-mlm" class="section level1">
+<h1>Logistic MLM</h1>
+<div class="frame">
+<p><strong>Don’t forget to look back at other materials!</strong></p>
+<p>Back in DAPR2, we introduced logistic regression in semester 2, week 8. The lab contained some simulated data based on a hypothetical study <a href="https://uoepsy.github.io/wayback/dapr2labs/15_binary_logistic.html">about inattentional blindness</a>.
+That content will provide a lot of the groundwork for this week, so we recommend revisiting it if you feel like it might be useful.</p>
+</div>
+<div class="rtip">
+<p><strong><code>lmer()</code> &gt;&gt; <code>glmer()</code></strong></p>
+<p>Remember how we simply used <code>glm()</code> and could specify the <code>family = "binomial"</code> in order to fit a logistic regression? Well it’s much the same thing for multi-level models!</p>
+<ul>
+<li>Gaussian model: <code>lmer(y ~ x1 + x2 + (1 | g), data = data)</code><br />
+</li>
+<li>Binomial model: <code>glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial(link='logit'))</code>
+<ul>
+<li>or just <code>glmer(y ~ x1 + x2 + (1 | g), data = data, family = "binomial")</code></li>
+<li>or <code>glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial)</code></li>
+</ul></li>
+</ul>
+</div>
+<div class="optional-begin">
+<span id="opt-start-81" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-81&#39;, &#39;opt-start-81&#39;)"> Binary? Binomial?</span>
+</div>
+<div id="opt-body-81" class="optional-body" style="display: none;">
+<p>For binary regression, all the data in our outcome variable has to be a 0 or a 1.<br />
+For example, the <code>correct</code> variable below:</p>
+<div id="cothfddyoa" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#cothfddyoa .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#cothfddyoa .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#cothfddyoa .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#cothfddyoa .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#cothfddyoa .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#cothfddyoa .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#cothfddyoa .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#cothfddyoa .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#cothfddyoa .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#cothfddyoa .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#cothfddyoa .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#cothfddyoa .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#cothfddyoa .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#cothfddyoa .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cothfddyoa .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#cothfddyoa .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#cothfddyoa .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#cothfddyoa .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#cothfddyoa .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#cothfddyoa .gt_left {
+  text-align: left;
+}
+
+#cothfddyoa .gt_center {
+  text-align: center;
+}
+
+#cothfddyoa .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#cothfddyoa .gt_font_normal {
+  font-weight: normal;
+}
+
+#cothfddyoa .gt_font_bold {
+  font-weight: bold;
+}
+
+#cothfddyoa .gt_font_italic {
+  font-style: italic;
+}
+
+#cothfddyoa .gt_super {
+  font-size: 65%;
+}
+
+#cothfddyoa .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 65%;
+}
+</style>
+<table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">participant</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">question</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">correct</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td class="gt_row gt_left">1</td>
+<td class="gt_row gt_left">1</td>
+<td class="gt_row gt_left">1</td></tr>
+    <tr><td class="gt_row gt_left">1</td>
+<td class="gt_row gt_left">2</td>
+<td class="gt_row gt_left">0</td></tr>
+    <tr><td class="gt_row gt_left">1</td>
+<td class="gt_row gt_left">3</td>
+<td class="gt_row gt_left">1</td></tr>
+    <tr><td class="gt_row gt_left">...</td>
+<td class="gt_row gt_left">...</td>
+<td class="gt_row gt_left">...</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+<p>But we can re-express this information in a different way, when we know the total number of questions asked.</p>
+<div id="dmauqxxejy" style="overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#dmauqxxejy .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#dmauqxxejy .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 4px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#dmauqxxejy .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#dmauqxxejy .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#dmauqxxejy .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#dmauqxxejy .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#dmauqxxejy .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#dmauqxxejy .gt_group_heading {
+  padding: 8px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#dmauqxxejy .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#dmauqxxejy .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#dmauqxxejy .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#dmauqxxejy .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#dmauqxxejy .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 12px;
+}
+
+#dmauqxxejy .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dmauqxxejy .gt_first_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#dmauqxxejy .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#dmauqxxejy .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding: 4px;
+}
+
+#dmauqxxejy .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#dmauqxxejy .gt_sourcenote {
+  font-size: 90%;
+  padding: 4px;
+}
+
+#dmauqxxejy .gt_left {
+  text-align: left;
+}
+
+#dmauqxxejy .gt_center {
+  text-align: center;
+}
+
+#dmauqxxejy .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#dmauqxxejy .gt_font_normal {
+  font-weight: normal;
+}
+
+#dmauqxxejy .gt_font_bold {
+  font-weight: bold;
+}
+
+#dmauqxxejy .gt_font_italic {
+  font-style: italic;
+}
+
+#dmauqxxejy .gt_super {
+  font-size: 65%;
+}
+
+#dmauqxxejy .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 65%;
+}
+</style>
+<table class="gt_table">
+  
+  <thead class="gt_col_headings">
+    <tr>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">participant</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">questions_correct</th>
+      <th class="gt_col_heading gt_columns_bottom_border gt_left" rowspan="1" colspan="1">questions_incorrect</th>
+    </tr>
+  </thead>
+  <tbody class="gt_table_body">
+    <tr><td class="gt_row gt_left">1</td>
+<td class="gt_row gt_left">2</td>
+<td class="gt_row gt_left">1</td></tr>
+    <tr><td class="gt_row gt_left">2</td>
+<td class="gt_row gt_left">1</td>
+<td class="gt_row gt_left">2</td></tr>
+    <tr><td class="gt_row gt_left">3</td>
+<td class="gt_row gt_left">3</td>
+<td class="gt_row gt_left">0</td></tr>
+    <tr><td class="gt_row gt_left">...</td>
+<td class="gt_row gt_left">...</td>
+<td class="gt_row gt_left">...</td></tr>
+  </tbody>
+  
+  
+</table>
+</div>
+<p>To model data when it is in this form, we can express our outcome as <code>cbind(questions_correct, questions_incorrect)</code></p>
+</div>
+<p class="optional-end">
+</p>
+<div class="frame">
+<p><strong>Data: Novel Word Learning</strong></p>
+<pre class="r"><code>nwl &lt;- read_csv(&quot;https://uoepsy.github.io/data/nwl2.csv&quot;)</code></pre>
+<p>In the <code>nwl2</code> data set (accessed using the code above), participants with aphasia are separated into two groups based on the general location of their brain lesion: anterior vs. posterior. Participants had 9 experimental blocks. In each of these they completed 30 exercises. There is data on the whether participants responded correctly or incorrectly to each exercise. The first 7 blocks were learning blocks, immediately followed by a test (block 8). Finally, participants also completed a follow-up test (block 9).
+<br>
+<strong>Research Aims</strong><br />
+<em>Compare the two groups (those with anterior vs. posterior lesions) with respect to their accuracy of responses over the course of the study</em>
+<br>
+Figure <a href="#fig:nwl-fig">1</a> shows the differences between groups in the average proportion of correct responses at each point in time (i.e., each block, test, and follow-up)</p>
+<div class="figure" style="text-align: center"><span id="fig:nwl-fig"></span>
+<img src="04_centerglmer_files/figure-html/nwl-fig-1.png" alt="Differences between groups in the average proportion of correct responses at each block" width="80%" />
+<p class="caption">
+Figure 1: Differences between groups in the average proportion of correct responses at each block
+</p>
+</div>
+</div>
+<div class="question-begin">
+Question D1: Initial thoughts
+</div>
+<div class="question-body">
+<ol style="list-style-type: decimal">
+<li>What is our outcome?</li>
+<li>Is it longitudinal? (simply, is there a temporal sequence to observations within a participant?)</li>
+<li>How many participants with brain lesions do we have data for?</li>
+</ol>
+<p><em>Hint:</em> Think carefully about question 1. There might be several variables which either fully or partly express the information we are considering the “outcome” here.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-82" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-82&#39;, &#39;sol-start-82&#39;)"> Solution </span>
+</div>
+<div id="sol-body-82" class="solution-body" style="display: none;">
+<ol style="list-style-type: decimal">
+<li>The outcome here is (in words) “the proportion of correct answers in each block.” This makes it tempting to look straight to the variable called <code>PropCorrect</code>. Unfortunately, this is encoded as a proportion (i.e., is bounded by 0 and 1), and of the models we have learned about so far, we don’t definitely have the necessary tools to model this.
+<ul>
+<li>linear regression = continuous <em>unbounded</em> outcome variable<br />
+</li>
+<li>logistic regression = binomial, expressed as <code>0</code> or <code>1</code> if the number of trials per observation is 1, and expressed as <code>cbind(num_successes, num_failures)</code> if the number of trials per observation is &gt;1.</li>
+</ul></li>
+<li>It is longitudinal in the sense that blocks are sequential. However, we probably wouldn’t call it a “longitudinal study” as that tends to get reserved for when we follow-up participants over a fairly long time period (months or years).</li>
+<li>There are 12 patients</li>
+</ol>
+<pre class="r"><code>nwl %&gt;% count(id)</code></pre>
+<pre><code>## # A tibble: 12 × 2
+##    id            n
+##    &lt;chr&gt;     &lt;int&gt;
+##  1 patient15   270
+##  2 patient16   270
+##  3 patient17   270
+##  4 patient18   270
+##  5 patient19   270
+##  6 patient20   270
+##  7 patient21   270
+##  8 patient22   270
+##  9 patient23   270
+## 10 patient24   270
+## 11 patient26   270
+## 12 patient27   270</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question D2
+</div>
+<div class="question-body">
+<blockquote>
+<p><strong>Research Question 1:</strong><br />
+Is the learning rate (training blocks) different between these two groups?</p>
+</blockquote>
+<p><strong>Hints</strong>:</p>
+<ul>
+<li>Make sure we’re running models on only the data we are actually interested in.<br />
+</li>
+<li>Think back to what we have been doing with model comparison to examine the effect of including certain predictors. We could use this approach for this question, to compare:
+<ul>
+<li>A model with just the change over the sequence of blocks</li>
+<li>A model with the change over the sequence of blocks <em>and</em> an overall difference between groups</li>
+<li>A model with groups differing with respect to their change over the sequence of blocks</li>
+</ul></li>
+<li>What about the random effects part?
+<ol style="list-style-type: decimal">
+<li>What are our observations grouped by?</li>
+<li>What variables can vary within these groups?</li>
+<li>What do you want your model to allow to vary within these groups?</li>
+</ol></li>
+</ul>
+<div class="optional-begin">
+<span id="opt-start-83" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-83&#39;, &#39;opt-start-83&#39;)"> Suggested answers to the hints if you don’t know where to start</span>
+</div>
+<div id="opt-body-83" class="optional-body" style="display: none;">
+<ul>
+<li>Make sure we’re running models on only the data we are actually interested in.
+<ul>
+<li>We want only the learning blocks, not block 8 or 9.</li>
+<li>You might want to store this data in a separate object, but in the code for the solution we will just use <code>filter()</code> <em>inside</em> the <code>glmer()</code>.</li>
+</ul></li>
+<li>A model with just the change over the sequence of blocks:
+<ul>
+<li><strong>outcome ~ block</strong></li>
+</ul></li>
+<li>A model with the change over the sequence of blocks <em>and</em> an overall difference between groups:
+<ul>
+<li><strong>outcome ~ block + lesion_location</strong></li>
+</ul></li>
+<li>A model with groups differing with respect to their change *over the sequence of blocks:
+<ul>
+<li><strong>outcome ~ block * lesion_location</strong></li>
+</ul></li>
+<li>What are our observations grouped by?
+<ul>
+<li>repeated measures by-participant. i.e., the <code>id</code> variable</li>
+</ul></li>
+<li>What variables can vary within these groups?
+<ul>
+<li>only the outcome variable (<code>correct</code>), and the <code>block</code>.</li>
+<li>The other variables (<code>lesion_location</code> and <code>group</code>) do <strong>not</strong> vary for each ID. Lesions don’t suddenly change where they are located, nor do participants swap between being a patient vs a control (we don’t need the group variable anyway as we are excluding the controls).<br />
+What do you want your model to allow to vary within these groups?</li>
+<li>Do you think the change over the course of the blocks is <strong>the same</strong> for everybody? Or do you think it varies? Is this variation important to think about in terms of your research question?</li>
+</ul></li>
+</ul>
+</div>
+<p class="optional-end">
+</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-84" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-84&#39;, &#39;sol-start-84&#39;)"> Solution </span>
+</div>
+<div id="sol-body-84" class="solution-body" style="display: none;">
+<pre class="r"><code>m.base &lt;- glmer(correct ~ block + (block | id), 
+                data = filter(nwl, block &lt; 8),
+                family=binomial)
+m.loc0 &lt;- glmer(correct ~ block + lesion_location + (block | id), 
+                data=filter(nwl, block &lt; 8),
+                family=binomial)
+m.loc1 &lt;- glmer(correct ~ block * lesion_location + (block | id), 
+                data=filter(nwl, block &lt; 8),
+                family=binomial)
+#summary(m.loc1)
+anova(m.base, m.loc0, m.loc1, test=&quot;Chisq&quot;)</code></pre>
+<pre><code>## Data: filter(nwl, block &lt; 8)
+## Models:
+## m.base: correct ~ block + (block | id)
+## m.loc0: correct ~ block + lesion_location + (block | id)
+## m.loc1: correct ~ block * lesion_location + (block | id)
+##        npar    AIC    BIC  logLik deviance  Chisq Df Pr(&gt;Chisq)
+## m.base    5 3256.6 3285.8 -1623.3   3246.6                     
+## m.loc0    6 3257.1 3292.1 -1622.6   3245.1 1.4572  1     0.2274
+## m.loc1    7 3257.0 3297.8 -1621.5   3243.0 2.1974  1     0.1382</code></pre>
+<div class="int">
+<p>No significant difference in learning rate between groups (<span class="math inline">\(\chi^2(1)=2.2, p = 0.138\)</span>).</p>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div id="optional-extras" class="section level2">
+<h2>Optional Extras</h2>
+<div class="imp">
+<p>This next bit gets a little complicated, and does not contain any unique information that will prove helpful in completing the assessment.<br />
+However, it does provide an example of a logistic multi-level model, along with interpretation of the fixed effects. We hope that it may provide a useful learning tool.</p>
+</div>
+<blockquote>
+<p><strong>Research Question 2</strong><br />
+In the testing phase, does performance on the immediate test differ between lesion location groups, and does their retention from immediate to follow-up test differ?</p>
+</blockquote>
+<p>Let’s try a different approach to this. Instead of fitting various models and comparing them via likelihood ratio tests, just fit the one model which could answer both parts of the question above.</p>
+<p>This line of code will create a variable specifying whether a block is “learning” (blocks 1-7), an “immediate test” (block 8), or a “followup test” (block 9).</p>
+<pre class="r"><code>nwl &lt;- nwl %&gt;% mutate(
+    phase = ifelse(block &lt;=7, &quot;learning&quot;,
+                   ifelse(block==8,&quot;immediate&quot;,&quot;followup&quot;))
+)</code></pre>
+<p>We can now fit our model:</p>
+<pre class="r"><code>m.recall.loc &lt;- glmer(correct ~ phase * lesion_location + (phase | id), 
+                  nwl %&gt;% filter(block&gt;7), family=&quot;binomial&quot;)
+summary(m.recall.loc)</code></pre>
+<pre><code>## Generalized linear mixed model fit by maximum likelihood (Laplace
+##   Approximation) [glmerMod]
+##  Family: binomial  ( logit )
+## Formula: correct ~ phase * lesion_location + (phase | id)
+##    Data: nwl %&gt;% filter(block &gt; 7)
+## 
+##      AIC      BIC   logLik deviance df.resid 
+##    938.6    970.6   -462.3    924.6      713 
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.1670 -1.0193  0.4991  0.9224  1.4210 
+## 
+## Random effects:
+##  Groups Name           Variance Std.Dev. Corr
+##  id     (Intercept)    0.28200  0.5310       
+##         phaseimmediate 0.02538  0.1593   1.00
+## Number of obs: 720, groups:  id, 12
+## 
+## Fixed effects:
+##                                         Estimate Std. Error z value Pr(&gt;|z|)  
+## (Intercept)                             -0.13828    0.28979  -0.477   0.6332  
+## phaseimmediate                           0.02453    0.24635   0.100   0.9207  
+## lesion_locationposterior                 0.74483    0.38410   1.939   0.0525 .
+## phaseimmediate:lesion_locationposterior  0.25436    0.33905   0.750   0.4531  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) phsmmd lsn_lc
+## phaseimmedt -0.149              
+## lsn_lctnpst -0.755  0.113       
+## phsmmdt:ls_  0.109 -0.729 -0.164
+## optimizer (Nelder_Mead) convergence code: 0 (OK)
+## boundary (singular) fit: see ?isSingular</code></pre>
+<div class="frame">
+<p>Take some time to remind yourself from DAPR2 of the <a href="https://uoepsy.github.io/wayback/dapr2labs/15_binary_logistic.html">interpretation of logistic regression coefficients</a>.</p>
+<p>In <code>family = binomial(link='logit')</code>, we are modelling the log-odds.
+We can obtain estimates on this scale using:</p>
+<ul>
+<li><code>fixef(model)</code></li>
+<li><code>summary(model)$coefficients</code></li>
+<li><code>tidy(model)</code> <strong>from broom.mixed</strong><br />
+</li>
+<li>(there are probably more ways, but I can’t think of them right now!)</li>
+</ul>
+<p>We can use <code>exp()</code>, to get these back into odds and odds ratios.</p>
+</div>
+<div class="question-begin">
+Question Extra 1
+</div>
+<div class="question-body">
+<p>Make sure you pay attention to trying to interpret each fixed effect from your models.<br />
+These can be difficult, especially when it’s logistic, and especially when there are interactions.</p>
+<ul>
+<li>What is the increase in the odds of answering correctly in the immediate test for someone with a posterior legion compared to someone with an anterior legion?</li>
+</ul>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-85" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-85&#39;, &#39;sol-start-85&#39;)"> Solution </span>
+</div>
+<div id="sol-body-85" class="solution-body" style="display: none;">
+<ul>
+<li><code>(Intercept)</code> ==&gt; Anterior lesion group performance in immediate test. This is the log-odds of them answering correctly in the immediate test.</li>
+<li><code>PhaseFollow-up</code> ==&gt; Change in performance (for the anterior lesion group) from immediate to follow-up test.</li>
+<li><code>lesion_locationposterior</code> ==&gt; Posterior lesion group performance in immediate test relative to anterior lesion group performance in immediate test</li>
+<li><code>PhaseFollow-up:lesion_locationposterior</code> ==&gt; Change in performance from immediate to follow-up test, posterior lesion group relative to anterior lesion group</li>
+</ul>
+<pre class="r"><code>exp(fixef(m.recall.loc))[3]</code></pre>
+<pre><code>## lesion_locationposterior 
+##                 2.106074</code></pre>
+<div class="int">
+<p>Those with posterior lesions have 2.11 times the odds of answering correctly in the immediate test compared to someone with an anterior lesion.</p>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question Extra 2
+</div>
+<div class="question-body">
+<p>Can you recreate the visualisation in Figure <a href="#fig:nwl-fig2">2</a>? (try without looking at the solution code!).</p>
+<div class="figure" style="text-align: center"><span id="fig:nwl-fig2"></span>
+<img src="04_centerglmer_files/figure-html/nwl-fig2-1.png" alt="Differences between groups in the average proportion of correct responses at each block" width="80%" />
+<p class="caption">
+Figure 2: Differences between groups in the average proportion of correct responses at each block
+</p>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-86" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-86&#39;, &#39;sol-start-86&#39;)"> Solution </span>
+</div>
+<div id="sol-body-86" class="solution-body" style="display: none;">
+<pre class="r"><code>ggplot(nwl, aes(block, correct, color=lesion_location, 
+                                shape=lesion_location)) +
+  #geom_line(aes(group=ID),alpha=.2) + 
+  stat_summary(fun.data=mean_se, geom=&quot;pointrange&quot;) + 
+  stat_summary(data=filter(nwl,block &lt;= 7), 
+                           fun=mean, geom=&quot;line&quot;) + 
+  geom_hline(yintercept=0.5, linetype=&quot;dashed&quot;) + 
+  geom_vline(xintercept=c(7.5, 8.5), linetype=&quot;dashed&quot;) + 
+  scale_x_continuous(breaks=1:9, labels=c(1:7, &quot;Test&quot;, &quot;Follow-Up&quot;)) + 
+  theme_bw(base_size=10) + 
+  labs(x=&quot;Block&quot;, y=&quot;Proportion Correct&quot;, shape=&quot;Lesion\nLocation&quot;, color=&quot;Lesion\nLocation&quot;)</code></pre>
+<p><img src="04_centerglmer_files/figure-html/unnamed-chunk-37-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
 
+</div>
 </div>
 </div>
 
