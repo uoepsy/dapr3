@@ -41,6 +41,58 @@ class: inverse, center, middle
 &lt;h2&gt;Part 1: Centering Predictors&lt;/h2&gt;
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: GLMM&lt;/h2&gt;
 
+---
+# Centering
+
+.pull-left[
+Suppose we have a variable for which the mean is 100.  
+![](04_centeringglmer_files/figure-html/unnamed-chunk-1-1.png)&lt;!-- --&gt;
+]
+--
+.pull-right[
+We can re-center this so that the mean becomes zero:
+![](04_centeringglmer_files/figure-html/unnamed-chunk-2-1.png)&lt;!-- --&gt;
+
+]
+
+---
+count:false
+# Centering
+
+.pull-left[
+Suppose we have a variable for which the mean is 100.  
+![](04_centeringglmer_files/figure-html/unnamed-chunk-3-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+We can re-center this so that _any_ value becomes zero:
+![](04_centeringglmer_files/figure-html/unnamed-chunk-4-1.png)&lt;!-- --&gt;
+
+]
+???
+now really this isn't doing anything much. we're simply sliding the whole distribution left or right, thereby changing what the number "zero" means in the context of the variable. we can have zero as the mean, as 120, as any number we like. 
+
+---
+# Scaling
+
+.pull-left[
+Suppose we have a variable for which the mean is 100.  
+The standard deviation is 15
+![](04_centeringglmer_files/figure-html/unnamed-chunk-5-1.png)&lt;!-- --&gt;
+]
+
+???
+if we consider also the spread of the distribution, the standard deviation, then we can do something called standardisation
+
+--
+.pull-right[
+We can scale this so that a change in 1 is equivalent to a change in 1 standard deviation:
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-6-1.png)&lt;!-- --&gt;
+
+]
+
+???
+this is just mean centereing and then dividing by the standard error. note that the shape of the distribution doesn't change, but the scale of the x axis does. so what used to be a move of 15, going from 100 to 115, is now represented as a move of 1. 
 
 ---
 # Centering predictors in LM
@@ -54,6 +106,31 @@ m1 &lt;- lm(y~x,data=df)
 m2 &lt;- lm(y~scale(x, center=T,scale=F),data=df)
 m3 &lt;- lm(y~scale(x, center=T,scale=F),data=df)
 m4 &lt;- lm(y~I(x-5), data=df)
+```
+]
+
+???
+let's first think about how we can center or scale our predictors in a simple regression model. 
+i've used the scale function here, where you can set scale and center to be TRUE/FALSE, so we can mean center but not scale etc. 
+now, we can do whatever we like to our predictor here. these are all linear transformations. the relative distances between each value remain the same. 
+
+
+
+
+---
+count:false
+# Centering predictors in LM
+
+.pull-left[
+
+```r
+m1 &lt;- lm(y~x,data=df)
+m2 &lt;- lm(y~scale(x, center=T,scale=F),data=df)
+m3 &lt;- lm(y~scale(x, center=T,scale=F),data=df)
+m4 &lt;- lm(y~I(x-5), data=df)
+```
+
+```r
 anova(m1,m2,m3,m4)
 ```
 
@@ -71,87 +148,143 @@ anova(m1,m2,m3,m4)
 ## 4    198 177  0         0
 ```
 ]
+
+???
+and it doesn't do anything to our model fit whatsoever. 
+the effect of our predictor on our outcome variable is EXACTLY the same.  
+we can see this here, a model comparison is showing the residual sums of squares as being identical. 
+
 --
+
 .pull-right[
-&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-3-1.png" style="display: block; margin: auto;" /&gt;
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-11-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
+???
+so what's the point in doing it? well, it changes how we interpret some of our parameters. 
+remember that our intercept is the estimated mean y when our predictors are zero. 
+given that centering our predictor changes what "zero" is, then we can center predictors to make our intercept the estimated y for the mean value of x. 
+likewise, scaling our predictors changes the interpretation of our coefficient from the estimated change in y associated with a 1 unit increase in x, to the estimated change associated with a 1 STANDARD DEVIATION increase in X. And this may be preferable, especially if, for instance you've got some predictor where 1 unit isn't very useful 
+
 ---
-# Big-fish little pond.. 
-
-__things are different when we have clustered data__  
+# Big Fish Little Fish
 
 
 
-&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-5-1.png" style="display: block; margin: auto;" /&gt;
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-13-1.png" style="display: block; margin: auto;" /&gt;
+
+data available at https://uoepsy.github.io/data/bflp.csv  
 
 
 ???
-is it better to be a big fish?
+now in the single level case, centering and scaling does very little, and thats because however we shift or scale the x-axis here, the distribution remains identically shaped. 
+this is always a little fish, this is always a big fish, and this is always a medium sized fish. 
 
 ---
-count:false
-# Big-fish little pond 
-
-__things are different when we have clustered data__  
-
-&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-6-1.png" style="display: block; margin: auto;" /&gt;
-
----
-# Centering predictors in MLM
-
-
-
-&lt;br&gt; 
-
-![](04_centeringglmer_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
-
----
-count:false
-# Centering predictors in MLM
-
-+ grand mean centering - doesn't do anything
-
-![](04_centeringglmer_files/figure-html/unnamed-chunk-9-1.png)&lt;!-- --&gt;
-
----
-count:false
-# Centering predictors in MLM
-
-+ groups may have different mean values for a predictor.
-
-![](04_centeringglmer_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
-
----
-# Centering predictors in MLM
-
-+ groups may have different mean values for a predictor.
-
-![](04_centeringglmer_files/figure-html/unnamed-chunk-11-1.png)&lt;!-- --&gt;
-
----
-# Separating out within and between effects
-
-.pull-left[
-
-&lt;center&gt;__ `\(\bar{x}_i\)` __&lt;/center&gt;
-&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-12-1.png" style="display: block; margin: auto;" /&gt;
-]
-.pull-right[
-&lt;center&gt;__ `\(x_{ij} - \bar{x}_i\)` __&lt;/center&gt; 
-&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-13-1.png" style="display: block; margin: auto;" /&gt;
-]
-
----
-# Separating out within and between effects
-### Big-fish little pond 
+# Things are different with multi-level data 
 
 &lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-14-1.png" style="display: block; margin: auto;" /&gt;
 
+???
+but as soon as we have clusters in our data, as soon as we have multiple levels, then something cool happens. 
+
+how we think about these observations suddenly has another dimension.
+
+it's no longer as simple as "big fish little fish", but fish are large or small FOR THE POND IN WHICH THEY LIVE. 
+
+so our medium fish is still, in some ways, a "medium fish", but in terms of the pond in which it lives, it is the biggest fish. 
+
+and we might have another fish in our dataset which is exactly the same weight, but which is a SMALL fish FOR ITS POND
+
+the reason i'm using this silly example is that thinking of this as the idea of "big fish little pond" can be quite a good starting point, and in education research there is even a concept of "the big fish little pond effect" which is exactly this same concept, only instead of fish in ponds we have children in schools, and instead of weight on the x axis, we have education attainment. 
+so a child who scores close to the overall mean, if they are the top of their class, they feel great! 
+
 
 
 ---
-# Separating out within and between effects
+# Multiple means
+
+.pull-left[
+__Grand mean__
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-15-1.png)&lt;!-- --&gt;
+]
+
+???
+you'll start to have noticed a pattern here, in that when we're talking about multilevel models, pretty much everything is at multiple levels. we talked last week about multiple levels of residuals, influence happening at multiple levels etc. 
+well guess what, we now have means at multiple levels. 
+
+we have our grand mean, that's simply the average of all of these values
+
+--
+
+.pull-right[
+__Group means__
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-16-1.png)&lt;!-- --&gt;
+]
+
+???
+and then we have our group means, which are the means for each group. that's these bigger points here. 
+
+---
+# Group mean centering
+
+.pull-left[
+&lt;center&gt;__ `\(x_{ij} - \bar{x}_i\)` __&lt;/center&gt; 
+![](04_centeringglmer_files/figure-html/unnamed-chunk-17-1.png)&lt;!-- --&gt;
+]
+
+???
+and what having all these means means is that we can mean-center, but instead of centering all our values around the one overall grand mean, we can center each groups values around that group mean. 
+and what we get out of this is a variable that represents something slightly different from what we had. 
+we now have something that shows the amount that an observation is higher or lower than its group average.
+so with these fish we get something that shows if a fish is 5kg heavier, or 3kg lighter etc, THAN THE AVERAGE FOR THAT POND. 
+And what we're looking at here is the WITHIN effect. 
+that is, "within a given group how does being higher on x for that group influence scores on y?" 
+
+
+---
+# Group-mean centering
+
+
+
+&lt;br&gt;
+&lt;img src="jk_img_sandbox/center.gif" style="display: block; margin: auto;" /&gt;
+
+???
+but we've lost something, right?
+when we center on the group means, we're lining up all our groups so that the means are all zero. 
+what was the biggest fish in the data, is actually not as big (relative to its pond average) as this other fish here. 
+we have removed information that is contained in the raw scores. 
+
+---
+# Group mean centering
+
+.pull-left[
+&lt;center&gt;__ `\(x_{ij} - \bar{x}_i\)` __&lt;/center&gt; 
+![](04_centeringglmer_files/figure-html/unnamed-chunk-21-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+&lt;center&gt;__ `\(\bar{x}_i\)` __&lt;/center&gt;
+![](04_centeringglmer_files/figure-html/unnamed-chunk-22-1.png)&lt;!-- --&gt;
+]
+
+???
+but we can put it back! we jsut need to know the values for the group means. 
+and we have them! 
+and in fact, when we start thinking about these group means, we realise that we're looking at another part of the same question. 
+we're looking at the between-group effect. 
+now these are measured at the group-level, because these are the group averages, and what we're looking at here is the relationship between our outcome and the group-mean of x.
+
+so "if you're a fish from a pond which has a higher average weight of fish, you'll tend to have lower self esteem"
+whereas the ponds with an average weight of fish that is lower, the fish in those ponds tend to have higher self esteem. 
+
+but this is now isolated from the fact that WITHIN each pond, the heavier a fish is, the more self esteem they have
+
+---
+# Disaggregating within &amp; between
 
 .pull-left[
 **RE model**  
@@ -166,17 +299,60 @@ $$
 
 
 ```r
-rem &lt;- lmer(tgu ~ phys + 
-              (1 | patient), data=tgudat)
-fixef(rem)
+rem &lt;- lmer(self_esteem ~ fish_weight + 
+              (1 | pond), data=bflp)
+```
+
+]
+
+???
+so what are we going to do with group-mean centering in our multilevel model?
+
+well this is the model we might be inclined to fit initially. 
+we have self esteem being predicted by fish_weight, and then we have a random intercept for each pond. So some ponds have higher self-esteem, some lower, and we're assuming ponds' self esteem to be normally distributed around the fixed center. 
+
+--
+
+.pull-right[
+**Within-between model**  
+$$
+`\begin{align}
+y_{ij} &amp;= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}`
+$$
+
+
+```r
+bflp &lt;- 
+  bflp %&gt;% group_by(pond) %&gt;%
+    mutate(
+      fw_pondm = mean(fish_weight),
+      fw_pondc = fish_weight - mean(fish_weight)
+    ) %&gt;% ungroup
+
+wbm &lt;- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+              (1 | pond), data=bflp)
+fixef(wbm)
 ```
 
 ```
-## (Intercept)        phys 
-##    24.60723    -0.07214
+## (Intercept)    fw_pondm    fw_pondc 
+##     4.76802    -0.05586     0.04067
 ```
 
+]
 
+???
+well, take a minute to think about how we split our raw x scores up into two pieces. we can get back to the original weight of any fish by using the average weight of that fishes pond, plus the relative difference from that average to the fish. 
+so it's just additive. and we can put both these new variables into our model and get estimates of these different effects! 
+
+---
+# Disaggregating within &amp; between
+
+.pull-left[
+&lt;img src="04_centeringglmer_files/figure-html/unnamed-chunk-25-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
 .pull-right[
@@ -191,79 +367,307 @@ $$
 
 
 ```r
-tgudat &lt;- 
-  tgudat %&gt;% group_by(patient) %&gt;%
+bflp &lt;- 
+  bflp %&gt;% group_by(pond) %&gt;%
     mutate(
-      physgrpm = mean(phys),
-      physgrpc = phys - mean(phys)
+      fw_pondm = mean(fish_weight),
+      fw_pondc = fish_weight - mean(fish_weight)
     ) %&gt;% ungroup
 
-wbm &lt;- lmer(tgu ~ physgrpm + physgrpc + 
-              (1 | patient), data=tgudat)
+wbm &lt;- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+              (1 | pond), data=bflp)
 fixef(wbm)
 ```
 
 ```
-## (Intercept)    physgrpm    physgrpc 
-##    30.88732    -0.19021    -0.06334
+## (Intercept)    fw_pondm    fw_pondc 
+##     4.76802    -0.05586     0.04067
 ```
-
 
 
 ]
 
 ???
-Problems, however, arise if you fail to include the group means in the model when using the raw scale or grand-mean centered predictor. If you do that, you will get a mish mosh effect estimate for the Level 1 predictor that represents neither represents the between-group nor the within-group effect. Instead, it confounds these two effects together into a single value that may not resemble either. To make matters worse, this mish mosh also doesn’t represent the total effect, as it weights the within- and between-group effects differently. The obtained estimate is difficult to interpret, outside of a few special cases.
+so what we are estimating now is the separate contributing effects on self esteem of "being a bigger fish FOR YOUR POND" and "being from a pond that has bigger fish". 
+ 
 
 ---
-# Separating out within and between effects
+# A more realistic example
+
+
 
 .pull-left[
-**Within-between model**  
-$$
-`\begin{align}
-y_{ij} &amp;= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
-\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i} \\
-... \\
-\end{align}`
-$$
+A research study investigates how anxiety is associated with drinking habits. Data was collected from 50 participants. Researchers administered the generalised anxiety disorder (GAD-7) questionnaire to measure levels of anxiety over the past week, and collected information on the units of alcohol participants had consumed within the week. Each participant was observed on 10 different occasions. 
+]
+.pull-right[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-28-1.png)&lt;!-- --&gt;
+
+data available at https://uoepsy.github.io/data/alcgad.csv 
+]
+???
+okay, let's think of a more realistic example. 
+let's suppose we are studying the relationship between anxiety and alcohol use, and we have multiple observations for each participant.  
 
 
-```r
-tgudat &lt;- 
-  tgudat %&gt;% group_by(patient) %&gt;%
-    mutate(
-      physgrpm = mean(phys),
-      physgrpc = phys - mean(phys)
-    ) %&gt;% ungroup
+---
+# A more realistic example
 
-wbm &lt;- lmer(tgu ~ physgrpm + physgrpc + 
-              (1 | patient), data=tgudat)
-fixef(wbm)
-```
-
-```
-## (Intercept)    physgrpm    physgrpc 
-##    30.88732    -0.19021    -0.06334
-```
-
-
+.pull-left[
+Is being more nervous (than you usually are) associated with higher consumption of alcohol?
+]
+.pull-right[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-29-1.png)&lt;!-- --&gt;
 ]
 
+???
+so we can really ask two separate questions here. 
+we can talk about the within effect. 
+if you are more nervous FOR YOU, do you drink more?
+
+---
+# A more realistic example
+
+.pull-left[
+Is being generally more nervous (relative to others) associated with higher consumption of alcohol?
+]
+.pull-right[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-30-1.png)&lt;!-- --&gt;
+]
+
+???
+and then we can think about the between effect.  
+this is like asking "is being a more anxious person associated with higher levels of alcohol consumption?"
+
+---
+# Modelling within &amp; between effects
+
+.pull-left[
+
+```r
+alcgad &lt;- 
+  alcgad %&gt;% group_by(ppt) %&gt;% 
+  mutate(
+    gadm=mean(gad),
+    gadmc=gad-gadm
+  )
+alcmod &lt;- lmer(alcunits ~ gadm + gadmc + 
+                 (1 + gadmc | ppt), 
+               data=alcgad,
+               control=lmerControl(optimizer = "bobyqa"))
+```
+]
 .pull-right[
 
 ```r
-broom.mixed::augment(wbm) %&gt;%
-  ggplot(.,aes(x=physgrpm+physgrpc, y=.fitted, group=patient))+
-  geom_line() +
-  themedapr3()
+summary(alcmod)
 ```
 
-![](04_centeringglmer_files/figure-html/unnamed-chunk-18-1.png)&lt;!-- --&gt;
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: alcunits ~ gadm + gadmc + (1 + gadmc | ppt)
+##    Data: alcgad
+## Control: lmerControl(optimizer = "bobyqa")
+## 
+## REML criterion at convergence: 1424
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.8466 -0.6264  0.0642  0.6292  3.0281 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  ppt      (Intercept) 3.7803   1.944         
+##           gadmc       0.0935   0.306    -0.30
+##  Residual             1.7234   1.313         
+## Number of obs: 375, groups:  ppt, 50
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)  14.5802     0.8641   16.87
+## gadm         -0.7584     0.1031   -7.35
+## gadmc         0.6378     0.0955    6.68
+## 
+## Correlation of Fixed Effects:
+##       (Intr) gadm  
+## gadm  -0.945       
+## gadmc -0.055  0.012
+```
+
 ]
+
+???
+and just like the bigfish little pond, we can separate out the group mean and the deviations from the group mean. 
+so this is whether a person is more anxious than usual,
+and their overall mean anxiety score.  
+the more anxious you are FOR you, the more you drink
+the more anxious you are ON AVERAGE, the less you drink
+
+
+---
+# Modelling within &amp; between interactions
+
+.pull-left[
+
+```r
+alcmod &lt;- lmer(alcunits ~ (gadm + gadmc)*interv + 
+                 (1 | ppt), 
+               data=alcgad,
+               control=lmerControl(optimizer = "bobyqa"))
+```
+]
+.pull-right[
+
+```r
+summary(alcmod)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: alcunits ~ (gadm + gadmc) * interv + (1 | ppt)
+##    Data: alcgad
+## Control: lmerControl(optimizer = "bobyqa")
+## 
+## REML criterion at convergence: 1404
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.8183 -0.6354  0.0142  0.5928  3.0874 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  ppt      (Intercept) 3.59     1.9     
+##  Residual             1.69     1.3     
+## Number of obs: 375, groups:  ppt, 50
+## 
+## Fixed effects:
+##              Estimate Std. Error t value
+## (Intercept)    14.858      1.275   11.65
+## gadm           -0.876      0.154   -5.70
+## gadmc           1.092      0.128    8.56
+## interv         -0.549      1.711   -0.32
+## gadm:interv     0.205      0.205    1.00
+## gadmc:interv   -0.757      0.166   -4.57
+## 
+## Correlation of Fixed Effects:
+##             (Intr) gadm   gadmc  interv gdm:nt
+## gadm        -0.939                            
+## gadmc        0.000  0.000                     
+## interv      -0.746  0.700  0.000              
+## gadm:interv  0.705 -0.750  0.000 -0.944       
+## gadmc:intrv  0.000  0.000 -0.770  0.000  0.000
+```
+]
+
+???
+now another cool thing we can do is fit interactions with these specific effects. 
+so imagine we are testing whether some intervention is aimed to prevent people from using alcohol to "calm their nerves", and we have a group who have the intervention, and a group who don't. 
+the interaction between the intervention and the between effect doesn't make much difference. 
+but for the within effect it does. 
+so you can think of this as the intervention doesn't influence the extent to which more nervous people drink more. 
+but it does influence the extent to which people drink when they are more nervous FOR THEM
+
+
+---
+# The total effect
+
+.pull-left[
+
+```r
+alcmod2 &lt;- lmer(alcunits ~ gad + (1 | ppt), 
+                data=alcgad,
+                control=lmerControl(optimizer = "bobyqa"))
+```
+]
+.pull-right[
+
+```r
+summary(alcmod2)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: alcunits ~ gad + (1 | ppt)
+##    Data: alcgad
+## Control: lmerControl(optimizer = "bobyqa")
+## 
+## REML criterion at convergence: 1494
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.9940 -0.6414  0.0258  0.5808  2.9825 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  ppt      (Intercept) 14.32    3.78    
+##  Residual              1.83    1.35    
+## Number of obs: 375, groups:  ppt, 50
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   5.1787     0.8198    6.32
+## gad           0.4281     0.0779    5.50
+## 
+## Correlation of Fixed Effects:
+##     (Intr)
+## gad -0.752
+```
+]
+
+???
+Now that we've discussed the idea of these within &amp; between effects, it raises a question. 
+what exactly are we modeling when we didn't separate them out? what is the meaning of this effect here? This effect represents regression of alcohol consumption on anxiety, pooling over all participants, and it's kind of a weighted composite effect of these within &amp; between relations.  
+Now this might be perfectly sufficient for things like making predictions from your model, the location of this effect is a bit unclear - where is the change? within or between? well, it's kind of both. 
+but really, the substantive and theoretically meaningful questions we have are more often about the specific effects that happen within or between groups, and this total effect doesn't really represent either.  
+
+---
+# Within &amp; Between
+
+
+
+.pull-left[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-38-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-39-1.png)&lt;!-- --&gt;
+]
+
+???
+one last thing to note is that these within &amp; between effects don't have to counteract one another. the two examples we've looked at today have both had the within effect going one way, and the between effect going the other. so when we plot the group lines, we see the lines going up, and you move across these lines tend to be starting lower.
+
+
+---
+count:false
+# Within &amp; Between
+
+.pull-left[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-40-1.png)&lt;!-- --&gt;
+]
+???
+but that doesn't have to be the case, we can think of how both are in the same direction. 
+
+
+--
+
+.pull-right[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-41-1.png)&lt;!-- --&gt;
+]
+
+???
+so in this example, if you do more physio than you usually do, then your test time goes down, and if you do, on average, more physio than other people, then your test time tends to be lower. 
 
 ---
 # Summary
+
+- Applying the same linear transformation to a predictor (e.g. grand-mean centering, or standardising) makes __no difference__ to our model or significance tests
+  - but it may change the meaning and/or interpretation of our parameters
+
+- When data are clustered, we can apply group-level transformations, e.g. __group-mean centering.__ 
+
+- Group-mean centering our predictors allows us to disaggregate __within__ from __between__ effects.  
+  - allowing us to ask the theoretical questions that we are actually interested in
+
+
+
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -276,102 +680,385 @@ class: inverse, center, middle
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Centering Predictors&lt;/h2&gt;
 &lt;h2&gt;Part 2: GLMM&lt;/h2&gt;
 
+???
+we're now going to talk about the generalised multilevel model.  
+up til now, all of the outcome variables that we have been studying have been continuous.  
+the generalised model allows us to also study outcomes that follow different distributions. 
+we're going to look specifically about the logistic model as a means of studying binary outcomes - that is, outcomes that are comprised of two distinct categories. 
+
+
+
 ---
-# Recall lm() and glm()
+# lm() and glm()
 
 .pull-left[
-lm() is for gaussian/"normal" outcomes
+### lm()  
+$$
+`\begin{align}
+&amp; \color{red}{y} = \color{blue}{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)} + \mathbf{\boldsymbol{\varepsilon}}\\
+\end{align}`
+$$ 
+]
 
-$y ~ xb + $
+???
+let's first just think back to our single level linear model.
+in this model is the outcome variable, y, is modelled as the weighted linear combination of our predictor variables, plus some random error
 
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+`\begin{align}
+&amp; \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+\end{align}`
+$$ 
+]
+???
+we can write this list of explanatory variables and betas as X the matrix of predictors, and beta, the vector of coefficients. 
+
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+`\begin{align}
+&amp; \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+&amp; \text{where } -\infty \leq \color{red}{y} \leq \infty \\
+\end{align}`
+$$ 
+
+]
+
+???
+now in this model, the outcome variable itself, y, is modelled directly as X beta plus the error term. 
+and because x beta is simply defining a straight line (or, when we have lots more predictors, we extend this idea to more dimensions, but the logic is the same - the straight line model is a model of y. and straight lines just extend infinitely, so y, in these models, can be any value
+
+--
+
+.pull-right[
+### &amp;nbsp;
+
+$$
+`\begin{align}
+\color{red}{??} = &amp; \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+\end{align}`
+$$ 
+]
+???
+but we don't have to use this model to model the outcome variable DIRECTLY. 
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+`\begin{align}
+&amp; \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+&amp; \text{where } -\infty \leq \color{red}{y} \leq \infty \\
+\end{align}`
+$$ 
+
+]
+
+.pull-right[
+### glm()
+
+$$
+`\begin{align}
+\color{red}{ln \left( \frac{p}{1-p} \right) } &amp; = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+&amp; \text{where } 0 \leq p \leq 1 \\
+\end{align}`
+$$ 
+]
+???
+when faced with an outcome variable that is binary, either 0 or 1, like "correct" or "incorrect", fitting a straight line to these values would mean we end up with predicted values outside the possible range of probability (e.g. below 0 or greater than 1).  
+what we can do, however, is model something such as the log-odds, which are a way of translating probabilities to be unbounded from negative infinity to infinity
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+`\begin{align}
+&amp; \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+&amp; \text{where } -\infty \leq \color{red}{y} \leq \infty \\
+\end{align}`
+$$ 
+
+]
+
+.pull-right[
+### glm()
+
+$$
+`\begin{align}
+\color{red}{ln \left( \frac{p}{1-p} \right) } &amp; = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+&amp; \text{where } 0 \leq p \leq 1 \\
+\end{align}`
+$$ 
+
+glm() is the __generalised__ linear model. 
+
+we can specify the link function to model outcomes with different distributions.  
+this allows us to fit models such as the _logistic_ regression model:
+```{}
+glm(y~x, family = binomial(link="logit"))
+```
+]
+???
+so what we are doing here is not modelling the outcome directly, but modeling it by specifying some relation between the linear prediction (this bit in blue) and the observed outcome variable. and in this case we have the logit link. 
+
+---
+# logistic regression visualised
+
+.pull-left[
+### continuous outcome
+&lt;br&gt;&lt;br&gt;
+![](04_centeringglmer_files/figure-html/unnamed-chunk-42-1.png)&lt;!-- --&gt;
 ]
 .pull-right[
-
-glm() is more generalised. 
-
-glm(y~x, family = gaussian) = lm()
-glm(y~x, family = binomial(link = "logit"))
-
-link function to model outcomes different distributions
-
+### binary outcome
+&lt;br&gt;&lt;br&gt;
+![](04_centeringglmer_files/figure-html/unnamed-chunk-43-1.png)&lt;!-- --&gt;
 ]
+???
+let's visualise this idea then. we have a continuous outcome on the left plot and a binary outcome on the right one. 
+
+---
+count:false
+# logistic regression visualised
+
+.pull-left[
+### linear regression
+we model __y__ directly as linear combination of one or more predictor variables 
+![](04_centeringglmer_files/figure-html/unnamed-chunk-44-1.png)&lt;!-- --&gt;
+]
+.pull-right[
+### logistic regression
+__probability__ is _not_ linear..  
+but we can model it indirectly  
+![](04_centeringglmer_files/figure-html/unnamed-chunk-45-1.png)&lt;!-- --&gt;
+]
+???
+with the continuous outcome, we can model the outcome directly. 
+with the binary outcome, we can't because probability is not linear. it is bounded between 0 and 1
+
+---
+count:false
+# logistic regression visualised
+
+`\(ln \left( \frac{p}{1-p} \right)\)`  
+__log-odds__ are linear  
+
+
+
+&lt;img src="jk_img_sandbox/logoddp.png" width="1977" height="400px" /&gt;
+
+
+???
+so what we do is model the log-odds. the odds of an event is the probabilty of it happening, divided by the probability of it not happening. and these can range from 0 to infinity.
+when we take the natural log of these, we get something that ranges from negative to postivie infinity.  
+  
+now if we try to take our raw outcome variable as probabilities which we can translate into log-odds, we run into a little problem. 
+when we observe a binary variable, we observe whether something IS or ISN'T. we don't MEASURE the probability that someone gets a question correct. We just measure that it IS correct or incorrect. 
+now if we translate those into log-odds, we get values of negative infinity and infinity for values of 0 and 1 respectively. 
+We can try to fit a line to these, but it doesn't really make sense. what would the residuals be? residuals would also all be infinity, and so it becomes impossible to work out anything!  
+so when we fit these models, we use maximum likelihood estimation to find the slope of this line that has the greatest probability of giving rise to the data that we have. 
+now this is all covered in dapr2, so it's maybe worth going back to some of these if you are interested. 
 
 ---
 # lmer() and glmer()
 
 .pull-left[
-lmer() is for gaussian/"normal" outcomes
 
-`\(y ~ xb + e\)`  
+![](04_centeringglmer_files/figure-html/unnamed-chunk-48-1.png)&lt;!-- --&gt;
 
 ] 
 .pull-right[
 
-glmer() is more generalised. 
-
-glmer(y~x, family = gaussian) = lmer
-glmer(y~x, family = binomial(link = "logit"))
-
-link function to model outcomes different distributions
+![](04_centeringglmer_files/figure-html/unnamed-chunk-49-1.png)&lt;!-- --&gt;
 
 ]
+
+???
+but for now we'll return to the multilevel model.  
+we've seen already that for the linear mixed model, we can model groups of observations as varying in the intercept and slopes. 
+and not much is different for the logistic multilevel model, we can simply allow those groups to vary in intercept and slope of the log-odds. and then when we translate these back on to the probability scale, we see that the probability curve is different for each group
+
+---
+count:false
+# lmer() and glmer()
+
+.pull-left[
+![](04_centeringglmer_files/figure-html/unnamed-chunk-50-1.png)&lt;!-- --&gt;
+
+] 
+.pull-right[
+
+
+![](04_centeringglmer_files/figure-html/unnamed-chunk-51-1.png)&lt;!-- --&gt;
+
+]
+???
+but really this is the same idea underneath, when we see the fit on the log-odds scale
 
 ---
 # fitting a glmer()
 
+.pull-left[
+
+&gt; Researchers are interested in whether the level of routine a child has in daily life influences their probability of receiving a detention at school. 200 pupils from 20 schools completed a survey containing the Child Routines Questionnaire (CRQ), and a binary variable indicating whether or not they had received detention in the past school year. 
 
 
+```r
+crq &lt;- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
+head(crq)
+```
 
+```
+## # A tibble: 6 × 7
+##   emot_dysreg   crq int       schoolid sleep   age detention
+##         &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;     &lt;chr&gt;    &lt;chr&gt; &lt;dbl&gt;     &lt;dbl&gt;
+## 1        4.12  1.92 Treatment school1  &lt;8hr     14         1
+## 2        3.22  1.65 Treatment school1  &lt;8hr     11         1
+## 3        4.86  3.56 Treatment school1  &lt;8hr     16         1
+## 4        4.79  1.45 Treatment school1  8hr+     16         1
+## 5        3.58  0.81 Treatment school1  &lt;8hr     12         1
+## 6        4.41  2.71 Treatment school1  &lt;8hr     15         0
+```
+]
+.pull-right[
 
+```r
+detentionmod &lt;- glmer(detention ~ crq + (1 + crq | schoolid),
+      data = crq, family="binomial")
+summary(detentionmod)
+```
 
-
-
----
-# glmer fits can be tricky
-
-scale parameters may help
-why? think of a bowl, trying to find min point.
-
-
----
-# interpretation
-
-- model is non-linear (logit)
-- effects are conditional upon random effects
+```
+## Generalized linear mixed model fit by maximum likelihood (Laplace
+##   Approximation) [glmerMod]
+##  Family: binomial  ( logit )
+## Formula: detention ~ crq + (1 + crq | schoolid)
+##    Data: crq
+## 
+##      AIC      BIC   logLik deviance df.resid 
+##    180.0    195.8    -85.0    170.0      169 
+## 
+## Scaled residuals: 
+##    Min     1Q Median     3Q    Max 
+## -2.419 -0.450  0.119  0.504  1.826 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  schoolid (Intercept) 2.577    1.605         
+##           crq         0.414    0.643    -0.52
+## Number of obs: 174, groups:  schoolid, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error z value  Pr(&gt;|z|)    
+## (Intercept)    5.472      1.184    4.62 0.0000038 ***
+## crq           -2.126      0.465   -4.57 0.0000049 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Correlation of Fixed Effects:
+##     (Intr)
+## crq -0.929
+```
+]
 
 ???
-this means that effects are cluster-specific. 
-effects for subjects with the same random effect value
-
-
----
-# Population average vs Cluster Specific  
-
-- **Population average** effects are the association between `\(x\)` and `\(y\)`, averaged over clusters
-
-- **Cluster specific** effects are the association between `\(x\)` and `\(y\)`, *holding the cluster constant*. 
-
-&lt;!-- cluster specific:  --&gt;
-&lt;!-- represents the odds of the person being employed if married compared with the odds of the SAME person being employed if not married. --&gt;
-
-&lt;!-- population average: --&gt;
-&lt;!-- represents the odds of an AVERAGE married person being employed compared with the odds of an AVERAGE unmarried person being employed. --&gt;
-
-&lt;!-- Rather than saying “AVERAGE”, sometimes I speak loosely and say the odds of a married person “picked at random” being employed compared with the odds of another unmarried person “picked at random” being employed. --&gt;
+and when we fit these models just like lm and glm, we have the glmer() function, where we can set the family. 
+so we might be interested in how the level of routine a child has influences probabiltiy of receiving a detentiom at school. we can fit this model with glmer(), and you can see the structure is much the same as with lmer. 
+one thing to note is that our summary output  now has p-values based on Wald tests.  
 
 ---
-# why?
+# fitting a glmer()
 
-consider..
+.pull-left[
 
-identity link function   
-`lmer(respiratory_rate ~ treatment + (1|hospital))`
+&gt; Researchers are interested in whether the level of routine a child has in daily life influences their probability of receiving a detention at school. 200 pupils from 20 schools completed a survey containing the Child Routines Questionnaire (CRQ), and a binary variable indicating whether or not they had received detention in the past school year. 
 
-patient `\(j\)` from hospital `\(i\)` = control  
-patient `\(j'\)` from hospital `\(i'\)` = treatment  
 
-how does our model explain difference in outcome between patient `\(j\)` and patient `\(j'\)`?  
-outcome for patient `\(j'\)` should be the "the effect of having treatment" plus the random effect differences between hospitals i and i'  
+```r
+crq &lt;- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
+head(crq)
+```
+
+```
+## # A tibble: 6 × 7
+##   emot_dysreg   crq int       schoolid sleep   age detention
+##         &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;     &lt;chr&gt;    &lt;chr&gt; &lt;dbl&gt;     &lt;dbl&gt;
+## 1        4.12  1.92 Treatment school1  &lt;8hr     14         1
+## 2        3.22  1.65 Treatment school1  &lt;8hr     11         1
+## 3        4.86  3.56 Treatment school1  &lt;8hr     16         1
+## 4        4.79  1.45 Treatment school1  8hr+     16         1
+## 5        3.58  0.81 Treatment school1  &lt;8hr     12         1
+## 6        4.41  2.71 Treatment school1  &lt;8hr     15         0
+```
+]
+.pull-right[
+
+```r
+detentionmod &lt;- glmer(detention ~ crq + (1 + crq | schoolid),
+      data = crq, family="binomial")
+exp(fixef(detentionmod))
+```
+
+```
+## (Intercept)         crq 
+##    237.8341      0.1193
+```
+]
+
+???
+and these fixed effects are in terms of changes in log-odds. so just like a single level logistic regression, we can exponentiate them to get an odds ratio 
+so this is that for each unit increase on the CRQ, a child has 0.11 times the odds of receiving a detention. 
+
+---
+# interpretating coefficients
+
+
+- `lm(y ~ x + ...)`
+  - `\(\beta_x\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit and all other covariates are fixed.
+
+- `lmer(y ~ x + ... + (1 + x + ... | cluster))`
+  - `\(\beta_x\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit, averaged across clusters
+
+- `glmer(ybin ~ x + ... + (1 + x + ... | cluster), family=binomial)`
+  - `\(e^{\beta_x}\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit, __holding cluster constant.__
+ 
+
+???
+there's one more thing nuance to the logistic multilevel model, and that is that the effects we get out are cluster-specific. 
+because the model is using a non-linear link function (the logit), when we exponentiate the fixed effect, the resulting number is interpreted as the effect "when holding the cluster constant". 
+
+so there is this distinction beteen cluster specific and population average effects, which is quite tricky.  
+our  effects are cluster specific in that our odds ratio we just saw was the ratio of odds of receiving detention when our predictor increases by 1, for a child FROM THE SAME SCHOOL.
+whereas the population average effect would be the ratio of odds relative to a child picked at random from any school
+
+---
+class: extra
+exclude: FALSE
+# why are glmer() coefficients cluster-specific?
+consider a __linear__ multilevel model: `lmer(respiratory_rate ~ treatment + (1|hospital))`
+
+Imagine two patients from different hospitals. One is has a treatment, one does not. 
+  - patient `\(j\)` from hospital `\(i\)` is "control"   
+  - patient `\(j'\)` from hospital `\(i'\)` is "treatment"  
+
+The difference in estimated outcome between patient `\(j\)` and patient `\(j'\)` is the "the effect of having treatment" plus the distance in random deviations between hospitals `\(i\)` and `\(i'\)`  
 
 model for patient `\(j\)` from hospital `\(i\)`  
 `\(\hat{y}_{ij} = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
@@ -380,9 +1067,9 @@ model for patient `\(j'\)` from hospital `\(i'\)`
 `\(\hat{y}_{i'j'} = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
 
 difference:  
-`\(\hat{y}_{i'j'} - \hat{y}_{ij} = \beta_1 + (\zeta_{0i'} - \zeta_{0i})\)`
+`\(\hat{y}_{i'j'} - \hat{y}_{ij} = \beta_1 + (\zeta_{0i'} - \zeta_{0i}) = \beta_1\)`
 
-
+Because `\(\zeta \sim N(0,\sigma_\zeta)\)`, the differences between all different `\(\zeta_{0i'} - \zeta_{0i}\)` average out to be 0. 
 
 ???
 the zeta differences here will be, on average 0. 
@@ -390,43 +1077,66 @@ hist(replicate(1000, mean(map_dbl(combn(rnorm(100),2, simplify=F), diff))),break
 
 
 ---
-# why?
+class: extra
+exclude: FALSE
+# why are glmer() coefficients cluster-specific?
 
-consider..
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
 
-non-linear link function  
-`glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+Imagine two patients from different hospitals. One is has a treatment, one does not. 
+  - patient `\(j\)` from hospital `\(i\)` is "control"   
+  - patient `\(j'\)` from hospital `\(i'\)` is "treatment"  
+  
+The difference in __probability of outcome__ between patient `\(j\)` and patient `\(j'\)` is the "the effect of having treatment" plus the distance in random deviations between hospitals `\(i\)` and `\(i'\)`  
 
-patient j from hospital i = control  
-patient j' from hospital i' = treatment  
-we're now modeling difference __in probability of outcome__ between patient j and patient j'?  
-probability of outcome for patient j' is "the effect of having treatment" plus the random effect differences between hospitals i and i'  
-
-model for patient X from hospital `\(i\)`  
+model for patient `\(j\)` from hospital `\(i\)`  
 `\(log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
 
-model for patient Y from hospital `\(i'\)`  
+model for patient `\(j'\)` from hospital `\(i'\)`  
 `\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
 
 difference (log odds):  
 `\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) - log \left( \frac{p_{ij}}{1 - p_{ij}} \right) = \beta_1 + (\zeta_{0i'} - \zeta_{0i})\)`
 
 ---
-# why?
+class: extra
+exclude: FALSE
+# why are glmer() coefficients cluster-specific?
 
-consider..
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
 
-non-linear link function 
-`glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+Imagine two patients from different hospitals. One is has a treatment, one does not. 
+  - patient `\(j\)` from hospital `\(i\)` is "control"   
+  - patient `\(j'\)` from hospital `\(i'\)` is "treatment"  
+  
+The difference in __probability of outcome__ between patient `\(j\)` and patient `\(j'\)` is the "the effect of having treatment" plus the distance in random deviations between hospitals `\(i\)` and `\(i'\)`  
 
-patient j from hospital i = control  
-patient j' from hospital i' = treatment  
-we want the difference between patients x and y to be "the effect of having treatment", plus the adjustment between hospitals i and i'  
-
-model for patient X from hospital `\(i\)`  
+model for patient `\(j\)` from hospital `\(i\)`  
 `\(log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
 
-model for patient Y from hospital `\(i'\)`  
+model for patient `\(j'\)` from hospital `\(i'\)`  
+`\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
+
+difference (odds ratio):  
+`\(\frac{p_{i'j'}/(1 - p_{i'j'})}{p_{ij}/(1 - p_{ij})} = \exp(\beta_1 + (\zeta_{0i'} - \zeta_{0i}))\)`
+
+---
+class: extra
+exclude: FALSE
+# why are glmer() coefficients cluster-specific?
+
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+
+Imagine two patients from different hospitals. One is has a treatment, one does not. 
+  - patient `\(j\)` from hospital `\(i\)` is "control"   
+  - patient `\(j'\)` from hospital `\(i'\)` is "treatment"  
+  
+The difference in __probability of outcome__ between patient `\(j\)` and patient `\(j'\)` is the "the effect of having treatment" plus the distance in random deviations between hospitals `\(i\)` and `\(i'\)`  
+
+model for patient `\(j\)` from hospital `\(i\)`  
+`\(log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)\)`
+
+model for patient `\(j'\)` from hospital `\(i'\)`  
 `\(log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)\)`
 
 difference (odds ratio):  
@@ -434,45 +1144,25 @@ difference (odds ratio):
 
 
 
-
 ---
-# interpreting coefficients in glmer
+class: extra
+exclude: FALSE
+# why are glmer() coefficients cluster-specific?
 
-`glmer(needs_op ~ treatment + (1|hospital), family="binomial")` 
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`  
 
-Hence, the interpretation of `\(e^{\beta_1}\)` is not the odds ratio for the effect of treatment averaged over hospitals, but rather for patients from the same hospital. 
-
----
-# coefficients with an identity link (lm/lmer)
-
-coef(lm(y~x,d))
-`\(\beta\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit and all other covariates are fixed.
-
- in lmer()
-`\(\beta\)` denotes the change in the average `\(y\)` when `\(x\)` is increased by one unit.
-
-Advantageous feature: population + cluster-specific predictions
- `\(\gamma\)` describes mean changes in the population
- `\(\gamma + \zeta_i\)` describes individual cluster effects
- 
-in glmm
- `\(e^{\gamma + \zeta_i}\)` describes individual cluster effects
- `\(e^\gamma\)` describes mean effect in the population, holding cluster constant
- 
- 
-
-
-```
-## (Intercept)       slope 
-##     4.43772    -0.05166
-```
-
-![](04_centeringglmer_files/figure-html/unnamed-chunk-21-1.png)&lt;!-- --&gt;
-
+Hence, the interpretation of `\(e^{\beta_1}\)` is not the odds ratio for the effect of treatment "averaged over hospitals", but rather for patients _from the same hospital_. 
 
 ---
 # Summary
 
+- Differences between linear and logistic multi-level models are analogous to the differences between single-level linear and logistic regression models.  
+
+- Fixed effects in logistic multilevel models are "conditional upon" holding the cluster constant. 
+
+???
+okay, that's a bit of a tangent. the key thing here is the similarity between lm and glm and lmer and glmer.  
+Much like when we include interactions in a model, our effects of individual predictors are "conditional upon" the level of the other variable. 
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
