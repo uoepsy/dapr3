@@ -1161,13 +1161,13 @@ Question D4
 <div id="sol-body-52" class="solution-body" style="display: none;">
 <pre class="r"><code>VarCorr(m1)</code></pre>
 <pre><code>##  Groups    Name                 Std.Dev.  Corr                
-##  PID       (Intercept)          0.1180179                     
-##            session              0.0315645 -0.603              
-##  therapist (Intercept)          0.0063485                     
-##            session              0.0038127 -1.000              
-##            groupcontrol         0.0176061 -1.000  1.000       
-##            session:groupcontrol 0.0034127  1.000 -1.000 -1.000
-##  Residual                       0.0732692</code></pre>
+##  PID       (Intercept)          0.1181433                     
+##            session              0.0315954 -0.603              
+##  therapist (Intercept)          0.0000000                     
+##            session              0.0023525    NaN              
+##            groupcontrol         0.0098621    NaN  1.000       
+##            session:groupcontrol 0.0019791    NaN -1.000 -1.000
+##  Residual                       0.0732691</code></pre>
 <p>There’s a correlation of exactly -1 between the random intercepts and slopes for therapists, and the standard deviation estimate for <code>session|therapist</code> is pretty small. Let’s remove it.</p>
 <pre class="r"><code>m2 &lt;- lmer(Score ~ session * group + 
              (1 + session | PID) + 
@@ -1216,10 +1216,10 @@ summary(m3)</code></pre>
 <p>Lastly, it’s then a good idea to check that the parameter estimates and SE are not radically different across these models (they are virtually identical)</p>
 <pre class="r"><code>summary(m1)$coefficients</code></pre>
 <pre><code>##                         Estimate  Std. Error    t value
-## (Intercept)           0.52684907 0.016180691 32.5603569
-## session               0.03368821 0.004458624  7.5557411
-## groupcontrol          0.01813605 0.024269791  0.7472684
-## session:groupcontrol -0.02013829 0.006130164 -3.2851145</code></pre>
+## (Intercept)           0.52684907 0.015942928 33.0459425
+## session               0.03368821 0.004255211  7.9169307
+## groupcontrol          0.01813605 0.023395688  0.7751876
+## session:groupcontrol -0.02013829 0.006007577 -3.3521487</code></pre>
 <pre class="r"><code>summary(m2)$coefficients</code></pre>
 <pre><code>##                         Estimate  Std. Error    t value
 ## (Intercept)           0.52684907 0.015959286 33.0120700
@@ -1756,7 +1756,20 @@ Question E8
 <div class="solution-begin">
 <span id="sol-start-61" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-61&#39;, &#39;sol-start-61&#39;)"> Solution </span>
 </div>
-<div id="sol-body-61" class="solution-body" style="display: none;">
+<div class="solution-body" id = "sol-body-61" style="display: none;">
+
+
+
+<pre class="r"><code>bnt_null &lt;- lmer(BNT60 ~ 1 +  (1 | school_id/child_id), data = bnt)
+as.data.frame(VarCorr(bnt_null)) %&gt;%
+    select(grp, vcov) %&gt;%
+    mutate(
+        icc = cumsum(vcov)/sum(vcov)*100
+    )</code></pre>
+<pre><code>##                  grp     vcov       icc
+## 1 child_id:school_id 36.52302  22.21657
+## 2          school_id 28.76157  39.71194
+## 3           Residual 99.11079 100.00000</code></pre>
 <p>This took quite a while to run:</p>
 <pre class="r"><code>library(lmeresampler)
 bntm1BS &lt;- bootstrap(bntm1, .f=fixef, type = &quot;case&quot;, B = 2000, resample = c(FALSE,TRUE,FALSE))
@@ -1768,7 +1781,170 @@ confint(bntm1BS, type = &quot;basic&quot;)</code></pre>
 ## 2 schoolyear            6.37   5.72  7.02 basic  0.95
 ## 3 mlhome1               0.139 -1.12  1.40 basic  0.95
 ## 4 schoolyear:mlhome1   -2.60  -3.62 -1.70 basic  0.95</code></pre>
-<p>TODO</p>
+<div class="int">
+<p>Multilevel level linear regression was used to investigate childrens’ development of word retrieval over 5 years of school, and whether development was dependent upon the school teaching classes monolingually or bilingually.
+Initial evaluation of the intercept-only model indicated that the clustering of multiple observations from children within schools accounted for 39.7% of the variance in scores on the Boston Naming Task (BNT60, range 0 to 60).
+BNT60 scores were modelled with fixed effects of school year (1-5) and monolingual teaching (monolingual vs bilingual, treatment coded with monolingual as the reference level). Random intercepts and slopes of school year were included for schools and for children nested within schools. The model was fitting with maximum likelihood estimation using the default optimiser from the <strong>lme4</strong> package (Bates et al., 2015).<br />
+95% Confidence for fixed effect estimates were constructed by case-based bootstrapping with 2000 bootstraps in which children, (but neither observations within children nor the schools within which children were nested) were resampled.
+Results indicated that children’s scores on the BNT60 increased over the 5 years in which they were studied, with children from bilingual schools increasing in scores by 6.37 ([5.72 – 7.02]) every school year. There was a significant interaction between mono/bilingual schools and the changes over school year, with children from monolingual schools increasing -2.6 ([-3.62 – -1.7]) less than those from bilingual schools for every additional year of school. Full model results can be found in Table 1.</p>
+</div>
+Table 1
+<table>
+<tr>
+<th class="thead firsttablerow firsttablecol col1">
+ 
+</th>
+<th colspan="2" class="thead firsttablerow">
+BNT 60
+</th>
+</tr>
+<tr>
+<td class="depvarhead firsttablerow firsttablecol col1">
+Predictors
+</td>
+<td class="depvarhead firsttablerow col2">
+Estimates
+</td>
+<td class="depvarhead firsttablerow col3">
+95% CI<br>bootstrap
+</td>
+</tr>
+<tr>
+<td class="tdata firsttablecol col1">
+Intercept
+</td>
+<td class="tdata centeralign modelcolumn1 col2">
+6.27
+</td>
+<td class="tdata centeralign modelcolumn1 col3">
+5.41 – 7.1
+</td>
+</tr>
+<tr>
+<td class="tdata firsttablecol col1">
+School Year
+</td>
+<td class="tdata centeralign modelcolumn1 col2">
+6.37
+</td>
+<td class="tdata centeralign modelcolumn1 col3">
+5.72 – 7.02
+</td>
+</tr>
+<tr>
+<td class="tdata firsttablecol col1">
+MonolingualSchool [1]
+</td>
+<td class="tdata centeralign modelcolumn1 col2">
+0.14
+</td>
+<td class="tdata centeralign modelcolumn1 col3">
+-2.74 – 3.02
+</td>
+</tr>
+<tr>
+<td class="tdata firsttablecol col1">
+School<br>Year:MonolingualSchool<br>[1]
+</td>
+<td class="tdata centeralign modelcolumn1 col2">
+-2.60
+</td>
+<td class="tdata centeralign modelcolumn1 col3">
+-4.74 – -0.47
+</td>
+</tr>
+<tr>
+<td colspan="3" class="randomparts">
+Random Effects
+</td>
+</tr>
+<tr>
+<td class="tdata leftalign summary">
+σ<sup>2</sup>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+8.64
+</td>
+<tr>
+<td class="tdata leftalign summary">
+τ<sub>00</sub> <sub>child_id:school_id</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+1.77
+</td>
+<tr>
+<td class="tdata leftalign summary">
+τ<sub>00</sub> <sub>school_id</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+3.83
+</td>
+<tr>
+<td class="tdata leftalign summary">
+τ<sub>11</sub> <sub>child_id:school_id.schoolyear</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+6.83
+</td>
+<tr>
+<td class="tdata leftalign summary">
+τ<sub>11</sub> <sub>school_id.schoolyear</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+1.89
+</td>
+<tr>
+<td class="tdata leftalign summary">
+ρ<sub>01</sub> <sub>child_id:school_id</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+-0.42
+</td>
+<tr>
+<td class="tdata leftalign summary">
+ρ<sub>01</sub> <sub>school_id</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+-0.39
+</td>
+<tr>
+<td class="tdata leftalign summary">
+ICC
+</td>
+<td class="tdata summary summarydata" colspan="2">
+0.91
+</td>
+<tr>
+<td class="tdata leftalign summary">
+N <sub>child_id</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+74
+</td>
+<tr>
+<td class="tdata leftalign summary">
+N <sub>school_id</sub>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+10
+</td>
+<tr>
+<td class="tdata leftalign summary firstsumrow">
+Observations
+</td>
+<td class="tdata summary summarydata firstsumrow" colspan="2">
+370
+</td>
+</tr>
+<tr>
+<td class="tdata leftalign summary">
+Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
+</td>
+<td class="tdata summary summarydata" colspan="2">
+0.420 / 0.947
+</td>
+</tr>
+</table>
 </div>
 <p class="solution-end">
 </p>

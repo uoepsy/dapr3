@@ -768,6 +768,15 @@ dotplot_diag(infschool$cooksd, cutoff = "internal", index = infschool$school_id)
 Using a method of your choosing, conduct inferences from your model and write up the results. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+bnt_null <- lmer(BNT60 ~ 1 +  (1 | school_id/child_id), data = bnt)
+as.data.frame(VarCorr(bnt_null)) %>%
+    select(grp, vcov) %>%
+    mutate(
+        icc = cumsum(vcov)/sum(vcov)*100
+    )
+```
+
 This took quite a while to run: 
 ```{r eval=F}
 library(lmeresampler)
@@ -780,8 +789,37 @@ load("data/bntbs.rdata")
 confint(bntm1BS, type = "basic")
 ```
 
+```{r include=F}
+res <- confint(bntm1BS, type = "basic")
+res[,2:4]<-round(res[,2:4],2)
+res
+```
 
-TODO
+:::int
+
+Multilevel level linear regression was used to investigate childrens' development of word retrieval over 5 years of school, and whether development was dependent upon the school teaching classes monolingually or bilingually. 
+Initial evaluation of the intercept-only model indicated that the clustering of multiple observations from children within schools accounted for 39.7% of the variance in scores on the Boston Naming Task (BNT60, range 0 to 60).
+BNT60 scores were modelled with fixed effects of school year (1-5) and monolingual teaching (monolingual vs bilingual, treatment coded with monolingual as the reference level). Random intercepts and slopes of school year were included for schools and for children nested within schools. The model was fitting with maximum likelihood estimation using the default optimiser from the **lme4** package (Bates et al., 2015).  
+95% Confidence for fixed effect estimates were constructed by case-based bootstrapping with 2000 bootstraps in which children, (but neither observations within children nor the schools within which children were nested) were resampled. 
+Results indicated that children's scores on the BNT60 increased over the 5 years in which they were studied, with children from bilingual schools increasing in scores by `r res[2,2]` ([`r paste(unlist(res[2,3:4]),collapse=" -- ")`]) every school year. There was a significant interaction between mono/bilingual schools and the changes over school year, with children from monolingual schools increasing `r res[4,2]` ([`r paste(unlist(res[4,3:4]),collapse=" -- ")`]) less than those from bilingual schools for every additional year of school. Full model results can be found in Table 1. 
+
+:::
+
+Table 1
+```{r echo=FALSE, results="asis"}
+predlab <- c("Intercept","School Year","MonolingualSchool [1]","School Year:MonolingualSchool [1]")
+names(predlab) <- names(fixef(bntm1))
+mytab <- tab_model(bntm1,show.p = F, string.ci="95% CI<br>bootstrap",
+                   pred.labels = predlab)
+bsci <- confint(bntm1BS, type = "basic")
+replacewiththis <- paste0(round(bsci$lower,2), "&nbsp;&ndash;&nbsp;", round(bsci$upper,2))
+mytab$page.content <- gsub("4.22\\&nbsp\\;\\&ndash\\;\\&nbsp\\;8.31", replacewiththis[1], mytab$page.content)
+mytab$page.content <- gsub("4.86\\&nbsp\\;\\&ndash\\;\\&nbsp\\;7.88", replacewiththis[2], mytab$page.content)
+mytab$page.content <- gsub("-2.74\\&nbsp\\;\\&ndash\\;\\&nbsp\\;3.02", replacewiththis[3], mytab$page.content)
+mytab$page.content <- gsub("-4.74\\&nbsp\\;\\&ndash\\;\\&nbsp\\;-0.47", replacewiththis[4], mytab$page.content)
+cat(mytab$page.content)
+```
+
 
 `r solend()`
 
