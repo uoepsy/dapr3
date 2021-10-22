@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Path Analysis</title>
+
+<script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/united.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+<script>
+function toggle_visibility(id1, id2) {
+var e = document.getElementById(id1);
+var f = document.getElementById(id2);
+e.style.display = ((e.style.display!='none') ? 'none' : 'block');
+if(f.classList.contains('fa-chevron-circle-right')) {
+    f.classList.add('fa-chevron-circle-down')
+    f.classList.remove('fa-chevron-circle-right')
+} else {
+    f.classList.add('fa-chevron-circle-right')
+    f.classList.remove('fa-chevron-circle-down')
+}
+}
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  background-color: #f8f8f8; }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ef2929; } /* Alert */
+code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #c4a000; } /* Attribute */
+code span.bn { color: #0000cf; } /* BaseN */
+code span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4e9a06; } /* Char */
+code span.cn { color: #000000; } /* Constant */
+code span.co { color: #8f5902; font-style: italic; } /* Comment */
+code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
+code span.dt { color: #204a87; } /* DataType */
+code span.dv { color: #0000cf; } /* DecVal */
+code span.er { color: #a40000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #0000cf; } /* Float */
+code span.fu { color: #000000; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #204a87; font-weight: bold; } /* Keyword */
+code span.op { color: #ce5c00; font-weight: bold; } /* Operator */
+code span.ot { color: #8f5902; } /* Other */
+code span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
+code span.sc { color: #000000; } /* SpecialChar */
+code span.ss { color: #4e9a06; } /* SpecialString */
+code span.st { color: #4e9a06; } /* String */
+code span.va { color: #000000; } /* Variable */
+code span.vs { color: #4e9a06; } /* VerbatimString */
+code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<link rel="stylesheet" href="assets/style-labs.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"><strong>DAPR3</strong></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fas fa-home"></span>
+     
+  </a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Multi Level Models
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="01_regressionrefresh.html">1: Linear Regression | Clustered Data</a>
+    </li>
+    <li>
+      <a href="02_intromlm.html">2: LM to MLM</a>
+    </li>
+    <li>
+      <a href="03_assumptranef.html">3: Assumptions, Diagnostics</a>
+    </li>
+    <li>
+      <a href="04_centerglmer.html">4: Centering | Logistic</a>
+    </li>
+    <li>
+      <a href="05_examples.html">5: Recap</a>
+    </li>
+  </ul>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Dimension reduction &amp; SEM
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li class="dropdown-header">7: Path Analysis</li>
+    <li class="dropdown-header">8: Path Analysis</li>
+    <li class="dropdown-header">9: Dimension Reduction</li>
+    <li class="dropdown-header">10: EFA 1</li>
+    <li class="dropdown-header">11: EFA 2</li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Extra
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="../resources.html">Useful Resources</a>
+    </li>
+    <li>
+      <a href="../examples/example_01_repeated_measures.html">Example: Repeated Measures MLM</a>
+    </li>
+    <li>
+      <a href="../examples/example_02_intervention.html">Example: Intervention Study</a>
+    </li>
+    <li>
+      <a href="../examples/example_03_many_trials.html">Example: Many Trials</a>
+    </li>
+    <li>
+      <a href="../examples/example_00_anova.html">Example: ANOVA (rpt measures &amp; mixed)</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Path Analysis</h1>
+
+</div>
+
+
+<div class="green">
+<p><strong>Information about solutions</strong></p>
+<p>Solutions for these exercises are available immediately below each question.<br />
+We would like to emphasise that much evidence suggests that testing enhances learning, and we <strong>strongly</strong> encourage you to make a concerted attempt at answering each question <em>before</em> looking at the solutions. Immediately looking at the solutions and then copying the code into your work will lead to poorer learning.<br />
+We would also like to note that there are always many different ways to achieve the same thing in R, and the solutions provided are simply <em>one</em> approach.</p>
+</div>
+<div class="lo">
+<p><strong>Relevant packages</strong></p>
+<ul>
+<li>lavaan<br />
+</li>
+<li>semPlot or tidySEM</li>
+</ul>
+</div>
+<div id="motivation" class="section level1">
+<h1>Motivation</h1>
+<p>So far in DAPR3 it’s been all about the multiple levels. This has brought so many more potential study designs that we can now consider modelling - pretty much any study where we are interested in explaining some outcome variable, and where we have sampled clusters of observations (or clusters of clusters of clusters of … etc.).</p>
+<p>But we are still restricted to thinking, similar to how we thought in DAPR2, about one single outcome variable. In fact, if we think about the structure of the fixed effects part of a model (i.e., the bit we’re <em>specifically interested in</em>), then we’re still limited to thinking of the world in terms of “this is my outcome variable, everything else predicts it.”</p>
+<div class="statbox">
+<p><strong>Thinking about multiple regression in terms of paths</strong></p>
+<ol style="list-style-type: decimal">
+<li>Imagine writing the names of all your variables on a whiteboard</li>
+<li>Specify which one is your dependent (or “outcome” or “response”) variable.</li>
+<li>Sit back and relax, you’re done!</li>
+</ol>
+In terms of a <em>theoretical</em> model of the world, there’s not really much to it. We have few choices in the model we construct beyond specifying which is our outcome variable.<br />
+We can visualise our multiple regression model like this:
+<div class="figure" style="text-align: center"><span id="fig:mregfig"></span>
+<img src="images/path/mregpath.png" alt="In multiple regression, we decide which variable is our outcome variable, and then everything else is done for us" width="250px" />
+<p class="caption">
+Figure 1: In multiple regression, we decide which variable is our outcome variable, and then everything else is done for us
+</p>
+</div>
+<p>Of course, there are a few other things that are included (an intercept term, the residual error, and the fact that our predictors can be correlated with one another), but the idea remains pretty much the same:</p>
+<div class="figure" style="text-align: center"><span id="fig:mregfig2"></span>
+<img src="images/path/mregpath2.png" alt="Multiple regression with intercept, error, predictor covariances" width="250px" />
+<p class="caption">
+Figure 2: Multiple regression with intercept, error, predictor covariances
+</p>
+</div>
+</div>
+<p>But <strong>What if I my model of the world doesn’t fit this structure?</strong></p>
+Let’s suppose I have 4 variables: Age, Income, Autonomy, and Job Satisfaction. My theoretical understanding of how these things fit together leads me to draw something like this on my whiteboard:
+<div class="figure" style="text-align: center"><span id="fig:path1path"></span>
+<img src="images/path/paths1paths.png" alt="A theoretical model of my system of variables" width="350px" />
+<p class="caption">
+Figure 3: A theoretical model of my system of variables
+</p>
+</div>
+<p>In this diagram, a persons income is influenced by their age and their level of autonomy, and in turn their income predicts their job satisfaction. Job satisfaction is also predicted by a persons age directly, and by their level of autonomy, which is also predicted by age. It’s complicated to look at, but in isolation each bit of this makes theoretical sense.
+Take each arrow in turn and think about what it represents:
+<img src="images/path/paths1desc.png" width="550px" style="display: block; margin: auto;" /></p>
+<p>If we think about trying to fit this “model” with the tools that we have, then we might end up wanting to fit three separate regression models, which between them specify all the different arrows in the diagram:</p>
+<p><span class="math display">\[
+\begin{align}
+\textrm{Job Satisfaction} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \beta_2(\textrm{Autonomy}) + \beta_3(\textrm{Income}) + \varepsilon \\
+\textrm{Income} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \beta_2(\textrm{Autonomy}) + \varepsilon \\
+\textrm{Autonomy} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \varepsilon \\
+\end{align}
+\]</span></p>
+<p>This is all well and good, but what if I want to talk about how well my entire model (Figure <a href="#fig:path1path">3</a>) fits the data we observed?</p>
+</div>
+<div id="introducing-path-analysis" class="section level1">
+<h1>Introducing Path Analysis</h1>
+<div class="green">
+<p><strong>Mountains cannot be surmounted except by winding paths</strong></p>
+</div>
+<p>By now, we are getting more comfortable with the regression world, and we can see how it is extended to lots of different types of outcome and data structures. By starting to think of our theories by drawing out paths to and from different variables, we open up a whole new way of ‘modelling’ the world around us.</p>
+<p>There are a few conventions to help us understand this sort of diagrammatical way of thinking. By using combinations of rectangles, ovals, single- and double-headed arrows, we can draw all sorts of model structures.<br />
+In Path Diagrams, we use these shapes and arrows to represent different things in our model:</p>
+<p><img src="images/path/semplots.png" width="80%" style="display: block; margin: auto;" /></p>
+<ul>
+<li><strong>Observed variables</strong> are represented by squares or rectangles. These are the named variables of interest which exist in our dataset - i.e. the ones which we have measured directly.</li>
+<li><strong>Variances/Covariances</strong> are represented by double-headed arrows. In many diagrams these are curved.</li>
+<li><strong>Regressions</strong> are shown by single headed arrows (e.g., an arrow from <span class="math inline">\(x\)</span> to <span class="math inline">\(y\)</span> for the path <span class="math inline">\(y~x\)</span>).<br />
+
+<li style="opacity:.3">
+<strong>Latent variables</strong> are represented by ovals, and we will return to these in a few weeks time!
+</li></li>
+</ul>
+<div class="lo">
+<p><strong>Terminology refresher</strong></p>
+<ul>
+<li><strong>Exogenous variables</strong> are a bit like what we have been describing with words like “independent variable” or “predictor.” In a path diagram, they have no paths coming from other variables in the system, but have paths <em>going to</em> other variables.<br />
+</li>
+<li><strong>Endogenous variables</strong> are more like the “outcome”/“dependent”/“response” variables we are used to. They have some path coming from another variable in the system (and may also - but not necessarily - have paths going out from them).</li>
+</ul>
+</div>
+<div id="path-diagram-requirements" class="section level2">
+<h2>Path Diagram Requirements</h2>
+<p>There are a few requirements and assumptions that we make in order to have a complete path diagram:</p>
+<ul>
+<li>All our exogenous variables are correlated (unless we specifically assume that their correlation is zero)</li>
+<li>All models are ‘recursive’ (no two-way causal relations, no feedback loops)</li>
+<li>Residuals are uncorrelated with exogenous variables</li>
+<li>Endogenous variables are not connected by correlations (we would use correlations between residuals here, because the residuals are not endogenous)</li>
+<li>All ‘causal’ relations are linear and additive</li>
+<li>‘causes’ are unitary (if A -&gt; B and A -&gt; C, then it is presumed that this is the same aspect of A resulting in a change in both B and C, and not two distinct aspects of A, which would be better represented by two correlated variables A1 and A2).</li>
+</ul>
+<div class="statbox">
+<p><strong>Causal??</strong></p>
+<p>It is a slippery slope to start using the word ‘cause,’ and personally I am not that comfortable using it here. However, you will likely hear it a lot in resources about path analysis and SEM, so it is best to be warned.</p>
+<p>Please keep in mind that we are using a very broad definition of ‘causal,’ simply to reflect the one way nature of the relationship we are modeling. In Figure <a href="#fig:causes">4</a>, a change in the variable <strong>X1</strong> is associated with a change in <strong>Y</strong>, but not vice versa.</p>
+<div class="figure" style="text-align: center"><span id="fig:causes"></span>
+<img src="images/path/causes.png" alt="Paths are still just regressions." width="80%" />
+<p class="caption">
+Figure 4: Paths are still just regressions.
+</p>
+</div>
+</div>
+</div>
+<div id="path-diagram-tracing" class="section level2">
+<h2>Path Diagram Tracing</h2>
+<p>Thanks to <a href="https://www.jstor.org/stable/pdf/2527551.pdf?casa_token=3QF0ad2ZoBcAAAAA:MbEkDNNdoLZr1SXE4LrnK--qrhhsTXLgsRtcWre1UvWxiQiGNUl5vWytGp34XIxhAYMZJe-MbIcBnEwXSfX6MAONevz04-sMXpEDI3IaYKk6mMX46QvX">Sewal Wright</a>, we can express the correlation between any two variables in the system as the sum of all <em>compound paths</em> between the two variables.</p>
+<p><em>compound paths</em> are any paths you can trace between A and B for which there are:</p>
+<ul>
+<li>no loops</li>
+<li>no going forward then backward</li>
+<li>maximum of one curved arrow per path</li>
+</ul>
+<p>Let’s consider the example below, for which the paths are all labelled with lower case letters <span class="math inline">\(a, b, c, \text{and } d\)</span>.</p>
+<div class="figure" style="text-align: center"><span id="fig:patheq1"></span>
+<img src="images/path/patheq1.png" alt="A multiple regression model as a path diagram" width="80%" />
+<p class="caption">
+Figure 5: A multiple regression model as a path diagram
+</p>
+</div>
+<p>According to Wright’s tracing rules above, write out the equations corresponding to the 3 correlations between our observed variables (remember that <span class="math inline">\(r_{a,b} = r_{b,a}\)</span>, so it doesn’t matter at which variable we start the paths).</p>
+<ul>
+<li><span class="math inline">\(r_{x1,x2} = c\)</span><br />
+</li>
+<li><span class="math inline">\(r_{x1,y} = a + bc\)</span><br />
+</li>
+<li><span class="math inline">\(r_{x2,y} = b + ac\)</span></li>
+</ul>
+<p>Now let’s suppose we observed the following correlation matrix:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>egdat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/patheg.csv&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">cor</span>(egdat),<span class="dv">2</span>)</span></code></pre></div>
+<pre><code>##      x1   x2    y
+## x1 1.00 0.36 0.75
+## x2 0.36 1.00 0.60
+## y  0.75 0.60 1.00</code></pre>
+<p>We can plug these into our system of equations:</p>
+<ul>
+<li><span class="math inline">\(r_{x1,x2} = c = 0.36\)</span><br />
+</li>
+<li><span class="math inline">\(r_{x1,y} = a + bc = 0.75\)</span><br />
+</li>
+<li><span class="math inline">\(r_{x2,y} = b + ac = 0.60\)</span></li>
+</ul>
+<p>And with some substituting and rearranging, we can work out the values of <span class="math inline">\(a\)</span>, <span class="math inline">\(b\)</span> and <span class="math inline">\(c\)</span>.</p>
+<div class="optional-begin">
+
+</div>
+<div class="optional-body">
+<p>This is what I get:</p>
+<p>a = 0.61<br />
+b = 0.38<br />
+c = 0.36</p>
+</div>
+<p class="optional-end">
+</p>
+<p>We can even work out what the path labeled <span class="math inline">\(d\)</span> (the residual variance) is.
+First we sum up all the equations for the paths from Y to Y itself. These are:</p>
+<ul>
+<li><span class="math inline">\(a^2\)</span> (from Y to X1 and back)<br />
+</li>
+<li><span class="math inline">\(b^2\)</span> (from Y to X2 and back)<br />
+</li>
+<li><span class="math inline">\(acb\)</span> (from Y to X1 to X2 to Y)</li>
+<li><span class="math inline">\(bca\)</span> (from Y to X2 to X1 to Y)</li>
+</ul>
+<p>Summing them all up and solving gives us:<br />
+<span class="math display">\[
+\begin{align}
+ r_{y \cdot x1, x2} &amp; = a^2 + b^2 + acb + bca\\
+ &amp; = 0.61^2 + 0.38^2 + 2 \times(0.61 \times 0.38 \times 0.36)\\
+ &amp; = 0.68 \\
+\end{align}
+\]</span>
+We can think of this as the portion of the correlation of Y with itself that occurs <em>via the predictors</em>. Put another way, this is the amount of variance in Y explained jointly by X1 and X2, which sounds an awful lot like an <span class="math inline">\(R^2\)</span>!<br />
+The path labelled <span class="math inline">\(d\)</span> is simply all that is left in Y after taking out the variance explained by X1 and X2, meaning that the path <span class="math inline">\(d = \sqrt{1-R^2}\)</span>.</p>
+<p>Hooray! We’ve just worked out regression coefficients when all we had was the correlation matrix of the variables! It’s important to note that we have been using the correlation matrix, so, somewhat unsurprisingly, our estimates are <em>standardised</em> coefficients.</p>
+<p>Because we have the data itself, let’s quickly find them with <code>lm()</code></p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># quickly scale all the columns in the data</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>egdat <span class="ot">&lt;-</span> egdat <span class="sc">%&gt;%</span> <span class="fu">mutate_all</span>(<span class="sc">~</span><span class="fu">scale</span>(.)[,<span class="dv">1</span>])</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># extract the coefs</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(<span class="fu">lm</span>(y<span class="sc">~</span>x1<span class="sc">+</span>x2, egdat)) <span class="sc">%&gt;%</span> <span class="fu">round</span>()</span></code></pre></div>
+<pre><code>## (Intercept)          x1          x2 
+##           0           1           0</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># extract the r^2</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">lm</span>(y<span class="sc">~</span>x1<span class="sc">+</span>x2, egdat))<span class="sc">$</span>r.squared</span></code></pre></div>
+<pre><code>## [1] 0.688</code></pre>
+<!-- Formatting -->
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
+
+</div>
+</div>
+</div>
+<div id="doing-path-analysis" class="section level1">
+<h1>Doing Path Analysis</h1>
+<p>lavaan<br />
+model &lt;- “….”<br />
+modelfit &lt;- sem(model)<br />
+summary(modelfit)</p>
+</div>
+<div id="what-is-model-fit" class="section level1">
+<h1>What is “model fit?”</h1>
+<p>no longer “variance explained in y”<br />
+disparity between observed and predicted covariance matrix.</p>
+</div>
+
+<link rel="stylesheet" href="https://uoepsy.github.io/assets/css/ccfooter.css" />
+<div class="ccfooter"></div>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
