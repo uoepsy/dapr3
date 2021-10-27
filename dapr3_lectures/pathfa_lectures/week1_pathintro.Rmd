@@ -372,31 +372,109 @@ class: inverse, center, middle
 <h2 style="text-align: left;opacity:0.3;">Part 4: Model Evaluation</h2>
 
 ---
-# Specification
-- What we have just seen
-- Basic rules about path diagram
+# Stages in path model
+- Specification:
+  - This is what we have just seen in our motivating examples. 
+  - Specification concerns which variables relate to which others, and in what ways.
+
+- We have seen the types of path we can include, but there are some other standard "rules"
+
+1. All exogenous variables correlate
+2. For endogenous variables, we correlate the residuals, not the variables.
+3. Endogenous variable rsiduals **do not correlate** with exogenous variables.
+4. All paths are recursive (i.e. we cant not have loops like A->B, B->A).
+
 
 ---
-# Estimation: ML
-- Reiterate ML. 
-- Make point that there are lots of different estimation methods but for this course ML is fine.
-- Flag when to use others as a very simple set of rules.
-- Flag this is a topic to go back to if they end up doign more complex analyses in dissy
+# Model estimation
+- After we have specified our model (& checked it is identified) we proceed to **estimation**
+
+- Model estimation refers to finding the 'best' values for the unknown parameters
+
 
 ---
-# Path tracing 
-- all based on covariances or correlations
-- Can work out correlations from paths.
-- This leads to an important concept
-  - Our model represents the correlations
-  - If our model contains less paths than we have correlations, then we are representing those relationships in a simplified form
-- When we have less paths than correlations, our model is called identified. (positive df)
-- When we have the same number it is called just identified (0 df)
-- When we have more, our model is not identified and wont estimate (trying to do too much with data) (-ve df)
+# Maximum likelihood estimation
+- Maximum likelihood estimation is most commonly used
 
-- When models are identified, we may not perfectly reproduce the correlations we observed in the data
-  - That is the model implied covariance/correlations differ slightly from the actual data
-  - The comparison of these two is at the heart of model fit (next section)
+- Finds the parameters that maximise the likelihood of the data 
+
+- Begins with a set of starting values
+
+- Iterative process of improving these values
+    - i.e. to minimise the difference between the sample covariance matrix and the covariance matrix implied by the parameter values
+
+- Terminates when the values are no longer substantially improved across iterations
+  - At this point **convergence** is said to have been reached
+  
+---
+# No convergence?
+- Sometimes estimation fails
+
+- Common reasons are:
+  - The model is not identified
+  - The model is very mis-specified
+  - The model is very complex so more iterations are needed than the program default
+
+---
+# Maximum likelihood estimation assumptions
+- Large sample size
+
+- Multivariate normality
+
+- Variables are on a continuous scale
+
+- If we believe these are not met, there are alternatives:
+  - Robust maximum likelihood estimation
+    - For non-normal data
+  - Weighted least squares, unweighted least squares or diagonally weighted least squares
+    - For ordinal data
+
+- Estimation is quite a complex topic, for now, working with ML will suffice.
+
+---
+# From path models to model evaluation
+- Our path models are based on covariances or correlations between our measured variables.
+  - Typically what we would call our observed correlation/covariance.
+  
+- When we specify a model, we Can work out the correlations from paths in our model.
+  - This is referred to as a model implied correlation/covariance.
+  - This process is called path tracing (see lab)
+
+- If our model contains less paths than we have correlations, then we have produced a model that is a simplified version of our data.
+  - Knowing if this simplified model well reproduces our data is at the core of model evaluation.
+
+
+---
+# Model identification
+- Identification concerns the number of **knowns** versus **unknowns**
+
+- There must be more knowns than unknowns in order to test our model.
+
+- The knowns are variances and covariances of the observed variables.
+
+- The unknowns are the parameters we want to estimate.
+
+- **Degrees of freedom** are the difference between knowns and unknowns
+
+
+---
+# Levels of identification
+- There are three levels of identification:
+  - **Under-identified** models: have < 0 degrees of freedom 
+  - **Just Identified** models: have 0 degrees of freedom (all standard linear models are just indentified)
+  - **Over-Identified** models: have > 0 degrees of freedom
+
+---
+# Model identification illustration 
+
+- Chou & Bentler (1995) provide an illustration based on simultaneous linear equations:
+  - Eq.1: $x + y = 5$
+  - Eq.2: $2x + y = 8$
+  - Eq.3: $x + 2y = 9$
+
+- Eq.1 is on its own is  *under-identified*
+- Eq.1 & 2 are together *just identified*
+- Eq.1, 2 & 3 are together *over identified*
 
 
 ---
@@ -411,6 +489,97 @@ class: inverse, center, middle
 <h2 style="text-align: left;opacity:0.3;">Part 2: Introducing `lavaan`</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 3: Model Specification & Estimation</h2>
 <h2>Part 4: Model Evaluation</h2>
+
+---
+# Model Evaluation (Fit)
+- In path models and it's extensions, we tend not to focus on the variance explained in the outcome (though we can calculate this)
+
+- Instead, we tend to think about:
+  1. Does our model fit the data?
+  2. If it fit's the data, what are the parameter estimates?
+  
+- "Fitting the data" refers to the comparison between the observed and the model implied covariance matrices.
+  - If our model reproduces the observed covariances well, then it is deemed to fit.
+  - If our model reproduces the observed covariances poorly, then it is deemed to not fit (and we wouldn't interpret the model)
+  
+---
+# Model fit
+- Just-identified models will always fit perfectly.
+  - They exactly reproduce the observed covariances.
+
+- When we have positive degrees of freedom, we can calculate a variety of model fit indices.
+  - We have seen some of these before (AIC and BIC)
+  - But there are a huge number of model fit indices.
+
+- For ease, we will note a small number, and focus on the suggested values that indicate good vs bad fit.
+  - This will give an impression of certainty in the fit vs non-fit decision.
+  - But be aware this is not a binary choice. 
+  - Model fit is a continum and the use of fit indices much debated.
+  
+---
+# Global fit
+- $\chi^2$
+  - When we use maximum likelihood estimation we obtain a $\chi^2$ value for the model
+  - This can be compared to a $\chi^2$ distribution with degrees of freedom equal to our model degrees of freedom
+  - Statistically significant $\chi^2$ suggests the CFA model does not do a good job of reproducing the observed variance-covariance matrix  
+
+- However, $\chi^2$ does not work well in practice
+  - Leads to the rejection of models that are only trivially mis-specified
+    
+---
+# Alternatives to $\chi^2$
+- Absolute fit
+  - Standardised root mean square residual (**SRMR**)
+    - measures the discrepancy between the observed correlation matrix and model-implied correlation matrix
+    - ranges from 0 to 1 with 0=perfect fit
+    - values <.05 considered good
+
+- Parsimony-corrected
+  - Corrects for the complexity of the model
+  - Adds a penalty for having more degrees of freedom
+  - Root mean square square error of approximation (**RMSEA**)
+    - 0=perfect fit
+    - values <.05 considered good
+    
+
+---
+# Incremental fit indices
+- Compares the model to a more restricted baseline model
+  - Usually an 'independence' model where all observed variable covariances fixed to 0
+
+- Comparative fit index (**CFI**)
+  - ranges between 0 and 1 with 1=perfect fit
+  - values > .95 considered good
+
+- Tucker-Lewis index (**TLI**)
+  - includes a parsimony penalty
+  - values >.95 considered good
+
+
+---
+# Local Fit
+- It is also possible to examine **local** areas of mis-fit
+
+- **Modification indices** estimate the improvement in $\chi^2$ that could be expected from including an additional parameter
+    - e.g., a cross-loading, residual covariance or latent variable covariance
+
+- **Expected parameter changes** estimate the value of the parameter were it to be included
+
+
+---
+# Making model modifications
+- Modification indices and expected parameter changes can be helpful for identifying how to improve the model.
+  - These can be extracted using the `summary(model, mod.indices=T)`
+  - They indicate the amount the model fit would improve if you added a path to your model
+
+- However:
+  - Modifications should be made iteratively
+  - May just be capitalising on chance
+  - Make sure the modifications can be justified on substantive grounds
+  - Be aware that this becomes an exploratory modeling practice
+  - Ideally replicate the new model in an independent sample
+
+- As a general rule for dapR3 course, we want you to specify and test a specific model, and not seek to use exploratory modifications.
 
 ---
 class: extra, inverse, center, middle, animated, rotateInDownLeft

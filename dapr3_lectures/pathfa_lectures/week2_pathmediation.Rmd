@@ -66,7 +66,6 @@ style_mono_accent(
 )
 ```
 
----
 # Learning Objectives
 1. Understand the purpose of mediation models and the conceptual challenges
 2. Be able to describe direct, indirect and total effects in a mediation model.
@@ -168,9 +167,9 @@ knitr::include_graphics("trad med.png")
 ]
 
 
----    
-# Traditional methods of testing mediation
 
+---
+# Traditional methods for mediation
 .pull-left[
 - The three regression models:
   1. Y~X  
@@ -190,8 +189,9 @@ knitr::include_graphics("trad med.png")
   - The effect of X on Y becomes reduced when M is added into the model (eq.2)
 ]
 
----    
-# Limitations of traditional methods of testing mediation
+
+---
+# Limitations of traditional methods for mediation
 - Low power
 
 - Very cumbersome for multiple mediators, predictors, or outcomes
@@ -248,9 +248,8 @@ class: inverse, center, middle
   - Interpret the parameter estimates
 
 
----    
+---
 # Example
-
 .pull-left[
 - Does peer rejection mediate the association between aggression and depression?
 
@@ -277,18 +276,15 @@ knitr::include_graphics("Mediation diagram example.png")
 ---
 # The data
 ```{r example 1 descriptives}
-
+slice(agg.data2, 1:10)
+  
 ```
 
 
---- 
-# Mediation example
+---
+# Mediation Example
 
-.pull-left[
 - Does peer rejection mediate the association between aggression and depression?
-]
-
-.pull-right[
 
 ```{r}
 model1<-'Dep ~ PR      # Depression predicted by peer rejection
@@ -297,10 +293,7 @@ model1<-'Dep ~ PR      # Depression predicted by peer rejection
 '     
 ```
 
-]
-
----
-# Estimate the model 
+- Estimate the model 
 
 ```{r}
 model1.est<-sem(model1, data=agg.data2)
@@ -308,9 +301,12 @@ model1.est<-sem(model1, data=agg.data2)
 
 ---
 # The model output
+
+.scroll-output[
 ```{r}
 summary(model1.est, fit.measures=T)
 ```
+]
 
 ---
 # Things to note from the model output
@@ -325,17 +321,22 @@ summary(model1.est, fit.measures=T)
 ---
 # Visualising the model using `semPaths()`
 
-.pull-left[
 - We can use semPaths() from the semPlot package to help us visualise the model
     - Shows the parameter estimates within an SEM diagram
-]
 
-.pull-right[
-```{r visualise model output}
+```{r, eval=FALSE}
 library(semPlot)
 semPaths(model1.est, what='est')
 ```
-]
+
+---
+# Visualising the model using `semPaths()`
+
+```{r, echo=FALSE}
+library(semPlot)
+semPaths(model1.est, what='est')
+```
+
 
 ---
 # Calculating the indirect effects 
@@ -362,33 +363,35 @@ knitr::include_graphics("Mediation diagram example a b.png")
 .pull-left[
 - To calculate the indirect effect of X on Y in lavaan we:
 
-  - Use parameter labels 'a' and 'b' to label the relevant paths
-      - a is for the effect of X on M
-      - b is for the effect of M on Y
+- Use parameter labels 'a' and 'b' to label the relevant paths
+  - a is for the effect of X on M
+  - b is for the effect of M on Y
 
-  - Use the ':=' operator to create a new parameter 'ind'
-      - 'ind' represents our indirect effect
+- Use the ':=' operator to create a new parameter 'ind'
+  - 'ind' represents our indirect effect
 ]
 
 .pull-right[
 ```{r indirect effects}
-  model1<-'Dep~b*PR     # Add b label here     
-           Dep~Agg     
-           PR~a*Agg     # Add a label here    
-           
-ind:=a*b                # create a new parameter ind which is the product of a and b'    
+model1<-'Dep~b*PR        
+         Dep~Agg     
+         PR~a*Agg
+         ind:=a*b
+         '
 ```
 ]
 
 ---
 # Indirect effects in the output
 
+.scroll-output[
 ```{r indirect effects output}
 
 model1.est<-sem(model1, data=agg.data2)
 summary(model1.est)
-
 ```
+
+]
 
 ---
 # Statistical significance of the indirect effects
@@ -415,11 +418,13 @@ model1.est<-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se=
 ```
 
 ---
-# Output for bootstrapped CIs for an indirect effect in lavaan
+# Output for bootstrapped CIs 
 
+.scroll-output[
 ```{r indirect effect with bootstrapped CIs output}
 summary(model1.est, ci=T) # we add the argument ci=T to see the confidence intervals in the output
 ```
+]
 
 ---
 # Total effects in path mediation
@@ -454,11 +459,13 @@ model1.est<-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se=
 ---
 # Total effect in lavaan output
 
+.scroll-output[
 ```{r total effect output}
 
 summary(model1.est, ci=T)
 
 ```
+]
 
 ---
 # Why code the total effect in lavaan?
@@ -484,10 +491,12 @@ summary(model1.est, ci=T)
 # Standardised parameters
 - As with CFA models, standardised parameters can be obtained using:
 
+.scroll-output[
 ```{r stand param}
 
 summary(model1.est, ci=T, standardized=T)
 ```
+]
 
 ---
 # BREAK QUIZ
@@ -514,10 +523,10 @@ class: inverse, center, middle
 <h2 style="text-align: left;opacity:0.3;">Part 3: Estimating mediation in `lavaan`</h2>
 <h2>Part 4: Reporting</h2>
 
----    
-# Welcome back
 
-- Welcome back!
+
+---
+# Welcome back
 - The answer to the quiz question is...
 - Quiz question
     - If the effect of X on M is b=.30 and the effect of M on Y is b=.10, what is the indirect effect of X on Y?
@@ -587,22 +596,22 @@ $$\frac{indirect}{total}$$
   - Multiple groups (e.g., comparing direct and indirect effects across males and females)
   - Add covariates to adjust for potential confounders
 
----   
-# Example: multiple mediation model
 
+---
+# Example: Multiple mediation model
 .pull-left[
 ```{r mult med}
 model2<-'Dep~b2*Aca  
          Aca~a2*Agg
-         
          Dep~b1*PR
          PR~a1*Agg
-         
-         Dep~c*Agg  # direct effect
+         Dep~c*Agg  
 
-ind1:=a1*b1
-ind2:=a2*b2
-total=a1*b1+a2*b2+c'
+        ind1:=a1*b1
+        ind2:=a2*b2
+        
+        total=a1*b1+a2*b2+c
+'
 ```
 ]
 
@@ -650,7 +659,7 @@ knitr::include_graphics("Mediation diagram example multiple mediation.png")
 - The parameters are only accurate if the model is correctly specified
 
 ---
-# Cautions regarding path analysis models - indistinguishable models
+# Cautions: Indistinguishable models
 
 ```{r, echo=FALSE}
 knitr::include_graphics("med versus confounding.png")

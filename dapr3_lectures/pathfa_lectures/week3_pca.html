@@ -37,15 +37,130 @@ class: center, middle, inverse, title-slide
 1. Understand the core principle of data reduction methods and their use in psychology
 2. Understand the core goals of principal components analysis (PCA)
 3. Run and interpret PCA analysis in R
-4. Extract PCS scores from analyses in R
+4. Extract PCA scores from analyses in R
 
 ---
 class: inverse, center, middle
 
 &lt;h2&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation and Interpretation&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: PCA scores &amp; an example&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Interpretation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: PCA scores&lt;/h2&gt;
+
+---
+# What's data/dimension reduction?
++ Mathematical and statistical procedures
+  + Reduce large set of variables to a smaller set
+  + Several forms of data reduction
+	  + **Principal components analysis**
+	  + **Factor analysis**
+	  + Image analysis
+	  + Correspondence analysis
+	  + K-means clustering
+	  + Multidimensional scaling
+	  + Latent class analysis
+
+
+---
+# When might you use data reduction?
++ You work with observational data and many variables
+  + Psychology (differential, industrial/organizational)
+  + Genetics
+  + Epidemiology
+
+---
+# Uses of dimension reduction techniques
+- Theory testing
+  - What are the number and nature of dimensions that best describe a theoretical construct?
+
+- Test construction
+  - How should I group my items into subscales?
+  - Which items are the best measures of my  constructs?
+
+- Pragmatic
+  - I have multicollinearity issues/too many variables, how can I defensibly combine my variables?
+    
+---
+# Questions to ask before you start
++ Why are your variables correlated?
+  + Agnostic/don't care
+  + Believe there *are* underlying "causes" of these correlations
+
++ What are your goals?
+  + Just reduce the number of variables
+  + Reduce your variables and learn about/model their underlying
+  (latent) causes
+
+---
+# Questions to ask before you start
++ Why are your variables correlated?
+  + **Agnostic/don't care**
+  + Believe there *are* underlying "causes" of these correlations
+
++ What are your goals?
+  + **Just reduce the number of variables**
+  + Reduce your variables and learn about/model their underlying
+  (latent) causes
+
+---
+# Dimension Reduction
+- Summarise a set of variables in terms of a smaller number of dimensions
+    - e.g., can 10 aggression items summarised in terms of 'physical' and 'verbal' aggression dimensions?
+    
+1. I hit someone
+2. I kicked someone 
+3. I shoved someone 
+4. I battered someone 
+5. I physically hurt someone on purpose 
+6. I deliberately insulted someone
+7. I swore at someone
+8. I threatened to hurt someone
+9. I called someone a nasty name to their face
+10. I shouted mean things at someone
+
+    
+---
+# Our running example
+
+- A researcher has collected n=1000 responses to our 10 aggression items
+- We'll use this data to illustrate dimension reduction techniques
+
+
+
+
+```r
+library(psych)
+describe(agg.items)
+```
+
+```
+##        vars    n  mean   sd median trimmed  mad   min  max range  skew kurtosis
+## item1     1 1000  0.03 0.99  -0.03    0.02 1.04 -3.41 3.34  6.75  0.09    -0.05
+## item2     2 1000  0.02 1.03   0.03    0.03 1.04 -3.19 3.12  6.31 -0.01    -0.22
+## item3     3 1000 -0.04 1.00  -0.11   -0.04 1.02 -3.08 3.00  6.07  0.06    -0.16
+## item4     4 1000 -0.05 1.00  -0.07   -0.05 0.99 -3.00 3.29  6.29  0.03    -0.05
+## item5     5 1000 -0.03 1.02  -0.05   -0.03 1.08 -3.42 3.22  6.64 -0.01    -0.15
+## item6     6 1000 -0.03 1.03  -0.01   -0.01 1.00 -3.94 3.51  7.45 -0.21     0.18
+## item7     7 1000 -0.03 0.97  -0.04   -0.04 0.96 -3.83 3.12  6.95  0.03     0.27
+## item8     8 1000  0.01 1.00   0.03    0.01 0.99 -3.90 3.26  7.16  0.00     0.18
+## item9     9 1000 -0.05 0.98  -0.05   -0.06 0.96 -3.23 3.46  6.69  0.07     0.05
+## item10   10 1000  0.01 0.97  -0.02    0.01 1.00 -3.21 2.49  5.70 -0.04    -0.22
+##          se
+## item1  0.03
+## item2  0.03
+## item3  0.03
+## item4  0.03
+## item5  0.03
+## item6  0.03
+## item7  0.03
+## item8  0.03
+## item9  0.03
+## item10 0.03
+```
+
+
+
+
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
@@ -56,8 +171,126 @@ class: inverse, center, middle
 
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
 &lt;h2&gt;Part 2: Purpose of PCA&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation and Interpretation&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: PCA scores &amp; an example&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Interpretation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: PCA scores&lt;/h2&gt;
+
+
+---
+# Principal components analysis
++ Goal is explaining as much of the total variance in a data set as possible
+  + Starts with original data
+  + Calculates covariances (correlations) between variables
+  + Applies procedure called **eigendecomposition** to calculate a set of linear composites of the original variables
+
+
+---
+# PCA
+- Starts with a correlation matrix
+
+
+```r
+#compute the correlation matrix for the aggression items
+round(cor(agg.items),2)
+```
+
+```
+##        item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+## item1   1.00  0.59  0.47  0.47  0.61  0.08  0.14  0.10  0.14   0.06
+## item2   0.59  1.00  0.53  0.50  0.70  0.10  0.19  0.15  0.18   0.09
+## item3   0.47  0.53  1.00  0.42  0.57  0.04  0.13  0.12  0.15   0.07
+## item4   0.47  0.50  0.42  1.00  0.54  0.09  0.16  0.14  0.16   0.07
+## item5   0.61  0.70  0.57  0.54  1.00  0.09  0.15  0.11  0.16   0.06
+## item6   0.08  0.10  0.04  0.09  0.09  1.00  0.57  0.59  0.46   0.44
+## item7   0.14  0.19  0.13  0.16  0.15  0.57  1.00  0.80  0.61   0.60
+## item8   0.10  0.15  0.12  0.14  0.11  0.59  0.80  1.00  0.61   0.62
+## item9   0.14  0.18  0.15  0.16  0.16  0.46  0.61  0.61  1.00   0.42
+## item10  0.06  0.09  0.07  0.07  0.06  0.44  0.60  0.62  0.42   1.00
+```
+
+
+---
+# What PCA does do?
+- Repackages the variance from the correlation matrix into a set  of **components**
+
+- Components = orthogonal (i.e.,uncorrelated) linear combinations of the original variables
+  - 1st component is the linear combination that accounts for the most possible variance
+  - 2nd accounts for second-largest after the variance accounted for by the first is removed
+  - 3rd...etc...
+
+- Each component accounts for as much remaining variance as possible
+
+- There are as many components are there were variables in original correlation matrix
+
+---
+# Eigendecomposition
+- Components are formed using an **eigen-decomposition** of the correlation matrix
+
+- Eigen-decomposition is a transformation of the correlation matrix to re-express it in terms of  **eigenvalues** and **eigenvectors**
+
+- There is one eigenvector and one eigenvalue for each component
+
+- Eigenvalues are a measure of the size of the variance packaged into a component
+    - Larger eigenvalues mean that the component accounts for a large proportion of the variance in the original correlation matrix
+
+---
+# Eigenvalues and eigenvectors
+
+
+```
+## [1] "e1" "e2" "e3" "e4" "e5"
+```
+
+```
+##       component1 component2 component3 component4 component5
+## item1 "w11"      "w12"      "w13"      "w14"      "w15"     
+## item2 "w21"      "w22"      "w23"      "w24"      "w25"     
+## item3 "w31"      "w32"      "w33"      "w34"      "w35"     
+## item4 "w41"      "w42"      "w43"      "w44"      "w45"     
+## item5 "w51"      "w52"      "w53"      "w54"      "w55"
+```
+
+
+- Eigenvectors are sets of **weights** (one weight per variable in original correlation matrix)
+  - e.g., if we had 5 variables each eigenvector would contain 5 weights
+  - Larger weights mean  a variable makes a bigger contribution to the component
+
+---
+# Eigen-decomposition of aggression item correlation matrix
+  
+- We can use the eigen() function to conduct an eigen-decomposition for our 10 aggression items
+
+
+```r
+eigen(cor(agg.items))
+```
+
+---
+# Eigen-decomposition of aggression item correlation matrix
+
+- Eigenvalues:
+
+
+```
+##  [1] 3.838 2.653 0.599 0.574 0.554 0.500 0.423 0.370 0.296 0.193
+```
+
+- Eigenvectors
+
+
+```
+##         [,1]   [,2]   [,3]   [,4]   [,5]   [,6]   [,7]   [,8]   [,9]  [,10]
+##  [1,] -0.290  0.339 -0.101  0.075  0.383  0.420  0.670  0.078 -0.076  0.032
+##  [2,] -0.324  0.339  0.024 -0.006  0.203  0.173 -0.597 -0.015 -0.593 -0.012
+##  [3,] -0.274  0.316  0.597 -0.267 -0.129 -0.553  0.247  0.051 -0.097 -0.041
+##  [4,] -0.281  0.292 -0.508  0.325 -0.647 -0.190  0.101 -0.025 -0.082 -0.014
+##  [5,] -0.318  0.372 -0.011 -0.007  0.154  0.026 -0.333 -0.098  0.782  0.066
+##  [6,] -0.293 -0.294 -0.448 -0.076  0.499 -0.567  0.051 -0.202 -0.065 -0.045
+##  [7,] -0.376 -0.309  0.042  0.019 -0.061  0.115 -0.057  0.525  0.101 -0.674
+##  [8,] -0.365 -0.337  0.055  0.015 -0.077  0.026 -0.041  0.454  0.005  0.732
+##  [9,] -0.332 -0.240 -0.058 -0.636 -0.307  0.331  0.061 -0.465 -0.010 -0.011
+## [10,] -0.291 -0.306  0.407  0.638 -0.008  0.076  0.033 -0.491 -0.007 -0.027
+```
+
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -69,8 +302,231 @@ class: inverse, center, middle
 
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
-&lt;h2&gt;Part 3: Estimation and Interpretation&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: PCA scores &amp; an example&lt;/h2&gt;
+&lt;h2&gt;Part 3: Interpretation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: PCA scores&lt;/h2&gt;
+
+
+---
+# How many components to keep?
+- Eigen-decomposition repackages the variance but does not reduce our dimensions
+
+- Dimension reduction comes from keeping only the largest components
+
+- Assume the others can be dropped with little loss of information
+
+- Our decisions on how many components to keep can be guided by several methods
+    - **Set a amount of variance you wish to account for**
+    - **Scree plot**
+    - Minimum average partial test (MAP)
+    - Parallel analysis
+
+
+---
+# Variance accounted for
+- As has been noted, each component accounts for some proportion of the variance in our original data.
+
+- The simplest method we can use to select a number of components is simply to state a minimum variance we wish to account for.
+  - We then select the number of components above this value.
+
+
+---
+# Scree plot
+- Based on plotting the eigenvalues
+  - Remember our eigenvalues are representing variance.
+
+- Looking for a sudden change of slope
+
+- Assumed to potentially reflect point at which components become substantively unimportant
+  - As the slope flattens, each subsequent component is not explaining much additional variance.
+
+
+---
+# Constructing a scree plot
+
+.pull-left[
+
+```r
+eigenvalues&lt;-eigen(cor(agg.items))$values
+plot(eigenvalues, type = 'b', pch = 16, 
+     main = "Scree Plot", xlab="", 
+     ylab="Eigenvalues")
+axis(1, at = 1:10, labels = 1:10)
+```
+
+-  Eigenvalue plot
+    - x-axis is component number
+    - y-axis is eigenvalue for each component
+
+- Keep the components with eigenvalues above a kink in the plot
+]
+
+.pull-right[
+
+![](week3_pca_files/figure-html/Scree plot example2-1.png)&lt;!-- --&gt;
+]
+
+---
+# Further scree plot examples
+
+.pull-left[
+![](week3_pca_files/figure-html/Scree plot example 1-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+
+- Scree plots vary in how easy it is to interpret them
+
+]
+---
+# Further scree plot examples
+
+![](week3_pca_files/figure-html/Scree plot example 2-1.png)&lt;!-- --&gt;
+
+---
+# Further scree plot examples
+
+![](week3_pca_files/figure-html/Scree plot example 3-1.png)&lt;!-- --&gt;
+
+---
+# Things to keep in mind
+
+- There is no one right answer about the number of components to retain
+
+- We talk of optimal numbers for the data, not **correct** numbers of components
+
+- Substantive considerations 
+  - Do the selected components make theoretical sense?
+
+- Practical considerations
+  - Are some components too 'minor' to be reliable?
+
+
+---
+# Running a PCA with a reduced number of components
+
+- We can run a PCA keeping just a selected number of components 
+
+- We do this using the `principal()` function from then psych package
+
+- We supply the dataframe or correlation matrix as the first argument
+
+- We specify the number of components to retain with the `nfactors=` argument
+
+- It can be useful to compare and constrast the solutions with different numbers of components
+    - Allows us to check which solutions make most sense based on substantive/practical considerations
+
+
+```r
+PC2&lt;-principal(agg.items, nfactors=2) 
+PC3&lt;-principal(agg.items, nfactors=3) 
+```
+
+
+---
+# Interpreting the components
+
+- Once we have decided how many components to keep (or to help us decide) we examine the PCA solution
+
+- We do this based on the component loadings
+    - Component loadings are calculated from the values in the eigenvectors
+    - They can be interpreted as the correlations between variables and components
+
+---
+# The component loadings
+
+.pull-left[
+- Component loading matrix
+
+- RC1 and RC2 columns show the component loadings
+
+  1. I hit someone
+  2. I kicked someone 
+  3. I shoved someone 
+  4. I battered someone 
+  5. I physically hurt someone on purpose 
+  6. I deliberately insulted someone
+  7. I swore at someone
+  8. I threatened to hurt someone
+  9. I called someone a nasty name to their face
+  10. I shouted mean things at someone
+  
+]
+
+.pull-right[
+
+```r
+PC2&lt;-principal(r=agg.items, nfactors=2)
+PC2$loadings
+```
+
+```
+## 
+## Loadings:
+##        RC1   RC2  
+## item1        0.789
+## item2  0.110 0.834
+## item3        0.741
+## item4        0.720
+## item5        0.866
+## item6  0.748      
+## item7  0.885 0.110
+## item8  0.900      
+## item9  0.747 0.138
+## item10 0.758      
+## 
+##                  RC1   RC2
+## SS loadings    3.319 3.172
+## Proportion Var 0.332 0.317
+## Cumulative Var 0.332 0.649
+```
+]
+
+
+---
+# How good is my PCA solution?
+
+- A good PCA solution explains the variance of the original correlation matrix in as few components as possible
+
+.scroll-output[
+
+```
+## Principal Components Analysis
+## Call: principal(r = agg.items, nfactors = 2, rotate = "oblimin")
+## Standardized loadings (pattern matrix) based upon correlation matrix
+##          TC1   TC2   h2   u2 com
+## item1  -0.02  0.79 0.63 0.37   1
+## item2   0.03  0.84 0.71 0.29   1
+## item3  -0.01  0.75 0.55 0.45   1
+## item4   0.03  0.72 0.53 0.47   1
+## item5  -0.02  0.87 0.75 0.25   1
+## item6   0.75 -0.04 0.56 0.44   1
+## item7   0.88  0.04 0.80 0.20   1
+## item8   0.90 -0.01 0.81 0.19   1
+## item9   0.74  0.08 0.58 0.42   1
+## item10  0.77 -0.06 0.57 0.43   1
+## 
+##                        TC1  TC2
+## SS loadings           3.31 3.18
+## Proportion Var        0.33 0.32
+## Cumulative Var        0.33 0.65
+## Proportion Explained  0.51 0.49
+## Cumulative Proportion 0.51 1.00
+## 
+##  With component correlations of 
+##      TC1  TC2
+## TC1 1.00 0.18
+## TC2 0.18 1.00
+## 
+## Mean item complexity =  1
+## Test of the hypothesis that 2 components are sufficient.
+## 
+## The root mean square of the residuals (RMSR) is  0.06 
+##  with the empirical chi square  348.6  with prob &lt;  3.5e-58 
+## 
+## Fit based upon off diagonal values = 0.97
+```
+]
+
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -82,8 +538,54 @@ class: inverse, center, middle
 
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
 &lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
-&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation and Interpretation&lt;/h2&gt;
-&lt;h2&gt;Part 4: PCA scores &amp; an example&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Interpretation&lt;/h2&gt;
+&lt;h2&gt;Part 4: PCA scores&lt;/h2&gt;
+
+
+---
+# Computing scores for the components
+- After conducting a PCA you may want to create scores for the new dimensions
+    - e.g., to use in a regression
+
+- Simplest method is to sum the scores for all items with loadings &gt;|.3| 
+
+- Better method is to compute them taking into account the weights
+
+---
+# Computing component scores in R
+
+
+```r
+PC&lt;-principal(r=agg.items, nfactors=2, rotate='oblimin')
+scores&lt;-PC$scores
+head(scores)
+```
+
+```
+##          TC1     TC2
+## [1,] -0.2627 -0.7248
+## [2,]  0.5843 -0.4293
+## [3,] -0.6326  1.0045
+## [4,] -1.3296  1.4707
+## [5,]  0.3497  0.1491
+## [6,] -0.9061 -1.6780
+```
+
+---
+# Reporting a PCA
+
+- Main principles: transparency and reproducibility
+- Method
+    - Methods used to decide on number of factors
+    - Rotation method
+  
+- Results
+    - Scree test (&amp; any other considerations in choice of number of components)
+    - How many components were retained
+    - The loading matrix for the chosen solution
+    - Variance expained by components
+    - Labelling and interpretation of the components
+    
 
 ---
 class: extra, inverse, center, middle, animated, rotateInDownLeft
