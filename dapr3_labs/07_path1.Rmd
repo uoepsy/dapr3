@@ -159,7 +159,7 @@ For us to be able to do this, a Path Diagram must meet these criteria:
 :::statbox
 **Causal??**
 
-It is a slippery slope to start using the word 'cause', and personally I am not that comfortable using it here. However, you will likely hear it a lot in resources about path analysis and SEM, so it is best to be warned.  
+It is a slippery slope to start using the word 'cause', and personally I am not that comfortable using it here. However, you will likely hear it a lot in resources about path analysis, so it is best to be warned.  
 
 Please keep in mind that we are using a very broad definition of 'causal', simply to reflect the one way nature of the relationship we are modeling. In Figure \@ref(fig:causes), a change in the variable **X1** is associated with a change in **Y**, but not vice versa. 
 
@@ -290,7 +290,7 @@ scsdat <- read_csv("https://uoepsy.github.io/data/scs_study.csv")
 # the lm() way
 mreg_lm <- lm(dass ~ zo + zc + ze + za + zn + scs, scsdat)
 
-# setting up the model for SEM
+# setting up the model
 mreg_model <- "
     #regression
     dass ~ zo + zc + ze + za + zn + scs
@@ -340,8 +340,7 @@ knitr::include_graphics("images/path/paths1paths.png")
 ```
 And now let's suppose that we collected data on these variables: 
 ```{r echo=T, eval=F}
-# jobsatpath <- read_csv("https://uoepsy.github.io/data/jobsatpath.csv")
-jobsatpath <- read_csv("../../data/jobsatpath.csv")
+jobsatpath <- read_csv("https://uoepsy.github.io/data/jobsatpath.csv")
 head(jobsatpath)
 ```
 ```{r echo=FALSE}
@@ -349,10 +348,7 @@ jobsatpath <- read_csv("../../data/jobsatpath.csv")
 knitr::kable(rbind(head(jobsatpath),"..."))
 ```
 
-
-
-Remember we said that we could specify all these paths using three regression models? Well, to specify our path model, we simply write these out like we would do in `lm()`, but this time we do so all in one character string.  
-We still have to make sure that we use the correct variable names, as when we make R estimate the model, it will look in the data for things like "jobsat". 
+Remember we said that we could specify all these paths using three regression models? Well, to specify our path model, we simply write these out like we would do in `lm()`, but this time we do so all in one character string. We still have to make sure that we use the correct variable names, as when we make R estimate the model, it will look in the data for things like "jobsat". 
 ```{r}
 mymodel <- "
 jobsat ~ age + autonomy + income
@@ -402,33 +398,20 @@ knitr::include_graphics("images/path/jobsatmod.png")
 You'll have heard the term "model fit" many times since the start of DAPR2, when we began model-based thinking. However, there is a crucial difference in what it means when it is used in for path analysis.  
 
 In things like multiple regression, we have been using "model fit" to be the measure of "how much variance can we explain in y with our set of predictors?". For a path model, examining "model fit" is more like asking "how well does our model reproduce the characteristics of the data that we observed?".  
+  
 We can represent the "characteristics of our data" in a covariance matrix, so one way of thinking of "model fit" is as "how well can our model reproduce our observed covariance matrix?".  
 
 ```{r}
 cov(jobsatpath)
 ```
 
-In this meaning of the term "model fit", the multiple regression model fits almost perfectly. 
-```{r}
-scsdat <- read_csv("https://uoepsy.github.io/data/scs_study.csv")
-cov(scsdat %>% select(dass,zo,zc,ze,za,zn,scs))
 
-mreg_model <- "
-    #regression
-    dass ~ zo + zc + ze + za + zn + scs
-"
-mreg_sem <- sem(mreg_model, data=scsdat)
-mreg_sem@implied$cov
-```
 
 ## Degrees of freedom
 
-When we think of "degrees of freedom" for a multiple regression model, in DAPR2 we learned that $df = n-k-1$ ($n$ is the number of observations, $k$ is the number of predictors). These degrees of freedom related to the corresponding $F$ and $t$-distributions with which we performed our hypothesis tests (e.g. $t$ tests for a null hypothesis that a coefficient is zero, or $F$-tests for a null that the reduction in residual sums of squares is zero).  
+When we think of "degrees of freedom" for a multiple regression model, in DAPR2 we learned that $df = n-k-1$ ($n$ is the number of observations, $k$ is the number of predictors). These degrees of freedom related to the corresponding $F$ and $t$-distributions with which we performed our hypothesis tests (e.g. $t$-tests for a null hypothesis that a coefficient is zero, or $F$-tests for a null that the reduction in residual sums of squares is zero).  
 
-But in relation to it's ability to represent a $k \times k$ covariance matrix (i.e. the covariance matrix of our variables), the multiple regression model has **zero** degrees of freedom. 
-
-"Degrees of freedom" in the this framework correspond to the number of *knowns* (observed covariances/variances) minus the number of *unknowns* (parameters to be estimated by the model). A model is only able to be estimated if it has at least 0 degrees of freedom (if there are as many knowns as unknowns). A model with 0 degrees of freedom is termed **just-identified**.  
-**under-** and **over-** identified models correspond to those with $<0$ and $>0$ degrees of freedom respectively. 
+But in relation to it's ability to represent a $k \times k$ covariance matrix (i.e. the covariance matrix of our $k$ variables), the multiple regression model has **zero** degrees of freedom. This is because "degrees of freedom" in the this framework corresponds to the number of *knowns* (observed covariances/variances) minus the number of *unknowns* (parameters to be estimated by the model). A model is only able to be estimated if it has at least 0 degrees of freedom (if there are as many knowns as unknowns). A model with 0 degrees of freedom is termed **just-identified**. **Under-** and **Over-** identified models correspond to those with $<0$ and $>0$ degrees of freedom respectively. 
 
 So the multiple regression model is an example of a *just-identified* model! In multiple regression, everything is allowed to covary with everything else, which means that there is a unique solution for all of the model's parameters because there are *as many paths as there are observed covariances*. This means that in this path analysis world, a multiple regression model is "just-identified". 
 
@@ -444,12 +427,11 @@ If I have two predictors and one outcome variable, then there are 6 variances an
 ```{r}
 cov(somedata)
 ```
-The multiple regression model will estimate the two variances of the exogenous variables (the predictors), their covariance, the two paths from each exogenous to the endogenous (each predictor to the outcome), and the error variance. This makes up 6 estimated parameters - which is exactly how many known covariances there are.
+The multiple regression model will estimate the two variances of the exogenous variables (the predictors), their covariance, the two paths from each exogenous to the endogenous (each predictor to the outcome), and the error variance. This makes up 6 estimated parameters - which is exactly how many known covariances there are.  
+Count the number of arrows (both single and double headed) in the diagram:  
 ```{r echo=FALSE, out.width="350px"}
-mreg = "y~x1+x2"
-library(tidySEM)
-graph_sem(mreg_sem, 
-          nodes = get_nodes(mreg_sem))
+mreg_sem <- sem("y~x1+x2", data = somedata)
+semPaths(mreg_sem)
 ```
 `r optend()`
 
@@ -460,7 +442,7 @@ The number of known covariances in a set of $k$ observed variables is equal to $
 
 :::
 
-When learning about SEM, the visualisations can play a key part. It often helps to draw all our variables (both observed and latent) on the whiteboard, and connect them up according to your theoretical model. You can then count the number of paths (arrows) and determine whether the $\text{number of knowns} > \text{number of unknowns}$. We can reduce the number of unknowns by fixing parameters to be specific values. 
+When learning about path models, the visualisations can play a key part. It often helps to draw all our variables (both observed and latent) on the whiteboard, and connect them up according to your theoretical model. You can then count the number of paths (arrows) and determine whether the **number of knowns** > **number of unknowns**. We can reduce the number of unknowns by fixing parameters to be specific values. 
 
 :::statbox
 
@@ -470,11 +452,205 @@ By constraining some estimated parameter to be some specific value, we free-up a
 
 :::
 
-There are too many different indices of model fit for these types of models, and there's lots of controversy over the various merits and disadvantages and proposed cutoffs of each method. We will return to this more in coming weeks, but it is an important notion to remember - "model fit" and "degrees of freedom" have quite different meanings to those you are likely used to.  
+There are too many different indices of model fit for these types of models, and there's lots of controversy over the various merits and disadvantages and proposed cutoffs of each method. We will return to this more in coming weeks, and the lecture this week contains information on some of them. The important thing to remember: "model fit" and "degrees of freedom" have quite different meanings to those you are likely used to.  
+
+# Exercises
+
+:::frame
+__Data: Passion & Burnout__  
+
+Researchers are interested in the role of obsessive and harmonious passion in psychological wellbeing. The researchers collect data from 100 participants. Participants respond on sliding scales (0-100) for five measures:
+
+```{r echo=FALSE}
+#todo
+burnout <- read_csv("../../data/passionpath.csv")
+tibble(
+  variable = names(burnout),
+  description = c("Work Satisfaction: On a scale of 0-100, how satisfied are you with your work? ","Harmonious Passion: On a scale of 0-100, how much do you feel that you freely choose to engage in work outside of working hours?", "Obsessive Passion: On a scale of 0-100, how much do you have uncontrollable urges to work outside of working hours?","Work Conflict: On a scale of 0-100, how much conflict do you experience in your work? ","Work Burnout: On a scale of 0-100, how close to burnout at work are you?  ")
+) %>% knitr::kable(.)
+```
+
+The data is available at https://uoepsy.github.io/data/passionpath.csv  
+
+:::
+
+`r qbegin(1)`
+Load in the libraries we will use in these exercises:
+
+- tidyverse  
+- lavaan  
+- semPlot  
+
+Read in the data.
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+library(tidyverse)
+library(lavaan)
+library(semPlot)
+
+burnout <- read_csv("../../data/passionpath.csv")
+```
+`r solend()`
+
+`r qbegin(2)`
+The researchers have this theoretical model:
+```{r figburn, echo=FALSE, fig.cap="Burnout theory"}
+knitr::include_graphics("images/path/burnoutpath.png")
+```
+
+Specify this model and store the formula as an object in R
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+burnoutmod <- "
+worksat ~ hp
+burnout ~ worksat + conflict
+conflict ~ op + hp
+hp ~~ op
+"
+  
+```
+`r solend()`
+
+`r qbegin(3)`
+Fit the model to the data using the `sem()` function.
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+burnoutfit <- sem(burnoutmod, data=burnout)
+```
+`r solend()`
+
+`r qbegin(4)`
+Examine the parameter estimates
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+summary(burnoutfit)
+```
+`r solend()`
+
+`r qbegin(5)`
+Produce a diagram with the estimates on the paths. 
+Can you also produce one which has the _standardised_ estimates?  
+
+Take a look at the help function for `semPaths()`. 
+What do the arguments `what` and `whatLabels` do? 
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+`what` will weight and colour the paths according something like the estimates. `whatLabels` will provide labels for the paths:
+```{r}
+semPaths(burnoutfit, whatLabels = "est")
+```
+
+This will change them to the standardised estimates:
+```{r}
+semPaths(burnoutfit, what = "std", whatLabels = "std")
+```
+`r solend()`
+
+`r qbegin(6)`
+
+- How many variables do you have in your model?
+- How many *knowns* are there in the covariance matrix?  
+- How many *unknowns* are there in your model? 
+- How many degrees of freedom do you therefore have?
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+- How many variables do you have in your model?  
+  __5__
+  
+- How many *knowns* are there in the covariance matrix? 
+  $\frac{5 \times (5 + 1)}{2} = 15$
+  
+- How many *unknowns* are there in your model?  
+  There are 6 paths in Figure \@ref(fig:figburn), but we also need to consider the variances of the 5 variables, so we have 11 things being estimated
+
+- How many degrees of freedom do you therefore have?
+  __15 - 11 = 4__ 
+
+`r solend()`
+
+:::statbox
+For these kind of models, a chi-square value is obtained which reflects reflects the discrepancy between the _model-implied covariance matrix_ and the _observed covariance matrix_. We can then calculate a p-value for this chi-square statistic by using the chi-square distribution with the degrees of freedom equivalent to that of the model.  
+
+If we denote the sample covariance matrix as $S$ and the model-implied covariance matrix as $\Sigma(\theta)$, then we can think of the null hypothesis here as $H_0: S - \Sigma(\hat\theta) = 0$. 
+__In this way our null hypothesis is sort of like saying that our theoretical model is correct__ (and can therefore perfectly reproduce the covariance matrix).
+
+:::
+
+`r qbegin(7)`
+Take a look at the summary of the model you fitted. Specifically, examine the bit near the top where it mentions the $\chi^2$ statistic.  
+Is it significant? 
+What do we conclude?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+The $\chi^2$ statistic is not significant:
+```{r}
+pchisq(5.458, df=4, lower.tail=F)
+```
+We therefore have no evidence to support rejecting our null hypothesis that our model provides a reasonable fit to the data. 
+`r solend()`
+
+`r qbegin(8)`
+Try examing what the other fit measures (RMSEA, SRMR, CLI, TLI:
+How do they compare with [the cutoffs provided in the lecture?](https://uoepsy.github.io/dapr3/lectures/week1_pathintro.html#37)    
+  
+hint: `summary(modelfit, fit.measures = TRUE)`  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+The fit statistics for our model:
+
+Comparative Fit Index (CFI) = 0.968
+Tucker-Lewis Index (TLI) = 0.921
+RMSEA = 0.060
+SRMR = 0.063
+
+Only CFI meets the criteria given in the lecture slides for "considered good". 
+
+
+```{r}
+summary(burnoutfit, fit.measures = TRUE)
+```
+
+`r solend()`
 
 
 
 
+`r qbegin("Extra: modification indices")`
+Examine the modification indices of the model (use the `modindices()` function).   
+Pay close attention to the `mi` column (this is the "modification index", which is the change in the $\chi^2$ statistic).
+The other interesting column is going to be the `sepc.all` column, which is the estimated parameter value of the proposed path, in a model where all the variables are standardised. This means we can evaluate whether the estimated parameter is relatively small/moderate/large, because these are all standardised correlations between -1 and 1!  
+
+Are there any paths which the modification indices suggest might improve the model? Do they make theoretical sense to include them?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+modindices(burnoutfit)
+```
+
+There seems to be a suggested reasonably large correlation between `burnout` and `conflict`. 
+If we were to fit this model, our fit indices may well improve and meet our cut-offs. But this may well just be overfitting.
+
+```{r eval=FALSE}
+burnoutmod2 <- "
+worksat ~ hp
+burnout ~ worksat + conflict
+conflict ~ op + hp
+hp ~~ op
+burnout ~~ conflict
+"
+sem(burnoutmod2, data=burnout)
+```
+We will not start adjusting models based on modification indices today (or indeed in this course at all). __As a general rule for dapR3 course, we want you to specify and test a specific model, and not seek to use exploratory modifications.__  
+`r solend()`
 
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
