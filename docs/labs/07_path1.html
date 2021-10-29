@@ -13,6 +13,7 @@
 
 <title>Path Analysis</title>
 
+<script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/united.min.css" rel="stylesheet" />
@@ -68,26 +69,28 @@ if(f.classList.contains('fa-chevron-circle-right')) {
   }
 </style>
 <style type="text/css" data-origin="pandoc">
-a.sourceLine { display: inline-block; line-height: 1.25; }
-a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
-a.sourceLine:empty { height: 1.2em; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
 .sourceCode { overflow: visible; }
-code.sourceCode { white-space: pre; position: relative; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
 div.sourceCode { margin: 1em 0; }
 pre.sourceCode { margin: 0; }
 @media screen {
 div.sourceCode { overflow: auto; }
 }
 @media print {
-code.sourceCode { white-space: pre-wrap; }
-a.sourceLine { text-indent: -1em; padding-left: 1em; }
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
 }
-pre.numberSource a.sourceLine
-  { position: relative; left: -4em; }
-pre.numberSource a.sourceLine::before
-  { content: attr(title);
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
     position: relative; left: -1em; text-align: right; vertical-align: baseline;
-    border: none; pointer-events: all; display: inline-block;
+    border: none; display: inline-block;
     -webkit-touch-callout: none; -webkit-user-select: none;
     -khtml-user-select: none; -moz-user-select: none;
     -ms-user-select: none; user-select: none;
@@ -96,9 +99,9 @@ pre.numberSource a.sourceLine::before
   }
 pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
 div.sourceCode
-  { background-color: #f8f8f8; }
+  {  background-color: #f8f8f8; }
 @media screen {
-a.sourceLine::before { text-decoration: underline; }
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 code span.al { color: #ef2929; } /* Alert */
 code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
@@ -415,7 +418,7 @@ div.tocify {
       <ul class="nav navbar-nav">
         <li>
   <a href="index.html">
-    <span class="fa fa-home"></span>
+    <span class="fas fa-home"></span>
      
   </a>
 </li>
@@ -513,10 +516,10 @@ We would also like to note that there are always many different ways to achieve 
 </div>
 <div id="motivation" class="section level1">
 <h1>Motivation</h1>
-<p>So far in DAPR3 it’s been all about the multiple levels. This has brought so many more potential study designs that we can now consider modelling - pretty much any study where we are interested in explaining some outcome variable, and where we have sampled clusters of observations (or clusters of clusters of clusters of … etc.).</p>
-<p>But we are still restricted to thinking, similar to how we thought in DAPR2, about one single outcome variable. In fact, if we think about the structure of the fixed effects part of a model (i.e., the bit we’re <em>specifically interested in</em>), then we’re still limited to thinking of the world in terms of “this is my outcome variable, everything else predicts it”.</p>
+<p>By now, we are getting more comfortable with the regression world, and we can see how it is extended to lots of different types of outcome and data structures. So far in DAPR3 it’s been all about the multiple levels. This has brought so many more potential study designs that we can now consider modelling - pretty much any study where we are interested in explaining some outcome variable, and where we have sampled clusters of observations (or clusters of clusters of clusters of … etc.).</p>
+<p>But we are still restricted to thinking, similar to how we thought in DAPR2, about one single outcome variable. In fact, if we think about the structure of the fixed effects part of a model (i.e., the bit we’re <em>specifically interested in</em>), then we’re still limited to thinking of the world in terms of “this is my outcome variable, everything else predicts it.”</p>
 <div class="statbox">
-<p><strong>Thinking about multiple regression in terms of paths</strong></p>
+<p><strong>Regression as a path diagram</strong></p>
 <ol style="list-style-type: decimal">
 <li>Imagine writing the names of all your variables on a whiteboard</li>
 <li>Specify which one is your dependent (or “outcome” or “response”) variable.</li>
@@ -538,36 +541,47 @@ Figure 2: Multiple regression with intercept, error, predictor covariances
 </p>
 </div>
 </div>
-<p>But <strong>What if I my model of the world doesn’t fit this structure?</strong></p>
-Let’s suppose I have 4 variables: Age, Income, Autonomy, and Job Satisfaction. My theoretical understanding of how these things fit together leads me to draw something like this on my whiteboard:
-<div class="figure" style="text-align: center"><span id="fig:path1path"></span>
-<img src="images/path/paths1paths.png" alt="A theoretical model of my system of variables" width="350px" />
+<p><br></p>
+<div id="a-model-reflects-a-theory" class="section level2">
+<h2>A model reflects a theory</h2>
+<p>What if I my theoretical model of the world doesn’t fit this structure?</p>
+Let’s suppose I have 5 variables: Age, Parental Income, Income, Autonomy, and Job Satisfaction. I draw them up on my whiteboard:
+<div class="figure" style="text-align: center"><span id="fig:path1nopath"></span>
+<img src="images/path/paths1nopaths.png" alt="My variables" width="350px" />
 <p class="caption">
-Figure 3: A theoretical model of my system of variables
+Figure 3: My variables
 </p>
 </div>
-<p>In this diagram, a persons income is influenced by their age and their level of autonomy, and in turn their income predicts their job satisfaction. Job satisfaction is also predicted by a persons age directly, and by their level of autonomy, which is also predicted by age. It’s complicated to look at, but in isolation each bit of this makes theoretical sense.
-Take each arrow in turn and think about what it represents:
+My theoretical understanding of how these things fit together leads me to link my variables to end up with something like that in Figure <a href="#fig:path1path">4</a>.
+<div class="figure" style="text-align: center"><span id="fig:path1path"></span>
+<img src="images/path/paths1paths.png" alt="My theory about my system of variables" width="350px" />
+<p class="caption">
+Figure 4: My theory about my system of variables
+</p>
+</div>
+<p>In this diagram, a persons income is influenced by their age, their parental income, and their level of autonomy, and in turn their income predicts their job satisfaction. Job satisfaction is also predicted by a persons age directly, and by their level of autonomy, which is also predicted by age. It’s complicated to look at, but in isolation each bit of this makes theoretical sense.</p>
+<p>Take each arrow in turn and think about what it represents:
 <img src="images/path/paths1desc.png" width="550px" style="display: block; margin: auto;" /></p>
 <p>If we think about trying to fit this “model” with the tools that we have, then we might end up wanting to fit three separate regression models, which between them specify all the different arrows in the diagram:</p>
 <p><span class="math display">\[
 \begin{align}
 \textrm{Job Satisfaction} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \beta_2(\textrm{Autonomy}) + \beta_3(\textrm{Income}) + \varepsilon \\
-\textrm{Income} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \beta_2(\textrm{Autonomy}) + \varepsilon \\
+\textrm{Income} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \beta_2(\textrm{Autonomy}) + \beta_2(\textrm{Parental Income}) \varepsilon \\
 \textrm{Autonomy} &amp; = \beta_0 + \beta_1(\textrm{Age}) + \varepsilon \\
 \end{align}
 \]</span></p>
-<p>This is all well and good, but what if I want to talk about how well my entire model (Figure <a href="#fig:path1path">3</a>) fits the data we observed?</p>
+<p>This is all well and good, but what if I want to talk about how well my entire model (Figure <a href="#fig:path1path">4</a>) fits the data we observed?</p>
+</div>
 </div>
 <div id="introducing-path-analysis" class="section level1">
 <h1>Introducing Path Analysis</h1>
 <div class="green">
 <p><strong>Mountains cannot be surmounted except by winding paths</strong></p>
 </div>
-<p>By now, we are getting more comfortable with the regression world, and we can see how it is extended to lots of different types of outcome and data structures. By starting to think of our theories by drawing out paths to and from different variables, we open up a whole new way of ‘modelling’ the world around us.</p>
-<p>There are a few conventions to help us understand this sort of diagrammatical way of thinking. By using combinations of rectangles, ovals, single- and double-headed arrows, we can draw all sorts of model structures.<br />
-In Path Diagrams, we use these shapes and arrows to represent different things in our model:</p>
-<p><img src="images/path/semplots.png" width="80%" style="display: block; margin: auto;" /></p>
+<p>The starting point for Path Analysis is to think about our theories in terms of the connections between variables drawn on a whiteboard. By representing a theory as paths to and from different variables, we open up a whole new way of ‘modelling’ the world around us.</p>
+<p>There are a few conventions to help us understand this sort of diagrammatical way of thinking. By using combinations of rectangles, ovals, single- and double-headed arrows, we can draw all sorts of model structures. In Path Diagrams, we use specific shapes and arrows to represent different things in our model:</p>
+<div class="statbox">
+<p><strong>Shapes and Arrows in Path Diagrams</strong></p>
 <ul>
 <li><strong>Observed variables</strong> are represented by squares or rectangles. These are the named variables of interest which exist in our dataset - i.e. the ones which we have measured directly.</li>
 <li><strong>Variances/Covariances</strong> are represented by double-headed arrows. In many diagrams these are curved.</li>
@@ -577,25 +591,30 @@ In Path Diagrams, we use these shapes and arrows to represent different things i
 <strong>Latent variables</strong> are represented by ovals, and we will return to these in a few weeks time!
 </li></li>
 </ul>
+<p><img src="images/path/semplots.png" width="650px" style="display: block; margin: auto;" /></p>
+</div>
 <div class="lo">
 <p><strong>Terminology refresher</strong></p>
 <ul>
-<li><strong>Exogenous variables</strong> are a bit like what we have been describing with words like “independent variable” or “predictor”. In a path diagram, they have no paths coming from other variables in the system, but have paths <em>going to</em> other variables.<br />
+<li><strong>Exogenous variables</strong> are a bit like what we have been describing with words like “independent variable” or “predictor.” In a path diagram, they have no paths coming from other variables in the system, but have paths <em>going to</em> other variables.<br />
 </li>
 <li><strong>Endogenous variables</strong> are more like the “outcome”/“dependent”/“response” variables we are used to. They have some path coming from another variable in the system (and may also - but not necessarily - have paths going out from them).</li>
 </ul>
 </div>
-<p>TODO
-The logic behind path analysis is to estimate a system of equations that can repdroduce the covariance structure that we see in the data.</p>
+<div id="how-does-it-work-in-brief" class="section level2">
+<h2>How does it work (in brief)?</h2>
+<p>The logic behind path analysis is to estimate a system of equations that can repdroduce the covariance structure that we see in the data.</p>
 <p>Suppose we think that</p>
 <p>we collect data on these variables and observed the following correlation matrix:</p>
 <p>we can evaluate how well our theoretical model (the system of equations) can reproduce the correlation matrix</p>
 <p>this allows us to then compare this theoretical model with one which does NOT have a path from … to ..</p>
 <div class="optional-begin">
-
+<span id="opt-start-1" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-1&#39;, &#39;opt-start-1&#39;)"> Optional: How does it work (not as brief)?</span>
 </div>
-<div class="optional-body">
-<p>There are a few requirements and assumptions that we make in order to have a complete path diagram:</p>
+<div id="opt-body-1" class="optional-body" style="display: none;">
+<p><strong>Path Diagram Tracing</strong></p>
+<p>For Path Diagrams that meet a certain set of pre-requisites, we can use a cool technique called Path Tracing to estimate the different paths (i.e., the coefficients) from just the covariance matrix of the dataset.
+For us to be able to do this, a Path Diagram must meet these criteria:</p>
 <ul>
 <li>All our exogenous variables are correlated (unless we specifically assume that their correlation is zero)</li>
 <li>All models are ‘recursive’ (no two-way causal relations, no feedback loops)</li>
@@ -606,22 +625,16 @@ The logic behind path analysis is to estimate a system of equations that can rep
 </ul>
 <div class="statbox">
 <p><strong>Causal??</strong></p>
-<p>It is a slippery slope to start using the word ‘cause’, and personally I am not that comfortable using it here. However, you will likely hear it a lot in resources about path analysis and SEM, so it is best to be warned.</p>
-<p>Please keep in mind that we are using a very broad definition of ‘causal’, simply to reflect the one way nature of the relationship we are modeling. In Figure <a href="#fig:causes">4</a>, a change in the variable <strong>X1</strong> is associated with a change in <strong>Y</strong>, but not vice versa.</p>
+<p>It is a slippery slope to start using the word ‘cause,’ and personally I am not that comfortable using it here. However, you will likely hear it a lot in resources about path analysis and SEM, so it is best to be warned.</p>
+<p>Please keep in mind that we are using a very broad definition of ‘causal,’ simply to reflect the one way nature of the relationship we are modeling. In Figure <a href="#fig:causes">5</a>, a change in the variable <strong>X1</strong> is associated with a change in <strong>Y</strong>, but not vice versa.</p>
 <div class="figure" style="text-align: center"><span id="fig:causes"></span>
 <img src="images/path/causes.png" alt="Paths are still just regressions." width="80%" />
 <p class="caption">
-Figure 4: Paths are still just regressions.
+Figure 5: Paths are still just regressions.
 </p>
 </div>
 </div>
-</div>
-<p class="optional-end">
-</p>
-<div class="optional-begin">
-
-</div>
-<div class="optional-body">
+<p><strong>Tracing Rules</strong></p>
 <p>Thanks to <a href="https://www.jstor.org/stable/pdf/2527551.pdf?casa_token=3QF0ad2ZoBcAAAAA:MbEkDNNdoLZr1SXE4LrnK--qrhhsTXLgsRtcWre1UvWxiQiGNUl5vWytGp34XIxhAYMZJe-MbIcBnEwXSfX6MAONevz04-sMXpEDI3IaYKk6mMX46QvX">Sewal Wright</a>, we can express the correlation between any two variables in the system as the sum of all <em>compound paths</em> between the two variables.</p>
 <p><em>compound paths</em> are any paths you can trace between A and B for which there are:</p>
 <ul>
@@ -629,11 +642,13 @@ Figure 4: Paths are still just regressions.
 <li>no going forward then backward</li>
 <li>maximum of one curved arrow per path</li>
 </ul>
+<div class="frame">
+<p><strong>An example</strong></p>
 <p>Let’s consider the example below, for which the paths are all labelled with lower case letters <span class="math inline">\(a, b, c, \text{and } d\)</span>.</p>
 <div class="figure" style="text-align: center"><span id="fig:patheq1"></span>
 <img src="images/path/patheq1.png" alt="A multiple regression model as a path diagram" width="80%" />
 <p class="caption">
-Figure 5: A multiple regression model as a path diagram
+Figure 6: A multiple regression model as a path diagram
 </p>
 </div>
 <p>According to Wright’s tracing rules above, write out the equations corresponding to the 3 correlations between our observed variables (remember that <span class="math inline">\(r_{a,b} = r_{b,a}\)</span>, so it doesn’t matter at which variable we start the paths).</p>
@@ -645,8 +660,9 @@ Figure 5: A multiple regression model as a path diagram
 <li><span class="math inline">\(r_{x2,y} = b + ac\)</span></li>
 </ul>
 <p>Now let’s suppose we observed the following correlation matrix:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1">egdat &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/patheg.csv&quot;</span>)</a>
-<a class="sourceLine" id="cb1-2" title="2"><span class="kw">round</span>(<span class="kw">cor</span>(egdat),<span class="dv">2</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>egdat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/patheg.csv&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>egdat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;../../data/patheg.csv&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">cor</span>(egdat),<span class="dv">2</span>)</span></code></pre></div>
 <pre><code>##      x1   x2    y
 ## x1 1.00 0.36 0.75
 ## x2 0.36 1.00 0.60
@@ -661,9 +677,9 @@ Figure 5: A multiple regression model as a path diagram
 </ul>
 <p>And with some substituting and rearranging, we can work out the values of <span class="math inline">\(a\)</span>, <span class="math inline">\(b\)</span> and <span class="math inline">\(c\)</span>.</p>
 <div class="optional-begin">
-
+<span id="opt-start-2" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-2&#39;, &#39;opt-start-2&#39;)"> Click for answers</span>
 </div>
-<div class="optional-body">
+<div id="opt-body-2" class="optional-body" style="display: none;">
 <p>This is what I get:</p>
 <p>a = 0.61<br />
 b = 0.38<br />
@@ -671,8 +687,9 @@ c = 0.36</p>
 </div>
 <p class="optional-end">
 </p>
-<p>We can even work out what the path labeled <span class="math inline">\(d\)</span> (the residual variance) is.
-First we sum up all the equations for the paths from Y to Y itself. These are:</p>
+<p>We can even work out what the path labeled <span class="math inline">\(d\)</span> (the residual variance) is.<br />
+First we sum up all the equations for the paths from Y to Y itself.<br />
+These are:</p>
 <ul>
 <li><span class="math inline">\(a^2\)</span> (from Y to X1 and back)<br />
 </li>
@@ -690,41 +707,368 @@ First we sum up all the equations for the paths from Y to Y itself. These are:</
 \end{align}
 \]</span>
 We can think of this as the portion of the correlation of Y with itself that occurs <em>via the predictors</em>. Put another way, this is the amount of variance in Y explained jointly by X1 and X2, which sounds an awful lot like an <span class="math inline">\(R^2\)</span>!<br />
-The path labelled <span class="math inline">\(d\)</span> is simply all that is left in Y after taking out the variance explained by X1 and X2, meaning that the path <span class="math inline">\(d = \sqrt{1-R^2}\)</span>.</p>
+The path labelled <span class="math inline">\(d\)</span> is simply all that is left in Y after taking out the variance explained by X1 and X2, meaning that the path <span class="math inline">\(d = \sqrt{1-R^2}\)</span> (i.e., the residual variance!).</p>
 <p>Hooray! We’ve just worked out regression coefficients when all we had was the correlation matrix of the variables! It’s important to note that we have been using the correlation matrix, so, somewhat unsurprisingly, our estimates are <em>standardised</em> coefficients.</p>
 <p>Because we have the data itself, let’s quickly find them with <code>lm()</code></p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="co"># quickly scale all the columns in the data</span></a>
-<a class="sourceLine" id="cb3-2" title="2">egdat &lt;-<span class="st"> </span>egdat <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">mutate_all</span>(<span class="op">~</span><span class="kw">scale</span>(.)[,<span class="dv">1</span>])</a>
-<a class="sourceLine" id="cb3-3" title="3"><span class="co"># extract the coefs</span></a>
-<a class="sourceLine" id="cb3-4" title="4"><span class="kw">coef</span>(<span class="kw">lm</span>(y<span class="op">~</span>x1<span class="op">+</span>x2, egdat)) <span class="op">%&gt;%</span><span class="st"> </span><span class="kw">round</span>()</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># quickly scale all the columns in the data</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>egdat <span class="ot">&lt;-</span> egdat <span class="sc">%&gt;%</span> <span class="fu">mutate_all</span>(<span class="sc">~</span><span class="fu">scale</span>(.)[,<span class="dv">1</span>])</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co"># extract the coefs</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(<span class="fu">lm</span>(y<span class="sc">~</span>x1<span class="sc">+</span>x2, egdat)) <span class="sc">%&gt;%</span> <span class="fu">round</span>(.,<span class="dv">2</span>)</span></code></pre></div>
 <pre><code>## (Intercept)          x1          x2 
-##           0           1           0</code></pre>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" title="1"><span class="co"># extract the r^2</span></a>
-<a class="sourceLine" id="cb5-2" title="2"><span class="kw">summary</span>(<span class="kw">lm</span>(y<span class="op">~</span>x1<span class="op">+</span>x2, egdat))<span class="op">$</span>r.squared</a></code></pre></div>
+##        0.00        0.61        0.38</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># extract the r^2</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(<span class="fu">lm</span>(y<span class="sc">~</span>x1<span class="sc">+</span>x2, egdat))<span class="sc">$</span>r.squared</span></code></pre></div>
 <pre><code>## [1] 0.688</code></pre>
+</div>
 </div>
 <p class="optional-end">
 </p>
-<!-- Formatting -->
+</div>
 </div>
 <div id="doing-path-analysis" class="section level1">
 <h1>Doing Path Analysis</h1>
-<p>lavaan<br />
-model &lt;- “….”<br />
-modelfit &lt;- sem(model)<br />
-summary(modelfit)</p>
+<div class="rtip">
+<p><strong>Introducing <code>lavaan</code></strong></p>
+<p>For the remaining weeks of the course, we’re going to rely heavily on the <strong>lavaan</strong> (<strong>La</strong>tent <strong>Va</strong>riable <strong>An</strong>alysis) package. This is the main package in R for fitting path diagrams (as well as more cool models like factor analysis sructures and structural equation mdoels). There is a huge scope of what this package can do.<br />
+The first thing to get to grips with is the various new operators which it allows us to use.</p>
+<p>Our old multiple regression formula in R was specified as <code>y ~ x1 + x2 + x3 + ...</code>.<br />
+In <strong>lavaan</strong>, we continue to fit regressions using the <code>~</code> symbol, but we can also specify the construction of latent variables using <code>=~</code> and residual variances &amp; covariances using <code>~~</code>.</p>
+<table>
+<thead>
+<tr class="header">
+<th align="right">formula type</th>
+<th align="right">operator</th>
+<th align="right">mnemonic</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">latent variable definition</td>
+<td align="right"><code>=~</code></td>
+<td align="right">“is measured by”</td>
+</tr>
+<tr class="even">
+<td align="right">regression</td>
+<td align="right"><code>~</code></td>
+<td align="right">“is regressed on”</td>
+</tr>
+<tr class="odd">
+<td align="right">(residual) (co)variance</td>
+<td align="right"><code>~~</code></td>
+<td align="right">“is correlated with”</td>
+</tr>
+<tr class="even">
+<td align="right">intercept</td>
+<td align="right"><code>~1</code></td>
+<td align="right">“intercept”</td>
+</tr>
+</tbody>
+</table>
+<p>(from <a href="https://lavaan.ugent.be/tutorial/syntax1.html" class="uri">https://lavaan.ugent.be/tutorial/syntax1.html</a>)</p>
+<p>In practice, fitting models in <strong>lavaan</strong> tends to be a little different from things like <code>lm()</code> and <code>(g)lmer()</code>.<br />
+Instead of including the model formula <em>inside</em> the fit function (e.g., <code>lm(y ~ x1 + x2, data = df)</code>), we tend to do it in a step-by-step process.
+This is because as our models become more complex, our formulas can pretty long!</p>
+<p>We write the model as a character string (e.g. <code>model &lt;- "y ~ x1 + x2"</code>) and then we pass that formula along with the data to the relevant <strong>lavaan</strong> function, which for our purposes will be the <code>sem()</code> function, <code>sem(model, data = mydata)</code>.</p>
 </div>
-<div id="what-is-model-fit" class="section level1">
-<h1>What is “model fit”?</h1>
-<p>no longer “variance explained in y”<br />
-disparity between observed and predicted covariance matrix.</p>
+<div class="optional-begin">
+<span id="opt-start-3" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-3&#39;, &#39;opt-start-3&#39;)"> Fitting a multiple regression model with lavaan</span>
+</div>
+<div id="opt-body-3" class="optional-body" style="display: none;">
+<p>You can see a multiple regression fitted with <strong>lavaan</strong> below.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lavaan)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>scsdat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/scs_study.csv&quot;</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># the lm() way</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>mreg_lm <span class="ot">&lt;-</span> <span class="fu">lm</span>(dass <span class="sc">~</span> zo <span class="sc">+</span> zc <span class="sc">+</span> ze <span class="sc">+</span> za <span class="sc">+</span> zn <span class="sc">+</span> scs, scsdat)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># setting up the model for SEM</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>mreg_model <span class="ot">&lt;-</span> <span class="st">&quot;</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="st">    #regression</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="st">    dass ~ zo + zc + ze + za + zn + scs</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>mreg_sem <span class="ot">&lt;-</span> <span class="fu">sem</span>(mreg_model, <span class="at">data=</span>scsdat)</span></code></pre></div>
+<p>These are the coefficients from our <code>lm()</code> model:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coefficients</span>(mreg_lm)</span></code></pre></div>
+<pre><code>## (Intercept)          zo          zc          ze          za          zn 
+##     62.1243     -0.0307     -0.0378      0.7449      0.2029      1.5209 
+##         scs 
+##     -0.4865</code></pre>
+<p>And you can see the estimated parameters are the same for our <code>sem()</code> model!</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mreg_sem)</span></code></pre></div>
+<pre><code>## lavaan 0.6-8 ended normally after 42 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         7
+##                                                       
+##   Number of observations                           656
+##                                                       
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 0.000
+##   Degrees of freedom                                 0
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                             Standard
+##   Information                                 Expected
+##   Information saturated (h1) model          Structured
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##   dass ~                                              
+##     zo               -0.031    0.242   -0.127    0.899
+##     zc               -0.038    0.248   -0.153    0.879
+##     ze                0.745    0.377    1.976    0.048
+##     za                0.203    0.378    0.537    0.591
+##     zn                1.521    0.249    6.097    0.000
+##     scs              -0.486    0.071   -6.893    0.000
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##    .dass             40.021    2.210   18.111    0.000</code></pre>
+</div>
+<p class="optional-end">
+</p>
+<div id="specifying-the-model" class="section level2">
+<h2>Specifying the model</h2>
+<p>The first part of estimating a path model involves specifying the model. This means basically writing down the paths that are included in your theoretical model.</p>
+<p>Let’s start by looking at the example about job satisfaction, income, autonomy and age.<br />
+Recall we had this theoretical model:
+<img src="images/path/paths1paths.png" width="350px" style="display: block; margin: auto;" />
+And now let’s suppose that we collected data on these variables:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># jobsatpath &lt;- read_csv(&quot;https://uoepsy.github.io/data/jobsatpath.csv&quot;)</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>jobsatpath <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;../../data/jobsatpath.csv&quot;</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(jobsatpath)</span></code></pre></div>
+<pre><code>## # A tibble: 6 × 5
+##   jobsat income autonomy   age parentincome
+##    &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt; &lt;dbl&gt;        &lt;dbl&gt;
+## 1     22     39       17    55           47
+## 2     29     35       58    51           43
+## 3     69     38       45    52           49
+## 4     67     27       52    43           44
+## 5     54     14       36    35           40
+## 6     25     25       39    48           44</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">jobsat</th>
+<th align="left">income</th>
+<th align="left">autonomy</th>
+<th align="left">age</th>
+<th align="left">parentincome</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">22</td>
+<td align="left">39</td>
+<td align="left">17</td>
+<td align="left">55</td>
+<td align="left">47</td>
+</tr>
+<tr class="even">
+<td align="left">29</td>
+<td align="left">35</td>
+<td align="left">58</td>
+<td align="left">51</td>
+<td align="left">43</td>
+</tr>
+<tr class="odd">
+<td align="left">69</td>
+<td align="left">38</td>
+<td align="left">45</td>
+<td align="left">52</td>
+<td align="left">49</td>
+</tr>
+<tr class="even">
+<td align="left">67</td>
+<td align="left">27</td>
+<td align="left">52</td>
+<td align="left">43</td>
+<td align="left">44</td>
+</tr>
+<tr class="odd">
+<td align="left">54</td>
+<td align="left">14</td>
+<td align="left">36</td>
+<td align="left">35</td>
+<td align="left">40</td>
+</tr>
+<tr class="even">
+<td align="left">25</td>
+<td align="left">25</td>
+<td align="left">39</td>
+<td align="left">48</td>
+<td align="left">44</td>
+</tr>
+<tr class="odd">
+<td align="left">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
+<td align="left">…</td>
+</tr>
+</tbody>
+</table>
+<p>Remember we said that we could specify all these paths using three regression models? Well, to specify our path model, we simply write these out like we would do in <code>lm()</code>, but this time we do so all in one character string.<br />
+We still have to make sure that we use the correct variable names, as when we make R estimate the model, it will look in the data for things like “jobsat.”</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mymodel <span class="ot">&lt;-</span> <span class="st">&quot;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="st">jobsat ~ age + autonomy + income</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="st">income ~ autonomy + age + parentincome</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="st">autonomy ~ age</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;</span></span></code></pre></div>
+<p>There are some other things which we will automatically be estimated here: all our exogenous variables (the ones with arrows only going <em>from</em> them) will be free to correlate with one another. We can write this explicitly in the model if we like, using the two tildes <code>~~</code> between our two exogenous variables <code>age</code> and <code>parentincome</code>. We will also get the variances of all our variables.</p>
+<p>We can see all the paths here:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lavaanify</span>(mymodel)</span></code></pre></div>
+<pre><code>##             lhs op          rhs
+## 1        jobsat  ~          age
+## 2        jobsat  ~     autonomy
+## 3        jobsat  ~       income
+## 4        income  ~     autonomy
+## 5        income  ~          age
+## 6        income  ~ parentincome
+## 7      autonomy  ~          age
+## 8        jobsat ~~       jobsat
+## 9        income ~~       income
+## 10     autonomy ~~     autonomy
+## 11          age ~~          age
+## 12          age ~~ parentincome
+## 13 parentincome ~~ parentincome</code></pre>
+<p>and even make a nice diagram:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(semPlot)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">semPaths</span>(<span class="fu">lavaanify</span>(mymodel))</span></code></pre></div>
+<p><img src="07_path1_files/figure-html/unnamed-chunk-13-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<div id="estimating-the-model" class="section level2">
+<h2>Estimating the model</h2>
+<p>Estimating the model is relatively straightforward. We pass the formula we have written to the <code>sem()</code> function, along with the data set in which we want it to look for the variables:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>mymodel.fit <span class="ot">&lt;-</span> <span class="fu">sem</span>(mymodel, <span class="at">data =</span> jobsatpath)</span></code></pre></div>
+<p>We can then examine the parameter estimates:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mymodel.fit)</span></code></pre></div>
+<pre><code>## lavaan 0.6-8 ended normally after 30 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                        10
+##                                                       
+##   Number of observations                            50
+##                                                       
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 5.050
+##   Degrees of freedom                                 2
+##   P-value (Chi-square)                           0.080
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                             Standard
+##   Information                                 Expected
+##   Information saturated (h1) model          Structured
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##   jobsat ~                                            
+##     age              -1.566    0.482   -3.250    0.001
+##     autonomy          0.347    0.131    2.653    0.008
+##     income            0.689    0.439    1.572    0.116
+##   income ~                                            
+##     autonomy          0.099    0.026    3.796    0.000
+##     age               0.631    0.081    7.834    0.000
+##     parentincome      1.036    0.128    8.099    0.000
+##   autonomy ~                                          
+##     age               0.851    0.418    2.038    0.042
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##    .jobsat          251.098   50.220    5.000    0.000
+##    .income           11.293    2.259    5.000    0.000
+##    .autonomy        330.771   66.154    5.000    0.000</code></pre>
+We can now, to “visualise” our model, add the estimates to the diagram:
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-16"></span>
+<img src="images/path/jobsatmod.png" alt="Model estimates" width="80%" />
+<p class="caption">
+Figure 7: Model estimates
+</p>
+</div>
+</div>
+</div>
+<div id="model-fit" class="section level1">
+<h1>Model Fit</h1>
+<p>You’ll have heard the term “model fit” many times since the start of DAPR2, when we began model-based thinking. However, there is a crucial difference in what it means when it is used in for path analysis.</p>
+<p>In things like multiple regression, we have been using “model fit” to be the measure of “how much variance can we explain in y with our set of predictors?” For a path model, examining “model fit” is more like asking “how well does our model reproduce the characteristics of the data that we observed?”<br />
+We can represent the “characteristics of our data” in a covariance matrix, so one way of thinking of “model fit” is as “how well can our model reproduce our observed covariance matrix?”</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cov</span>(jobsatpath)</span></code></pre></div>
+<pre><code>##              jobsat income autonomy    age parentincome
+## jobsat       341.62   4.47    107.3 -28.81        -6.47
+## income         4.47  50.17     46.7  29.56        14.83
+## autonomy     107.30  46.68    365.6  32.94       -10.00
+## age          -28.81  29.56     32.9  38.69         1.81
+## parentincome  -6.47  14.83    -10.0   1.81        14.18</code></pre>
+<p>In this meaning of the term “model fit,” the multiple regression model fits almost perfectly.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>scsdat <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/scs_study.csv&quot;</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cov</span>(scsdat <span class="sc">%&gt;%</span> <span class="fu">select</span>(dass,zo,zc,ze,za,zn,scs))</span></code></pre></div>
+<pre><code>##         dass       zo      zc      ze      za     zn     scs
+## dass 45.6481  0.01490 -0.0155 0.91380  0.8834 1.3525 -5.4454
+## zo    0.0149  1.04552  0.0353 0.00846  0.0283 0.0196 -0.0133
+## zc   -0.0155  0.03533  1.0014 0.01735  0.0433 0.0424  0.1292
+## ze    0.9138  0.00846  0.0173 1.00000  0.7539 0.0277  0.0521
+## za    0.8834  0.02826  0.0433 0.75389  1.0000 0.0511 -0.0899
+## zn    1.3525  0.01957  0.0424 0.02770  0.0511 1.0000  0.4053
+## scs  -5.4454 -0.01333  0.1292 0.05212 -0.0899 0.4053 12.4944</code></pre>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>mreg_model <span class="ot">&lt;-</span> <span class="st">&quot;</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="st">    #regression</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="st">    dass ~ zo + zc + ze + za + zn + scs</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>mreg_sem <span class="ot">&lt;-</span> <span class="fu">sem</span>(mreg_model, <span class="at">data=</span>scsdat)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>mreg_sem<span class="sc">@</span>implied<span class="sc">$</span>cov</span></code></pre></div>
+<pre><code>## [[1]]
+##         [,1]     [,2]    [,3]    [,4]    [,5]   [,6]    [,7]
+## [1,] 45.5785  0.01488 -0.0155 0.91240  0.8821 1.3505 -5.4371
+## [2,]  0.0149  1.04393  0.0353 0.00845  0.0282 0.0195 -0.0133
+## [3,] -0.0155  0.03528  0.9998 0.01732  0.0433 0.0424  0.1290
+## [4,]  0.9124  0.00845  0.0173 0.99848  0.7527 0.0277  0.0520
+## [5,]  0.8821  0.02821  0.0433 0.75274  0.9985 0.0510 -0.0897
+## [6,]  1.3505  0.01954  0.0424 0.02765  0.0510 0.9985  0.4047
+## [7,] -5.4371 -0.01331  0.1290 0.05204 -0.0897 0.4047 12.4754</code></pre>
+<div id="degrees-of-freedom" class="section level2">
+<h2>Degrees of freedom</h2>
+<p>When we think of “degrees of freedom” for a multiple regression model, in DAPR2 we learned that <span class="math inline">\(df = n-k-1\)</span> (<span class="math inline">\(n\)</span> is the number of observations, <span class="math inline">\(k\)</span> is the number of predictors). These degrees of freedom related to the corresponding <span class="math inline">\(F\)</span> and <span class="math inline">\(t\)</span>-distributions with which we performed our hypothesis tests (e.g. <span class="math inline">\(t\)</span> tests for a null hypothesis that a coefficient is zero, or <span class="math inline">\(F\)</span>-tests for a null that the reduction in residual sums of squares is zero).</p>
+<p>But in relation to it’s ability to represent a <span class="math inline">\(k \times k\)</span> covariance matrix (i.e. the covariance matrix of our variables), the multiple regression model has <strong>zero</strong> degrees of freedom.</p>
+<p>“Degrees of freedom” in the this framework correspond to the number of <em>knowns</em> (observed covariances/variances) minus the number of <em>unknowns</em> (parameters to be estimated by the model). A model is only able to be estimated if it has at least 0 degrees of freedom (if there are as many knowns as unknowns). A model with 0 degrees of freedom is termed <strong>just-identified</strong>.<br />
+<strong>under-</strong> and <strong>over-</strong> identified models correspond to those with <span class="math inline">\(&lt;0\)</span> and <span class="math inline">\(&gt;0\)</span> degrees of freedom respectively.</p>
+<p>So the multiple regression model is an example of a <em>just-identified</em> model! In multiple regression, everything is allowed to covary with everything else, which means that there is a unique solution for all of the model’s parameters because there are <em>as many paths as there are observed covariances</em>. This means that in this path analysis world, a multiple regression model is “just-identified.”</p>
+<div class="optional-begin">
+<span id="opt-start-4" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-4&#39;, &#39;opt-start-4&#39;)"> huh?</span>
+</div>
+<div id="opt-body-4" class="optional-body" style="display: none;">
+<p>If I have two predictors and one outcome variable, then there are 6 variances and covariances available. For instance:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cov</span>(somedata)</span></code></pre></div>
+<pre><code>##          y     x1     x2
+## y  45.6481 0.0149 1.3525
+## x1  0.0149 1.0455 0.0196
+## x2  1.3525 0.0196 1.0000</code></pre>
+<p>The multiple regression model will estimate the two variances of the exogenous variables (the predictors), their covariance, the two paths from each exogenous to the endogenous (each predictor to the outcome), and the error variance. This makes up 6 estimated parameters - which is exactly how many known covariances there are.
+<img src="07_path1_files/figure-html/unnamed-chunk-21-1.png" width="350px" style="display: block; margin: auto;" /></p>
+</div>
+<p class="optional-end">
+</p>
+<div class="statbox">
+<p><strong>How many knowns are there?</strong></p>
+<p>The number of known covariances in a set of <span class="math inline">\(k\)</span> observed variables is equal to <span class="math inline">\(\frac{k \cdot (k+1)}{2}\)</span>.</p>
+</div>
+<p>When learning about SEM, the visualisations can play a key part. It often helps to draw all our variables (both observed and latent) on the whiteboard, and connect them up according to your theoretical model. You can then count the number of paths (arrows) and determine whether the <span class="math inline">\(\text{number of knowns} &gt; \text{number of unknowns}\)</span>. We can reduce the number of unknowns by fixing parameters to be specific values.</p>
+<div class="statbox">
+<p>By constraining some estimated parameter to be some specific value, we free-up a degree of freedom! For instance “the correlation between x1 and x2 is equal to 0.7 (<span class="math inline">\(r_{x_1x_2} = .07\)</span>).” This would turn a previously estimated parameter into a fixed parameter, and this gains us the prize of a lovely degree of freedom!</p>
+<p><strong>By removing a path altogether, we are constraining it to be zero.</strong></p>
+</div>
+<p>There are too many different indices of model fit for these types of models, and there’s lots of controversy over the various merits and disadvantages and proposed cutoffs of each method. We will return to this more in coming weeks, but it is an important notion to remember - “model fit” and “degrees of freedom” have quite different meanings to those you are likely used to.</p>
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
 
 </div>
 </div>
+</div>
 
-<link rel="stylesheet" href="https://uoepsy.github.io/assets/css/ccfooter.css" />
-<div class="ccfooter"></div>
 
 
 </div>
@@ -763,9 +1107,6 @@ $(document).ready(function () {
 
 <script>
 $(document).ready(function ()  {
-
-    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
-    $('.unlisted.unnumbered').addClass('toc-ignore')
 
     // move toc-ignore selectors from section div to header
     $('div.section.toc-ignore')
