@@ -35,6 +35,7 @@ We would also like to note that there are always many different ways to achieve 
 
 ::: 
 
+# Mediating variables
 
 Let's imagine we are interested in peoples' intention to get vaccinated, and we observe the following variables: 
 
@@ -42,17 +43,22 @@ Let's imagine we are interested in peoples' intention to get vaccinated, and we 
 - Health Locus of Control (HLC) score (average score on a set of items relating to perceived control over ones own health)  
 - Religiosity (average score on a set of items relating to an individual's religiosity). 
 
-We are assuming here that we do not have the individual items, but only the scale scores (if we had the individual items we might be inclined to model religiosity and HLC as latent variables!).   
+<!-- We are assuming here that we do not have the individual items, but only the scale scores (if we had the individual items we might be inclined to model religiosity and HLC as latent variables!).    -->
 If we draw out our variables, and think about this in the form of a standard regression model with "Intention to vaccinate" as our outcome variable, then all the lines are filled in for us (see Figure \@ref(fig:mregpath))
 
 ```{r mregpath, echo=FALSE, fig.cap="Multiple regression as a path model"}
 knitr::include_graphics("images/path/path1.png")
 ```
 
-But what if our theory suggests that some other model might be of more relevance? For instance, what if we believe that participants' religiosity has an effect on their Health Locus of Control score, which in turn affects the intention to vaccinate (see Figure \@ref(fig:medpath1))?   
-In this case, the HLC variable is thought of as a **mediator**, because is mediates the effect of religiosity on intention to vaccinate. We are specifying presence of a distinct type of effect: **direct** and **indirect**. 
+But what if our theory suggests that some other model might be of more relevance? For instance, what if we believe that participants' religiosity has an effect on their Health Locus of Control score, __*which in turn*__ affects the intention to vaccinate (see Figure \@ref(fig:medpath1))?   
 
-:::red
+```{r medpath1, echo=FALSE, fig.cap="Mediation as a path model (If you're interested, you can find the inspiration for this data from the paper [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7596314/). I haven't properly read it though!)", out.height="300px"}
+knitr::include_graphics("images/path/path2.png")
+```
+
+In this case, the HLC variable is thought of as a **mediator**, because it mediates the effect of religiosity on intention to vaccinate. In this theoretical model, we distinguishing between two possible types of effect: **direct** and **indirect**. 
+
+:::statbox
 **Direct vs Indirect**  
 
 In path diagrams:
@@ -62,28 +68,51 @@ In path diagrams:
 
 :::
 
-```{r medpath1, echo=FALSE, fig.cap="Mediation as a path model"}
-knitr::include_graphics("images/path/path2.png")
-```
-
-The only option here is to conduct several regression models, because we have multiple **endogenous** variables. Fortunately, path analysis allows us to do just that - fit simultaneous regression equations! 
-
-
-
 # Path Mediation 
 
-Now that we've seen how path analysis works, we can use that same logic to investigate models which have quite different structures, such as those including mediating variables. So if we can't fit our theoretical model into a regression framework, let's just fit it into a framework which is lots of regressions smushed together!  
-Luckily, we can just get the **lavaan** package to do all of this for us. So let's look at fitting the model below. 
-```{r medpath2, echo=FALSE, fig.cap="If you're interested, you can find the inspiration for this data from the paper [here](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7596314/). I haven't properly read it though!"}
-knitr::include_graphics("images/path/path2.png")
-```
+We've seen how path analysis works in last week's lab, and we can use that same logic to investigate models which have quite different structures such as those including mediating variables. 
 
-First we read in our data: 
+Because we have multiple **endogenous** variables here, then we're immediately drawn to path analysis, because we're in essence thinking of conducting several regression models. As we can't fit our theoretical model into a nice straightforward regression model (we would need several), then we can use path analysis instead, and just smush lots of regressions together, allowing us to estimate things all at once.  
+  
+So let's look at fitting our mediation model. 
+
+:::frame
+__Data: VaxDat.csv__
+
+100 parents were recruited and completed a survey that included measures of Health Locus of Control, Religiosity, and a sliding scale of 0 to 100 on how definite they were that their child would receive the vaccination for measles, mumps & rubella.  
+
+- Intention to vaccinate (scored on a range of 0-100)  
+- Health Locus of Control (HLC) score (average on a set of 5 items - each scoring 0 to 6 - relating to perceived control over ones own health)  
+- Religiosity (average on a set of 5 items - each scoring 0 to 6 - relating to an individual's religiosity). 
+
+The data is available at https://uoepsy.github.io/data/vaxdat.csv  
+
+:::
+
+First we read in our data:  
 ```{r}
 vax <- read_csv("https://uoepsy.github.io/data/vaxdat.csv")
 summary(vax)
 ```
-Then we specify the relevant paths:
+
+It looks like we have a value we shouldn't have there. We have a value of religiosity of -1. But the average of 5 items which each score 0 to 6 will have to fall within those bounds.  
+  
+Let's replace any values <0 with NA. 
+```{r}
+vax <- 
+    vax %>% 
+    mutate(religiosity = ifelse(religiosity < 0, NA, religiosity))
+summary(vax)
+```
+Now let's just check the marginal distributions of each variable.  
+There are lots of functions that we might use, but for a quick eyeball, I quite like the `pairs.panels()` and `multi.hist()` functions from the __psych__ package. 
+```{r}
+library(psych)
+pairs.panels(vax)
+```
+
+Okay, we're ready to start thinking about our model.  
+First we specify the relevant paths:
 ```{r}
 med_model <- " 
     intention ~ religiosity
@@ -94,7 +123,8 @@ med_model <- "
 
 If we fit this model as it is, we won't actually be testing the indirect effect, we will simply be fitting a couple of regressions.  
 
-To do that, we need to explicitly define the indirect effect in the model, by first creating a label for each of its sub-component paths, and then defining the indirect effect itself as the product (why the product? [Click here for a lovely pdf explainer from Aja](https://uoepsy.github.io/msmr/indirect_effects.pdf)).  
+To specifically test the indirect effect, we need to explicitly define the indirect effect in our model, by first creating a label for each of its sub-component paths, and then defining the indirect effect itself as the product of these two paths (why the product? [Click here for a lovely explanation from Aja Murray](https://uoepsy.github.io/msmr/indirect_effects.pdf)).  
+  
 To do this, we use a new operator, `:=`. 
 
 ```{r}
@@ -130,16 +160,80 @@ med_model <- "
 
 ## Estimating the model 
 
-It is common to estimate the indirect effect using bootstrapping (a method of resampling the data with replacement, thousands of times, in order to empirically generate a sampling distribution). We can do this easily in lavaan:
+It is common to estimate the indirect effect using a bootstrapping approach (remember, bootstrapping involves resampling the data with replacement, thousands of times, in order to empirically generate a sampling distribution).  
+
+:::statbox
+__Why do we bootstrap mediation analysis?__
+
+We compute our indirect effect as the _product_ of the sub-component paths. However, this results in the estimated indirect effect rarely following a normal distribution, and makes our usual analytically derived standard errors & p-values inappropriate.   
+Instead, bootstrapping has become the norm for assessing sampling distributions of indirect effects in mediation models. 
+
+::: 
+
+
+We can do this easily in lavaan:
 
 ```{r}
 mm1.est <- sem(med_model, data=vax, se = "bootstrap") 
 summary(mm1.est, ci = TRUE)
 ```
 
+:::int
+We can see that the 95% bootstrapped confidence interval for the indirect effect of religiosity on intention to vaccinate does not include zero. We can conclude that the indirect effect is significant at $p <.05$. The direct effect is __not__ significantly different from zero, suggesting that we have __complete mediation__ (religiosity has _no_ effect on intention to vaccinate after controlling for health locus of control). 
+:::
+
+
+
+:::statbox
+__Partial/Complete Mediation__
+
+If we have a variable $X$ that we take to cause variable $Y$, then our path diagram will look like so:
+```{r echo=FALSE}
+knitr::include_graphics("images/path/MED1.png")
+```
+In this diagram, path $c$ is the __total effect__. This is the _unmediated_ effect of $X$ on $Y$.  
+However, while the effect of $X$ on $Y$ could in part be explained by the process of being mediated by some variable $M$, the variable $X$ could still affect $Y$ directly.  
+Our mediating model is shown below:
+
+```{r echo=FALSE}
+knitr::include_graphics("images/path/MED2.png")
+```
+
+In this case, path $c'$ is the __direct effect__.  
+__Complete mediation__ is when $X$ _no longer_ affects $Y$ after $M$ has been controlled (so path $c'$ is not significantly different from zero).   __Partial mediation__ is when the path from $X$ to $Y$ is _reduced in magnitude_ when the mediator $M$ is introduced, _but still different from zero._  
+
+:::
+
+Finally, we can visualise the estimates for our model using the `semPaths()` function from the __semPlot__ package, and also with the `graph_sem()` function from the __tidySEM__ package.  
+_Often, if we want to include a path diagram in a report then the output of these functions would not usually meet publication standards, and instead we tend to draw them in programs like powerpoint!)_
+```{r}
+library(tidySEM)
+graph_sem(mm1.est)
+```
+
+
+
 # Exercises 
 
-This week's lab focuses on the technique of path analysis using the same context as previous weeks: conduct problems in adolescence. In this week's example, a researcher has collected data on n=557 adolescents and would like to know whether there are associations between conduct problems (both aggressive and non-aggressive) and academic performance and whether the relations are mediated by the quality of relationships with teachers. 
+This week's lab focuses on the technique of path analysis using data on conduct problems in adolescence. 
+
+:::frame
+__Data: conduct problems__  
+
+A researcher has collected data on n=557 adolescents and would like to know whether there are associations between conduct problems (both aggressive and non-aggressive) and academic performance and whether the relations are mediated by the quality of relationships with teachers. 
+
+```{r, echo=FALSE}
+tibble(
+    variable = read_csv("https://uoepsy.github.io/data/cp_teachacad.csv") %>% names,
+    description = c("Participant ID","Academic performance (standardised)","Teacher Relationship Quality (standardised)","Non-aggressive conduct problems (standardised)","Aggressive conduct problems (standardised)")
+) %>% knitr::kable(.)
+```
+
+
+
+The data is available at https://uoepsy.github.io/data/cp_teachacad.csv     
+:::
+
 
 `r qbegin("A1")`
 First, read in the dataset from https://uoepsy.github.io/data/cp_teachacad.csv     
@@ -172,7 +266,7 @@ sr_lm<-lm(Acad~Non_agg+Agg, data=cp_teach)
 summary(sr_lm)
 ```
 
-We can see that both non-aggressive and aggressive conduct problems significantly predict academic perfofmance.We can also see that we get the same results when we use the `sem()` function as we do when we use the `lm()` function. Lavaan will give essentially the same results as `lm()` for simple  and multiple regression problems. However, if we have multiple outcome variables in our model it is advantageous to do this using path mediation model with lavaan. This allows us to include all the regressions in a single model.
+We can see that both non-aggressive and aggressive conduct problems significantly predict academic perfofmance. We can also see that we get the same results when we use the `sem()` function as we do when we use the `lm()` function. Lavaan will give essentially the same results as `lm()` for simple  and multiple regression problems. However, if we have multiple outcome variables in our model it is advantageous to do this using path mediation model with lavaan. This allows us to include all the regressions in a single model.
 `r solend()`
 
 `r qbegin("A3")`
@@ -195,7 +289,7 @@ model1<-'
 `r solend()`
 
 `r qbegin("A4")`
-Now define the indirect effect in order to test the hypothesis that non-aggressive conduct problems have both a direct and an indirect effect (via teacher relationships) on academic performance. 
+Make sure in your model you _define_ (using the `:=` operator) the indirect effect in order to test the hypothesis that non-aggressive conduct problems have both a direct and an indirect effect (via teacher relationships) on academic performance. 
 
 Fit the model and examine the 95% CI.
 `r qend()` 
@@ -225,7 +319,9 @@ We can see that the 95% bootstrapped confidence interval for the indirect effect
 `r solend()`
 
 `r qbegin("A5")`
-Specify a new parameter which is the total (direct+indirect) effect of non-aggressive conduct problems on academic performance
+Specify a new parameter which is the total (direct+indirect) effect of non-aggressive conduct problems on academic performance.  
+
+Hint: we should have already got labels in our model for the constituent effects, so we can just use `:=` to create a sum of them. 
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 We can create a new parameter that is the sum of the direct and indirect effect to evaluate the total effect of non-aggressive conduct problems on academic performance.
@@ -255,22 +351,29 @@ summary(model1.est, ci=T)
 
 
 `r qbegin("A6")`
-Now visualise the estimated model and its parameters using the `semPaths()` function from the `semPlot` package.  
+Now visualise the estimated model and its parameters using either the `semPaths()` function from the __semPlot__ package, or the `graph_sem()` function from the __tidySEM__ package. 
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r visualise the model}
 #to include the parameter estimates we set what='est'
-semPaths(model1.est, what='est') 
+semPaths(model1.est, what = "est") 
 ```
+
+```{r visualise the model2}
+graph_sem(model1.est)
+```
+
 
 `r solend()`
 
 ## A more complex model
 
 `r qbegin("B1")`
-Now specify a model in which both aggressive and non-aggressive conduct problems have both direct and indirect effects (via teacher relationships) on academic performance. Include the parameters for the indirect effects.
+Now specify a model in which __both__ aggressive and non-aggressive conduct problems have both direct and indirect effects (via teacher relationships) on academic performance. Include the parameters for the indirect effects.
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+We now have two predictors, one mediator and one outcome (and two indirect effects, one for each predictor). We can represent this in two lines: one where we specify academic performance as the outcome variable and one where we specify teacher relationships (the mediator) as the outcome variable. 
+
 ```{r two predictors}
 model2<-
    'Acad~Agg+Non_agg+b*Teach_r
@@ -281,7 +384,8 @@ model2<-
 '
 ```
 
-We now have two predictors, one mediator and one outcome (and two indirect effects, one for each predictor). We can represent this in two lines: one where we specify academic performance as the outcome variable and one where we specify teacher relationships (the mediator) as the outcome variable. `r solend()`
+
+`r solend()`
 
 `r qbegin("B2")`
 Now estimate the model and test the significance of the indirect effects
@@ -297,7 +401,7 @@ We can see that the 95% confidence intervals for both indirect effects do not in
 `r solend()`
 
 `r qbegin("B3")`
-Write a brief paragraph reporting on the results of the model estimates in Question B2. Include a Figure or Table to display the parameter estimates.
+Write a brief paragraph reporting on the results of the model estimates in Question B2. Include a figure or table to display the parameter estimates.
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
