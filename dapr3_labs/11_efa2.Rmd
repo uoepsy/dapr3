@@ -1,5 +1,5 @@
 ---
-title: "Exploratory Factor Analysis (EFA) 2"
+title: "Exploratory Factor Analysis (EFA): Part 2"
 bibliography: references.bib
 biblio-style: apalike
 link-citations: yes
@@ -9,13 +9,12 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-invisible(pacman::p_unload(pacman::p_loaded(), character.only = TRUE))
 source('assets/setup.R')
 library(tidyverse)
 library(lavaan)
 library(semPlot)
 # knitr::opts_chunk$set(cache = TRUE)
-options(digits=3, scipen = 3)
+options(digits=3, scipen=3)
 ```
 
 :::green
@@ -85,13 +84,14 @@ df$ppt_id <- paste0("ppt",1:620)
 write.csv(df, "../../data/pgpets.csv",row.names=F)
 ```
 
+
 # Practical Issues with EFA
 
 :::frame
 __Data: pgpets.csv__  
 
-A pet food company has conducted a questionnaire on the internet ($n = 620$) to examine whether owning influences low mood. They asked 16 questions on a Likert scale (1-7, detailed below) followed by a simple Yes/No question concerning whether the repsondent owned a pet.   
-There are lots of questions, and the researchers don't really know much about the theory of mood disorders, but they think that they are likely picking up on multiple different types of "low mood". They want to conduct a factor analysis to examine this, and then plan on exmaning the group differences (pet owners vs not pet owners) on the factor scores.  
+A pet food company has conducted a questionnaire on the internet ($n = 620$) to examine whether owning a pet influences low mood. They asked 16 questions on a Likert scale (1-7, detailed below) followed by a simple Yes/No question concerning whether the repsondent owned a pet.   
+There are lots of questions, and the researchers don't really know much about the theory of mood disorders, but they think that they are likely picking up on multiple different types of "low mood". They want to conduct a factor analysis to examine this, and then plan on investigating the group differences (pet owners vs not pet owners) on the factor scores.  
 
 The data is available at https://uoepsy.github.io/data/pgpets.csv  
 
@@ -119,22 +119,35 @@ tibble(QuestionNumber = paste0("item",1:16),`Over the last 2 weeks, how much hav
 :::
 
 `r qbegin(1)`
-Read in the data. 
-Create a new object in the environment which is all the variables except for the participant ID, and the one corresponding to "Do you own a pet?" (we're going to come back to these later on).  
-
+Read the data into R.  
+Create a new object in R that contains a subset the data. It should include all variables except for the participant ID and the variable corresponding to whether or not they have a pet (we're going to come back to these later on).  
 In this new object, change the names of the columns to match the question number, rather than the question itself (see the data description above). This will be easier to work with.  
 
-__Hint:__ What does `paste0("item",1:10)` give you? and how might you use this code along with something like `names(data)` to assign some new names to the variables?  
+__Hint:__  
+Check the output of the code `paste0("item", 1:10)`. Consider this code in combination with another function: `names(data)`. How could you combine the two codes to assign the new names to the current variable names?  
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
 library(tidyverse)
 library(psych)
+```
+
+```{r}
 pgpets <- read_csv("https://uoepsy.github.io/data/pgpets.csv")
+```
+
+```{r}
 names(pgpets)
-df <- pgpets %>% select(-ppt_id, -do_you_own_a_pet)
-names(df) <- paste0("item",1:ncol(df))
+```
+
+```{r}
+df <- pgpets %>% 
+    select(-ppt_id, -do_you_own_a_pet)
+```
+
+```{r}
+names(df) <- paste0("item", 1:ncol(df))
 head(df)
 ```
 
@@ -148,7 +161,12 @@ Visualise the items (this might be the histograms of all marginal distributions,
 ```{r}
 library(psych)
 multi.hist(df)
-pairs.panels(df)
+```
+
+The data have 6 variables, so we will create two plots each focusing on 8 at a time:
+```{r}
+pairs.panels(df[, 1:8])
+pairs.panels(df[, 9:16])
 ```
 
 `r solend()`
@@ -166,7 +184,7 @@ cordf = cor(df)
 cortest.bartlett(cordf, n = nrow(df))
 ```
 :::int
-Bartlett's test indicates that the correlation matrix is proportionally different from the identity matrix ($\chi^2 (120) = 3008, p<.001$), suggesting our correlations are non-zero. 
+Bartlett's test indicates that the correlation matrix is proportionally different from the identity matrix ($\chi^2 (120) = 3008, p<.001$), suggesting our correlations are significantly different from zero. 
 :::
 
 ```{r}
@@ -174,7 +192,8 @@ KMO(cordf)
 ```
 
 :::int
-The KMO for individual items are mainly "meritorious" or "marvelous"! Hooray. We might need to keep an eye on item 7 though, which is "unacceptable"!  The overall measure of sampling adequacy is 0.90, which suggests we have suitable data to perform a factor analysis
+The KMO for individual items are mainly "meritorious" or "marvelous". The only item that may need further investigation is item 7, having an "unacceptable" KMO. 
+The overall measure of sampling adequacy is 0.90, which suggests we have suitable data to perform a factor analysis
 :::
 
 `r solend()`
@@ -183,20 +202,26 @@ The KMO for individual items are mainly "meritorious" or "marvelous"! Hooray. We
 Determine how many factors you will extract. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Using parallel analysis:
+
 ```{r}
 fa.parallel(df, fa = 'fa')
 ```
+
+Using Velicer's Minimum Average Partial:
 
 ```{r}
 VSS(df)
 ```
 :::int
-Both parallel analysis and Velicer’s Minimum Average Partial suggested retaining 2 factors
+Both parallel analysis and Velicer’s Minimum Average Partial suggested retaining 2 factors.
 :::
 `r solend()`
 
 `r qbegin(5)`
 Choosing an appropriate estimation method and rotation, perform a factor analysis to extract the desired number of factors (based on your answer to the previous question).  
+
+If you get an error, you may need to install the "GPArotation" package: `install.packages("GPArotation")`.
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 We probably shouldn't use MLE as an estimation method here, because we're going to be treating what looks like some sort of Likert data (ordinal, responses of 1-7) as if it is continuous.  
@@ -206,23 +231,43 @@ Finally, do we have any reason to think that the factors we are going to extract
 
 ```{r}
 pgmod <- fa(df, nfactors = 2, rotate = "oblimin", fm = "minres")
+pgmod
 ```
 
 `r solend()`
 
 
 :::statbox
+**DETAILS**
+
+\newcommand{\item}[1]{ \text{Item}_{#1} }
+\newcommand{\fact}[1]{ \text{Factor}_{#1} }
+\newcommand{\e}[1]{ \epsilon_{#1} }
+\newcommand{\LL}[2]{ {\lambda_{#1,#2}} }
+
+If we think about a factor analysis being a set of regressions (convention in factor analysis is to use $\LL{}{}$ instead of $\beta$), then we can think of a given item being the manifestation of some latent factors, plus a bit of randomness:
+
+\begin{aligned}
+\item{1}  &= \LL{1}{1} \cdot \fact{1} + \LL{1}{2} \cdot \fact{2} + \e{1} \\
+\item{2}  &= \LL{2}{1} \cdot \fact{1} + \LL{2}{2} \cdot \fact{2} + \e{2} \\
+&\vdots \\
+\item{16} &= \LL{16}{1} \cdot \fact{1} + \LL{16}{2} \cdot \fact{2} + \e{16}
+\end{aligned}
+
+As you can see from the above, the 16 different items all stem from the same two factors ($\fact{1}, \fact{2}$), plus some item-specific errors ($\e{1}, \dots, \e{16}$). The $\LL{}{}$ terms are called factor loadings, or loadings in short
+
 __Communality__ is sum of the squared factor loadings for each item.  
 
-If we think about a factor analysis being a set of regressions (convention in factor analysis is to $\lambda$ instead of $\beta$), then we can think of a given item being the manifestation of some latent factors, plus a bit of randomness: $item_i = \lambda_{1i}(Factor_1) + \lambda_{2i}(Factor_2) + \epsilon_i$.   
+Intuitively, for each row, the two $\LL{}{}$s tell us how much each item depends on the two factors shared by the 16 items. The sum of the squared loadings tells us how much of one item's information is due to the shared factors.
+
 The communality is a bit like the $R^2$ (the proportion of variance of an item that is explained by the factor structure).  
 
-The __uniqueness__ of each item is simply $1 - Communality$.  
+The __uniqueness__ of each item is simply $1 - \text{communality}$.  
 This is the leftover bit; the variance in each item that is left unexplained by the latent factors.  
 
-_side note: this is what sets Factor Analysis apart from PCA, which is the linear combination of total variance (including error) in all our items. FA allows some of the variance to be shared by the underlying factors, and considers the remainder to be unique to the individual items (or, in another, error in how each item measures the construct)._
+_Side note: this is what sets Factor Analysis apart from PCA, which is the linear combination of total variance (including error) in all our items. FA allows some of the variance to be shared by the underlying factors, and considers the remainder to be unique to the individual items (or, in another, error in how each item measures the construct)._
 
-The __complexity__ of an item corresponds to how well an item reflects a _single_ underlying construct. Specifically, it is ${(\Sigma \lambda_i^2)^2}/{\Sigma \lambda_i^4}$, where $\lambda_i$ is the loading on to the $i^{th}$ factor. It will be equal to 1 for an item which loads _only_ on one factor, and 2 if it loads evenly on to two factors, and so on. 
+The __complexity__ of an item corresponds to how well an item reflects a _single_ underlying construct. Specifically, it is ${(\sum \lambda_i^2)^2}/{\sum \lambda_i^4}$, where $\lambda_i$ is the loading on to the $i^{th}$ factor. It will be equal to 1 for an item which loads _only_ on one factor, and 2 if it loads evenly on to two factors, and so on. 
 
 :::rtip
 In R, we will often see these estimats under specific columns:  
@@ -268,7 +313,8 @@ If you think any items should be removed, do so now, and perform the factor anal
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 We're going to remove that problematic item 7 (which seems to be about "reading the newspaper and watching tv"), as well as item 3 (which seems to be about sleepiness, and relates to both factors quite highly).  
 ```{r}
-df2 <- df %>% select(-item7,-item3)
+df2 <- df %>% 
+    select(-item7,-item3)
 cortest.bartlett(cor(df2), n = nrow(df2))
 KMO(cor(df2))
 fa.parallel(df2, fa = 'fa')
@@ -356,22 +402,22 @@ There are different types of reliability:
 The form of reliability we are going to be most concerned with here is known as **Internal Consistency**. This is the extent to which items within a scale are correlated with one another. There are two main measures of this:
 
 :::yellow
-**alpha and omega**
+#### alpha and omega
+
+**Cronbach's $\alpha$** ranges from 0 to 1 (higher is better). You can get this using the `alpha()` function from the **psych** package. The formula is:
 
 $$
-\begin{align}
-& \text{Cronbach's }\alpha = \frac{n \cdot \overline{cov(ij)}}{\overline{\sigma^2_i} + (n-1) \cdot \overline{cov(ij)}} & \\
-& \text{Where:}  \\
+\begin{aligned}
+\text{Cronbach's } \alpha = \frac{n \cdot \overline{cov(ij)}}{\overline{\sigma^2_i} + (n-1) \cdot \overline{cov(ij)}}  \\
+\\
+\text{where}:  \qquad
 & n = \text{number of items} \\
 & \overline{cov(ij)} = \text{average covariance between item-pairs}  \\
 & \overline{\sigma^2_i} = \text{average item variance}  \\
-\end{align}
+\end{aligned}
 $$
-Ranges from 0 to 1 (higher is better).  
-You can get this using the `alpha()` function from the **psych** package.   
 
-
-**McDonald's Omega $\omega$** is substantially more complicated, but avoids the limitation that Cronbach's alpha which assumes that all items are equally related to the construct. You can get it using the `omega()` function from the **psych** package. If you want more info about it then the help docs (`?omega()`) are a good place to start. 
+**McDonald's Omega ($\omega$)** is substantially more complicated, but avoids the limitation that Cronbach's alpha which assumes that all items are equally related to the construct. You can get it using the `omega()` function from the **psych** package. If you want more info about it then the help docs (`?omega()`) are a good place to start. 
 
 :::
 
@@ -382,8 +428,8 @@ Using the relevant function, obtain alpha for the set of items in each factor fr
 The first factor has high loadings for items 1 to 9 (we have excluded 3 and 7). 
 ```{r}
 names(df2)
-alpha(df2 %>% select(item1:item9))
-alpha(df2 %>% select(item10:item16))
+alpha(select(df2, item1:item9))
+alpha(select(df2, item10:item16))
 ```
 :::int
 Cronbach's $\alpha$ of 0.82 and 0.81 for the two factors and suggests high internal consistency. 
@@ -422,8 +468,10 @@ res1 <- fa(set1, nfactors = 2, rotate = "oblimin")
 res2 <- fa(set2, nfactors = 2, rotate = "oblimin")
 fa.congruence(res1, res2) 
 ```
+
 We can see there is a high level of factor congruence across the two subsets of data.  
 `r solend()`
+
 
 # Factor Scores
 
@@ -468,14 +516,13 @@ pgpets <-
       pet = factor(do_you_own_a_pet)
     )
 
-t.test(pgpets$depression~pgpets$pet)
+t.test(pgpets$depression ~ pgpets$pet)
 ggplot(pgpets, aes(x=pet, y=depression))+
   geom_boxplot()
 
 t.test(pgpets$anxiety~pgpets$pet)
 ggplot(pgpets, aes(x=pet, y=anxiety))+
   geom_boxplot()
-
 ```
 
 
