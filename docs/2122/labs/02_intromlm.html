@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Introducing Multilevel Models</title>
+
+<script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/united.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+<script>
+function toggle_visibility(id1, id2) {
+var e = document.getElementById(id1);
+var f = document.getElementById(id2);
+e.style.display = ((e.style.display!='none') ? 'none' : 'block');
+if(f.classList.contains('fa-chevron-circle-right')) {
+    f.classList.add('fa-chevron-circle-down')
+    f.classList.remove('fa-chevron-circle-right')
+} else {
+    f.classList.add('fa-chevron-circle-right')
+    f.classList.remove('fa-chevron-circle-down')
+}
+}
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  background-color: #f8f8f8; }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ef2929; } /* Alert */
+code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #c4a000; } /* Attribute */
+code span.bn { color: #0000cf; } /* BaseN */
+code span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4e9a06; } /* Char */
+code span.cn { color: #000000; } /* Constant */
+code span.co { color: #8f5902; font-style: italic; } /* Comment */
+code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
+code span.dt { color: #204a87; } /* DataType */
+code span.dv { color: #0000cf; } /* DecVal */
+code span.er { color: #a40000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #0000cf; } /* Float */
+code span.fu { color: #000000; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #204a87; font-weight: bold; } /* Keyword */
+code span.op { color: #ce5c00; font-weight: bold; } /* Operator */
+code span.ot { color: #8f5902; } /* Other */
+code span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
+code span.sc { color: #000000; } /* SpecialChar */
+code span.ss { color: #4e9a06; } /* SpecialString */
+code span.st { color: #4e9a06; } /* String */
+code span.va { color: #000000; } /* Variable */
+code span.vs { color: #4e9a06; } /* VerbatimString */
+code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<link rel="stylesheet" href="assets/style-labs.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"><strong>DAPR3</strong></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fas fa-home"></span>
+     
+  </a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Multi Level Models
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="01_regressionrefresh.html">1: Linear Regression | Clustered Data</a>
+    </li>
+    <li>
+      <a href="02_intromlm.html">2: LM to MLM</a>
+    </li>
+    <li>
+      <a href="03_assumptranef.html">3: Assumptions, Diagnostics</a>
+    </li>
+    <li>
+      <a href="04_centerglmer.html">4: Centering | Logistic</a>
+    </li>
+    <li>
+      <a href="05_examples.html">5: Recap</a>
+    </li>
+  </ul>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Dimension reduction &amp; SEM
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="07_path1.html">7: Path Analysis</a>
+    </li>
+    <li>
+      <a href="08_path2.html">8: Path Mediation</a>
+    </li>
+    <li>
+      <a href="09_pca.html">9: Dimension Reduction</a>
+    </li>
+    <li>
+      <a href="10_efa.html">10: EFA: Part 1</a>
+    </li>
+    <li>
+      <a href="11_efa2.html">11: EFA: Part 2</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Extra
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="../resources.html">Useful Resources</a>
+    </li>
+    <li>
+      <a href="../examples/example2_01_EFA.html">Example: Exploratory Factor Analysis</a>
+    </li>
+    <li>
+      <a href="../examples/example_01_repeated_measures.html">Example: Repeated Measures MLM</a>
+    </li>
+    <li>
+      <a href="../examples/example_02_intervention.html">Example: Intervention Study</a>
+    </li>
+    <li>
+      <a href="../examples/example_03_many_trials.html">Example: Many Trials</a>
+    </li>
+    <li>
+      <a href="../examples/example_00_anova.html">Example: ANOVA (rpt measures &amp; mixed)</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Introducing Multilevel Models</h1>
+
+</div>
+
+
+<div class="green">
+<p><strong>Information about solutions</strong></p>
+<p>Solutions for these exercises are available immediately below each question.<br />
+We would like to emphasise that much evidence suggests that testing enhances learning, and we <strong>strongly</strong> encourage you to make a concerted attempt at answering each question <em>before</em> looking at the solutions. Immediately looking at the solutions and then copying the code into your work will lead to poorer learning.<br />
+We would also like to note that there are always many different ways to achieve the same thing in R, and the solutions provided are simply <em>one</em> approach.</p>
+</div>
+<div class="lo">
+<p><strong>Preliminaries</strong></p>
+<ol style="list-style-type: decimal">
+<li>Create a new RMarkdown document or R script (whichever you like) for this week.</li>
+</ol>
+<p><strong>A Note on terminology</strong></p>
+<p>The methods we’re going to learn about in the first five weeks of this course are known by lots of different names: “multilevel models”; “hierarchical linear models”; “mixed-effect models”; “mixed models”; “nested data models”; “random coefficient models”; “random-effects models”; “random parameter models”… and so on).</p>
+<p>What the idea boils down to is that <strong>model parameters vary at more than one level.</strong> This week, we’re going to explore what that means.</p>
+<p>Throughout this course, we will tend to use the terms “mixed effect model,” “linear mixed model (LMM)” and “multilevel model (MLM)” interchangeably.</p>
+</div>
+<div id="introducing-multilevel-models" class="section level1">
+<h1>Introducing Multilevel Models</h1>
+<div class="yellow">
+<p>Multilevel Models (MLMs) (or “Linear Mixed Models” (LMMs)) take the approach of allowing the groups/clusters to vary around our <span class="math inline">\(\beta\)</span> estimates.</p>
+<p>In the lectures, we saw this as:</p>
+<p><span class="math display">\[
+\begin{align}
+&amp; \text{for observation }j\text{ in group }i \\
+\quad \\
+&amp; \text{Level 1:} \\
+&amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+&amp; \text{Level 2:} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+&amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\quad \\
+&amp; \text{Where:} \\
+&amp; \gamma_{00}\text{ is the population intercept, and }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\
+&amp; \gamma_{10}\text{ is the population slope, and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\
+\end{align}
+\]</span></p>
+<p>We are now assuming <span class="math inline">\(\color{orange}{\zeta_0}\)</span>, <span class="math inline">\(\color{orange}{\zeta_1}\)</span>, and <span class="math inline">\(\varepsilon\)</span> to be normally distributed with a mean of 0, and we denote their variances as <span class="math inline">\(\sigma_{\color{orange}{\zeta_0}}^2\)</span>, <span class="math inline">\(\sigma_{\color{orange}{\zeta_1}}^2\)</span>, <span class="math inline">\(\sigma_\varepsilon^2\)</span> respectively.</p>
+<p>The <span class="math inline">\(\color{orange}{\zeta}\)</span> components also get termed the “random effects” part of the model, Hence names like “random effects model,” etc.</p>
+<div class="optional-begin">
+<span id="opt-start-21" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-21&#39;, &#39;opt-start-21&#39;)"> Optional Alternative notation</span>
+</div>
+<div id="opt-body-21" class="optional-body" style="display: none;">
+<p>Many people use the symbol <span class="math inline">\(u\)</span> in place of <span class="math inline">\(\zeta\)</span>.<br />
+In various resources, you are likely to see <span class="math inline">\(\alpha\)</span> used to denote the intercept instead of <span class="math inline">\(\beta_0\)</span>.</p>
+<p>Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading. This often fits with the name “mixed effects” for these models:</p>
+<p><span class="math display">\[
+\color{red}{y_{ij}} = (\color{blue}{\beta_0} + \color{orange}{\zeta_{0i}}) \cdot 1 + ( \color{blue}{\beta_{1}} + \color{orange}{\zeta_{1i}} ) \cdot x_{ij}  +  \varepsilon_{ij} \\
+\]</span></p>
+<p>And then we also have the condensed matrix form of the model, in which the Z matrix represents the grouping structure, and the <span class="math inline">\(u\)</span> (or <span class="math inline">\(\zeta\)</span>) are the estimated random deviations.
+<span class="math display">\[
+\mathbf{y} = \boldsymbol{X\beta} + \boldsymbol{Zu} + \boldsymbol{\varepsilon}
+\]</span></p>
+</div>
+<p class="optional-end">
+</p>
+</div>
+</div>
+<div id="fitting-multilevel-models" class="section level1">
+<h1>Fitting Multilevel Models</h1>
+<div id="introducing-lme4" class="section level2">
+<h2>Introducing <strong>lme4</strong></h2>
+<div class="rtip">
+<p>We’re going to use the <code>lme4</code> package, and specifically the functions <code>lmer()</code> and <code>glmer()</code>.<br />
+“(g)lmer” here stands for “(generalised) linear mixed effects regression.”</p>
+You will have seen some use of these functions in the lectures. The broad syntax is:<br />
+<br>
+<div style="margin-left:50px;">
+<strong>lmer(<em>formula</em>, REML = <em>logical</em>, data = <em>dataframe</em>)</strong>
+</div>
+<p><br></p>
+<p>We write the first bit of our <strong>formula</strong> just the same as our old friend the normal linear model <code>y ~ 1 + x + x2 + ...</code>, where <code>y</code> is the name of our outcome variable, <code>1</code> is the intercept (which we don’t have to explicitly state as it will be included anyway) and <code>x</code>, <code>x2</code> etc are the names of our explanatory variables.</p>
+<p>With <strong>lme4</strong>, we now have the addition of __random effect terms)), specified in parenthesis with the <code>|</code> operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).<br />
+We use the <code>|</code> operator to separate the parameters (intercept, slope etc.) on the LHS, from the grouping variable(s) on the RHS, by which we would like to model these parameters as varying.</p>
+<p><strong>Random Intercept</strong><br />
+Let us suppose that we wish to model our intercept not as a fixed constant, but as varying randomly according to some grouping around a fixed center.
+We can such a model by allowing the intercept to vary by our grouping variable (<code>g</code> below):</p>
+<div class="statbox">
+<center>
+<code>lmer(y ~ 1 + x + (1|g), data = df)</code>
+</center>
+<p><span class="math display">\[
+\begin{align}
+&amp; \text{Level 1:} \\
+&amp; \color{red}{Y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot X_{ij}} + \varepsilon_{ij} \\
+&amp; \text{Level 2:} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+\]</span></p>
+</div>
+<p><strong>Random Slope</strong><br />
+By extension we can also allow the effect <code>y~x</code> to vary between groups, by including the <code>x</code> on the left hand side of <code>|</code> in the random effects part of the call to <code>lmer()</code>.</p>
+<div class="statbox">
+<center>
+<code>lmer(y ~ 1 + x + (1 + x |g), data = df)</code>
+</center>
+<p><span class="math display">\[
+\begin{align}
+&amp; \text{Level 1:} \\
+&amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+&amp; \text{Level 2:} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+&amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\end{align}
+\]</span></p>
+</div>
+</div>
+</div>
+<div id="estimation" class="section level2">
+<h2>Estimation</h2>
+<div id="maximum-likelihood-ml" class="section level3">
+<h3>Maximum Likelihood (ML)</h3>
+<p>Remember back to DAPR2 when we introduced logistic regression, and we briefly discussed <strong>Maximum likelihood</strong> in an explanation of how models are fitted.</p>
+<p>The key idea of <em>maximum likelihood estimation</em> (MLE) is that we (well, the computer) iteratively finds the set of estimates for our model which it considers to best reproduce our observed data. Recall our simple linear regression model of how practice (hrs per week) affects reading age:
+<span class="math display">\[
+\color{red}{ReadingAge_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} Practice_{i}} + \varepsilon_i
+\]</span>
+There are values of <span class="math inline">\(\beta_0\)</span> and <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\sigma_\varepsilon\)</span> which maximise the probability of observing the data that we have. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. And we saw that this is not possible for more complex models (e.g., logistic), which is where we turn to MLE.</p>
+<div class="statbox">
+<p>To read about the subtle difference between “likelihood” and “probability,” you can find a short explanation at <a href="https://uoepsy.github.io/faq/lvp.html" class="uri">https://uoepsy.github.io/faq/lvp.html</a></p>
+</div>
+If we are estimating just one single parameter (e.g. a mean), then we can imagine the process of <em>maximum likelihood estimation</em> in a one-dimensional world - simply finding the top of the curve:
+<div class="figure" style="text-align: center"><span id="fig:unnamed-chunk-1"></span>
+<img src="images/intro/mle.png" alt="MLE" width="350px" />
+<p class="caption">
+Figure 1: MLE
+</p>
+</div>
+However, our typical models estimate a whole bunch of parameters. The simple regression model above is already having to estimate <span class="math inline">\(\beta_0\)</span>, <span class="math inline">\(\beta_1\)</span> and <span class="math inline">\(\sigma_\varepsilon\)</span>, and our multi-level models have far more! With lots of parameters being estimated and all interacting to influence the likelihood, our nice curved line becomes a complex surface (see Left panel of Figure <a href="#fig:multisurf">2</a>). So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities (see Figure <a href="#fig:maxima">3</a>).
+<div class="figure" style="text-align: center"><span id="fig:multisurf"></span>
+<img src="images/multisurftb.png" alt="MLE for a more complex model" width="49%" />
+<p class="caption">
+Figure 2: MLE for a more complex model
+</p>
+</div>
+</div>
+<div id="restricted-maximum-likelihood-reml" class="section level3">
+<h3>Restricted Maximum Likelihood (REML)</h3>
+<p>When it comes to estimating multilevel models, maximum likelihood will consider the fixed effects as unknown values in its estimation of the variance components (the random effect variances). This leads to biased estimates of the variance components, specifically biasing them toward being too small, especially if <span class="math inline">\(n_\textrm{clusters} - n_\textrm{level 2 predictors} - 1 &lt; 50\)</span>. Restricted Maximum Likelihood (REML), however, separates the estimation of fixed and random parts of the model, leading to unbiased estimates of the variance components.</p>
+<div class="rtip">
+<p><code>lmer()</code> models are by default fitted with REML. This is better for small samples.</p>
+</div>
+<div class="statbox">
+<p><strong>Comparing Models, ML &amp; REML</strong></p>
+<p>When we compare models that differ in their fixed effects via comparing model deviance (e.g. the likelihood ratio), REML should <strong>not</strong> be used as only the variance components are included in the likelihood. Functions like <code>anova()</code> will automatically refit your models with <code>ML</code> for you, but it is worth checking.</p>
+<p>We <strong>cannot</strong> compare (either with ML or REML) models that differ in both the fixed and random parts.</p>
+</div>
+</div>
+<div id="model-convergence" class="section level3">
+<h3>Model Convergence</h3>
+<p>For large datasets and/or complex models (lots of random-effects terms), it is quite common to get a <em>convergence warning</em>. There are lots of different ways to <a href="https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html">deal with these</a> (to try to rule out hypotheses about what is causing them).</p>
+<p>For now, if <code>lmer()</code> gives you convergence errors, you could try changing the optimizer. Bobyqa is a good one: add <code>control = lmerControl(optimizer = "bobyqa")</code> when you run your model.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lmer</span>(y <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> x1 <span class="sc">+</span> ... <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> .... <span class="sc">|</span> g), <span class="at">data =</span> df, </span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>     <span class="at">control =</span> <span class="fu">lmerControl</span>(<span class="at">optimizer =</span> <span class="st">&quot;bobyqa&quot;</span>))</span></code></pre></div>
+<div class="optional-begin">
+<span id="opt-start-22" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-22&#39;, &#39;opt-start-22&#39;)"> What <em>is</em> a convergence warning??</span>
+</div>
+<div id="opt-body-22" class="optional-body" style="display: none;">
+<p>There are different techniques for maximum likelihood estimation, which we apply by using different ‘optimisers.’ Technical problems to do with <strong>model convergence</strong> and <strong>‘singular fit’</strong> come into play when the optimiser we are using either can’t find a suitable maximum, or gets stuck in a singularity (think of it like a black hole of likelihood, which signifies that there is not enough variation in our data to construct such a complex model).</p>
+<div class="figure" style="text-align: center"><span id="fig:maxima"></span>
+<img src="images/intro/mle2.png" alt="local/global maxima and singularities" width="49%" />
+<p class="caption">
+Figure 3: local/global maxima and singularities
+</p>
+</div>
+</div>
+<p class="optional-end">
+</p>
+</div>
+</div>
+</div>
+<div id="exercises" class="section level1">
+<h1>Exercises</h1>
+<div id="toy-dataset" class="section level2">
+<h2>Toy Dataset</h2>
+<div class="frame">
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+<p>Recall our toy example data in which we might use linear regression to determine how practice (in hours per week) influences the reading age of different toy figurines. We have data on various types of toys, from Playmobil to Powerrangers, to Farm Animals.</p>
+</div>
+<div style="display:inline-block; width: 45%;vertical-align: middle;">
+<p><img src="images/intro/toys.png" width="300px" style="display: block; margin: auto;" /></p>
+</div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>toys_read <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/toyexample.csv&quot;</span>)</span></code></pre></div>
+</div>
+<div class="question-begin">
+Question A3
+</div>
+<div class="question-body">
+<p>Using <code>lmer()</code> from the <strong>lme4</strong> package, fit a model of practice (<code>hrs_week</code>) predicting Reading age (<code>R_AGE</code>), with by-toytype random intercepts.<br />
+Pass the model to <code>summary()</code> to see the output.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-23" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-23&#39;, &#39;sol-start-23&#39;)"> Solution </span>
+</div>
+<div id="sol-body-23" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>ri_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(R_AGE <span class="sc">~</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> toy_type), <span class="at">data =</span> toys_read)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ri_model)</span></code></pre></div>
+<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
+## Formula: R_AGE ~ hrs_week + (1 | toy_type)
+##    Data: toys_read
+## 
+## REML criterion at convergence: 653.1
+## 
+## Scaled residuals: 
+##      Min       1Q   Median       3Q      Max 
+## -2.31139 -0.62361  0.05812  0.63477  1.71073 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  toy_type (Intercept) 23.188   4.815   
+##  Residual              5.006   2.237   
+## Number of obs: 132, groups:  toy_type, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.6274     1.4462   1.125
+## hrs_week      1.1547     0.2317   4.983
+## 
+## Correlation of Fixed Effects:
+##          (Intr)
+## hrs_week -0.654</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A4
+</div>
+<div class="question-body">
+<p>Sometimes the easiest way to start understanding your model is to visualise it.</p>
+<p>Load the package <strong>broom.mixed</strong>. Along with some handy functions <code>tidy()</code> and <code>glance()</code> which give us the information we see in <code>summary()</code>, there is a handy function called <code>augment()</code> which returns us the data in the model plus the fitted values, residuals, hat values, Cook’s D etc..</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ri_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(R_AGE <span class="sc">~</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> toy_type), <span class="at">data =</span> toys_read)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom.mixed)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(ri_model)</span></code></pre></div>
+<pre><code>## # A tibble: 132 × 14
+##    R_AGE hrs_week toy_type   .fitted  .resid  .hat .cooksd .fixed    .mu .offset
+##    &lt;dbl&gt;    &lt;dbl&gt; &lt;fct&gt;        &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
+##  1  9.31     3.84 Furby       10.0   -0.701  0.122 7.75e-3   6.06 10.0         0
+##  2 12.2      4.88 Toy Story   12.1    0.105  0.142 2.14e-4   7.26 12.1         0
+##  3  8.08     3.48 Stretch A…   6.02   2.06   0.192 1.25e-1   5.64  6.02        0
+##  4  9.08     3.68 Peppa Pig    6.05   3.03   0.126 1.52e-1   5.87  6.05        0
+##  5  2.07     2.96 Lego Mini…   0.621  1.45   0.146 4.20e-2   5.04  0.621       0
+##  6 10.2      3.71 G.I.Joe     11.9   -1.67   0.122 4.41e-2   5.91 11.9         0
+##  7  8.05     3.73 Minecraft    7.97   0.0730 0.139 9.96e-5   5.94  7.97        0
+##  8 11.6      4.59 Polly Poc…   9.99   1.60   0.172 6.42e-2   6.92  9.99        0
+##  9 12.3      4.01 Star Wars   11.2    1.13   0.140 2.40e-2   6.25 11.2         0
+## 10  5.06     4.37 Sock Pupp…   4.89   0.171  0.163 6.78e-4   6.67  4.89        0
+## # … with 122 more rows, and 4 more variables: .sqrtXwt &lt;dbl&gt;, .sqrtrwt &lt;dbl&gt;,
+## #   .weights &lt;dbl&gt;, .wtres &lt;dbl&gt;</code></pre>
+<p>Add to the code below to plot the model fitted values, and color them according to toy type.<br />
+(you will need to edit <code>ri_model</code> to be whatever name you assigned to your model).</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(ri_model) <span class="sc">%&gt;%</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> hrs_week, <span class="at">y =</span> ...... </span></code></pre></div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-24" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-24&#39;, &#39;sol-start-24&#39;)"> Solution </span>
+</div>
+<div id="sol-body-24" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(ri_model) <span class="sc">%&gt;%</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> hrs_week, <span class="at">y =</span> .fitted, <span class="at">col =</span> toy_type)) <span class="sc">+</span> </span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-8-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A5
+</div>
+<div class="question-body">
+<p>We have just fitted the model:
+<span class="math display">\[
+\begin{align}
+&amp; \text{For toy } j \text{ of toy-type } i \\
+&amp; \color{red}{\textrm{Reading_Age}_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot \textrm{Practice}_{ij}} + \varepsilon_{ij} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+\]</span></p>
+<p>For our estimates of <span class="math inline">\(\gamma_{00}\)</span> (the fixed value around which toy-type intercepts vary) and <span class="math inline">\(\beta_1\)</span> (the fixed estimate of the relationship between reading age and practice), we can use <code>fixef()</code>.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fixef</span>(ri_model)</span></code></pre></div>
+<pre><code>## (Intercept)    hrs_week 
+##    1.627422    1.154725</code></pre>
+<p>Can you add to the plot in the previous question, a thick black line with the intercept and slope given by <code>fixef()</code>?</p>
+<p><strong>Hint:</strong> <code>geom_abline()</code></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-25" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-25&#39;, &#39;sol-start-25&#39;)"> Solution </span>
+</div>
+<div id="sol-body-25" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(ri_model) <span class="sc">%&gt;%</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> hrs_week, <span class="at">y =</span> .fitted, <span class="at">col =</span> toy_type)) <span class="sc">+</span> </span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_abline</span>(<span class="at">intercept =</span> <span class="fu">fixef</span>(ri_model)[<span class="dv">1</span>], <span class="at">slope =</span> <span class="fu">fixef</span>(ri_model)[<span class="dv">2</span>], <span class="at">lwd =</span> <span class="dv">2</span>)</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-10-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A6
+</div>
+<div class="question-body">
+By now, you should have a plot which looks more or less like the left-hand figure below (we have added on the raw data - the points).<br />
+
+<div style="display:inline-block; width: 55%;vertical-align: top;">
+<div class="figure" style="text-align: center"><span id="fig:modfit"></span>
+<img src="02_intromlm_files/figure-html/modfit-1.png" alt="Model fitted values" width="80%" />
+<p class="caption">
+Figure 4: Model fitted values
+</p>
+</div>
+</div>
+<div style="display:inline-block; width: 40%;vertical-align: top;">
+<div class="figure" style="text-align: center"><span id="fig:lmersummap"></span>
+<img src="images/intro/summarylmer.png" alt="Summary model output&lt;br&gt;lmer(R_AGE~1 + hrs_week + (1|toy_type),&lt;br&gt;data = toys_read)" width="400px" />
+<p class="caption">
+Figure 5: Summary model output<br>lmer(R_AGE~1 + hrs_week + (1|toy_type),<br>data = toys_read)
+</p>
+</div>
+</div>
+<p><br>
+<br>
+We’re going to map the parts of the plot in Figure <a href="#fig:modfit">4</a> to the <code>summary()</code> output of the model in Figure <a href="#fig:lmersummap">5</a>. Match the coloured sections Red, Orange, Yellow and Blue in Figure <a href="#fig:lmersummap">5</a> to the descriptions below of <a href="#fig:modfit">4</a> A through D.</p>
+<ol style="list-style-type: upper-alpha">
+<li>where the black line cuts the y axis</li>
+<li>the standard deviation of the distances from all the individual toy types lines to the black lines</li>
+<li>the slope of the black lines</li>
+<li>the standard deviation of the distances from all the individual observations to the line for the toy type to which it belongs.</li>
+</ol>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-26" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-26&#39;, &#39;sol-start-26&#39;)"> Solution </span>
+</div>
+<div id="sol-body-26" class="solution-body" style="display: none;">
+<ul>
+<li>Yellow = B<br />
+</li>
+<li>Red = D<br />
+</li>
+<li>Blue = A<br />
+</li>
+<li>Orange = C</li>
+</ul>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A7 - Harder
+</div>
+<div class="question-body">
+<p>Can you now map those same coloured sections in Figure <a href="#fig:lmersummap">5</a> to the mathematical terms in the model equation:</p>
+<p><span class="math display">\[
+\begin{align}
+&amp; \text{Level 1:} \\
+&amp; \color{red}{ReadingAge_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot Practice_{ij}} + \varepsilon_{ij} \\
+&amp; \text{Level 2:} \\
+&amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+&amp; \text{where} \\
+&amp; \color{orange}{\zeta_0} \sim N(0, \sigma_{\color{orange}{\zeta_{0}}})  \text{ independently} \\
+&amp; \varepsilon \sim N(0, \sigma_{\varepsilon}) \text{ independently} \\
+\end{align}
+\]</span></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-27" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-27&#39;, &#39;sol-start-27&#39;)"> Solution </span>
+</div>
+<div id="sol-body-27" class="solution-body" style="display: none;">
+<ul>
+<li>Yellow = <span class="math inline">\(\sigma_{\color{orange}{\zeta_{0}}}\)</span><br />
+</li>
+<li>Red = <span class="math inline">\(\sigma_{\varepsilon}\)</span><br />
+</li>
+<li>Blue = <span class="math inline">\(\gamma_{00}\)</span><br />
+</li>
+<li>Orange = <span class="math inline">\(\beta_{1}\)</span></li>
+</ul>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A8
+</div>
+<div class="question-body">
+<p>Fit a model which allows <em>also</em> (along with the intercept) the effect of practice (<code>hrs_week</code>) to vary by-toytype.<br />
+Then, using <code>augment()</code> again, plot the model fitted values. What do you think you will see?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-28" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-28&#39;, &#39;sol-start-28&#39;)"> Solution </span>
+</div>
+<div id="sol-body-28" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>rs_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(R_AGE <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> toy_type), <span class="at">data =</span> toys_read)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(rs_model) <span class="sc">%&gt;%</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> hrs_week, <span class="at">y =</span> .fitted, <span class="at">col =</span> toy_type)) <span class="sc">+</span> </span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">y=</span>R_AGE), <span class="at">alpha=</span>.<span class="dv">4</span>)</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-11-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A9
+</div>
+<div class="question-body">
+<p>Plot the model fitted values but <em>only</em> for the Farm Animals and the Scooby Doo toys, and add the observed reading ages too.<br />
+Do this for both the model with the random intercept only, and the model with both the random intercept and slope.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-29" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-29&#39;, &#39;sol-start-29&#39;)"> Solution </span>
+</div>
+<div id="sol-body-29" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(ri_model) <span class="sc">%&gt;%</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(toy_type, <span class="st">&quot;Scooby|Farm&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> hrs_week, <span class="at">y =</span> .fitted, <span class="at">col =</span> toy_type)) <span class="sc">+</span> </span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">y=</span>R_AGE), <span class="at">alpha=</span>.<span class="dv">4</span>)</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-12-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(rs_model) <span class="sc">%&gt;%</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(toy_type, <span class="st">&quot;Scooby|Farm&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> hrs_week, <span class="at">y =</span> .fitted, <span class="at">col =</span> toy_type)) <span class="sc">+</span> </span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span> </span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">y=</span>R_AGE), <span class="at">alpha=</span>.<span class="dv">4</span>)</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-12-2.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="basketballhrv" class="section level2">
+<h2>Basketball/HRV</h2>
+<p>While the toy example considers the groupings or ‘clusters’ of different types of toy, a more relate-able grouping in psychological research is that of several observations belonging to the same individual. One obvious benefit of this is that we can collect many more observations with fewer participants, and account for the resulting dependency of observations.</p>
+<div class="frame">
+<p>Recall the data from the previous week, from an experiment in which heart rate variability (HRV) was measured for amateur basketball players when tasked with scoring a goal with varying levels and type of potential loss/reward.</p>
+<p>The data was split over two files. The code below will read in both datasets and join them for you:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(<span class="at">url =</span> <span class="st">&quot;https://uoepsy.github.io/data/basketballhrv.xlsx&quot;</span>, </span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">destfile =</span> <span class="st">&quot;baskeballhrvdata.xlsx&quot;</span>)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>bball <span class="ot">&lt;-</span> </span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/basketballconditions.csv&quot;</span>),</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_xlsx</span>(<span class="st">&quot;baskeballhrvdata.xlsx&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>      <span class="fu">pivot_longer</span>(trial_1<span class="sc">:</span>trial_20, <span class="at">names_to =</span> <span class="st">&quot;trial_no&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;hrv&quot;</span>)</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sub =</span> <span class="fu">factor</span>(sub))</span></code></pre></div>
+<p><strong>!!! Note</strong> if <code>read_xlsx()</code> was causing problems for you, this will also work:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>bball <span class="ot">&lt;-</span> </span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/basketballconditions.csv&quot;</span>),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">read_csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/bballhrv.csv&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">pivot_longer</span>(trial_1<span class="sc">:</span>trial_20, <span class="at">names_to =</span> <span class="st">&quot;trial_no&quot;</span>, <span class="at">values_to =</span> <span class="st">&quot;hrv&quot;</span>)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">sub =</span> <span class="fu">factor</span>(sub))</span></code></pre></div>
+</div>
+<div class="question-begin">
+Question B1
+</div>
+<div class="question-body">
+<p>Recall that the research question was concerned with how the size and type of potential reward influence stress levels (as measured by heart rate variability):</p>
+<blockquote>
+<p>How do size and type of reward/loss interact to influence levels of stress?</p>
+</blockquote>
+<p>Remember to think about:<br />
+- what is our outcome variable of interest?
+- what is the clustering?
+- does size of reward vary within clusters, or between?
+- does type of reward vary within clusters, or between?</p>
+<p>Can you fit a linear mixed model to examine the effects of size and type of reward on HRV, and their interaction?</p>
+<p><strong>Tip:</strong> If you get an error about model convergence, consider changing the optimiser (see <a href="02_intromlm.html#Estimation">above</a>)</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-30" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-30&#39;, &#39;sol-start-30&#39;)"> Solution </span>
+</div>
+<div id="sol-body-30" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>mod <span class="ot">&lt;-</span> <span class="fu">lmer</span>(hrv <span class="sc">~</span> stakes <span class="sc">*</span> condition <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> stakes <span class="sc">|</span> sub), <span class="at">data =</span> bball,</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>            <span class="at">control =</span> <span class="fu">lmerControl</span>(<span class="at">optimizer=</span><span class="st">&quot;bobyqa&quot;</span>))</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(mod)</span></code></pre></div>
+<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
+## Formula: hrv ~ stakes * condition + (1 + stakes | sub)
+##    Data: bball
+## Control: lmerControl(optimizer = &quot;bobyqa&quot;)
+## 
+## REML criterion at convergence: 1783.3
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.6483 -0.6515  0.0088  0.6310  2.8235 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  sub      (Intercept) 1.61412  1.2705        
+##           stakes      0.01103  0.1050   -0.81
+##  Residual             0.88406  0.9402        
+## Number of obs: 600, groups:  sub, 30
+## 
+## Fixed effects:
+##                        Estimate Std. Error t value
+## (Intercept)            4.998385   0.346880  14.410
+## stakes                -0.001148   0.028707  -0.040
+## conditionmoney        -0.039631   0.490563  -0.081
+## stakes:conditionmoney -0.043284   0.040598  -1.066
+## 
+## Correlation of Fixed Effects:
+##             (Intr) stakes cndtnm
+## stakes      -0.817              
+## conditinmny -0.707  0.577       
+## stks:cndtnm  0.577 -0.707 -0.817</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question B2
+</div>
+<div class="question-body">
+<p>Construct some parametric bootstrapped confidence intervals for your fixed effects.</p>
+<p>Using the <strong>sjPlot</strong> package, produce a plot of the interaction between size and type of reward on HRV. Before you get R to make your plot, can you predict what it is going to look like?
+<img src="02_intromlm_files/figure-html/unnamed-chunk-16-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-31" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-31&#39;, &#39;sol-start-31&#39;)"> Solution </span>
+</div>
+<div id="sol-body-31" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fixef</span>(mod)</span></code></pre></div>
+<pre><code>##           (Intercept)                stakes        conditionmoney 
+##           4.998385433          -0.001148365          -0.039630923 
+## stakes:conditionmoney 
+##          -0.043283505</code></pre>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(mod, <span class="at">method=</span><span class="st">&quot;boot&quot;</span>)</span></code></pre></div>
+<pre><code>##                            2.5 %      97.5 %
+## .sig01                 0.8979470  1.65765349
+## .sig02                -0.9254550 -0.62429471
+## .sig03                 0.0715698  0.13796959
+## .sigma                 0.8783217  0.99844863
+## (Intercept)            4.3512484  5.75225105
+## stakes                -0.0560938  0.05104485
+## conditionmoney        -0.9107205  1.01124684
+## stakes:conditionmoney -0.1187592  0.03309242</code></pre>
+<p>The intercept is about 5, and there is no significant difference between the reward and money conditions, so both lines will start around 5 (the “money” line will be -0.04 lower). The coefficient for <code>stakes</code> is pretty much 0, so we know that the line for the reference group (condition = “kudos” will be fairly flat). The interaction indicates that when we move from the “kudos” to the “money” condition, we adjust the effect of <code>stakes</code> by -0.04, so the line for the “money” condition will be going slightly more downward than that for the “kudos” condition. However, 0 is well within the 95% CI for this interaction term, so we would expect the errorbars around the lines to be overlapping.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sjPlot)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot_model</span>(mod, <span class="at">type =</span> <span class="st">&quot;int&quot;</span>)</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-18-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="weightmaintain-study" class="section level2">
+<h2>WeightMaintain Study</h2>
+<p>Another very crucial advantage is that we can use the same methods to study how people change over time.</p>
+<div class="frame">
+<p><strong>WeightMaintain Data Codebook</strong></p>
+<p>The weight maintenance data (<code>WeightMaintain3</code>), a made-up data set based on Lowe et al. (2014, Obesity, 22, 94-100), contains information on overweight participants who completed a 12-week weight loss program, and were then randomly assigned to one of three weight maintenance conditions:</p>
+<ul>
+<li>None (Control)<br />
+</li>
+<li>MR (meal replacements): use MR to replace one meal and snack per day<br />
+</li>
+<li>ED (energy density intervention): book and educational materials on purchasing and preparing foods lower in ED (reducing fat content and/or increasing water content of foods)</li>
+</ul>
+<p>Weight was assessed at baseline (start of maintenance), 12 months post, 24 months post, and 36 months post.</p>
+<p>It is available, in <strong>.rda</strong> format, at <a href="https://uoepsy.github.io/data/WeightMaintain3.rda" class="uri">https://uoepsy.github.io/data/WeightMaintain3.rda</a></p>
+</div>
+<div class="question-begin">
+Question C1
+</div>
+<div class="question-body">
+<p>Load the data, and take a look at what is in there. Hopefully it should match the description above.</p>
+<p><strong>Hint:</strong> <code>load(url("https://uoepsy.github.io/data/WeightMaintain3.rda"))</code></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-32" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-32&#39;, &#39;sol-start-32&#39;)"> Solution </span>
+</div>
+<div id="sol-body-32" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">load</span>(<span class="fu">url</span>(<span class="st">&quot;https://uoepsy.github.io/data/WeightMaintain3.rda&quot;</span>))</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(WeightMaintain3)</span></code></pre></div>
+<pre><code>##        ID      Condition    Assessment    WeightChange    
+##  101    :  4   None:240   Min.   :0.00   Min.   :-8.3781  
+##  102    :  4   ED  :240   1st Qu.:0.75   1st Qu.:-0.5024  
+##  103    :  4   MR  :240   Median :1.50   Median : 0.7050  
+##  104    :  4              Mean   :1.50   Mean   : 1.4438  
+##  105    :  4              3rd Qu.:2.25   3rd Qu.: 2.8806  
+##  106    :  4              Max.   :3.00   Max.   :14.9449  
+##  (Other):696</code></pre>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(WeightMaintain3)</span></code></pre></div>
+<pre><code>##    ID Condition Assessment WeightChange
+## 1 101      None          0 -0.116138529
+## 2 101      None          1  0.333508907
+## 3 101      None          2  1.678653492
+## 4 101      None          3  2.756023400
+## 5 102      None          0 -0.004420188
+## 6 102      None          1  1.746725487</code></pre>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C2
+</div>
+<div class="question-body">
+<blockquote>
+<p>Q: Overall, did the participants maintain their weight loss or did their weights change?</p>
+</blockquote>
+<p>Each of our participants have measurements at 4 assessments.
+We need to think about what this means for the <strong>random effects</strong> that we will include in our model (our <strong>random effect structure</strong>). Would we like our models to accommodate individuals to vary in their starting weight change, to vary in their weight change over the course of the assessment period, or both?</p>
+<p>To investigate whether weights changed over the course of the assessments, or whether they stayed the same, we can fit and compare 2 models:</p>
+<ol style="list-style-type: decimal">
+<li>The “null” or “intercept-only” model.</li>
+<li>A model with weight change predicted by assessment.</li>
+</ol>
+<p>And we can then compare them in terms of model fit. As discussed in the lecture, there are lots of ways to assess inference in multilevel models.</p>
+<p>Our sample size here (180 participants, each with 4 observations) is reasonably large given the relative simplicity of our model. We might consider running a straightforward Likelihood Ratio Test using <code>anova(restricted_model, full_model)</code> to compare our two models. This will assume that the difference in model deviances ( <span class="math inline">\(-2 \times \text{LogLikelihood}\)</span> ) is <span class="math inline">\(\chi^2\)</span>-distributed.<br />
+If we wish to use a more robust test, we might use the <code>PBmodcomp()</code> function from the <strong>pbkrtest</strong> package, in order to bootstrap the likelihood ratio statistic based on simulations based on the parameters of the model.</p>
+<p><strong>Tip: For now, don’t worry too much about “singular fits.” We’ll talk more about how we might deal with them next week!</strong></p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-33" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-33&#39;, &#39;sol-start-33&#39;)"> Solution </span>
+</div>
+<div id="sol-body-33" class="solution-body" style="display: none;">
+<p>This is our null model:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>m.null <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> ID), <span class="at">data=</span>WeightMaintain3)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.null)</span></code></pre></div>
+<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
+## Formula: WeightChange ~ 1 + (1 | ID)
+##    Data: WeightMaintain3
+## 
+## REML criterion at convergence: 3601.2
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.4349 -0.5330 -0.1154  0.4255  3.7017 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+##  ID       (Intercept) 3.765    1.940   
+##  Residual             6.431    2.536   
+## Number of obs: 720, groups:  ID, 180
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.4438     0.1728   8.357</code></pre>
+<p>We can see the <code>3.77 / (3.77 + 6.43)</code>, or 0.37 of the total variance is attributable to participant-level variation.</p>
+<p>Now lets suppose we want to compare this null model with a model with an effect of <code>Assessment</code> (to assess whether there is overall change over time).
+Which model should we compare <code>m.null</code> to?</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>modA <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> Assessment <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> Assessment <span class="sc">|</span> ID), <span class="at">data=</span>WeightMaintain3)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>modB <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> Assessment <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">|</span> ID), <span class="at">data=</span>WeightMaintain3)</span></code></pre></div>
+<p>A comparison between these <code>m.null</code> and <code>modA</code> will not be assessing the influence of <em>only</em> the fixed effect of Assessment. Remember, we shouldn’t compare models with different random effect structures.<br />
+However, <code>modB</code> doesn’t include our by-participant random effects of assessment, so comparing this to <code>m.null</code> is potentially going to misattribute random deviations in participants’ change to being an overall effect of assessment.</p>
+<p>If we want to conduct a model comparison to isolate the effect of overall change over time (a fixed effect of <code>Assessment</code>), we <em>might</em> want to compare these two models:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>m.base0 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> Assessment <span class="sc">|</span> ID), <span class="at">data=</span>WeightMaintain3)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>m.base <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> Assessment <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> Assessment <span class="sc">|</span> ID), <span class="at">data=</span>WeightMaintain3)</span></code></pre></div>
+<p>The first of these models is a bit weird to think about - how can we have by-participant random deviations of <code>Assessment</code> if we don’t have a fixed effect of <code>Assessment</code>? That makes very little sense. What it is actually fitting is a model where there is assumed to be <strong>no overall effect</strong> of Assessment. So the fixed effect is 0.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Straightforward LRT</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(m.base0, m.base)</span></code></pre></div>
+<pre><code>## Data: WeightMaintain3
+## Models:
+## m.base0: WeightChange ~ 1 + (1 + Assessment | ID)
+## m.base: WeightChange ~ 1 + Assessment + (1 + Assessment | ID)
+##         npar    AIC    BIC  logLik deviance Chisq Df Pr(&gt;Chisq)    
+## m.base0    5 2638.0 2660.9 -1314.0   2628.0                        
+## m.base     6 2579.4 2606.8 -1283.7   2567.4 60.66  1  6.782e-15 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># parametric bootstrap LRT</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pbkrtest)</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="fu">PBmodcomp</span>(m.base, m.base0)</span></code></pre></div>
+<pre><code>##            stat df      p.value
+## LRT    60.65978  1 6.772360e-15
+## PBtest 60.65978 NA 1.464129e-03</code></pre>
+<div class="int">
+<p>Parametric Bootstrap Likelihood Ratio test found that the inclusion of Assessment significantly improved model fit over the null model ( <span class="math inline">\(\chi^2(1)\)</span> = 60.66, p = 0.001), suggesting that participants’ weights changed over course of 36 month assessment period.</p>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C3
+</div>
+<div class="question-body">
+<blockquote>
+<p>Q: Did the experimental condition groups differ in overall weight change and rate of weight change (non-maintenance)?</p>
+</blockquote>
+<p><em>Hint:</em> It helps to break it down. There are two questions here:</p>
+<ol style="list-style-type: decimal">
+<li>do groups differ overall?<br />
+</li>
+<li>do groups differ over time?</li>
+</ol>
+<p>We can begin to see that we’re asking two questions about the <code>Condition</code> variable here: “is there an effect of Condition?” and “Is there an interaction between Assessment and Condition?”</p>
+<p>Try fitting two more models which incrementally build these levels of complexity, and compare them (perhaps to one another, perhaps to models from the previous question - think about what each comparison is testing!)</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-34" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-34&#39;, &#39;sol-start-34&#39;)"> Solution </span>
+</div>
+<div id="sol-body-34" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>m.int <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> Assessment <span class="sc">+</span> Condition <span class="sc">+</span> (Assessment <span class="sc">|</span> ID), </span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">data=</span>WeightMaintain3)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>m.full <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> Assessment<span class="sc">*</span>Condition <span class="sc">+</span> (Assessment <span class="sc">|</span> ID), </span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>               <span class="at">data=</span>WeightMaintain3)</span></code></pre></div>
+<p>We’re going to compare each model to the previous one to examine the improvement in fit due to inclusion of each parameter.
+We could do this quickly with</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(m.base0, m.base, m.int, m.full)</span></code></pre></div>
+<pre><code>## Data: WeightMaintain3
+## Models:
+## m.base0: WeightChange ~ 1 + (1 + Assessment | ID)
+## m.base: WeightChange ~ 1 + Assessment + (1 + Assessment | ID)
+## m.int: WeightChange ~ Assessment + Condition + (Assessment | ID)
+## m.full: WeightChange ~ Assessment * Condition + (Assessment | ID)
+##         npar    AIC    BIC  logLik deviance   Chisq Df Pr(&gt;Chisq)    
+## m.base0    5 2638.0 2660.9 -1314.0   2628.0                          
+## m.base     6 2579.4 2606.8 -1283.7   2567.4 60.6605  1  6.782e-15 ***
+## m.int      8 2573.9 2610.6 -1279.0   2557.9  9.4418  2   0.008907 ** 
+## m.full    10 2537.5 2583.3 -1258.8   2517.5 40.3814  2  1.703e-09 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<div class="int">
+<p>Conditions differed overall in weight change <span class="math inline">\(\chi^2(2)=9.4, p = .009\)</span><br />
+Conditions differed in change over assessment period <span class="math inline">\(\chi^2(2)=40.4, p &lt; .001\)</span></p>
+</div>
+<p>However, we may instead want to bootstrap this test instead (especially if we have a small sample size):</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">PBmodcomp</span>(m.int, m.base)</span></code></pre></div>
+<pre><code>##            stat df     p.value
+## LRT    9.441648  2 0.008907834
+## PBtest 9.441648 NA 0.013986014</code></pre>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">PBmodcomp</span>(m.full, m.int)</span></code></pre></div>
+<pre><code>##            stat df      p.value
+## LRT    40.37396  2 1.709643e-09
+## PBtest 40.37396 NA 9.990010e-04</code></pre>
+<div class="int">
+<p>Conditions differed overall in weight change (bootstrap likelihood ratio = 9.4, <span class="math inline">\(p = .014\)</span> ).<br />
+Conditions differed in change over assessment period (bootstrap likelihood ratio = 40.4, <span class="math inline">\(p = .001\)</span> ).</p>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C4
+</div>
+<div class="question-body">
+<p>We saw that we can get the coefficients using <code>fixef(model)</code>.
+We can also use <code>tidy(model)</code>, and similar to models fitted with <code>lm()</code>, we can pull out the bit of the <code>summary()</code> using:</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(model)<span class="sc">$</span>coefficients</span></code></pre></div>
+<p>From your model from the previous question which investigates whether conditions differed over in their rate of weight change, can you state how the conditions differed?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-35" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-35&#39;, &#39;sol-start-35&#39;)"> Solution </span>
+</div>
+<div id="sol-body-35" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.full)<span class="sc">$</span>coefficients</span></code></pre></div>
+<pre><code>##                           Estimate Std. Error    t value
+## (Intercept)             0.06038642 0.09835879  0.6139402
+## Assessment              1.84917936 0.18544623  9.9715123
+## ConditionED            -0.14303302 0.13910033 -1.0282723
+## ConditionMR            -0.14944649 0.13910033 -1.0743792
+## Assessment:ConditionED -1.74949968 0.26226057 -6.6708452
+## Assessment:ConditionMR -0.83624053 0.26226057 -3.1885865</code></pre>
+<div class="int">
+<p>Compared to no intervention, weight (re)gain was 1.75 lbs/year slower for the ED intervention and 0.84 lbs/year slower for the MR intervention.</p>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C5
+</div>
+<div class="question-body">
+<p>Make a graph of the model fit <em>and</em> the observed data.</p>
+<p><em>Hint:</em> There are lots of ways you can do this, try a couple:</p>
+<ol style="list-style-type: decimal">
+<li>Using the <strong>effects</strong> package, does this help? <code>as.data.frame(effect("Assessment:Condition", model))</code><br />
+</li>
+<li>Using <code>fitted(model)</code></li>
+<li>Using <code>augment()</code> from the <strong>broom.mixed</strong> package.</li>
+</ol>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-36" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-36&#39;, &#39;sol-start-36&#39;)"> Solution </span>
+</div>
+<div id="sol-body-36" class="solution-body" style="display: none;">
+<ol style="list-style-type: decimal">
+<li>Using the <code>effect()</code> function (and then adding the means and SEs from the original data):</li>
+</ol>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>ef <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">effect</span>(<span class="st">&quot;Assessment:Condition&quot;</span>, m.full))</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb46-3"><a href="#cb46-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ef, <span class="fu">aes</span>(Assessment, fit, <span class="at">color=</span>Condition)) <span class="sc">+</span> </span>
+<span id="cb46-4"><a href="#cb46-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb46-5"><a href="#cb46-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(<span class="at">data=</span>WeightMaintain3, <span class="fu">aes</span>(<span class="at">y=</span>WeightChange), </span>
+<span id="cb46-6"><a href="#cb46-6" aria-hidden="true" tabindex="-1"></a>               <span class="at">fun.data=</span>mean_se, <span class="at">geom=</span><span class="st">&quot;pointrange&quot;</span>, <span class="at">size=</span><span class="dv">1</span>) <span class="sc">+</span></span>
+<span id="cb46-7"><a href="#cb46-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-34-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<ol start="2" style="list-style-type: decimal">
+<li>Using the <code>fitted()</code> function to extract and plot fitted values from the model:</li>
+</ol>
+<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(WeightMaintain3, <span class="fu">aes</span>(Assessment, WeightChange, <span class="at">color=</span>Condition)) <span class="sc">+</span> </span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(<span class="at">fun.data=</span>mean_se, <span class="at">geom=</span><span class="st">&quot;pointrange&quot;</span>, <span class="at">size=</span><span class="dv">1</span>) <span class="sc">+</span> </span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(<span class="fu">aes</span>(<span class="at">y=</span><span class="fu">fitted</span>(m.full)), <span class="at">fun=</span>mean, <span class="at">geom=</span><span class="st">&quot;line&quot;</span>) <span class="sc">+</span> </span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-35-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<ol start="3" style="list-style-type: decimal">
+<li>Or using <code>augment()</code>:</li>
+</ol>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(m.full) <span class="sc">%&gt;%</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(., <span class="fu">aes</span>(Assessment, WeightChange, <span class="at">color=</span>Condition)) <span class="sc">+</span> </span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(<span class="at">fun.data=</span>mean_se, <span class="at">geom=</span><span class="st">&quot;pointrange&quot;</span>, <span class="at">size=</span><span class="dv">1</span>) <span class="sc">+</span> </span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(<span class="fu">aes</span>(<span class="at">y=</span>.fitted), <span class="at">fun=</span>mean, <span class="at">geom=</span><span class="st">&quot;line&quot;</span>) <span class="sc">+</span> </span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code></pre></div>
+<p><img src="02_intromlm_files/figure-html/unnamed-chunk-36-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question C6
+</div>
+<div class="question-body">
+<p>Examine the parameter estimates and interpret them (i.e., what does each parameter represent?)</p>
+<div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a>m.full <span class="ot">&lt;-</span> <span class="fu">lmer</span>(WeightChange <span class="sc">~</span> Assessment<span class="sc">*</span>Condition <span class="sc">+</span> (Assessment <span class="sc">|</span> ID), </span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a>               <span class="at">data=</span>WeightMaintain)</span>
+<span id="cb49-3"><a href="#cb49-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m.full)</span></code></pre></div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-37" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-37&#39;, &#39;sol-start-37&#39;)"> Solution </span>
+</div>
+<div id="sol-body-37" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">coef</span>(<span class="fu">summary</span>(m.full)), <span class="dv">3</span>)</span></code></pre></div>
+<pre><code>##                        Estimate Std. Error t value
+## (Intercept)               0.060      0.098   0.614
+## Assessment                1.849      0.185   9.972
+## ConditionED              -0.143      0.139  -1.028
+## ConditionMR              -0.149      0.139  -1.074
+## Assessment:ConditionED   -1.749      0.262  -6.671
+## Assessment:ConditionMR   -0.836      0.262  -3.189</code></pre>
+<ul>
+<li><code>(Intercept)</code> ==&gt; weight change at baseline in None group</li>
+<li><code>Assessment</code> ==&gt; slope of weight change in None group</li>
+<li><code>ConditionED</code> ==&gt; baseline weight change in ED group relative to None group</li>
+<li><code>ConditionMR</code> ==&gt; baseline weight change in MR group relative to None group</li>
+<li><code>Assessment:ConditionED</code> ==&gt; slope of weight change in ED group relative to None group</li>
+<li><code>Assessment:ConditionMR</code> ==&gt; slope of weight change in MR groups relative to None group</li>
+</ul>
+</div>
+<p class="solution-end">
+</p>
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
+
+</div>
+</div>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

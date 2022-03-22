@@ -1,0 +1,909 @@
+---
+title: "EFA and PCA"
+bibliography: references.bib
+biblio-style: apalike
+link-citations: yes
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+
+# knitr::opts_chunk$set(cache = TRUE)
+
+theme_set(theme_light(base_size = 12) +
+            theme(
+              panel.grid = element_blank()
+            ))
+```
+
+:::frame
+**Thinking about measurement**  
+
+In the second block of the Multivariate Stats course, we're going to look at "latent variable modeling". 
+
+Take a moment to think about the various constructs that you are interested in as a researcher. This might be anything from personality traits, to language proficiency, social identity, anxiety etc. 
+How we measure such constructs is a very important consideration for research. The things we're interested in are very rarely the things we are *directly* measuring. 
+
+The most common way to start thinking about latent variables is to consider how we might assess levels of anxiety or depression. More often than not, we measure these using questionnaire based methods. Can we ever directly measure anxiety?  ^[Even if we cut open someone's brain, it's unclear what we would be looking for in order to 'measure' it. It is unclear whether anxiety even exists as a physical thing, or rather if it is simply the overarching concept we apply to a set of behaviours and feelings]. This inherently leads to the notion of measurement error - two people both scoring 11 on the Generalised Anxiety Disorder 7 (GAD-7) scale will not have identical levels of anxiety.  
+
+Before we start to explore how we might use a latent variable modelling approach to accommodate this idea, we're going to start with the basic concept of *reducing the dimensionality of our data*. 
+
+:::
+
+`r optbegin("New packages!", olabel=FALSE, toggle=FALSE)`
+We're going to be needing some different packages this week, no more **lme4**!  
+Make sure you have these packages installed.  
+
++ psych  
++ GPArotation  
++ car  
+
+`r optend()`
+
+
+# Principal component analysis (PCA)
+
+:::yellow
+
+The goal of principal component analysis (PCA) is to find a _smaller_ number of uncorrelated variables which are linear combinations of the original (_many_) variables and explain most of the variation in the data.
+
+:::
+
+`r optbegin("Job Performance: Data Codebook", olabel=FALSE,toggle=params$TOGGLE)`
+
+The file [job_performance.csv](https://uoepsy.github.io/data/job_performance.csv) (available at https://uoepsy.github.io/data/job_performance.csv) contains data on fifty police officers who were rated in six different categories as part of an HR procedure. The rated skills were:
+
+- communication skills: `commun`
+- problem solving: `probl_solv`
+- logical ability: `logical`
+- learning ability: `learn`
+- physical ability: `physical`
+- appearance: `appearance`
+
+`r optend()`
+
+`r qbegin("A1")`
+Load the job performance data into R and all it `job`. 
+Check whether or not the data were read correctly into R - do the dimensions correspond to the description of the data above?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's load the data:
+
+```{r, message=FALSE}
+library(tidyverse)
+
+job <- read_csv('https://uoepsy.github.io/data/job_performance.csv')
+dim(job)
+```
+There are 50 observations on 6 variables.
+
+The top 6 rows in the data are:
+```{r}
+head(job)
+```
+`r solend()`
+
+`r qbegin("A2")`
+Provide descriptive statistics for each variable in the dataset.
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+We now inspect some descriptive statistics for each variable in the dataset:
+```{r}
+# Quick summary
+summary(job)
+```
+
+__OPTIONAL__
+
+If you wish to create a nice looking table for a report, you could try the following code. 
+However, I should warn you: this code is quite difficult to understand so, if you are interested, attend a drop-in!
+
+```{r}
+library(gt)
+
+# Mean and SD of each variable
+job %>% 
+  summarise(across(everything(), list(M = mean, SD = sd))) %>%
+  pivot_longer(everything()) %>% 
+  mutate(
+    value = round(value, 2),
+    name = str_replace(name, '_M', '.M'),
+    name = str_replace(name, '_SD', '.SD')
+  ) %>%
+  separate(name, into = c('variable', 'summary'), sep = '\\.') %>%
+  pivot_wider(names_from = summary, values_from = value) %>% 
+  gt()
+```
+`r solend()`
+
+
+## Is PCA needed?
+
+:::frame 
+
+If the original variables are highly correlated, it is possible to reduce the dimensionality of the problem under investigation without losing too much information.
+
+On the other side, when the correlation between the variables under study is weak, a larger number of components is needed in order to explain sufficient variability.
+
+:::
+
+`r qbegin("A3")`
+Investigate whether or not the recorded variables are highly correlated and explain whether or not you PCA might be useful in this case.  
+
+**Hint:** We only have 6 variables here, but if we had many, how might you visualise `cor(job)`?
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's start by looking at the correlation matrix of the data:
+```{r, fig.align='center', fig.height=4, fig.width=5, fig.cap="Correlation between the variables in the ``Job'' dataset"}
+library(pheatmap)
+
+R <- cor(job)
+
+pheatmap(R, breaks = seq(-1, 1, length.out = 100))
+```
+
+The correlation between the variables seems to be quite large (it doesn't matter about direction here, only magnitude; if negative correlations were present, we would think in absolute value).
+
+There appears to be a group of highly correlated variables comprising physical ability, appearance, communication skills, and learning ability which are correlated among themselves but uncorrelated with another group of variables.
+The second group comprises problem solving and logical ability.
+
+This suggests that PCA might be useful in this problem to reduce the dimensionality without a significant loss of information.
+`r solend()`
+
+## Cov vs Cor
+
+:::frame 
+**Should we perform PCA on the covariance or the correlation matrix?**  
+  
+This depends on the variances of the variables in the dataset.
+If the variables have large differences in their variances, then the variables with the largest variances will tend to dominate the first few principal components.  
+
+A solution to this is to standardise the variables prior to computing the covariance matrix - i.e., compute the correlation matrix!  
+
+```{r}
+# show that the correlation matrix and the covariance matrix of the standardized variables are identical
+all.equal(cor(job), cov(scale(job)))
+```
+:::
+
+`r qbegin("A4")`
+Look at the variance of the variables in the data set. Do you think that PCA should be carried on the covariance matrix or the correlation matrix?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's have a look at the standard deviation of each variable:
+```{r}
+job %>% 
+  summarise(across(everything(), sd))
+```
+
+As the standard deviations appear to be fairly similar (and so will the variances) we can perform PCA using the covariance matrix.
+`r solend()`
+
+
+## Perform PCA
+
+`r qbegin("A5")`
+Using the `principal()` function from the `psych` package, perform a PCA of the job performance data, Call the output `job_pca`.
+```
+job_pca <- principal(job, nfactors = ncol(job), covar = ..., rotate = 'none')
+job_pca$loadings
+```
+Depending on your answer to the previous question, either set `covar = TRUE` or `covar = FALSE` within the `principal()` function.
+
+**Warning:** the output of the function will be in terms of standardized variables nevertheless. So you will see output with standard deviation of 1.  
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+```{r}
+library(psych)
+
+job_pca <- principal(job, nfactors = ncol(job), covar = TRUE, rotate = 'none')
+```
+`r solend()`
+
+:::frame
+**The output** 
+
+```{r}
+job_pca$loadings
+```
+The output is made up of two parts.
+
+First, it shows the *loading matrix*. In each column of the loading matrix we find how much each of the measured variables contributes to the computed new axis/direction (that is, the principal component).
+Notice that there are as many principal components as variables. 
+
+The second part of the output displays the contribution of each component to the total variance.
+
+Before interpreting it however, let's focus on the last row of that output called "Cumulative Var". This displays the cumulative sum of the variances of each principal component.
+Taken all together, the six principal components taken explain all of the total variance in the original data.
+In other words, the total variance of the principal components (the sum of their variances) is equal to the total variance in the original data (the sum of the variances of the variables).
+
+However, our goal is to reduce the dimensionality of our data, so it comes natural to wonder which of the six principal components explain most of the variability, and which components instead do not contribute substantially to the total variance.
+
+To that end, the second row "Proportion Var" displays the proportion of the total variance explained by each component, i.e. the variance of the principal component divided by the total variance.
+
+The last row, as we saw, is the cumulative proportion of explained variance: `0.673`, `0.673 + 0.210`, `0.673 + 0.210 + 0.105`, and so on.
+
+We also notice that the first PC alone explains 67.3% of the total variability, while the first two components together explain almost 90% of the total variability.
+From the third component onwards, we do not see such a sharp increase in the proportion of explained variance, and the cumulative proportion slowly reaches the total ratio of 1 (or 100%).
+
+:::
+
+`r optbegin("Optional: (some of) the math behind it", olabel=FALSE, toggle=params$TOGGLE)`
+
+Doing data reduction can feel a bit like magic, and in part that's just because it's quite complicated. 
+
+**The intuition**  
+
+Consider one way we might construct a correlation matrix - as the product of vector $\mathbf{f}$ with $\mathbf{f'}$ (f transposed): 
+$$
+\begin{equation*}
+\mathbf{f} = 
+\begin{bmatrix}
+0.9 \\
+0.8 \\
+0.7 \\
+0.6 \\
+0.5 \\
+0.4 \\
+\end{bmatrix} 
+\qquad 
+\mathbf{f} \mathbf{f'} = 
+\begin{bmatrix}
+0.9 \\
+0.8 \\
+0.7 \\
+0.6 \\
+0.5 \\
+0.4 \\
+\end{bmatrix} 
+\begin{bmatrix}
+0.9, 0.8, 0.7, 0.6, 0.5, 0.4 \\
+\end{bmatrix} 
+\qquad = \qquad
+\begin{bmatrix}
+0.81, 0.72, 0.63, 0.54, 0.45, 0.36 \\
+0.72, 0.64, 0.56, 0.48, 0.40, 0.32 \\
+0.63, 0.56, 0.49, 0.42, 0.35, 0.28 \\
+0.54, 0.48, 0.42, 0.36, 0.30, 0.24 \\
+0.45, 0.40, 0.35, 0.30, 0.25, 0.20 \\
+0.36, 0.32, 0.28, 0.24, 0.20, 0.16 \\
+\end{bmatrix} 
+\end{equation*} 
+$$
+
+But we constrain this such that the diagonal has values of 1 (the correlation of a variable with itself is 1), and lets call it **R**.
+$$
+\begin{equation*}
+\mathbf{R} = 
+\begin{bmatrix}
+1.00, 0.72, 0.63, 0.54, 0.45, 0.36 \\
+0.72, 1.00, 0.56, 0.48, 0.40, 0.32 \\
+0.63, 0.56, 1.00, 0.42, 0.35, 0.28 \\
+0.54, 0.48, 0.42, 1.00, 0.30, 0.24 \\
+0.45, 0.40, 0.35, 0.30, 1.00, 0.20 \\
+0.36, 0.32, 0.28, 0.24, 0.20, 1.00 \\
+\end{bmatrix} 
+\end{equation*} 
+$$
+
+PCA is about trying to determine a vector **f** which generates the correlation matrix **R**. a bit like unscrambling eggs!  
+
+in PCA, we express $\mathbf{R = CC'}$, where $\mathbf{C}$ are our principal components.  
+If $n$ is number of variables in $R$, then $i^{th}$ component $C_i$ is the linear sum of each variable multiplied by some weighting:  
+$$
+C_i = \sum_{j=1}^{n}w_{ij}x_{j}
+$$
+
+**How do we find $C$?**
+
+This is where "eigen decomposition" comes in.  
+For the $n \times n$ correlation matrix $\mathbf{R}$, there is an **eigenvector** $x_i$ that solves the equation 
+$$
+\mathbf{x_i R} = \lambda_i \mathbf{x_i}
+$$
+Where the vector multiplied by the correlation matrix is equal to some **eigenvalue** $\lambda_i$ multiplied by that vector.  
+We can write this without subscript $i$ as: 
+$$
+\begin{align}
+& \mathbf{R X} = \mathbf{X \lambda} \\
+& \text{where:} \\
+& \mathbf{R} = \text{correlation matrix} \\
+& \mathbf{X} = \text{matrix of eigenvectors} \\
+& \mathbf{\lambda} = \text{vector of eigenvalues}
+\end{align}
+$$
+the vectors which make up $\mathbf{X}$ must be orthogonal [($\mathbf{XX' = I}$)](https://miro.medium.com/max/700/1*kyg5XbrY1AOB946IE5nWWg.png), which means that $\mathbf{R = X \lambda X'}$
+ 
+We can actually do this in R manually. 
+Creating a correlation matrix
+```{r}
+# lets create a correlation matrix, as the produce of ff'
+f <- seq(.9,.4,-.1)
+R <- f %*% t(f)
+#give rownames and colnames
+rownames(R)<-colnames(R)<-paste0("V",seq(1:6))
+#constrain diagonals to equal 1
+diag(R)<-1
+R
+```
+
+Eigen Decomposition
+```{r}
+# do eigen decomposition
+e <- eigen(R)
+print(e, digits=2)
+```
+
+The eigenvectors are orthogonal ($\mathbf{XX' = I}$):
+```{r}
+round(e$vectors %*% t(e$vectors),2)
+```
+
+The Principal Components $\mathbf{C}$ are the eigenvectors scaled by the square root of the eigenvalues:
+```{r}
+#eigenvectors
+e$vectors
+#scaled by sqrt of eigenvalues
+diag(sqrt(e$values))
+
+C <- e$vectors %*% diag(sqrt(e$values))
+C
+```
+
+And we can reproduce our correlation matrix, because $\mathbf{R = CC'}$. 
+```{r}
+C %*% t(C)
+```
+Now lets imagine we only consider 1 principal component.  
+We can do this with the `principal()` function: 
+```{r}
+library(psych)
+pc1<-principal(R, nfactors = 1, covar = FALSE, rotate = 'none')
+pc1
+```
+
+Look familiar? It looks like the first component we computed manually. The first column of $\mathbf{C}$:
+```{r}
+cbind(pc1$loadings, C=C[,1])
+```
+We can now ask "how well does this component (on its own) recreate our correlation matrix?" 
+```{r}
+C[,1] %*% t(C[,1])
+```
+It looks close, but not quite. How much not quite? Measurably so!
+```{r}
+R - (C[,1] %*% t(C[,1]))
+```
+
+Notice the values on the diagonals?
+```{r}
+diag(C[,1] %*% t(C[,1]))
+diag(R) - diag(C[,1] %*% t(C[,1]))
+pc1$communality
+pc1$uniquenesses
+```
+
+`r optend()`
+
+## How many components to keep?
+
+:::frame
+
+There is no single best method to select the optimal number of components to keep, while discarding the remaining ones (which are then considered as noise components).
+
+The following three heuristic rules are commonly used in the literature:
+
+- The cumulative proportion of explained variance criterion
+- Kaiser's rule
+- The scree plot
+- Velicer's Minimum Average Partial method
+- Parallel analysis
+
+In the next sections we will analyse each of them in turn.
+
+:::
+
+:::yellow
+**The cumulative proportion of explained variance criterion**
+
+The rule suggests to *keep as many principal components as needed in order to explain approximately 80-90% of the total variance.*
+
+:::
+
+`r qbegin("A6")`
+Looking again at the PCA output, how many principal components would you keep if you were following the cumulative proportion of explained variance criterion?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's look again at the PCA summary:
+
+```{r}
+job_pca$loadings
+```
+
+The following part of the output tells us that the first two components explain 88.3% of the total variance.
+```
+Cumulative Var 0.673 0.883 0.988 0.994 0.997 1.000
+```
+
+According to this criterion, we should keep 2 principal components.
+`r solend()`
+
+:::yellow
+**Kaiser's rule**  
+  
+According to Kaiser's rule, we should **keep the principal components having variance larger than 1**. Standardized variables have a variance equal 1. Because we have 6 variables in the data set, and the total variance is 6, the value 1 represents the average variance in the data:
+$$
+\frac{1 + 1 + 1 + 1 + 1 + 1}{6} = 1
+$$
+
+__Hint:__
+
+The variances of each PC are shown in the row of the output named `SS loadings` and also in
+`job_pca$values`. The average variance is:
+
+```{r}
+mean(job_pca$values)
+```
+:::
+
+`r qbegin("A7")`
+Looking again at the PCA output, how many principal components would you keep if you were following Kaiser's criterion?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+job_pca$loadings
+```
+
+The variances are shown in the row
+```
+SS loadings    4.035 1.261 0.631 0.035 0.022 0.016
+```
+
+From the result we see that only the first two principal components have variance greater than 1, so this rule suggests to keep 2 PCs only.
+`r solend()`
+
+:::yellow
+**The scree plot**
+
+The scree plot is a graphical criterion which involves plotting the variance for each principal component.
+This can be easily done by calling `plot` on the variances, which are stored in `job_pca$values`
+
+```{r}
+plot(x = 1:length(job_pca$values), y = job_pca$values, 
+     type = 'b', xlab = '', ylab = 'Variance', 
+     main = 'Police officers: scree plot', frame.plot = FALSE)
+```
+
+where the argument `type = 'b'` tells R that the plot should have _both_ points and lines.
+
+A typical scree plot features higher variances for the initial components and quickly drops to small variances where the curve is almost flat.
+The flat part of the curve represents the noise components, which are not able to capture the main sources of variability in the system. 
+
+According to the scree plot criterion, we should **keep as many principal components as where the "elbow" in the plot occurs.** By elbow we mean the variance before the curve looks almost flat.
+
+Alternatively, some people prefer to use the function `scree()` from the `psych` package:
+
+```{r}
+scree(job, factors = FALSE)
+```
+
+This also draws a horizontal line at y = 1. So, if you are making a decision about how many PCs to keep by looking at where the plot falls below the y = 1 line, you are basically following Kaiser's rule. In fact, Kaiser's criterion tells you to keep as many PCs as are those with a variance (= eigenvalue) greater than 1.
+
+:::
+
+`r qbegin("A8")`
+According to the scree plot, how many principal components would you retain?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+This criterion then suggests to keep three principal components.
+`r solend()`
+
+:::yellow
+**Velicer’s Minimum Average Partial method**
+
+The Minimum Average Partial (MAP) test computes the partial correlation matrix (removing and adjusting for a component from the correlation matrix), sequentially partialling out each component. At each step, the partial correlations are squared and their average is computed.  
+At first, the components which are removed will be those that are most representative of the shared variance between 2+ variables, meaning that the "average squared partial correlation" will decrease. At some point in the process, the components being removed will begin represent variance that is specific to individual variables, meaning that the average squared partial correlation will increase.  
+The MAP method is to keep the number of components for which the average squared partial correlation is at the minimum. 
+
+We can conduct MAP in R using:
+```{r eval=FALSE}
+VSS(data, plot = FALSE, method="pc", n = ncol(data))
+```
+(be aware there is a lot of other information in this output too! For now just focus on the map column)
+
+:::
+
+`r qbegin("A9")`
+How many components should we keep according to the MAP method?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+job_map <- VSS(job, plot=FALSE, method="pc", n = ncol(job))$map
+paste("MAP is lowest for", which.min(job_map), "components")
+```
+
+According to the MAP criterion we should keep 2 principal components.
+`r solend()`
+
+
+:::yellow
+**Parallel analysis**
+
+Parallel analysis involves simulating lots of datasets of the same dimension but in which the variables are uncorrelated. For each of these simulations, a PCA is conducted on its correlation matrix, and the eigenvalues are extracted. We can then compare our eigenvalues from the PCA on our *actual* data to the average eigenvalues across these simulations. 
+In theory, for uncorrelated variables, no components should explain more variance than any others, and eigenvalues should be equal to 1. In reality, variables are rarely truly uncorrelated, and so there will be slight variation in the magnitude of eigenvalues simply due to chance. 
+The parallel analysis method suggests keeping those components for which the eigenvalues are greater than those from the simulations. 
+
+It can be conducted in R using:
+```{r eval=FALSE}
+fa.parallel(job, fa="pc", quant=.95)
+```
+
+:::
+
+
+`r qbegin("A10")`
+How many components should we keep according to parallel analysis?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+fa.parallel(job, fa="pc", quant=.95)
+```
+
+Parallel analysis suggests to keep 1 principal component only as there is only one PC with an eigenvalue higher than the simulated random ones in red.
+
+`r solend()`
+
+
+## Interpretation
+
+Because three out of the five selection criteria introduced above suggest to keep 2 principal components, in the following we will work with the first two PCs only.
+
+Let's have a look at the selected principal components:
+```{r}
+job_pca$loadings[, 1:2]
+```
+
+and at their corresponding proportion of total variance explained:
+```{r}
+job_pca$values / sum(job_pca$values)
+```
+
+We see that the first PC accounts for 67.3% of the total variability. All loadings seem to have the same magnitude apart from `probl_solv` and `logical` which are closer to zero.
+The first component looks like a sort of average of the officers performance scores excluding problem solving and logical ability.
+
+The second principal component, which explains only 21% of the total variance, has two loadings clearly distant from zero: the ones associated to problem solving and logical ability.
+It distinguishes police officers with strong logical and problem solving skills and a low score on the test (note the negative magnitude) from the other officers.
+
+We have just seen how to interpret the first components by looking at the magnitude and sign of the coefficients for each measured variable.
+
+For interpretation purposes, it might help hiding very small scores in the loadings. This can be done by specifying the cutoff value in the `print()` function. However, this only works when you pass the loadings for **all** the PCs:
+```{r}
+print(job_pca$loadings, cutoff = 0.3)
+```
+
+<br>
+
+In the literature, some authors also suggest to look at the correlation between each principal component and the measured variables:
+
+```{r}
+# First PC
+cor(job_pca$scores[,1], job)
+```
+
+The first PC is strongly correlated with all the measured variables except `probl_solv` and `logical`.
+As we mentioned above, all variables seem to contributed to the first PC.
+
+```{r}
+# Second PC
+cor(job_pca$scores[,2], job)
+```
+
+The second PC is strongly correlated with `probl_solv` and `logical`, and slightly negatively correlated with the remaining variables. This separates police offices with clear logical and problem solving skills and a small score on the test (negative sign) from the others.
+
+
+## Plotting the retained principal components
+
+We can now visualise the statistical units (police officers) in the reduced space given by the retained principal components.
+
+```{r, fig.width=5, fig.align='center'}
+tibble(pc1 = job_pca$scores[, 1],
+       pc2 = job_pca$scores[, 2]) %>%
+  ggplot(.,aes(x=pc1,y=pc2))+
+  geom_point()
+```
+
+`r optbegin('Optional: How well are the units represented in the reduced space?', FALSE, show = TRUE, toggle = params$TOGGLE)`
+
+We now focus our attention on the following question: Are all the statistical units (police officers) well represented in the 2D plot?
+
+The 2D representation of the original data, which comprise 6 measured variables, is an approximation and henceforth it may happen that not all units are well represented in this new space.
+
+Typically, it is good to assess the approximation for each statistical unit by inspecting the scores on the discarded principal components.
+If a unit has a high score on those components, then this is a sign that the unit might be highly misplaced in the new space and misrepresented.
+
+Consider the 3D example below. There are three cases (= units or individuals). In the original space they are all very different from each other. For example, cases 1 and 2 are very different in their x and y values, but very similar in their z value. Cases 2 and 3 are very similar in their x and y values but very different in their z value. Cases 1 and 3 have very different values for all three variables x, y, and z.
+
+However, when represented in the 2D space given by the two principal components, units 2 and 3 seems like they are very similar when, in fact, they were very different in the original space which also accounted for the z variable.
+
+```{r, echo=FALSE, out.width="\\textwidth", include=TRUE, fig.align="center"}
+knitr::include_graphics('images/pcaefa/pca_bad_representation.png')
+```
+
+We typically measure how badly a unit is represented in the new coordinate system by considering the **sum of squared scores on the discarded principal components:**
+
+```{r}
+scores_discarded <- job_pca$scores[, -(1:2)]
+sum_sq <- rowSums(scores_discarded^2)
+sum_sq
+```
+
+Units with a high score should be considered for further inspection as it may happen that they are represented as close to another unit when, in fact, they might be very different.
+
+```{r}
+boxplot(sum_sq)
+```
+
+There seem to be only five outliers, and they are not too high compared to the rest of the scores. For this reason, we will consider the 2D representation of the data to be satisfactory.
+`r optend()`
+
+
+# Exploratory Factor Analysis (EFA)
+
+Where **PCA** aims to summarise a set of measured variables into a set of orthogonal (uncorrelated) components as linear combinations (a weighted average) of the measured variables, **Factor Analysis (FA)** assumes that the relationships between a set of measured variables can be explained by a number of underlying *latent factors*.   
+  
+Note how the directions of the arrows in Figure \@ref(fig:pcafa) are different between PCA and FA - in PCA, each component $C_i$ is the weighted combination of the observed variables $y_1, ...,y_n$, whereas in FA, each measured variable $y_i$ is seen as *generated by* some latent factor(s) $F_i$ plus some unexplained variance $u_i$.   
+
+It might help to read the $\lambda$s as beta-weights ($b$, or $\beta$), because that's all they really are. 
+The equation $y_i = \lambda_{1i}F_1 + \lambda_{2i}F_2 + u_i$ is just our way of saying that the variable $y_i$ is the manifestation of some amount ($\lambda_{1i}$) of an underlying factor $F_1$, some amount ($\lambda_{2i}$) of some other underlying factor $F_2$, and some error ($u_i$). 
+
+```{r pcafa, echo=FALSE, fig.cap="Path diagrams for PCA and FA", out.width="1000px"}
+knitr::include_graphics("images/pcaefa/pca_efa.png")
+```
+
+In **_Exploratory_ Factor Analysis (EFA)**, we are starting with no hypothesis about either the number of latent factors or about the specific relationships between latent factors and measured variables (known as the *factor structure*). Typically, all variables will load on all factors, and a transformation method such as a rotation (we'll cover this in more detail below) is used to help make the results more easily interpretable.  
+
+:::frame
+**A brief look to next week**
+
+When we have some clear hypothesis about relationships between measured variables and latent factors, we might want to impose a specific factor structure on the data (e.g., items 1 to 10 all measure social anxiety, items 11 to 15 measure health anxiety, and so on). When we impose a specific factor structure, we are doing **Confirmatory Factor Analysis (CFA)**.  
+
+This will be the focus of next week, but it's important to note that in practice EFA is not wholly "exploratory" (your theory *will* influence the decisions you make) nor is CFA wholly "confirmatory" (in which you will inevitably get tempted to explore how changing your factor structure might improve fit). 
+
+:::
+
+`r optbegin("Conduct Problems: Data codebook", olabel=FALSE, toggle=params$TOGGLE)`
+A researcher is developing a new brief measure of Conduct Problems. She has collected data from n=450 adolescents on 10 items, which cover the following behaviours:  
+
+1. Stealing
+1. Lying
+1. Skipping school
+1. Vandalism
+1. Breaking curfew
+1. Threatening others
+1. Bullying
+1. Spreading malicious rumours
+1. Using a weapon 
+1. Fighting
+
+Your task is to use the dimension reduction techniques you learned about in the lecture to help inform how to organise the items she has developed into subscales.  
+
+The data can be found at https://uoepsy.github.io/data/conduct_probs.csv 
+`r optend()`
+
+`r qbegin("B1")`
+Read in the dataset from [https://uoepsy.github.io/data/conduct_probs.csv](https://uoepsy.github.io/data/conduct_probs.csv).  
+The first column is clearly an ID column, and it is easiest just to discard this when we are doing factor analysis.  
+  
+Create a correlation matrix for *the items*.  
+Inspect the items to check their suitability for exploratory factor analysis.   
+  
++ You can use a function such as `cor` or `corr.test(data)` (from the **psych** package) to create the correlation matrix.  
++ The function `cortest.bartlett(cor(data), n = nrow(data))` conducts Bartlett's test that the correlation matrix is proportional to the identity matrix (a matrix of all 0s except for 1s on the diagonal).  
++ You can check linearity of relations using `pairs.panels(data)` (also from **psych**), and you can view the histograms on the diagonals, allowing you to check univariate normality (which is usually a good enough proxy for multivariate normality). 
++ You can check the "factorability" of the correlation matrix using `KMO(data)` (also from **psych**!).  
+  - Rules of thumb: 
+      - $0.8 < MSA < 1$: the sampling is adequate
+      - $MSA <0.6$: sampling is not adequate 
+      - $MSA \sim 0$: large partial correlations compared to the sum of correlations. Not good for FA  
+    
+`r optbegin("Kaiser's suggested cuts", toggle=params$TOGGLE)`
+
+- 0.00 to 0.49 unacceptable  
+- 0.50 to 0.59 miserable  
+- 0.60 to 0.69 mediocre  
+- 0.70 to 0.79 middling  
+- 0.80 to 0.89 meritorious  
+- 0.90 to 1.00 marvelous  
+
+`r optend()`
+
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+```{r}
+df <- read.csv("https://edin.ac/2Vk1BVU")
+# discard the first column
+df <- df[,-1]
+
+corr.test(df)  
+
+cortest.bartlett(cor(df), n=450)
+
+KMO(df)  
+
+pairs.panels(df)
+```
+or alternatively, if you want a ggplot based approach:
+```{r message=FALSE}
+library(GGally)
+ggpairs(data=df, diag=list(continuous="density"), axisLabels="show")
+```
+`r solend()`
+
+## How many factors? 
+
+`r qbegin("B2")`
+How many dimensions should be retained? This question can be answered in the same way as we did above for PCA. 
+  
+Use a scree plot, parallel analysis, and MAP test to guide you.   
+You can use `fa.parallel(data, fm = "fa")` to conduct both parallel analysis and view the scree plot!   
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+```{r}
+fa.parallel(df, fa = "fa")
+```
+In this case the scree plot has a kink at the third factor, so we probably want to retain 2 factors.  
+  
+We can conduct the MAP test using `VSS(data)`.
+```{r}
+VSS(df, plot = FALSE, n = ncol(df))$map
+```
+The MAP test suggests retaining 2 factors.  
+`r solend()`
+
+## Perform EFA
+
+Now we need to perform the factor analysis. But there are two further things we need to consider, and they a) whether we want to apply a rotation to our factor loadings, in order to make them easier to interpret, and b) how do we want to extract our factors (it turns out there are loads of different approaches!). 
+
+:::frame
+**Rotations?** 
+
+Rotations are so called because they transform our loadings matrix in such a way that it can make it more easy to interpret. You can think of it as a transformation applied to our loadings in order to optimise interpretability, by maximising the loading of each item onto one factor, while minimising its loadings to others. We can do this by simple rotations, but maintaining our axes (the factors) as perpendicular (i.e., uncorrelated) as in Figure \@ref(fig:rot2), or we can allow them to be transformed beyond a rotation to allow the factors to correlate (Figure \@ref(fig:rot3)). 
+```{r rot1, fig.cap="No rotation", echo=FALSE}
+knitr::include_graphics("images/pcaefa/rot1.png")
+```
+
+```{r rot2, fig.cap="Orthogonal rotation", echo=FALSE}
+knitr::include_graphics("images/pcaefa/rot2.png")
+```
+
+```{r rot3, fig.cap="Oblique rotation", echo=FALSE}
+knitr::include_graphics("images/pcaefa/rot3.png")
+```
+In our path diagram of the model (Figure \@ref(fig:efarot)), all the factor loadings remain present, but some of them become negligible. We can also introduce the possible correlation between our factors, as indicated by the curved arrow between $F_1$ and $F_2$. 
+
+```{r efarot, echo=FALSE, fig.cap="Path diagrams for EFA with rotation", out.width="1000px"}
+knitr::include_graphics("images/pcaefa/efa_rot.png")
+```
+
+:::
+
+:::frame
+**Factor Extraction**  
+
+PCA (using eigendecomposition) is itself a method of extracting the different dimensions from our data. However, there are lots more available for factor analysis. 
+
+You can find a lot of discussion about different methods both in the help documentation for the `fa()` function from the psych package: 
+
+>Factoring method fm="minres" will do a minimum residual as will fm="uls". Both of these use a first derivative. fm="ols" differs very slightly from "minres" in that it minimizes the entire residual matrix using an OLS procedure but uses the empirical first derivative. This will be slower. fm="wls" will do a weighted least squares (WLS) solution, fm="gls" does a generalized weighted least squares (GLS), fm="pa" will do the principal factor solution, fm="ml" will do a maximum likelihood factor analysis. fm="minchi" will minimize the sample size weighted chi square when treating pairwise correlations with different number of subjects per pair. fm ="minrank" will do a minimum rank factor analysis. "old.min" will do minimal residual the way it was done prior to April, 2017 (see discussion below). fm="alpha" will do alpha factor analysis as described in Kaiser and Coffey (1965)
+
+And there are lots of discussions both in papers and on [forums](https://stats.stackexchange.com/questions/50745/best-factor-extraction-methods-in-factor-analysis). 
+
+As you can see, this is a complicated issue, but when you have a large sample size, a large number of variables, for which you have similar communalities, then the extraction methods tend to agree. For now, don't fret too much about the factor extraction method.^[(It's a *bit* like the optimiser issue in the multi-level model block)]
+
+:::
+
+
+`r qbegin("B3")`
+Use the function `fa()` from the **psych** package to conduct and EFA to extract 2 factors (this is what *we* suggest based on the various tests above, but *you* might feel differently - the ideal number of factors is subjective!). Use a suitable rotation and extraction method (`fm`).  
+```{r eval=FALSE}
+conduct_efa <- fa(data, nfactors = ?, rotate = ?, fm = ?)
+```
+
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+For example, you could choose an oblimin rotation to allow factors to correlate and use minres as the extraction method.  
+```{r}
+conduct_efa <- fa(df, nfactors=2, rotate='oblimin', fm="minres")
+```
+`r solend()`
+
+## Inspect
+
+`r qbegin("B4")`
+Inspect the loadings (`conduct_efa$loadings`) and give the factors you extracted labels based on the patterns of loadings.  
+  
+Look back to the description of the items, and suggest a name for your factors  
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+You can inspect the loadings using:
+```{r}
+print(conduct_efa$loadings, sort=T)
+```
+We can see that the first five items have high loadings for one factor and the second five items have high loadings for the other.  
+  
+The first five items all have in common that they are non-aggressive forms of conduct problems, while the last five items are all aggressive behaviours. We could, therefore, label our factors: ‘non-aggressive’ and ‘aggressive’ conduct problems.
+`r solend()`
+
+`r qbegin("B5")`
+How correlated are your factors?  
+
+We can inspect the factor correlations (if we used an oblique rotation) using:
+```{r eval=FALSE}
+conduct_efa$Phi
+```
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+```{r}
+conduct_efa$Phi
+```
+We can see here that there is a moderate correlation between the two factors. An oblique rotation would be appropriate here. 
+`r solend()`
+
+## Write-up 
+
+`r qbegin("B6")`
+Drawing on your previous answers and conducting any additional analyses you believe would be necessary to identify an optimal factor structure for the 10 conduct problems, write a brief text that summarises your method and the results from your chosen optimal model.
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+The main principles governing the reporting of statistical results are transparency and reproducibility (i.e., someone should be able to reproduce your analysis based on your description).
+
+An example summary would be:
+
+:::int 
+
+First, the data were checked for their suitability for factor analysis. Normality was checked using visual inspection of histograms, linearity was checked through the inspection of the linear and lowess lines for the pairwise relations of the variables, and factorability was confirmed using a KMO test, which yielded an overall KMO of $.87$ with no variable KMOs $<.50$. 
+An exploratory factor analysis was conducted to inform the structure of a new conduct problems test. Inspection of a scree plot alongside parallel analysis (using principal components analysis; PA-PCA) and the MAP test were used to guide the number of factors to retain. All three methods suggested retaining two factors; however, a one-factor and three-factor solution were inspected to confirm that the two-factor solution was optimal from a substantive and practical perspective, e.g., that it neither blurred important factor distinctions nor included a minor factor that would be better combined with the other in a one-factor solution. These factor analyses were conducted using minres extraction and (for the two- and three-factor solutions) an oblimin rotation, because it was expected that the factors would correlate. Inspection of the factor loadings and correlations reinforced that the two-factor solution was optimal: both factors were well-determined, including 5 loadings $>|0.3|$ and the one-factor model blurred the distinction between different forms of conduct problems. 
+The factor loadings are provided in Table \@ref(tab:loading-table)^[You should provide the table of factor loadings. It is conventional to omit factor loadings $<|0.3|$; however, be sure to ensure that you mention this in a table note.]. Based on the pattern of factor loadings, the two factors were labelled 'aggressive conduct problems' and 'non-aggressive conduct problems'. These factors had a  correlation of $r=.43$. Overall, they accounted for 52% of the variance in the items, suggesting that a two-factor solution effectively summarised the variation in the items.
+
+
+```{r loading-table, echo=FALSE}
+loadings = unclass(conduct_efa$loadings)
+loadings = round(loadings, 3)
+loadings[abs(loadings) < 0.3] = NA
+options(knitr.kable.NA = '')
+knitr::kable(loadings, digits = 2, caption = "Factor loadings.")
+```
+
+:::
+
+
+`r solend()`
+
+# Comparison exercise
+
+`r qbegin("B7")`
+Using the same data, conduct a PCA using the `principal()` function.  
+  
+What differences do you notice compared to your EFA?  
+  
+Do you think a PCA or an EFA is more appropriate in this particular case?
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+We can use:
+```{r}
+principal(df, nfactors=2)
+```
+We can see that while the loadings differ somewhat between the EFA and the PCA, the overall pattern is quite similar. This is not always the case, especially when the item communalities are low.  
+  
+In terms of which method is more appropriate, arguably EFA would be more appropriate in this case because our researcher wishes to measure a theoretical construct (conduct problems), rather than simply reduce the dimensions of her data.
+`r solend()`
+
+
+<!-- Formatting -->
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+
