@@ -1,0 +1,702 @@
+---
+title: "<b>WEEK 2<br>Path Mediation</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "dapR3 Team"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      navigation:
+        scroll: false
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+editor_options:devtools::install_github("gadenbuie/xaringanExtra"):
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_tile_view()
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+xaringanExtra::use_share_again()
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+knitr::opts_chunk$set(
+  dev = "png",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE
+)
+themedapr3 = function(){
+  theme_minimal() + 
+    theme(text = element_text(size=20))
+}
+source("jk_source/jk_presfuncs.R")
+```
+
+```{r xaringan-themer, include = FALSE}
+library(xaringanthemer)
+style_mono_accent(
+  # base_color = "#0F4C81", # DAPR1
+  # base_color = "#BF1932", # DAPR2
+  base_color = "#88B04B", # DAPR3 
+  # base_color = "#FCBB06", # USMR
+  # base_color = "#a41ae4", # MSMR
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="80%","overflow-y"="scroll"))
+)
+```
+
+# Learning Objectives
+1. Understand the purpose of mediation models and the conceptual challenges
+2. Be able to describe direct, indirect and total effects in a mediation model.
+3. Estimate and interpret a mediation model using `lavaan`
+
+---
+class: inverse, center, middle
+
+<h2>Part 1: Introduction to mediation</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Direct, indirect and total effects</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Estimating mediation in `lavaan`</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Reporting</h2>
+
+---
+# Mediation
+
+- Is when a predictor X, has an effect on an outcome Y, via a mediating variable M
+
+- The mediator **transmits** the effect of X  to Y 
+
+- Examples of mediation hypotheses:
+    - Conscientiousness (X) affects health (Y) via health behaviours (M)
+    - Conduct problems (X) increase the risk of depression (Y) via peer problems (M)
+    - Attitudes to smoking (X) predict intentions to smoke (M) which in turn predicts smoking behaviour (Y) 
+    - An intervention (X) to reduce youth crime (Y) works by increasing youth self-contol (M)
+    
+---
+# Visualising a mediation model
+
+.pull-left[
+- In a SEM diagram we can represent mediation as:
+]
+
+.pull-right[
+```{r, echo=FALSE}
+knitr::include_graphics("Mediation diagram basic.png")
+```
+]
+
+---
+# Mediation...not to be confused with moderation
+- Mediation is commonly confused with **moderation** 
+
+- Moderation is when a moderator z modifies the effect of X on Y
+  - e.g., the effect of X on Y is stronger at higher levels of Z
+  - Also known as an **interaction** between X and Z
+
+- Examples of moderation could be:
+    - An intervention (X) works better to reduce bullying (Y) at older ages (Z) of school pupil
+    - The relation between stress (X) and depression (Y) is lower for those scoring higher on spirituality (Z) 
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to mediation</h2>
+<h2>Part 2: Direct, indirect and total effects</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Estimating mediation in `lavaan`</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Reporting</h2>  
+
+---
+# Direct and indirect effects in mediation
+- We seldom hypothesise that a mediator completely explains the relation between X and Y
+
+- More commonly, we expect both **indirect effects** and **direct effects** of X on Y
+  - The indirect effects of X on Y are those transmitted via the mediator
+  - The direct effect of X on Y is the remaining effect of X on Y
+
+
+---
+# Visualing direct and indirect effects in mediation
+
+```{r, echo=FALSE}
+knitr::include_graphics("Mediation diagram basic indirect.png")
+```
+
+---
+# Testing mediation
+
+.pull-left[
+- Traditionally, mediation was tested using a series of separate linear models:
+  1. Y~X  
+  2. Y~X+M  
+  3. M~X
+
+- May see this referred to as th Baron and Kenny approach.
+
+]
+
+.pull-right[
+```{r, echo=FALSE}
+knitr::include_graphics("trad med.png")
+```
+
+]
+
+
+
+---
+# Traditional methods for mediation
+.pull-left[
+- The three regression models:
+  1. Y~X  
+  2. Y~X+M  
+  3. M~X
+    
+]
+
+.pull-right[
+- Model 1 estimates the overall effect of X on Y
+- Model 2 estimates the partial effects of X and M on Y
+- Model 3 estimates the effect of X on M
+
+- If the following conditions were met, mediation was assumed to hold:
+  - The effect of X on Y (eq.1) is significant
+  - The effect of X on M (eq.3) is significant
+  - The effect of X on Y becomes reduced when M is added into the model (eq.2)
+]
+
+
+---
+# Limitations of traditional methods for mediation
+- Low power
+
+- Very cumbersome for multiple mediators, predictors, or outcomes
+
+- You don't get an estimate of the magnitude of the indirect effect
+
+- Much better way: **path mediation model**
+
+---
+# BREAK QUIZ
+- Quiz question:
+    - Which of these hypotheses is a mediation hypothesis?
+      - 1) Vocabulary development in childhood follows a non-linear trajecrtory
+      - 2) The effects of conscientiousness on academic achievement are stronger at low levels of cognitive ability
+      - 3) Poverty affects child behaviour problems through increasing parental stress
+      - 4) Earlier pubertal onset increases the risk of antisocial behaviour only in girls and not boys
+      
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to mediation</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Direct, indirect and total effects</h2>
+<h2>Part 3: Estimating mediation in `lavaan`</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Reporting</h2>
+
+---
+# WELCOME BACK
+
+- Welcome back!
+- The answer to the quiz question is...
+   - Which of these hypotheses is a mediation hypothesis?
+      - 1) Vocabulary development in childhood follows a non-linear trajecrtory
+      - 2) The effects of conscientiousness on academic achievement are stronger at low levels of cognitive ability
+      - 3) **Poverty affects child behaviour problems through increasing parental stress**
+      - 4) Earlier pubertal onset increases the risk of antisocial behaviour only in girls and not boys
+
+
+---
+# Testing a path mediation model in lavaan
+
+- Specification
+  - Create a lavaan syntax object
+
+- Estimation
+  - Estimate the model using e.g., maximum likelihood estimation
+
+- Evaluation/interpretation
+  - Inspect the model to judge how good it is
+  - Interpret the parameter estimates
+
+
+---
+# Example
+.pull-left[
+- Does peer rejection mediate the association between aggression and depression?
+
+```{r peer rejection example simulate data, include=F}
+library(lavaan)
+agg.PR.dep<-'Dep~0.3*PR
+             Dep~0.2*Agg
+             PR~0.5*Agg'
+
+agg.data2<-simulateData(model=agg.PR.dep, standardized = T, model.type='sem')
+write.csv(agg.data2, "~/agg-data.csv")
+```
+]
+
+.pull-right[
+
+```{r, echo=FALSE}
+knitr::include_graphics("Mediation diagram example.png")
+```
+
+]
+
+
+---
+# The data
+```{r example 1 descriptives}
+slice(agg.data2, 1:10)
+  
+```
+
+
+---
+# Mediation Example
+
+- Does peer rejection mediate the association between aggression and depression?
+
+```{r}
+model1<-'Dep ~ PR      # Depression predicted by peer rejection
+         Dep ~ Agg     # Depression predicted by aggression (the direct effect)
+         PR ~ Agg      # Peer rejection predicted by aggression
+'     
+```
+
+- Estimate the model 
+
+```{r}
+model1.est<-sem(model1, data=agg.data2)
+```
+
+---
+# The model output
+
+.scroll-output[
+```{r}
+summary(model1.est, fit.measures=T)
+```
+]
+
+---
+# Things to note from the model output
+
+- All three regressions paths are statistically significant
+
+- The model is **just-identified**
+  - The degrees of freedom are equal to 0
+  - The model fit cannot be tested
+  - The model fit statistics (TLI, CFI, RMSEA, SRMR) all suggest perfect fit but this is meaningless
+
+---
+# Visualising the model using `semPaths()`
+
+- We can use semPaths() from the semPlot package to help us visualise the model
+    - Shows the parameter estimates within an SEM diagram
+
+```{r, eval=FALSE}
+library(semPlot)
+semPaths(model1.est, what='est')
+```
+
+---
+# Visualising the model using `semPaths()`
+
+```{r, echo=FALSE}
+library(semPlot)
+semPaths(model1.est, what='est')
+```
+
+
+---
+# Calculating the indirect effects 
+
+.pull-left[
+- To calculate the indirect effect of X on Y in path mediation, we need to create some new parameters
+
+- The indirect effect of X on Y via M is:
+  - $a*b$
+  - $a$ = the regression coefficient for M~X
+  - $b$ = the regression coefficient for Y~M
+]
+
+.pull-right[
+```{r, echo=FALSE}
+knitr::include_graphics("Mediation diagram example a b.png")
+```
+
+]
+
+---
+# Calculating indirect effects in lavaan
+
+.pull-left[
+- To calculate the indirect effect of X on Y in lavaan we:
+
+- Use parameter labels 'a' and 'b' to label the relevant paths
+  - a is for the effect of X on M
+  - b is for the effect of M on Y
+
+- Use the ':=' operator to create a new parameter 'ind'
+  - 'ind' represents our indirect effect
+]
+
+.pull-right[
+```{r indirect effects}
+model1<-'Dep~b*PR        
+         Dep~Agg     
+         PR~a*Agg
+         ind:=a*b
+         '
+```
+]
+
+---
+# Indirect effects in the output
+
+.scroll-output[
+```{r indirect effects output}
+
+model1.est<-sem(model1, data=agg.data2)
+summary(model1.est)
+```
+
+]
+
+---
+# Statistical significance of the indirect effects
+- Default method of assessing the statistical significance of indirect effects assume normal sampling distribution
+
+- May not hold for indirect effects which are the product of regression coefficients
+
+- Instead we can use **bootstrapping**
+  - Allows 95% confidence intervals (CIs) to be computed
+  - If 95% CI includes 0, the indirect effect is not significant at alpha=.05
+    
+---
+# Bootstapped CIs for indirect effect in lavaan
+
+```{r indirect effects with bootstrapped CIs}
+  model1<-'Dep~b*PR          
+           Dep~Agg     
+           PR~a*Agg      
+ind:=a*b'    
+
+model1.est<-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se='bootstrap'
+
+
+```
+
+---
+# Output for bootstrapped CIs 
+
+.scroll-output[
+```{r indirect effect with bootstrapped CIs output}
+summary(model1.est, ci=T) # we add the argument ci=T to see the confidence intervals in the output
+```
+]
+
+---
+# Total effects in path mediation
+
+- As well as the direct and indirect effect, it is often of interest to know the **total** effect of X on Y
+
+$$Total = Indirect + Direct$$
+
+---
+# Total effects in path mediation
+
+$$Total = a*b + c$$
+
+```{r, echo=FALSE}
+knitr::include_graphics("Mediation diagram example a b c.png")
+```
+
+---
+# Total effect in lavaan
+
+```{r total effects}
+  model1<-'Dep~b*PR          
+           Dep~c*Agg         # we add the label c for our direct effect    
+           PR~a*Agg      
+ind:=a*b
+total:=a*b+c                 # we add a new parameter for the total effect'    
+
+model1.est<-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se='bootstrap'
+
+```
+
+---
+# Total effect in lavaan output
+
+.scroll-output[
+```{r total effect output}
+
+summary(model1.est, ci=T)
+
+```
+]
+
+---
+# Why code the total effect in lavaan?
+
+- We could have just added up the coefficients for the direct and indirect effects
+
+- By coding it in lavaan, however, we can assess the statistical significance of the total effect
+
+- Useful because sometimes the direct and indirect effects are not individually significant but the total effect is
+  - May be especially relevant in cases where there are many mediators of small effect
+
+---
+# Interpreting the total, direct, and indirect effect coefficients
+- The total effect can be interpreted as the **unit increase in Y expected to occur when X increases by one unit**
+
+- The indirect effect can be interpreted as the **unit increase in Y expected to occur via M when X increases by one unit**
+
+- The direct effect can be interpreted as the **unit increase in Y expected to occur with a unit increase in X over and above the increase transmitted by M**
+
+- **Note**: 'direct' effect may not actually be direct - it may be acting via other mediators not included in our model
+
+---
+# Standardised parameters
+- As with CFA models, standardised parameters can be obtained using:
+
+```{r, eval=FALSE}
+
+summary(model1.est, ci=T, std=T)
+```
+
+---
+# Standardised parameters
+.scroll-output[
+```{r stand param, echo=FALSE}
+
+summary(model1.est, ci=T, std=T)
+```
+]
+
+---
+# BREAK QUIZ
+
+- Time for a pause
+- Quiz question
+    - If the effect of X on M is b=.30 and the effect of M on Y is b=.10, what is the indirect effect of X on Y?
+      - 1) b=.40
+      - 2) b=.03
+      - 3) b=.30
+      - 4) b=.10
+      
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to mediation</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Direct, indirect and total effects</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Estimating mediation in `lavaan`</h2>
+<h2>Part 4: Reporting</h2>
+
+
+
+---
+# Welcome back
+- The answer to the quiz question is...
+- Quiz question
+    - If the effect of X on M is b=.30 and the effect of M on Y is b=.10, what is the indirect effect of X on Y?
+      - 1) b=.40
+      - 2) **b=.03**
+      - 3) b=.30
+      - 4) b=.10
+
+---
+# Reporting path mediation models 
+
+- Methods/ Analysis Strategy
+  - The model being tested
+  - e.g. 'Y was regressed on both X and M and M was regressed on X'
+  - The estimator used (e.g., maximum likelihood estimation)
+  - The method used to test the significance of indirect effects ('bootstrapped 95% confidence intervals')
+
+- Results
+  - Model fit (for over-identified models)
+  - The parameter estimates for the path mediation  and their statistical significance
+  - Can be useful to present these in a SEM diagram
+  - The diagrams from R not considered 'publication quality' draw in powerpoint or similar
+
+---
+# Reporting path mediation models - example of SEM diagram with results
+
+.pull-left[
+- Include the key parameter estimates
+
+- Indicate statistically significant paths (e.g. with an '*')
+
+- Include a figure note that explains how statistically significant paths (and at what level) are signified 
+
+]
+
+.pull-right[
+
+```{r, echo=FALSE}
+knitr::include_graphics("med reporting.png")
+```
+
+]
+
+---
+# Reporting path mediation models - the indirect effects
+
+- Results
+ - The coefficient for the indirect effect and the bootstrapped 95% confidence intervals
+ - Common to also report **proportion mediation**:
+  
+$$\frac{indirect}{total}$$ 
+  
+- However, important to be aware of limitations:
+  - Big proportion mediation possible when total effect is small - makes effect seem more impressive
+  - Small proportion mediation even when total effect is big - can underplay importance of effect
+  - Should be interpreted in context of total effect
+
+- Tricky interpretation if there are a mix of negative and positive effects involved
+
+
+---
+# Extensions of path mediation models
+- We can extend our path mediation model in various ways:
+  - Several mediators in sequence or parallel
+  - Multiple outcomes
+  - Multiple predictors
+  - Multiple groups (e.g., comparing direct and indirect effects across males and females)
+  - Add covariates to adjust for potential confounders
+
+
+---
+# Example: Multiple mediation model
+.pull-left[
+```{r mult med}
+model2<-'Dep~b2*Aca  
+         Aca~a2*Agg
+         Dep~b1*PR
+         PR~a1*Agg
+         Dep~c*Agg  
+
+        ind1:=a1*b1
+        ind2:=a2*b2
+        
+        total=a1*b1+a2*b2+c
+'
+```
+]
+
+.pull-right[
+
+```{r, echo=FALSE}
+knitr::include_graphics("Mediation diagram example multiple mediation.png")
+```
+
+]
+
+---
+## Other path analysis models
+- Path mediation models are a common application of path models
+  - But they are just one example
+
+- Anything that can be expressed in terms of regressions between observed variables can be tested as a path model
+  - Can include ordinal or binary variables
+  - Can include moderation
+
+- Other common path analysis models include:
+    - Autoregressive models for longitudinal data
+    - Cross-lagged panel models for longitudinal data
+
+---
+# Making model modifications
+- You **may** want to make some modifications to your initially hypothesised model 
+  - non-significant paths that you want to trim
+  - include some additional paths not initially included
+
+- Remember that this now moves us into exploratory territory where:
+  - Model modifications should be substantively as well as statistically justifiable
+  - You must be aware of the possibility that you are capitalising on chance
+  - You should aim to replicate the modifications in independent data
+
+---
+# Cautions regarding path analysis models
+- **Assumption** that the paths represent causal effects is only an assumption
+  - Especially if using cross-sectional data
+  - Mediation models should ideally be estimated on longitudinal data.
+    - X time 1
+    - M time 2
+    - Y time 3
+
+- The parameters are only accurate if the model is correctly specified
+
+---
+# Cautions: Indistinguishable models
+
+```{r, echo=FALSE}
+knitr::include_graphics("med versus confounding.png")
+```
+
+---
+# Measurement error in path analysis
+- Path analysis models use observed variables
+  - Assumes no measurement error in these variables
+
+- Path coefficients likely to be attenuated due to unmodelled measurement error
+
+- Structural equation models solve this issue
+  - They are path analysis models where the paths are between latent rather than observed variables
+  - ...very brief comment on this in the final week
+
+---
+# Path analysis summary
+- Path analysis can be used to fit sets of regression models
+  - Common path analysis model is the path mediation model
+  - But very flexible huge range of models that can be tested
+
+- In R, path analysis can be done using the `sem()` function in `lavaan`
+
+- Need to be aware that we aren't *testing* causality but assuming it
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
+
+# End
+

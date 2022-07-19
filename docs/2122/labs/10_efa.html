@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>Exploratory Factor Analysis (EFA): Part 1</title>
+
+<script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/united.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+<script>
+function toggle_visibility(id1, id2) {
+var e = document.getElementById(id1);
+var f = document.getElementById(id2);
+e.style.display = ((e.style.display!='none') ? 'none' : 'block');
+if(f.classList.contains('fa-chevron-circle-right')) {
+    f.classList.add('fa-chevron-circle-down')
+    f.classList.remove('fa-chevron-circle-right')
+} else {
+    f.classList.add('fa-chevron-circle-right')
+    f.classList.remove('fa-chevron-circle-down')
+}
+}
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  background-color: #f8f8f8; }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ef2929; } /* Alert */
+code span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #c4a000; } /* Attribute */
+code span.bn { color: #0000cf; } /* BaseN */
+code span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4e9a06; } /* Char */
+code span.cn { color: #000000; } /* Constant */
+code span.co { color: #8f5902; font-style: italic; } /* Comment */
+code span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
+code span.dt { color: #204a87; } /* DataType */
+code span.dv { color: #0000cf; } /* DecVal */
+code span.er { color: #a40000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #0000cf; } /* Float */
+code span.fu { color: #000000; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #204a87; font-weight: bold; } /* Keyword */
+code span.op { color: #ce5c00; font-weight: bold; } /* Operator */
+code span.ot { color: #8f5902; } /* Other */
+code span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
+code span.sc { color: #000000; } /* SpecialChar */
+code span.ss { color: #4e9a06; } /* SpecialString */
+code span.st { color: #4e9a06; } /* String */
+code span.va { color: #000000; } /* Variable */
+code span.vs { color: #4e9a06; } /* VerbatimString */
+code span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<link rel="stylesheet" href="assets/style-labs.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"><strong>DAPR3</strong></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">
+    <span class="fas fa-home"></span>
+     
+  </a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Multi Level Models
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="01_regressionrefresh.html">1: Linear Regression | Clustered Data</a>
+    </li>
+    <li>
+      <a href="02_intromlm.html">2: LM to MLM</a>
+    </li>
+    <li>
+      <a href="03_assumptranef.html">3: Assumptions, Diagnostics</a>
+    </li>
+    <li>
+      <a href="04_centerglmer.html">4: Centering | Logistic</a>
+    </li>
+    <li>
+      <a href="05_examples.html">5: Recap</a>
+    </li>
+  </ul>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Dimension reduction &amp; SEM
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="07_path1.html">7: Path Analysis</a>
+    </li>
+    <li>
+      <a href="08_path2.html">8: Path Mediation</a>
+    </li>
+    <li>
+      <a href="09_pca.html">9: Dimension Reduction</a>
+    </li>
+    <li>
+      <a href="10_efa.html">10: EFA: Part 1</a>
+    </li>
+    <li>
+      <a href="11_efa2.html">11: EFA: Part 2</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Extra
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="../resources.html">Useful Resources</a>
+    </li>
+    <li>
+      <a href="../examples/example2_01_EFA.html">Example: Exploratory Factor Analysis</a>
+    </li>
+    <li>
+      <a href="../examples/example_01_repeated_measures.html">Example: Repeated Measures MLM</a>
+    </li>
+    <li>
+      <a href="../examples/example_02_intervention.html">Example: Intervention Study</a>
+    </li>
+    <li>
+      <a href="../examples/example_03_many_trials.html">Example: Many Trials</a>
+    </li>
+    <li>
+      <a href="../examples/example_00_anova.html">Example: ANOVA (rpt measures &amp; mixed)</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">Exploratory Factor Analysis (EFA): Part 1</h1>
+
+</div>
+
+
+<div class="green">
+<p><strong>Information about solutions</strong></p>
+<p>Solutions for these exercises are available immediately below each question.<br />
+We would like to emphasise that much evidence suggests that testing enhances learning, and we <strong>strongly</strong> encourage you to make a concerted attempt at answering each question <em>before</em> looking at the solutions. Immediately looking at the solutions and then copying the code into your work will lead to poorer learning.<br />
+We would also like to note that there are always many different ways to achieve the same thing in R, and the solutions provided are simply <em>one</em> approach.</p>
+</div>
+<div class="lo">
+<p><strong>Relevant packages</strong></p>
+<ul>
+<li>psych</li>
+</ul>
+</div>
+<div class="statbox">
+<p>Where <strong>PCA</strong> aims to summarise a set of measured variables into a set of orthogonal (uncorrelated) components as linear combinations (a weighted average) of the measured variables, <strong>Factor Analysis (FA)</strong> assumes that the relationships between a set of measured variables can be explained by a number of underlying <em>latent factors</em>.</p>
+<p>Note how the directions of the arrows in Figure <a href="#fig:pcafa">1</a> are different between PCA and FA - in PCA, each component <span class="math inline">\(C_i\)</span> is the weighted combination of the observed variables <span class="math inline">\(y_1, ...,y_n\)</span>, whereas in FA, each measured variable <span class="math inline">\(y_i\)</span> is seen as <em>generated by</em> some latent factor(s) <span class="math inline">\(F_i\)</span> plus some unexplained variance <span class="math inline">\(u_i\)</span>.</p>
+<p>It might help to read the <span class="math inline">\(\lambda\)</span>s as beta-weights (<span class="math inline">\(b\)</span>, or <span class="math inline">\(\beta\)</span>), because that’s all they really are.
+The equation <span class="math inline">\(y_i = \lambda_{1i} F_1 + \lambda_{2i} F_2 + u_i\)</span> is just our way of saying that the variable <span class="math inline">\(y_i\)</span> is the manifestation of some amount (<span class="math inline">\(\lambda_{1i}\)</span>) of an underlying factor <span class="math inline">\(F_1\)</span>, some amount (<span class="math inline">\(\lambda_{2i}\)</span>) of some other underlying factor <span class="math inline">\(F_2\)</span>, and some error (<span class="math inline">\(u_i\)</span>).</p>
+<div class="figure" style="text-align: center"><span id="fig:pcafa"></span>
+<img src="images/pcaefa/pca_efa.png" alt="Path diagrams for PCA and FA" width="1000px" />
+<p class="caption">
+Figure 1: Path diagrams for PCA and FA
+</p>
+</div>
+<p>In <strong><em>Exploratory</em> Factor Analysis (EFA)</strong>, we are starting with no hypothesis about either the number of latent factors or about the specific relationships between latent factors and measured variables (known as the <em>factor structure</em>). Typically, all variables will load on all factors, and a transformation method such as a rotation (we’ll cover this in more detail below) is used to help make the results more easily interpretable.<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a></p>
+</div>
+<div class="frame">
+<p><strong>Data: Conduct Problems</strong></p>
+<p>A researcher is developing a new brief measure of Conduct Problems. She has collected data from n=450 adolescents on 10 items, which cover the following behaviours:</p>
+<ol style="list-style-type: decimal">
+<li>Stealing</li>
+<li>Lying</li>
+<li>Skipping school</li>
+<li>Vandalism</li>
+<li>Breaking curfew</li>
+<li>Threatening others</li>
+<li>Bullying</li>
+<li>Spreading malicious rumours</li>
+<li>Using a weapon</li>
+<li>Fighting</li>
+</ol>
+<p>Your task is to use the dimension reduction techniques you learned about in the lecture to help inform how to organise the items she has developed into subscales.</p>
+<p>The data can be found at <a href="https://uoepsy.github.io/data/conduct_probs.csv" class="uri">https://uoepsy.github.io/data/conduct_probs.csv</a></p>
+</div>
+<div id="preliminaries" class="section level1">
+<h1>Preliminaries</h1>
+<div class="question-begin">
+Question A1
+</div>
+<div class="question-body">
+<p>Read in the dataset from <a href="https://uoepsy.github.io/data/conduct_probs.csv">https://uoepsy.github.io/data/conduct_probs.csv</a>.<br />
+The first column is clearly an ID column, and it is easiest just to discard this when we are doing factor analysis.</p>
+<p>Create a correlation matrix for <em>the items</em>.<br />
+Inspect the items to check their suitability for exploratory factor analysis.</p>
+<ul>
+<li>You can use a function such as <code>cor</code> or <code>corr.test(data)</code> (from the <strong>psych</strong> package) to create the correlation matrix.<br />
+</li>
+<li>The function <code>cortest.bartlett(cor(data), n = nrow(data))</code> conducts Bartlett’s test that the correlation matrix is proportional to the identity matrix (a matrix of all 0s except for 1s on the diagonal).<br />
+</li>
+<li>You can check linearity of relations using <code>pairs.panels(data)</code> (also from <strong>psych</strong>), and you can view the histograms on the diagonals, allowing you to check univariate normality (which is usually a good enough proxy for multivariate normality).</li>
+<li>You can check the “factorability” of the correlation matrix using <code>KMO(data)</code> (also from <strong>psych</strong>!).
+<ul>
+<li>Rules of thumb:
+<ul>
+<li><span class="math inline">\(0.8 &lt; MSA &lt; 1\)</span>: the sampling is adequate</li>
+<li><span class="math inline">\(MSA &lt;0.6\)</span>: sampling is not adequate</li>
+<li><span class="math inline">\(MSA \sim 0\)</span>: large partial correlations compared to the sum of correlations. Not good for FA</li>
+</ul></li>
+</ul></li>
+</ul>
+<div class="optional-begin">
+<span id="opt-start-134" class="fa fa-chevron-circle-right optional-icon clickable" onclick="toggle_visibility(&#39;opt-body-134&#39;, &#39;opt-start-134&#39;)"> Optional Kaiser’s suggested cuts</span>
+</div>
+<div id="opt-body-134" class="optional-body" style="display: none;">
+<ul>
+<li>0.00 to 0.49 unacceptable<br />
+</li>
+<li>0.50 to 0.59 miserable<br />
+</li>
+<li>0.60 to 0.69 mediocre<br />
+</li>
+<li>0.70 to 0.79 middling<br />
+</li>
+<li>0.80 to 0.89 meritorious<br />
+</li>
+<li>0.90 to 1.00 marvelous</li>
+</ul>
+</div>
+<p class="optional-end">
+</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-135" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-135&#39;, &#39;sol-start-135&#39;)"> Solution </span>
+</div>
+<div id="sol-body-135" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(psych)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> <span class="fu">read.csv</span>(<span class="st">&quot;https://uoepsy.github.io/data/conduct_probs.csv&quot;</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># discard the first column</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>df <span class="ot">&lt;-</span> df[,<span class="sc">-</span><span class="dv">1</span>]</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">corr.test</span>(df)  </span></code></pre></div>
+<pre><code>## Call:corr.test(x = df)
+## Correlation matrix 
+##        item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+## item1   1.00  0.59  0.49  0.48  0.60  0.17  0.30  0.32  0.26   0.20
+## item2   0.59  1.00  0.53  0.51  0.66  0.20  0.33  0.30  0.29   0.19
+## item3   0.49  0.53  1.00  0.49  0.55  0.15  0.25  0.24  0.25   0.15
+## item4   0.48  0.51  0.49  1.00  0.65  0.23  0.29  0.32  0.28   0.25
+## item5   0.60  0.66  0.55  0.65  1.00  0.21  0.30  0.29  0.27   0.21
+## item6   0.17  0.20  0.15  0.23  0.21  1.00  0.54  0.57  0.41   0.44
+## item7   0.30  0.33  0.25  0.29  0.30  0.54  1.00  0.83  0.61   0.58
+## item8   0.32  0.30  0.24  0.32  0.29  0.57  0.83  1.00  0.61   0.59
+## item9   0.26  0.29  0.25  0.28  0.27  0.41  0.61  0.61  1.00   0.44
+## item10  0.20  0.19  0.15  0.25  0.21  0.44  0.58  0.59  0.44   1.00
+## Sample Size 
+## [1] 450
+## Probability values (Entries above the diagonal are adjusted for multiple tests.) 
+##        item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+## item1      0     0     0     0     0     0     0     0     0      0
+## item2      0     0     0     0     0     0     0     0     0      0
+## item3      0     0     0     0     0     0     0     0     0      0
+## item4      0     0     0     0     0     0     0     0     0      0
+## item5      0     0     0     0     0     0     0     0     0      0
+## item6      0     0     0     0     0     0     0     0     0      0
+## item7      0     0     0     0     0     0     0     0     0      0
+## item8      0     0     0     0     0     0     0     0     0      0
+## item9      0     0     0     0     0     0     0     0     0      0
+## item10     0     0     0     0     0     0     0     0     0      0
+## 
+##  To see confidence intervals of the correlations, print with the short=FALSE option</code></pre>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cortest.bartlett</span>(<span class="fu">cor</span>(df), <span class="at">n=</span><span class="dv">450</span>)</span></code></pre></div>
+<pre><code>## $chisq
+## [1] 2238
+## 
+## $p.value
+## [1] 0
+## 
+## $df
+## [1] 45</code></pre>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">KMO</span>(df)  </span></code></pre></div>
+<pre><code>## Kaiser-Meyer-Olkin factor adequacy
+## Call: KMO(r = df)
+## Overall MSA =  0.87
+## MSA for each item = 
+##  item1  item2  item3  item4  item5  item6  item7  item8  item9 item10 
+##   0.90   0.88   0.92   0.88   0.84   0.94   0.82   0.81   0.95   0.94</code></pre>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">pairs.panels</span>(df)</span></code></pre></div>
+<p><img src="10_efa_files/figure-html/unnamed-chunk-1-1.png" width="80%" style="display: block; margin: auto;" />
+or alternatively, if you want a ggplot based approach:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(GGally)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggpairs</span>(<span class="at">data=</span>df, <span class="at">diag=</span><span class="fu">list</span>(<span class="at">continuous=</span><span class="st">&quot;density&quot;</span>), <span class="at">axisLabels=</span><span class="st">&quot;show&quot;</span>)</span></code></pre></div>
+<p><img src="10_efa_files/figure-html/unnamed-chunk-2-1.png" width="80%" style="display: block; margin: auto;" /></p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="how-many-factors" class="section level1">
+<h1>How many factors?</h1>
+<div class="question-begin">
+Question A2
+</div>
+<div class="question-body">
+<p>How many dimensions should be retained? This question can be answered in the same way as we did above for PCA.</p>
+<p>Use a scree plot, parallel analysis, and MAP test to guide you.<br />
+You can use <code>fa.parallel(data, fm = "fa")</code> to conduct both parallel analysis and view the scree plot!</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-136" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-136&#39;, &#39;sol-start-136&#39;)"> Solution </span>
+</div>
+<div id="sol-body-136" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fa.parallel</span>(df, <span class="at">fa =</span> <span class="st">&quot;fa&quot;</span>)</span></code></pre></div>
+<p><img src="10_efa_files/figure-html/unnamed-chunk-3-1.png" width="80%" style="display: block; margin: auto;" /></p>
+<pre><code>## Parallel analysis suggests that the number of factors =  2  and the number of components =  NA</code></pre>
+<p>In this case the scree plot has a kink at the third factor, so we probably want to retain 2 factors.</p>
+<p>We can conduct the MAP test using <code>VSS(data)</code>.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">VSS</span>(df, <span class="at">plot =</span> <span class="cn">FALSE</span>, <span class="at">n =</span> <span class="fu">ncol</span>(df))<span class="sc">$</span>map</span></code></pre></div>
+<pre><code>##  [1] 0.1058 0.0338 0.0576 0.1035 0.1494 0.2520 0.3974 0.4552 1.0000     NA</code></pre>
+<p>The MAP test suggests retaining 2 factors.</p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="perform-efa" class="section level1">
+<h1>Perform EFA</h1>
+<p>Now we need to perform the factor analysis. But there are two further things we need to consider, and they are:</p>
+<ol style="list-style-type: lower-alpha">
+<li>whether we want to apply a <strong>rotation</strong> to our factor loadings, in order to make them easier to interpret, and<br />
+</li>
+<li>how do we want to extract our factors (it turns out there are loads of different approaches!).</li>
+</ol>
+<div class="statbox">
+<p><strong>Rotations?</strong></p>
+Rotations are so called because they transform our loadings matrix in such a way that it can make it more easy to interpret. You can think of it as a transformation applied to our loadings in order to optimise interpretability, by maximising the loading of each item onto one factor, while minimising its loadings to others. We can do this by simple rotations, but maintaining our axes (the factors) as perpendicular (i.e., uncorrelated) as in Figure <a href="#fig:rot2">3</a>, or we can allow them to be transformed beyond a rotation to allow the factors to correlate (Figure <a href="#fig:rot3">4</a>).
+<div class="figure" style="text-align: center"><span id="fig:rot1"></span>
+<img src="images/pcaefa/rot1.png" alt="No rotation" width="80%" />
+<p class="caption">
+Figure 2: No rotation
+</p>
+</div>
+<div class="figure" style="text-align: center"><span id="fig:rot2"></span>
+<img src="images/pcaefa/rot2.png" alt="Orthogonal rotation" width="80%" />
+<p class="caption">
+Figure 3: Orthogonal rotation
+</p>
+</div>
+<div class="figure" style="text-align: center"><span id="fig:rot3"></span>
+<img src="images/pcaefa/rot3.png" alt="Oblique rotation" width="80%" />
+<p class="caption">
+Figure 4: Oblique rotation
+</p>
+</div>
+<p>In our path diagram of the model (Figure <a href="#fig:efarot">5</a>), all the factor loadings remain present, but some of them become negligible. We can also introduce the possible correlation between our factors, as indicated by the curved arrow between <span class="math inline">\(F_1\)</span> and <span class="math inline">\(F_2\)</span>.</p>
+<div class="figure" style="text-align: center"><span id="fig:efarot"></span>
+<img src="images/pcaefa/efa_rot.png" alt="Path diagrams for EFA with rotation" width="1000px" />
+<p class="caption">
+Figure 5: Path diagrams for EFA with rotation
+</p>
+</div>
+</div>
+<div class="frame">
+<p><strong>Factor Extraction</strong></p>
+<p>PCA (using eigendecomposition) is itself a method of extracting the different dimensions from our data. However, there are lots more available for factor analysis.</p>
+<p>You can find a lot of discussion about different methods both in the help documentation for the <code>fa()</code> function from the psych package:</p>
+<blockquote>
+<p>Factoring method fm=“minres” will do a minimum residual as will fm=“uls.” Both of these use a first derivative. fm=“ols” differs very slightly from “minres” in that it minimizes the entire residual matrix using an OLS procedure but uses the empirical first derivative. This will be slower. fm=“wls” will do a weighted least squares (WLS) solution, fm=“gls” does a generalized weighted least squares (GLS), fm=“pa” will do the principal factor solution, fm=“ml” will do a maximum likelihood factor analysis. fm=“minchi” will minimize the sample size weighted chi square when treating pairwise correlations with different number of subjects per pair. fm =“minrank” will do a minimum rank factor analysis. “old.min” will do minimal residual the way it was done prior to April, 2017 (see discussion below). fm=“alpha” will do alpha factor analysis as described in Kaiser and Coffey (1965)</p>
+</blockquote>
+<p>And there are lots of discussions both in papers and on <a href="https://stats.stackexchange.com/questions/50745/best-factor-extraction-methods-in-factor-analysis">forums</a>.</p>
+<p>As you can see, this is a complicated issue, but when you have a large sample size, a large number of variables, for which you have similar communalities, then the extraction methods tend to agree. For now, don’t fret too much about the factor extraction method.<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p>
+</div>
+<div class="question-begin">
+Question A3
+</div>
+<div class="question-body">
+<p>Use the function <code>fa()</code> from the <strong>psych</strong> package to conduct and EFA to extract 2 factors (this is what <em>we</em> suggest based on the various tests above, but <em>you</em> might feel differently - the ideal number of factors is subjective!). Use a suitable rotation and extraction method (<code>fm</code>).</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>conduct_efa <span class="ot">&lt;-</span> <span class="fu">fa</span>(data, <span class="at">nfactors =</span> ?, <span class="at">rotate =</span> ?, <span class="at">fm =</span> ?)</span></code></pre></div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-137" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-137&#39;, &#39;sol-start-137&#39;)"> Solution </span>
+</div>
+<div id="sol-body-137" class="solution-body" style="display: none;">
+<p>For example, you could choose an oblimin rotation to allow factors to correlate and use minres as the extraction method.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>conduct_efa <span class="ot">&lt;-</span> <span class="fu">fa</span>(df, <span class="at">nfactors=</span><span class="dv">2</span>, <span class="at">rotate=</span><span class="st">&#39;oblimin&#39;</span>, <span class="at">fm=</span><span class="st">&quot;minres&quot;</span>)</span></code></pre></div>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="inspect" class="section level1">
+<h1>Inspect</h1>
+<div class="question-begin">
+Question A4
+</div>
+<div class="question-body">
+<p>Inspect the loadings (<code>conduct_efa$loadings</code>) and give the factors you extracted labels based on the patterns of loadings.</p>
+<p>Look back to the description of the items, and suggest a name for your factors</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-138" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-138&#39;, &#39;sol-start-138&#39;)"> Solution </span>
+</div>
+<div id="sol-body-138" class="solution-body" style="display: none;">
+<p>You can inspect the loadings using:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(conduct_efa<span class="sc">$</span>loadings, <span class="at">sort=</span>T)</span></code></pre></div>
+<pre><code>## 
+## Loadings:
+##        MR1    MR2   
+## item6   0.634       
+## item7   0.890       
+## item8   0.924       
+## item9   0.629       
+## item10  0.669       
+## item1          0.706
+## item2          0.772
+## item3          0.681
+## item4          0.676
+## item5          0.872
+## 
+##                 MR1   MR2
+## SS loadings    2.90 2.784
+## Proportion Var 0.29 0.278
+## Cumulative Var 0.29 0.568</code></pre>
+<p>We can see that the first five items have high loadings for one factor and the second five items have high loadings for the other.</p>
+<p>The first five items all have in common that they are non-aggressive forms of conduct problems, while the last five items are all aggressive behaviours. We could, therefore, label our factors: ‘non-aggressive’ and ‘aggressive’ conduct problems.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question A5
+</div>
+<div class="question-body">
+<p>How correlated are your factors?</p>
+<p>We can inspect the factor correlations (if we used an oblique rotation) using:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>conduct_efa<span class="sc">$</span>Phi</span></code></pre></div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-139" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-139&#39;, &#39;sol-start-139&#39;)"> Solution </span>
+</div>
+<div id="sol-body-139" class="solution-body" style="display: none;">
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>conduct_efa<span class="sc">$</span>Phi</span></code></pre></div>
+<pre><code>##      MR1  MR2
+## MR1 1.00 0.43
+## MR2 0.43 1.00</code></pre>
+<p>We can see here that there is a moderate correlation between the two factors. An oblique rotation would be appropriate here.</p>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="write-up" class="section level1">
+<h1>Write-up</h1>
+<div class="question-begin">
+Question A6
+</div>
+<div class="question-body">
+<p>Drawing on your previous answers and conducting any additional analyses you believe would be necessary to identify an optimal factor structure for the 10 conduct problems, write a brief text that summarises your method and the results from your chosen optimal model.</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-140" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-140&#39;, &#39;sol-start-140&#39;)"> Solution </span>
+</div>
+<div id="sol-body-140" class="solution-body" style="display: none;">
+<p>The main principles governing the reporting of statistical results are transparency and reproducibility (i.e., someone should be able to reproduce your analysis based on your description).</p>
+<p>An example summary would be:</p>
+<div class="int">
+<p>First, the data were checked for their suitability for factor analysis. Normality was checked using visual inspection of histograms, linearity was checked through the inspection of the linear and lowess lines for the pairwise relations of the variables, and factorability was confirmed using a KMO test, which yielded an overall KMO of <span class="math inline">\(.87\)</span> with no variable KMOs <span class="math inline">\(&lt;.50\)</span>.
+An exploratory factor analysis was conducted to inform the structure of a new conduct problems test. Inspection of a scree plot alongside parallel analysis (using principal components analysis; PA-PCA) and the MAP test were used to guide the number of factors to retain. All three methods suggested retaining two factors; however, a one-factor and three-factor solution were inspected to confirm that the two-factor solution was optimal from a substantive and practical perspective, e.g., that it neither blurred important factor distinctions nor included a minor factor that would be better combined with the other in a one-factor solution. These factor analyses were conducted using minres extraction and (for the two- and three-factor solutions) an oblimin rotation, because it was expected that the factors would correlate. Inspection of the factor loadings and correlations reinforced that the two-factor solution was optimal: both factors were well-determined, including 5 loadings <span class="math inline">\(&gt;|0.3|\)</span> and the one-factor model blurred the distinction between different forms of conduct problems.
+The factor loadings are provided in Table <a href="#tab:loading-table">1</a><a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>. Based on the pattern of factor loadings, the two factors were labelled ‘aggressive conduct problems’ and ‘non-aggressive conduct problems.’ These factors had a correlation of <span class="math inline">\(r=.43\)</span>. Overall, they accounted for 57% of the variance in the items, suggesting that a two-factor solution effectively summarised the variation in the items.</p>
+<table>
+<caption>
+<span id="tab:loading-table">Table 1: </span>Factor loadings.
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+MR1
+</th>
+<th style="text-align:right;">
+MR2
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+item1
+</td>
+<td style="text-align:right;">
+</td>
+<td style="text-align:right;">
+0.71
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item2
+</td>
+<td style="text-align:right;">
+</td>
+<td style="text-align:right;">
+0.77
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item3
+</td>
+<td style="text-align:right;">
+</td>
+<td style="text-align:right;">
+0.68
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item4
+</td>
+<td style="text-align:right;">
+</td>
+<td style="text-align:right;">
+0.68
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item5
+</td>
+<td style="text-align:right;">
+</td>
+<td style="text-align:right;">
+0.87
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item6
+</td>
+<td style="text-align:right;">
+0.63
+</td>
+<td style="text-align:right;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item7
+</td>
+<td style="text-align:right;">
+0.89
+</td>
+<td style="text-align:right;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item8
+</td>
+<td style="text-align:right;">
+0.92
+</td>
+<td style="text-align:right;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item9
+</td>
+<td style="text-align:right;">
+0.63
+</td>
+<td style="text-align:right;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+item10
+</td>
+<td style="text-align:right;">
+0.67
+</td>
+<td style="text-align:right;">
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p class="solution-end">
+</p>
+</div>
+<div id="pca-efa-comparison-exercise" class="section level1">
+<h1>PCA &amp; EFA Comparison Exercise</h1>
+<div class="question-begin">
+Question A7
+</div>
+<div class="question-body">
+<p>Using the same data, conduct a PCA using the <code>principal()</code> function.</p>
+<p>What differences do you notice compared to your EFA?</p>
+<p>Do you think a PCA or an EFA is more appropriate in this particular case?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-141" class="fa fa-chevron-circle-right solution-icon clickable" onclick="toggle_visibility(&#39;sol-body-141&#39;, &#39;sol-start-141&#39;)"> Solution </span>
+</div>
+<div id="sol-body-141" class="solution-body" style="display: none;">
+<p>We can use:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">principal</span>(df, <span class="at">nfactors=</span><span class="dv">2</span>)</span></code></pre></div>
+<pre><code>## Principal Components Analysis
+## Call: principal(r = df, nfactors = 2)
+## Standardized loadings (pattern matrix) based upon correlation matrix
+##         RC1  RC2   h2   u2 com
+## item1  0.17 0.77 0.62 0.38 1.1
+## item2  0.17 0.81 0.68 0.32 1.1
+## item3  0.11 0.75 0.58 0.42 1.0
+## item4  0.21 0.74 0.60 0.40 1.2
+## item5  0.16 0.85 0.75 0.25 1.1
+## item6  0.73 0.08 0.53 0.47 1.0
+## item7  0.87 0.20 0.80 0.20 1.1
+## item8  0.88 0.19 0.82 0.18 1.1
+## item9  0.72 0.21 0.56 0.44 1.2
+## item10 0.75 0.09 0.57 0.43 1.0
+## 
+##                        RC1  RC2
+## SS loadings           3.29 3.22
+## Proportion Var        0.33 0.32
+## Cumulative Var        0.33 0.65
+## Proportion Explained  0.51 0.49
+## Cumulative Proportion 0.51 1.00
+## 
+## Mean item complexity =  1.1
+## Test of the hypothesis that 2 components are sufficient.
+## 
+## The root mean square of the residuals (RMSR) is  0.06 
+##  with the empirical chi square  166  with prob &lt;  1.9e-22 
+## 
+## Fit based upon off diagonal values = 0.98</code></pre>
+<p>We can see that while the loadings differ somewhat between the EFA and the PCA, the overall pattern is quite similar. This is not always the case, especially when the item communalities are low.</p>
+<p>In terms of which method is more appropriate, arguably EFA would be more appropriate in this case because our researcher wishes to measure a theoretical construct (conduct problems), rather than simply reduce the dimensions of her data.</p>
+</div>
+<p class="solution-end">
+</p>
+<!-- Formatting -->
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;">
+
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>When we have some clear hypothesis about relationships between measured variables and latent factors, we might want to impose a specific factor structure on the data (e.g., items 1 to 10 all measure social anxiety, items 11 to 15 measure health anxiety, and so on). When we impose a specific factor structure, we are doing <strong>Confirmatory Factor Analysis (CFA)</strong>. This is not covered in this course, but it’s important to note that in practice EFA is not wholly “exploratory” (your theory <em>will</em> influence the decisions you make) nor is CFA wholly “confirmatory” (in which you will inevitably get tempted to explore how changing your factor structure might improve fit).<a href="#fnref1" class="footnote-back">↩︎</a></p></li>
+<li id="fn2"><p>(It’s a <em>bit</em> like the optimiser issue in the multi-level model block)<a href="#fnref2" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p>You should provide the table of factor loadings. It is conventional to omit factor loadings <span class="math inline">\(&lt;|0.3|\)</span>; however, be sure to ensure that you mention this in a table note.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+</ol>
+</div>
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

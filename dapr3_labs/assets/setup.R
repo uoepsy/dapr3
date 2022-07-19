@@ -5,6 +5,8 @@
 # Dropdowns
 source('assets/dropdowns.R')
 
+library(tidyverse)
+
 # Knitr settings
 knitr::opts_chunk$set(
     echo = TRUE,
