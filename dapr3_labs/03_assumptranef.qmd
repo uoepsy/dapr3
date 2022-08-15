@@ -23,9 +23,7 @@ library(kableExtra)
 
 :::
 
-# Exercises
-
-## Assumptions
+# Exercises: Assumptions & Diagnostics
 
 For these next set of exercises we will return to our study from Week 1, in which researchers want to study the relationship between time spent outdoors and mental wellbeing, across all of Scotland. Data is collected from 20 of the Local Authority Areas and is accessible at [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv).  
 ```{r echo=FALSE, message=FALSE,warning=FALSE}
@@ -49,6 +47,10 @@ rs_model <- lmer(wellbeing ~ 1 + outdoor_time + (1 + outdoor_time | laa), data =
 1. Plot the residuals vs fitted model, and assess the extend to which the assumption holds that the residuals are zero mean.
 2. Construct a scale-location plot. This is where the square-root of the absolute value of the standardised residuals is plotted against the fitted values, and allows you to more easily assess the assumption of constant variance. 
   - Optional: can you create the same plot using ggplot, starting with the `augment()` function from the __broom.mixed__ package?  
+  
+:::hints
+__Hint:__ `plot(model)` will give you this plot, but you might want to play with the `type = c(......)` argument to get the smoothing line
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -80,7 +82,16 @@ augment(rs_model) %>%
 
 
 `r qbegin("2")`
-Examine the normality of both the level 1 and level 2 residuals. 
+Examine the normality of both the level 1 and level 2 residuals.  
+
+:::hints
+__Hints:__  
+
+  - Use `hist()` if you like, or `qqmath()` from the __lattice__ package. 
+  - Extracting the level 2 residuals (the random effects) can be difficult. `ranef(model)` will get you some of the way.
+  
+:::
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
@@ -102,20 +113,20 @@ The normality of the residuals at both levels looks pretty decent here. This is 
 
 `r solend()`
 
-## Diagnostics
-
 `r qbegin("3")`
 1. Which person in the dataset has the greatest influence on our model?  
 2. For which person is the model fit the worst (i.e., who has the highest residual?)
 3. Which _LAA_ has the greatest influence on our model?  
 
-**Hint:** as well as `hlm_influence()` in the __HLMdiag__ package there is another nice function, `hlm_augment()`
+:::hints
+**Hints:** 
 
-:::imp
-We can often end up in confusion because the $i^{th}$ observation inputted to our model (and therefore the $i^{th}$ observation of `hlm_influence()` output) **might not be** the $i^{th}$ observation in our original dataset - there may be missing data! 
+- as well as `hlm_influence()` in the __HLMdiag__ package there is another nice function, `hlm_augment()`
+- we can often end up in confusion because the $i^{th}$ observation inputted to our model (and therefore the $i^{th}$ observation of `hlm_influence()` output) **might not be** the $i^{th}$ observation in our original dataset - there may be missing data! (Luckily, we have no missing data in this dataset). 
+
 :::
 
-(Luckily, we have no missing data in this dataset). 
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
@@ -151,8 +162,10 @@ hlm_augment(rs_model, level="laa") %>% arrange(desc(cooksd))
 
 
 `r qbegin("4")`
+
 1. Looking at the random effects, which LAA shows the least improvement in wellbeing as outdoor time increases, and which shows the greatest improvement?  
 2. What is the estimated wellbeing for people from City of Edinburgh with zero hours of outdoor time per week, and what is their associated increases in wellbeing for every hour per week increase in outdoor time?  
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 It looks like the residents of Glasgow City have the least improvement, and the Western Isles (Na h-Eileanan Siar) show the most increases of wellbeing with outdoor time. We can see this from the LAA-random slopes of outdoor time:  
@@ -171,23 +184,22 @@ coef(rs_model)$laa["City of Edinburgh",]
 
 # Random Effect Structures
 
-Random effect structures can get pretty complicated quite quickly.  
-Very often it is not the random effects part that is of specific interest to us, but we wish to estimate random effects in order to more accurately partition up the variance in our outcome variable and provide better estimates of fixed effects.  
+Random effect structures can get pretty complicated quite quickly. Very often it is not the random effects part that is of specific interest to us, but we wish to estimate random effects in order to more accurately partition up the variance in our outcome variable and provide better estimates of fixed effects.  
 
-It is a fine balance between fitting the most sophisticated model structure that we possibly can, and fitting a model that converges without too much simplification.  
-
-Typically for many research designs, the following steps will keep you mostly on track to finding the maximal model:  
+It is a fine balance between fitting the most sophisticated model structure that we possibly can, and fitting a model that converges without too much simplification. Typically for many research designs, the following steps will keep you mostly on track to finding the maximal model:  
 
 `lmer(outcome ~ fixed effects + (random effects | grouping structure))`  
 
 1. Specify the `outcome ~ fixed effects` bit first. 
     - The outcome variable should be clear: it is the variable we are wishing to explain/predict. 
     - The fixed effects are the things we want to use to explain/predict variation in the outcome variable. These will often be the things that are of specific inferential interest, and other covariates. Just like the simple linear model.  
+    
 2. If there is a grouping structure to your data, and those groups (preferably n>5) are perceived as a random sample of a wider population (the specific groups aren't interesting to you), then consider fitting them in the random effects part `(1 | grouping)`.  
+
 3. If any of the things in the fixed effects vary within the groups, it might be possible to also include them as random effects.  
     - as a general rule, don't specify random effects that are not also specified as fixed effects (an exception could be specifically for model comparison, to isolate the contribution of the fixed effect).  
-  
-For things that do not vary within the groups, it rarely makes sense to include them as random effects. For instance if we had a model with `lmer(score ~ genetic_status + (1 + genetic_status | participant))` then we would be trying to model a process where "the effect of genetic_status on score is different for each participant". But if you consider an individual participant, their genetic status never changes. For participant $i$, what is "the effect of genetic status on score"? It's undefined. This is because genetic status only varies _between_ participants.  
+    - For things that do not vary within the groups, it rarely makes sense to include them as random effects. For instance if we had a model with `lmer(score ~ genetic_status + (1 + genetic_status | participant))` then we would be trying to model a process where "the effect of genetic_status on scores is different for each participant". But if you consider an individual participant, their genetic status never changes. For participant $i$, what is "the effect of genetic status on score"? It's undefined. This is because genetic status only varies _between_ participants.  
+
 
 <!-- `r optbegin("An example", olabel=F)` -->
 <!-- Suppose we were also interested in the association between population density and wellbeing. Our data contains information on the population density for each LAA. Note that for all people in our data that are from the same LAA, they will have the same value in the `density` variable, because this is measured at the LAA level, not the person-level:   -->
@@ -281,7 +293,7 @@ knitr::include_graphics("images/tolerance.png")
 - Consider simplifying your model, for example by removing random effects with the smallest variance (but be careful to not simplify more than necessary, and ensure that your write up details these changes)
 
 
-# Exercises
+# Exercises: Random Effect Structures
 
 ## Crossed Ranefs
 
@@ -347,9 +359,14 @@ That looks like test-enhanced learning to me!
 Test the critical hypothesis using a multi-level model.  
 Try to fit the maximally complex random effect structure that is supported by the experimental design.  
 
-**Hint:** We can expect variability across subjects (some people are better at learning than others) __and__ across items (some of the recall items are harder than others). How should this be represented in the random effects?
+:::hints
+**Hints:** 
 
-_If a model takes ages to fit, you might want to cancel it by pressing the escape key. It is normal for complex models to take time, but for the purposes of this task, give up after a couple of minutes, and try simplifying your model._  
+- We can expect variability across subjects (some people are better at learning than others) __and__ across items (some of the recall items are harder than others). How should this be represented in the random effects?
+- _If a model takes ages to fit, you might want to cancel it by pressing the escape key. It is normal for complex models to take time, but for the purposes of this task, give up after a couple of minutes, and try simplifying your model._  
+
+:::
+
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 We know that we are interested in the `Rtime ~ Delay * Group` interaction, because we want to see how people perform at one week vs one minute (the `Delay` variable) and whether this is different between those in each condition (the `Group` variable, specifying whether participants are in the 'StudyStudy' condition or the 'StudyTest' condition).  
@@ -370,7 +387,10 @@ The model with maximal random effects will probably not converge, or will obtain
 
 Incrementally simplify your random effect structure until you obtain a model that converges and is not a singular fit.  
   
-*Tip:* you can look at the variance estimates and correlations easily by using the `VarCorr()` function. What jumps out?  
+:::hints
+**Hint:** you can look at the variance estimates and correlations easily by using the `VarCorr()` function. What jumps out?  
+:::
+
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 There's very high correlations with the by-item random effects of the interaction Delay:Group. We might expect that because it's an interaction term, but it is quite a complex bit of the model, so let's remove it:  
@@ -430,15 +450,54 @@ tibble(variable = names(bnt),
 :::
 
 `r qbegin("8")`
+Let's start by thinking about our clustering - we'd like to know how much of the variance in BNT60 scores is due to the clustering of data within children, who are themselves within schools. One easy way of assessing this is to fit an _intercept only_ model, which has the appropriate random effect structure.  
+
+Using the model below, calculate the proportion of variance attributable to the clustering of data within children within schools.  
+
+```{r}
+bnt_null <- lmer(BNT60 ~ 1 +  (1 | school_id/child_id), data = bnt)
+```
+:::hints
+__Hint:__ the random intercept variances are the building blocks here. There are no predictors in this model, so all the variance in the outcome gets attributed to either school-level nesting, child-level nesting, or else is lumped into the residual.   
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+As we can see from `summary(bnt_null)`, the random intercept variances are 36.52 for child-level, 28.76 for school-level, and the residual variance is 99.11.  
+
+So the nesting of data within children within schools accounts for $\frac{36.52 + 28.76}{36.52 + 28.76 + 99.11} = 0.397$ of the variance in the outcome BNT60.   
+
+We can calculate this directly using the model estimates if we want, but sometimes doing it by hand is more straightforward.  
+
+```{r}
+as.data.frame(VarCorr(bnt_null)) %>%
+  select(grp, vcov) %>% 
+  mutate(
+    prop_var = vcov / sum(vcov),
+    prop_var2 = cumsum(prop_var)
+  )
+```
+
+`r solend()`
+
+`r qbegin("9")`
 Fit a model examining the interaction between the effects of school year and mono/bilingual teaching on word retrieval, with random intercepts only for children and schools.  
-**tip:** make sure your variables are of the right type first - e.g. numeric, factor etc  
-<br>
+
+:::hints
+**Hint:** make sure your variables are of the right type first - e.g. numeric, factor etc  
+:::
+  
+  
 Examine the fit and consider your model assumptions, and assess what might be done to improve the model in order to make better statistical inferences. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 This is a quick way to make a set of variables factors:  
 ```{r}
 bnt <- bnt %>% mutate(across(c(mlhome, school_id, child_id), factor))
+```
+
+And now let's fit our model: 
+```{r}
 bntm0 <- lmer(BNT60 ~ schoolyear * mlhome + (1 | school_id/child_id), data = bnt)
 ```
 
@@ -508,21 +567,11 @@ dotplot_diag(infschool$cooksd, cutoff = "internal", index = infschool$school_id)
 ```
 `r solend()`
 
-`r qbegin("9")`
-Using a method of your choosing, conduct inferences from your model and write up the results. 
+`r qbegin("10")`
+Using a method of your choosing, conduct inferences from your final model and write up the results. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-Here we're just going to find the ICC from the null (intercept-only) model:  
-```{r}
-bnt_null <- lmer(BNT60 ~ 1 +  (1 | school_id/child_id), data = bnt)
-as.data.frame(VarCorr(bnt_null)) %>%
-    select(grp, vcov) %>%
-    mutate(
-        icc = cumsum(vcov)/sum(vcov)*100
-    )
-```
-
-We'll use case-based bootstrapping as a demonstration, but other methods would be appropriate here. We have a large sample of children (74), each with 5 observations. However, we only have 10 schools. A standard likelihood ratio test using `anova(model1, model2)` might not be preferable here. 
+We'll use case-based bootstrapping for a demonstration, but other methods would be appropriate here. We have a large sample of children (74), each with 5 observations. However, we only have 10 schools. A standard likelihood ratio test using `anova(model1, model2)` might not be preferable here. 
 
 This took quite a while to run: 
 ```{r eval=F}

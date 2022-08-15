@@ -4,6 +4,8 @@ link-citations: yes
 params: 
     SHOW_SOLS: TRUE
     TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -207,7 +209,7 @@ knitr::include_graphics("images/intro/mle2.png")
 
 `r optend()`
 
-# Exercises
+# Exercises: Intro MLM
 
 ## Cross-Sectional: Wellbeing Across Scotland
 
@@ -288,7 +290,9 @@ fixef(ri_model)
 ```
 Can you add to the plot in the previous question, a thick black line with the intercept and slope given by `fixef()`?  
 
+:::hints
 **Hint:** `geom_abline()`
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -445,9 +449,10 @@ And we can then compare them in terms of model fit. As discussed in the lecture,
 
 Our sample size here (180 participants, each with 4 observations) is reasonably large given the relative simplicity of our model. We might consider running a straightforward Likelihood Ratio Test using `anova(restricted_model, full_model)` to compare our two models. 
 
-**Hint: Remember, we shouldn't compare models with different random effect structures.**  
-
-*(For now, don't worry too much about "singular fits". We'll talk more about how we might deal with them next week!)*
+:::hints
+- **Remember, we shouldn't compare models with different random effect structures.**  
+- *(For now, don't worry too much about "singular fits". We'll talk more about how we might deal with them next week!)*
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -490,7 +495,8 @@ anova(m.base0, m.base)
 
 > Q: Did the employment condition groups differ in the how wellbeing changed over the assessment period?   
 
-*Hint:* It helps to break it down. There are two questions here:  
+:::hints
+**Hint:** It helps to break it down. There are two questions here:  
 
   1. do groups differ overall?  
   2. do groups differ over time?  
@@ -498,6 +504,7 @@ anova(m.base0, m.base)
 We can begin to see that we're asking two questions about the `Condition` variable here: "is there an effect of Condition?" and "Is there an interaction between TimePoint and Condition?".  
 
 Try fitting two more models which incrementally build these levels of complexity, and compare them (perhaps to one another, perhaps to models from the previous question - think about what each comparison is testing!)  
+:::
   
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -525,14 +532,16 @@ Conditions differed in change over assessment period $\chi^2(2)=23.71, p < .001$
 - Examine the parameter estimates and interpret them (i.e., what does each parameter represent?)
 - Make a graph of the model fit *and* the observed data.  
 
-*Hint:* We can get the fixed effects using `fixef(model)`, and we can also use `tidy(model)` from the **broom.mixed** package, and similar to `lm` models in DAPR2, we can pull out the bit of the `summary()` using `summary(model)$coefficients`.  
+:::hints
+**Hints:**  
 
-*Hint:* There are lots of ways you can visualise the model, try a couple: 
-  
-1. Using the **effects** package, does this help? `as.data.frame(effect("TimePoint:Condition", model))`  
-2. Using `fitted(model)`
-3. Using `augment()` from the **broom.mixed** package.  
-4. **sjPlot**, as we used in DAPR2
+- We can get the fixed effects using `fixef(model)`, and we can also use `tidy(model)` from the **broom.mixed** package, and similar to `lm` models in DAPR2, we can pull out the bit of the `summary()` using `summary(model)$coefficients`.   
+- There are lots of ways you can visualise the model, try a couple: 
+  1. Using the **effects** package, does this help: `as.data.frame(effect("TimePoint:Condition", model))`  
+  2. Using `fitted(model)`
+  3. Using `augment()` from the **broom.mixed** package.  
+  4. **sjPlot**, as we used in DAPR2
+:::
 
 
 `r qend()`
@@ -600,23 +609,16 @@ While the wellbeing example considers the groupings or 'clusters' of different L
 
 :::frame
 
-Recall the data from the previous week, from an experiment in which heart rate variability (HRV) was measured for amateur basketball players when tasked with scoring a goal with varying levels and type of potential loss/reward. 
+Recall the data from the previous week, from an experiment in which heart rate variability (HRV) was measured for amateur basketball players when tasked with scoring a goal with varying levels and type of potential loss/reward.  
 
-The data was split over two files. The code below will read in both datasets and join them for you:
+A separate group of researchers conducted a replication of this experiment with 15 participants. There were some issues with the HRV measurements resulting in some missing data, and one participant being excluded completely (meaning a slightly unbalanced design in that 8 participants were in one condition and only 7 in the other).  
 
-```{r}
-bball <- 
-  left_join(
-    read_csv("https://uoepsy.github.io/data/basketballconditions.csv"),
-    read_csv("https://uoepsy.github.io/data/bballhrv.csv") %>%
-      pivot_longer(trial_1:trial_20, names_to = "trial_no", values_to = "hrv")
-  ) %>%
-  mutate(sub = factor(sub))
-```
-The resulting dataset has the following variables:  
+You can find the data at: [https://uoepsy.github.io/data/bball_replication.csv](https://uoepsy.github.io/data/bball_replication.csv)
+It contains the following variables:  
 ```{r}
 #| echo: false
-tibble(variable=names(bball),
+bballrep <- read_csv("https://uoepsy.github.io/data/bball_replication.csv")
+tibble(variable=names(bballrep),
        description = c("Size of reward (points to be won/lost on a given trial). Ranges 1 to 20", 
                        "Experimental Condition: Whether the participant was playing for monetary reward ('money') or for a place on the scoreboard ('kudos')",
                        "Participant Identifier","Whether the participant successfully completed the trial","Trial Number (1 to 20)","Average Heart Rate Variability over the 10 seconds prior to throwing")
@@ -632,6 +634,8 @@ Recall that the research question was concerned with how the size and type of po
 
 Fit a multi-level model to examine the effects of size and type of reward on HRV, and their interaction. 
 
+:::hints
+
 Remember to think about:  
 
 - what is our outcome variable of interest?
@@ -646,12 +650,15 @@ Remember to think about:
 
 
 _If you get an error about model convergence, consider changing the optimiser (see [above](02_intromlm.html#Estimation))_
+
+:::
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
 mod <- lmer(hrv ~ stakes * condition + 
-              (1 + stakes | sub), data = bball,
+              (1 + stakes | sub), data = bballrep,
             control = lmerControl(optimizer="bobyqa"))
 summary(mod)
 ```
@@ -663,11 +670,9 @@ We now have a model, but we don't have any p-values, confidence intervals, or in
 
 In the longitudinal study of wellbeing over time, we did a series of model comparisons, performing tests of the incremental inclusion of additional parameters. In the Basketball/HRV example we went straight for the full model. This is in part because the two research aims of the longitudinal example can be matched two models (one for the "overall" trajectory, and one looking at differences between groups), whereas the Basketball/HRV research question simply requires the `stakes*condition` interaction.  
 
-There are some options here for you to choose from. 
+There are some options here for you to choose from: you can either perform tests against the null that certain parameter estimates are equal to zero (i.e. testing the fixed effects), or you can fit a reduced model and conduct model comparisons between that and the full model (thereby isolating and testing the improvement in the model due to a certain parameter).  
 
-You can either perform tests against the null that certain parameter estimates are equal to zero, or you can fit a reduced model and conduct model comparisons between that and the full model in order to isolate and test the improvement in the model due to a certain parameter.  
-
-There are different methods of implementing these in R, as detailed in the table below. Standard likelihood ratio tests require models to be fitted with ML, and can be less reliable when samples are small (at any level). Often, approximations of the degrees of freedom are preferable, in part because these allow models to be fitting with REML. The more computationally expensive bootstrapping approach is perhaps the most recommended approach as it can provide more accurate p-values for the likelihood ratio test, as well as confidence intervals for our estimates, but for larger models it can take a lot of time to compute. Additionally, when performing the bootstrap it is important to watch out for issues with convergence in the bootstrap iterations - it may indicate your model needs simplification.  
+There are different methods of implementing these in R, as detailed in the table below. Standard likelihood ratio tests require models to be fitted with ML, and can be less reliable when samples are small (at any level). Often, approximations of the degrees of freedom are preferable, in part because these allow models to be fitted with REML. The more computationally expensive bootstrapping approach is perhaps the most recommended approach as it can provide more accurate p-values for the likelihood ratio test, as well as confidence intervals for our estimates, but for larger models it can take a lot of time to compute. Additionally, when performing the bootstrap it is important to watch out for issues with convergence in the bootstrap iterations - it may indicate your model needs simplification.  
 
 Method |  Model Comparison |  Parameter Estimation|
 |------:|--------:|------------:|
@@ -678,40 +683,92 @@ Method |  Model Comparison |  Parameter Estimation|
 
 
 `r qbegin("10")`
-TODO
+This study is interested in whether the previously reported interaction between size (`stakes`) and type (`condition)` of reward on stress levels - measured by heart-rate variability (`hrv`) - replicates in their new sample.  
+
+Pick a method of your choosing and perform a test of/provide an interval for the relevant effect of interest.  
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+In this case we have $n=15$ participants (our level 2 sample size), and each participant has approximately 20 observations (but some have missingness). The sample size might be a bit small for standard likelihood ratio tests (i.e. comparing models fitted with ML rather than REML). We would be better off using models fitted with REML because they will provide more accurate estimates of the variance components (the `1+stakes|sub` bit), and so better estimates of the standard errors of the fixed effects. 
 
-If you choose the likelihood ratio test:
+We'll go through each approach here so you can see what it looks like. There's no *right* answer here.  
+
+If we choose a model comparison approach, we need to isolate the interaction term, because that's what we're interested in: 
 ```{r}
-mod_res <- lmer(hrv ~ stakes + condition + (1 + stakes | sub), data = bball,
+mod_res <- lmer(hrv ~ stakes + condition + (1 + stakes | sub), data = bballrep,
             control = lmerControl(optimizer="bobyqa"))
-mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes | sub), data = bball,
+mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes | sub), data = bballrep,
             control = lmerControl(optimizer="bobyqa"))
+```
+
+We see that the standard likelihood ratio test refits the models with ML rather than REML
+```{r}
+#| message: true
+#| warning: true
 anova(mod_res, mod_full)
 ```
+:::int
+Inclusion of the interaction between size and type of reward was not found to improve model fit, as indicated by a likelihood ratio test ($\chi^2(1) = 0.71, p = .399$). 
+:::
+
+We could instead perform the parametric bootstrap for this test instead. This requires us to remove any incomplete cases from the dataset first, and then re-fit the models: 
+```{r}
+#| echo: false
+set.seed(993)
+```
+
 ```{r}
 library(pbkrtest)
+bballrep2 = na.omit(bballrep)
+mod_res <- lmer(hrv ~ stakes + condition + (1 + stakes | sub), data = bballrep2,
+            control = lmerControl(optimizer="bobyqa"))
+mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes | sub), data = bballrep2,
+            control = lmerControl(optimizer="bobyqa"))
+PBmodcomp(mod_full, mod_res)
+```
+
+:::int
+Inclusion of the interaction between size and type of reward was not found to improve model fit, as indicated by a parametric bootstrapped ($k=1000$) likelihood ratio test ($\Delta 2loglik = 0.612, p = .469$). 
+:::
+
+
+If instead we choose the approximation for degrees of freedom, then generally speaking the Kenward Rogers approach is preferable as it is a little more conservative.  
+
+```{r}
 KRmodcomp(mod_full, mod_res)
-SATmodcomp(mod_full, mod_res)
+```
+:::int
+Inclusion of the interaction between size and type of reward was not found to improve model fit ($F(1, 13^*) = 0.63, p = .441$).  
+  
+$\textrm{ }^*$: denominator degrees of freedom approximated using Kenward-Rogers method.  
+:::
+
+Alternatively, we can perform the tests on the fixed effects themselves. This is more like what you will remember from DAPR2, where we get a table of effects and we can interpret each one in turn. For now we'll just focus on the interaction term as that is the main one of interest.  
+
+```{r}
+library(lmerTest)
+mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes| sub), data = bballrep,
+            control = lmerControl(optimizer="bobyqa"))
+summary(mod_full)
+```
+:::int
+There was no significant interaction between size and type of reward ($\beta = -0.06, SE = 0.07, t(13.04^*) = -0.8, p = .441$). 
+
+$\textrm{ }^*$: denominator degrees of freedom approximated using Satterthwaite method.  
+:::
+
+Lastly, we could also opt to construct parametric bootstrapped confidence intervals around our fixed effect estimates: 
+```{r}
+#| echo: false
+set.seed(993)
 ```
 
 ```{r}
-mod <- lmer(hrv ~ stakes * condition + 
-              (1| sub), data = bball,
-            control = lmerControl(optimizer="bobyqa"))
-summary(mod)
-
-broom::augment(mod) %>%
-  ggplot(.,aes(x=stakes,col=condition))+
-  geom_line(aes(y=.fitted,group=sub))+
-  geom_smooth(aes(y=hrv,group=sub),method=lm,se=F,col="grey")+
-  facet_wrap(~condition)
-
-
-fixef(mod)
-confint(mod, method="boot")
+confint(mod_full, method="boot")
 ```
+:::int
+There was no significant interaction between size and type of reward ($\beta = -0.06, \text{ parametric bootstrapped 95\% CI: } [-0.196, 0.068]$).  
+
+:::
 
 `r solend()`
 
