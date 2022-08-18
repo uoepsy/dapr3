@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
 
 <meta charset="utf-8">
-<meta name="generator" content="quarto-0.9.587">
+<meta name="generator" content="quarto-1.0.38">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
@@ -96,7 +96,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -160,14 +160,20 @@ if(f.classList.contains('fa-hand-o-right')) {
   </li>  
         <li>
     <a class="dropdown-item" href="./02_intromlm.html">
- <span class="dropdown-text">2: LM to MLM</span></a>
+ <span class="dropdown-text">2: Multilevel Models</span></a>
   </li>  
         <li>
     <a class="dropdown-item" href="./03_assumptranef.html">
- <span class="dropdown-text">3: Assumptions, Diagnostics</span></a>
+ <span class="dropdown-text">3: Assumptions, Diagnostics &amp; Random Effect Structures</span></a>
   </li>  
-        <li class="dropdown-header">4: Centering | Logistic</li>
-        <li class="dropdown-header">5: Recap</li>
+        <li>
+    <a class="dropdown-item" href="./04_centerglmer.html">
+ <span class="dropdown-text">4: Centering in MLM | Logistic</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./05_recap.html">
+ <span class="dropdown-text">5: Recap</span></a>
+  </li>  
     </ul>
   </li>
   <li class="nav-item dropdown ">
@@ -264,21 +270,22 @@ if(f.classList.contains('fa-hand-o-right')) {
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 116
-  `Response ID` Gender   Age Dress_10...4 Top_12...5 Bottom_10...6 Dress_6...7
-  &lt;chr&gt;          &lt;dbl&gt; &lt;dbl&gt;        &lt;dbl&gt;      &lt;dbl&gt;         &lt;dbl&gt;       &lt;dbl&gt;
-1 P_ID1001           1    22           45         24            30          30
-2 P_ID1002           1    20           30         19             9          52
-3 P_ID1003           1    21           30         12             4          18
-4 P_ID1004           1    21           39         30            30          45
-5 P_ID1005           1    23           10          5            15           7
-6 P_ID1006           1    43           40         30            45          60
-# … with 109 more variables: Bottom_16...8 &lt;dbl&gt;, Top_6...9 &lt;dbl&gt;,
-#   Dress_12...10 &lt;dbl&gt;, Dress_12...11 &lt;dbl&gt;, Bottom_12...12 &lt;dbl&gt;,
+  Respons…¹ Gender   Age Dress…² Top_1…³ Botto…⁴ Dress…⁵ Botto…⁶ Top_6…⁷ Dress…⁸
+  &lt;chr&gt;      &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+1 P_ID1001       1    22      45      24      30      30      20      17      15
+2 P_ID1002       1    20      30      19       9      52       0       5      16
+3 P_ID1003       1    21      30      12       4      18      20       8      12
+4 P_ID1004       1    21      39      30      30      45      25      20      25
+5 P_ID1005       1    23      10       5      15       7      15       5      20
+6 P_ID1006       1    43      40      30      45      60      35      25      30
+# … with 106 more variables: Dress_12...11 &lt;dbl&gt;, Bottom_12...12 &lt;dbl&gt;,
 #   Top_10...13 &lt;dbl&gt;, Top_8...14 &lt;dbl&gt;, Bottom_6...15 &lt;dbl&gt;,
 #   Bottom_8...16 &lt;dbl&gt;, Dress_14...17 &lt;dbl&gt;, Top_16...18 &lt;dbl&gt;,
 #   Bottom_6...19 &lt;dbl&gt;, Bottom_14...20 &lt;dbl&gt;, Top_8...21 &lt;dbl&gt;,
 #   Dress_8...22 &lt;dbl&gt;, Top_12...23 &lt;dbl&gt;, Top_14...24 &lt;dbl&gt;,
-#   Dress_16...25 &lt;dbl&gt;, Top_10...26 &lt;dbl&gt;, Top_14...27 &lt;dbl&gt;, …</code></pre>
+#   Dress_16...25 &lt;dbl&gt;, Top_10...26 &lt;dbl&gt;, Top_14...27 &lt;dbl&gt;,
+#   Dress_8...28 &lt;dbl&gt;, Dress_16...29 &lt;dbl&gt;, Bottom_12...30 &lt;dbl&gt;, …
+# ℹ Use `colnames()` to see all variable names</code></pre>
 </div>
 </div>
 <p>First things first, let’s use a handy package to change all our variable names to a nice easy “snake_case”:</p>
@@ -291,21 +298,22 @@ if(f.classList.contains('fa-hand-o-right')) {
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 116
-  response_id gender   age dress_10_4 top_12_5 bottom_10_6 dress_6_7 bottom_16_8
-  &lt;chr&gt;        &lt;dbl&gt; &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;       &lt;dbl&gt;     &lt;dbl&gt;       &lt;dbl&gt;
-1 P_ID1001         1    22         45       24          30        30          20
-2 P_ID1002         1    20         30       19           9        52           0
-3 P_ID1003         1    21         30       12           4        18          20
-4 P_ID1004         1    21         39       30          30        45          25
-5 P_ID1005         1    23         10        5          15         7          15
-6 P_ID1006         1    43         40       30          45        60          35
-# … with 108 more variables: top_6_9 &lt;dbl&gt;, dress_12_10 &lt;dbl&gt;,
-#   dress_12_11 &lt;dbl&gt;, bottom_12_12 &lt;dbl&gt;, top_10_13 &lt;dbl&gt;, top_8_14 &lt;dbl&gt;,
-#   bottom_6_15 &lt;dbl&gt;, bottom_8_16 &lt;dbl&gt;, dress_14_17 &lt;dbl&gt;, top_16_18 &lt;dbl&gt;,
-#   bottom_6_19 &lt;dbl&gt;, bottom_14_20 &lt;dbl&gt;, top_8_21 &lt;dbl&gt;, dress_8_22 &lt;dbl&gt;,
-#   top_12_23 &lt;dbl&gt;, top_14_24 &lt;dbl&gt;, dress_16_25 &lt;dbl&gt;, top_10_26 &lt;dbl&gt;,
-#   top_14_27 &lt;dbl&gt;, dress_8_28 &lt;dbl&gt;, dress_16_29 &lt;dbl&gt;, bottom_12_30 &lt;dbl&gt;,
-#   dress_6_31 &lt;dbl&gt;, bottom_14_32 &lt;dbl&gt;, bottom_8_33 &lt;dbl&gt;, top_16_34 &lt;dbl&gt;, …</code></pre>
+  respons…¹ gender   age dress…² top_1…³ botto…⁴ dress…⁵ botto…⁶ top_6_9 dress…⁷
+  &lt;chr&gt;      &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+1 P_ID1001       1    22      45      24      30      30      20      17      15
+2 P_ID1002       1    20      30      19       9      52       0       5      16
+3 P_ID1003       1    21      30      12       4      18      20       8      12
+4 P_ID1004       1    21      39      30      30      45      25      20      25
+5 P_ID1005       1    23      10       5      15       7      15       5      20
+6 P_ID1006       1    43      40      30      45      60      35      25      30
+# … with 106 more variables: dress_12_11 &lt;dbl&gt;, bottom_12_12 &lt;dbl&gt;,
+#   top_10_13 &lt;dbl&gt;, top_8_14 &lt;dbl&gt;, bottom_6_15 &lt;dbl&gt;, bottom_8_16 &lt;dbl&gt;,
+#   dress_14_17 &lt;dbl&gt;, top_16_18 &lt;dbl&gt;, bottom_6_19 &lt;dbl&gt;, bottom_14_20 &lt;dbl&gt;,
+#   top_8_21 &lt;dbl&gt;, dress_8_22 &lt;dbl&gt;, top_12_23 &lt;dbl&gt;, top_14_24 &lt;dbl&gt;,
+#   dress_16_25 &lt;dbl&gt;, top_10_26 &lt;dbl&gt;, top_14_27 &lt;dbl&gt;, dress_8_28 &lt;dbl&gt;,
+#   dress_16_29 &lt;dbl&gt;, bottom_12_30 &lt;dbl&gt;, dress_6_31 &lt;dbl&gt;,
+#   bottom_14_32 &lt;dbl&gt;, bottom_8_33 &lt;dbl&gt;, top_16_34 &lt;dbl&gt;, …
+# ℹ Use `colnames()` to see all variable names</code></pre>
 </div>
 </div>
 <p>Our next job is to cut out a few variables that we will not work with in this example. These are a set of questions asking about clothing preferences. They all end in <code>p</code> and appear at the end of the data set.</p>
@@ -369,7 +377,8 @@ if(f.classList.contains('fa-hand-o-right')) {
  8            2          2      8      8
  9            5          3     14     10
 10            3          2     10      8
-# … with 110 more rows</code></pre>
+# … with 110 more rows
+# ℹ Use `print(n = ...)` to see more rows</code></pre>
 </div>
 </div>
 <p>Excellent, that has worked.</p>
@@ -412,23 +421,24 @@ if(f.classList.contains('fa-hand-o-right')) {
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 120 × 24
-   response_id   age tii_score ma_score c.size i.size top_S6 top_S8 top_S10
-   &lt;chr&gt;       &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;
- 1 P_ID1001       22      2.63     1.78     10      8  20.7    16.3    21.7
- 2 P_ID1002       20      3        2.44      6      6   7.67   12.3    10  
- 3 P_ID1003       21      2.6      1.78      8      6  16.7    10.3     9  
- 4 P_ID1004       21      2.27     1.78      8      6  23.3    20      18.3
- 5 P_ID1005       23      2.87     2.56     10      8   6.33   10.7    11  
- 6 P_ID1006       43      2.73     2.22     12     10  28.3    25      41.7
- 7 P_ID1007       55      2.93     1.89     10      8  23.3    28.3    23.3
- 8 P_ID1008       20      3.03     2.11      8      8  21.3    20.7    19  
- 9 P_ID1009       48      2.7      2.89     14     10  45.7    20.3    26.7
-10 P_ID1010       21      2.37     2        10      8  15.3    16.7    18.3
-# … with 110 more rows, and 15 more variables: top_S12 &lt;dbl&gt;, top_S14 &lt;dbl&gt;,
-#   top_S16 &lt;dbl&gt;, bottom_S6 &lt;dbl&gt;, bottom_S8 &lt;dbl&gt;, bottom_S10 &lt;dbl&gt;,
-#   bottom_S12 &lt;dbl&gt;, bottom_S14 &lt;dbl&gt;, bottom_S16 &lt;dbl&gt;, dress_S6 &lt;dbl&gt;,
-#   dress_S8 &lt;dbl&gt;, dress_S10 &lt;dbl&gt;, dress_S12 &lt;dbl&gt;, dress_S14 &lt;dbl&gt;,
-#   dress_S16 &lt;dbl&gt;</code></pre>
+   response_id   age tii_s…¹ ma_sc…² c.size i.size top_S6 top_S8 top_S10 top_S12
+   &lt;chr&gt;       &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+ 1 P_ID1001       22    2.63    1.78     10      8  20.7    16.3    21.7   20   
+ 2 P_ID1002       20    3       2.44      6      6   7.67   12.3    10     17.3 
+ 3 P_ID1003       21    2.6     1.78      8      6  16.7    10.3     9     11.7 
+ 4 P_ID1004       21    2.27    1.78      8      6  23.3    20      18.3   23.3 
+ 5 P_ID1005       23    2.87    2.56     10      8   6.33   10.7    11      8.33
+ 6 P_ID1006       43    2.73    2.22     12     10  28.3    25      41.7   30   
+ 7 P_ID1007       55    2.93    1.89     10      8  23.3    28.3    23.3   23.3 
+ 8 P_ID1008       20    3.03    2.11      8      8  21.3    20.7    19     23   
+ 9 P_ID1009       48    2.7     2.89     14     10  45.7    20.3    26.7   57   
+10 P_ID1010       21    2.37    2        10      8  15.3    16.7    18.3   13.3 
+# … with 110 more rows, 14 more variables: top_S14 &lt;dbl&gt;, top_S16 &lt;dbl&gt;,
+#   bottom_S6 &lt;dbl&gt;, bottom_S8 &lt;dbl&gt;, bottom_S10 &lt;dbl&gt;, bottom_S12 &lt;dbl&gt;,
+#   bottom_S14 &lt;dbl&gt;, bottom_S16 &lt;dbl&gt;, dress_S6 &lt;dbl&gt;, dress_S8 &lt;dbl&gt;,
+#   dress_S10 &lt;dbl&gt;, dress_S12 &lt;dbl&gt;, dress_S14 &lt;dbl&gt;, dress_S16 &lt;dbl&gt;, and
+#   abbreviated variable names ¹​tii_score, ²​ma_score
+# ℹ Use `print(n = ...)` to see more rows, and `colnames()` to see all variable names</code></pre>
 </div>
 </div>
 <p>OK, now we need to get the data from wide to long format.</p>
@@ -455,7 +465,8 @@ if(f.classList.contains('fa-hand-o-right')) {
  8 P_ID1001       22      2.63     1.78     10      8 bottom_S8   18  
  9 P_ID1001       22      2.63     1.78     10      8 bottom_S10  30  
 10 P_ID1001       22      2.63     1.78     10      8 bottom_S12  20  
-# … with 2,150 more rows</code></pre>
+# … with 2,150 more rows
+# ℹ Use `print(n = ...)` to see more rows</code></pre>
 </div>
 </div>
 <p>This looks good, but we now need to have variables that code for size and item type.</p>
@@ -487,7 +498,8 @@ if(f.classList.contains('fa-hand-o-right')) {
  8 P_ID1001       22      2.63     1.78     10      8 bottom 8      18  
  9 P_ID1001       22      2.63     1.78     10      8 bottom 10     30  
 10 P_ID1001       22      2.63     1.78     10      8 bottom 12     20  
-# … with 2,150 more rows</code></pre>
+# … with 2,150 more rows
+# ℹ Use `print(n = ...)` to see more rows</code></pre>
 </div>
 </div>
 <p>Finally, our last couple of steps. First, we want to calculate a couple of binary variables that code whether a give item being rated matches a participants actual or ideal size; second, we need to make our item variable a factor, and third, let’s standardize our scale scores for idealization of thinness.</p>
@@ -523,7 +535,8 @@ if(f.classList.contains('fa-hand-o-right')) {
  8 P_ID1001        10      8 bottom   -0.878  18   0       1      
  9 P_ID1001        10      8 bottom   -0.293  30   1       0      
 10 P_ID1001        10      8 bottom    0.293  20   0       0      
-# … with 2,150 more rows</code></pre>
+# … with 2,150 more rows
+# ℹ Use `print(n = ...)` to see more rows</code></pre>
 </div>
 </div>
 <div class="imp">
@@ -1516,6 +1529,24 @@ PBtest 1.072739 NA 0.2857143</code></pre>
 </main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
   const icon = "";
   const anchorJS = new window.AnchorJS();
   anchorJS.options = {
