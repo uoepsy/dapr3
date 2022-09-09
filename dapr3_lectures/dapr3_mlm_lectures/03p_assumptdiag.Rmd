@@ -25,48 +25,44 @@ editor_options:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_chunk$set(eval=FALSE)
-options(htmltools.dir.version = FALSE)
-options(digits=4,scipen=2)
-options(knitr.table.format="html")
-xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
-xaringanExtra::use_tile_view()
-xaringanExtra::use_extra_styles(
-  mute_unhighlighted_code = FALSE
-)
-xaringanExtra::use_share_again()
 library(knitr)
 library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 library(patchwork)
+
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+
+xaringanExtra::use_share_again()
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+
 knitr::opts_chunk$set(
   dev = "svg",
   warning = FALSE,
   message = FALSE,
-  cache = FALSE
+  cache = TRUE,
+  fig.asp=.8
 )
-themedapr3 = function(){
-  theme_minimal() + 
-    theme(text = element_text(size=20))
-}
+theme_set(
+    theme_minimal() + 
+    theme(text = element_text(size=18))
+)
 source("jk_source/jk_presfuncs.R")
-```
 
-```{r xaringan-themer, include = FALSE}
 library(xaringanthemer)
 style_mono_accent(
-  # base_color = "#0F4C81", # DAPR1
-  # base_color = "#BF1932", # DAPR2
   base_color = "#88B04B", # DAPR3 
-  # base_color = "#FCBB06", # USMR
-  # base_color = "#a41ae4", # MSMR
   header_color = "#000000",
   header_font_google = google_font("Source Sans Pro"),
   header_font_weight = 400,
-  code_font_size = "0.7rem",
   text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
   code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
   extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
 )
 ```
@@ -112,7 +108,6 @@ ggplot(plotdat, aes(x=fitted_values, y=residuals))+
               aes(x=fitted_values,y=u), alpha=.3, se=F, lty="dashed", col="darkorange")+
   geom_smooth(data=prib, inherit.aes = F,
               aes(x=fitted_values,y=l), alpha=.3, se=F, lty="dashed", col="darkorange")+
-  themedapr3()+
   theme(axis.text = element_blank())
 ```
 
@@ -143,17 +138,15 @@ the more formulaic approach to checking assumptions of linear regression is to e
 ---
 # What's different in MLM?
 
-- Not much is different!  
+- Not much!  
 
 --
 
 - General idea is unchanged: error is random  
 
-<!-- Consequently, we want to check for homoscedasiticity of the error term as well as normality of the error term’s distribution -->
+- But we now have residuals at multiple levels! 
+Random effects can be viewed as residuals at another level.  
 
---
-
-- We now have residuals at multiple levels!
 
 ???
 nothing really changes when we move to the multilevel model.  
@@ -194,9 +187,20 @@ then within each school, the randomly sampled children will deviate randomly aro
 ---
 # Random effects as level 2 residuals
 
-$\begin{align} & \text{for observation }j\text{ in group }i \\ \quad \\ & \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ & \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}$
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\ 
+\quad \\ 
+& \text{Level 1:} \\ 
+& \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ 
+& \text{Level 2:} \\ 
+& \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ 
+& \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ 
+\quad \\ 
+& \varepsilon, \, \color{orange}{\zeta_0}, \, \text{ and } \, \color{orange}{\zeta_1}\text{ are all assumed to be normally distributed with mean 0.}
+\end{align}
+$$
 
-$\varepsilon, \, \color{orange}{\zeta_0}, \, \text{ and } \, \color{orange}{\zeta_1}$ are all assumed to be normally distributed with mean 0. 
 
 ???
 We can see this also in our model equations. 
@@ -260,7 +264,7 @@ and we have the level 2 residuals. our random effects.
 ---
 # Assumption Plots: Residuals vs Fitted
 
-```{r fig.asp=.7}
+```{r fig.asp=.6}
 plot(model, type=c("p","smooth"))
 ```
 
@@ -272,9 +276,9 @@ the smooth here provides an indication of this.
 ---
 # Assumption Plots: qqplots
 
-```{r fig.asp=.7}
-library(lattice)
-qqmath(model, id=.05)
+```{r fig.asp=.6}
+qqnorm(resid(model))
+qqline(resid(model))
 ```
 
 ???
@@ -285,7 +289,7 @@ the lattice package has a nice functionality for labelling the extreme ends of t
 ---
 # Assumption Plots: Scale-Location
 
-```{r fig.asp=.7}
+```{r fig.asp=.6}
 plot(model, 
      form = sqrt(abs(resid(.))) ~ fitted(.),
      type = c("p","smooth"))
@@ -302,7 +306,7 @@ what this means is that the mean of the sqrt abs residuals will reflect changes 
 count:false
 # Assumption Plots: Scale-Location
 
-```{r fig.asp=.7}
+```{r fig.asp=.6}
 plot(model, 
      form = sqrt(abs(resid(.))) ~ fitted(.) | cluster,
      type = c("p","smooth"))
@@ -315,8 +319,13 @@ We can can also group these plots by cluster, which makes most sense if we have 
 # Assumption Plots: Ranefs
 
 .pull-left[
-```{r fig.asp=.7}
-qqmath(ranef(model))
+```{r fig.asp=.7, echo=c(2:5)}
+par(mfrow=c(1,2))
+qqnorm(ranef(model)$cluster[,1])
+qqline(ranef(model)$cluster[,1])
+qqnorm(ranef(model)$cluster[,2])
+qqline(ranef(model)$cluster[,2])
+par(mfrow=c(1,1))
 ```
 ]
 .pull-right[
@@ -355,8 +364,8 @@ if nothing else...
 ```{r eval=FALSE}
 sjPlot::plot_model(model, type = "diag")
 ```
-```{r echo=FALSE, fig.asp=.8}
-(pp[[1]] + pp[[2]]) / (pp[[3]] + pp[[4]])
+```{r echo=FALSE, fig.asp=.6}
+(pp[[1]] + pp[[2]]) / (pp[[3]] + pp[[4]]) & theme(text = element_text(size=12))
 ```
 
 ???
@@ -381,7 +390,8 @@ we're now going to take a look at how we might troubleshoot when our assumptions
 
 .pull-left[
 
-> 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eleven of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum.  
+> 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). 
+> Eleven of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum.  
   
   
 >Adjusting for levels of daily routines, do children from schools partaking in the intervention present with lower levels of emotional dysregulation? 
@@ -394,11 +404,11 @@ library(patchwork)
 crq <- read_csv("https://uoepsy.github.io/data/crqdata.csv")
 p <- ggplot(crq[crq$int=="Control",], aes(x=crq, y=emot_dysreg, col=schoolid)) + 
   geom_point()+geom_smooth(method="lm",se=F)+
-  guides(col="none")+themedapr3()+
+  guides(col="none")+
   labs(title="Control")
 p1 <- ggplot(crq[crq$int=="Treatment",], aes(x=crq, y=emot_dysreg, col=schoolid)) + 
   geom_point()+geom_smooth(method="lm",se=F)+
-  guides(col="none")+themedapr3()+
+  guides(col="none")+
   labs(title="Treatment")
 gridExtra::grid.arrange(
 ggMarginal(p, type="boxplot", margins="y"),
@@ -420,11 +430,18 @@ so on the y we have the emotion dysregulation, on the x we have the child routin
 ```{r}
 mymodel <- lmer(emot_dysreg ~ crq + int + (1 | schoolid), data = crq)
 ```
-```{r echo=FALSE, fig.asp=.7}
+.pull-left[
+```{r echo=FALSE}
 pp <- sjPlot::plot_model(mymodel, type = "diag")
-pp[[1]] + pp[[4]]
-#(pp[[1]] + pp[[2]]) / (pp[[3]] + pp[[4]])
+pp[[1]]
 ```
+]
+.pull-right[
+```{r echo=FALSE}
+pp <- sjPlot::plot_model(mymodel, type = "diag")
+pp[[4]]
+```
+]
 
 ???
 so we fit this model here, where emotion dysregulation is predicted by amount of routine, and by whether or not the child has received training on emotion regulation (and of course specifying that children are clustered in schools). 
@@ -436,10 +453,11 @@ and it doesn't look great.
 
 .pull-left[
 ```{r eval=F}
-mymodel <- lmer(emot_dysreg ~ crq + int + (1 | schoolid), data = crq)
+mymodel <- lmer(emot_dysreg ~ crq + int + 
+                  (1 | schoolid), data = crq)
 ```
 
-```{r echo=FALSE, fig.asp=.7}
+```{r echo=FALSE, fig.asp=.6}
 model<-lmer(emot_dysreg ~ crq + int + (1 | schoolid), data = crq)
 pp <- plot_model(model, type = "diag")
 pp[[1]]
@@ -447,10 +465,11 @@ pp[[1]]
 ]
 .pull-right[
 ```{r eval=F}
-mymodel <- lmer(emot_dysreg ~ crq + age + int + (1 | schoolid), data = crq)
+mymodel <- lmer(emot_dysreg ~ crq + age + int + 
+                  (1 | schoolid), data = crq)
 ```
 
-```{r echo=FALSE, fig.asp=.7}
+```{r echo=FALSE, fig.asp=.6}
 model<-mymodel <- lmer(emot_dysreg ~ crq + age + int +   (1 | schoolid), data = crq)
 pp <- plot_model(model, type = "diag")
 pp[[1]]
@@ -483,7 +502,6 @@ there are various transformations but the more common ones you will see are thes
   
 
 ---
-count:false
 # When things look wrong
 ### __Transformations?__  
 
@@ -509,25 +527,27 @@ df<-df[-c(37,47, 65, 68, 82 ), ]
 
 .pull-left[
 ```{r eval=F}
-lmer(y ~ x1 + g + (1 | cluster), df)
+lmer(y ~ x1 + g + 
+       (1 | cluster), df)
 ```
 ```{r echo=FALSE, fig.asp=.5}
 model <- lmer(y ~ x1 + g + (1  | cluster), df)
 pp <- plot_model(model, type = "diag")
 ggplot(df, aes(x=y)) + geom_histogram() +
-pp[[1]]
+pp[[1]] & theme(text = element_text(size=12))
 ```
 
 ]
 .pull-right[
 ```{r eval=F}
-lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + 
+       (1 | cluster), df)
 ```
 ```{r echo=FALSE, fig.asp=.5}
 model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
 pp <- plot_model(model, type = "diag")
 ggplot(df, aes(x=forecast::BoxCox(y,lambda="auto"))) + geom_histogram() +
-pp[[1]]
+pp[[1]] & theme(text = element_text(size=12))
 ```
 ]
 
@@ -545,7 +565,8 @@ count:false
 
 .pull-left[
 ```{r eval=F}
-lmer(y ~ x1 + g + (1 | cluster), df)
+lmer(y ~ x1 + g + 
+       (1 | cluster), df)
 ```
 ```{r echo=FALSE}
 model <- lmer(y ~ x1 + g + (1 | cluster), df)
@@ -555,7 +576,8 @@ fixef(model)
 ]
 .pull-right[
 ```{r eval=F}
-lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + 
+       (1 | cluster), df)
 ```
 ```{r echo=FALSE}
 model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
@@ -650,6 +672,7 @@ because our data changes each time, our explanatory variables are not fixed as t
 however, with multiple levels of observation, it does bring up questions - do we resample schools but not the children within them? or resample the children but not the schools? or resample both?
 
 ---
+exclude: true
 # Bootstrap: Parametric
 
 ```{r}
@@ -668,11 +691,6 @@ mymodel <- lmer(emot_dysreg ~ crq + age + int + (1 | schoolid), data = crq)
     confint(mymodel, method="boot")
     ```
 
-???
-we have already seen the parametric bootstrap last week, where we used the PBmodcomp function to perform a parametric bootstrap likelihood ratio test. we also saw the use of confint() to construct bootstrapped confidence intervals for our estimates. 
-
-
---
 
 - __lmeresampler__ package bootstrap() function
     ```{r eval=F}
@@ -684,11 +702,12 @@ we have already seen the parametric bootstrap last week, where we used the PBmod
 .footnote[At time of writing, there is a minor bug with the version of **lmeresampler** that you can download from CRAN, so we recommend installing directly from the package maintainer: `devtools::install_github("aloy/lmeresampler")`]
 
 ???
+
 there is another package which we are going to introduce now, called lmeresampler which allows us a bit more flexibility in our bootstrapping. we can give it different functions . f, that tell R which bit of the model we would like to get bootstrap estimates for. 
 note also the type = "parametric" here. we can also use this function to do case based bootstrapping. 
 
 ---
-# Bootstrap: Cases
+# Case Bootstrap
 
 ```{r}
 mymodel <- lmer(emot_dysreg ~ crq + age + int + (1 | schoolid), data = crq)
@@ -712,7 +731,7 @@ confint(mymodelBScase, type = "basic")
 ```
 ]
 
-.footnote[<br>For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
+.footnote[<br><br>For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
 For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11 ]
 
 ???
@@ -731,7 +750,7 @@ the lmeresampler package gives us back an object which we can then extract confi
 
 ---
 count:false
-# Bootstrap: Cases
+# Case Bootstrap
 
 ```{r}
 mymodel <- lmer(emot_dysreg ~ crq + age + int + (1 | schoolid), data = crq)
@@ -753,12 +772,12 @@ summary(mymodelBScase)
 
 ]
 .pull-right[
-```{r eval=params$finalcompile,fig.asp=.6}
+```{r eval=params$finalcompile,fig.asp=.5}
 plot(mymodelBScase,"intTreatment")
 ```
 ]
 
-.footnote[<br>For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
+.footnote[<br><br>For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
 For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11 ]
 
 ???
@@ -800,7 +819,7 @@ case diagnostics are concerned with whether certain observations, or groups of o
 
 Just like standard `lm()`, observations can have unduly high influence on our model through a combination of high leverage and outlyingness. 
 
-```{r echo=FALSE, fig.asp=.5, fig.width=12, fig.align="center"}
+```{r echo=FALSE, fig.width=12, fig.asp=.3, fig.align="center"}
 set.seed(18)
 tibble(
   x = rnorm(20),
@@ -847,7 +866,7 @@ as we may remember from the normal linear model, we can have observations that m
 for instance, consider the addition of the red points in each of these figures. the dotted line is hte model without the red point - this is the same in each plot. the blue line is the model with the red point. 
 
 ---
-# multiple levels...
+# but we have multiple levels...
 
 - Both observations (level 1 units) __and__ clusters (level 2+ units) can be influential. 
 
@@ -870,7 +889,8 @@ we're going to use the HLMdiag package here to investigate
 mymodel <- lmer(emot_dysreg ~ crq + age + 
                   int + (1 | schoolid), 
                 data = crq)
-qqmath(mymodel, id=0.05)
+qqnorm(resid(mymodel))
+qqline(resid(mymodel))
 ```
 ]
 
@@ -901,7 +921,8 @@ count:false
 mymodel <- lmer(emot_dysreg ~ crq + age + 
                   int + (1 | schoolid), 
                 data = crq)
-qqmath(mymodel, id=0.05)
+qqnorm(resid(mymodel))
+qqline(resid(mymodel))
 ```
 ]
 .pull-right[
@@ -924,7 +945,7 @@ BUT IT IS IMPORTANT TO REMEMBER to not simply blindly follow cut-offs, think car
 infl2 <- hlm_influence(mymodel, level = "schoolid")
 dotplot_diag(infl2$cooksd, cutoff = "internal", index=infl2$schoolid)
 ```
-```{r echo=FALSE, fig.asp=.7}
+```{r echo=FALSE, fig.asp=.6}
 infl2 <- hlm_influence(mymodel, level = "schoolid")
 dotplot_diag(infl2$cooksd, cutoff = "internal", index=infl2$schoolid) +
   scale_y_continuous(limits=c(0,.45))
@@ -938,7 +959,7 @@ the measure of  Cook's distance here measures the change in the fixed effects es
 ---
 # What to do?
 
-- In this context (children from schools), I would be inclined not to worry too much about the individual children who have high values on cook's distance, __if__ we plan on case-based bootstrap for our inferential tests (and plan on resampling the level 1 units - the children). 
+- In this context (children from schools), I would be inclined not to worry too much about the individual children who have high values on cook's distance, __if__ we plan on bootstrapping our inferential tests (and plan on resampling the level 1 units - the children). 
 
 ???
 in this specific case, we can think about how we plan on conducting our inferential tests. as we may plan on a case-based bootstrap, and resample the children - the lower level units, then we need not worry too much about the level one influence. 
@@ -985,9 +1006,11 @@ mymodelrm6 <- lmer(emot_dysreg ~ crq + age +
                   int + (1 | schoolid), 
                 data = crq %>% 
                   filter(!schoolid %in% c("school6")))
+
 mymodelrm6BS <- bootstrap(mymodelrm6, .f = fixef, 
                            type = "case", B = 2000, 
                            resample = c(FALSE, TRUE))
+
 confint(mymodelrm6BS, type = "basic")
 ```
 
@@ -1007,7 +1030,7 @@ another approach might be to conduct our analysis without this group. That way w
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
-# End of Part 3
+# End of Part 2
 
 ---
 class: inverse, center, middle
@@ -1139,6 +1162,8 @@ in discussing random effect structures, it's worth reiterating our distinction b
 
 - "maximal" = the most complex random effect structure that you can fit to the data
 
+  - everything that _can_ be modelled as a random effect, is so
+
 ???
 one thing we need to introduce is the notion of a maximal random effect structure. this is typically something we can work out from the study design, and is essentially the most complete specification of the grouping structure. 
 
@@ -1152,37 +1177,15 @@ fitting the maximal structure requires sufficient variance though, and may not a
 --
 
 ```{r warning=T}
-maxmodel <- lmer(emot_dysreg ~ crq + age + int + (1 + crq + age | schoolid), data = crq)
+maxmodel <- lmer(emot_dysreg ~ crq + age + int + 
+                   (1 + crq + age | schoolid), data = crq)
 ```
 
---
-
-another example: 16 items each occur in 4 different combinations: condition A vs B $\times$ type 1 vs 2.  
-40 participants see all items in all conditions (64 trials each participant).
-
-```{r echo=FALSE}
-kelly<-read.csv("https://uoepsy.github.io/data/kelly2010_replication.csv")
-kelly %>% filter(condition!="baseline") %>%
-  mutate(
-    condition = fct_recode(factor(modality), "A"="gesture","B"="speech"),
-    type = fct_recode(factor(strength), "1"="strong","2"="weak"),
-    outcome = rtime, 
-    ppt = subject_nr
-  ) -> kelly
-```
-
-```{r warning=T,message=T}
-mmod <- lmer(outcome ~ condition * type + (1 + condition * type | ppt) + 
-               (1 + condition * type | item), data = kelly)
-```
 
 
 ???
 in our school example where there is are just two levels, the maximal model involves fitting a random intercept by-schools, and random effects of all level-1 predictors. 
 we can't fit a random effect of the intervention here, because each school is either a control or a treatment. there's no "effect of intervention in school X". 
-
-if we consider another example, where we run an experiment in which we have repeated measures for participants, and each of these observations is on one of a set of items (the same set for each participant) seen in different conditions. then we have crossed random effects. 
-the maximal model involves specifying random effects of our predictors, and their interaction, for both participants and items. 
 
 what you might notice here, is that we're getting some warnings. and this because both our models are too complex to fit on our available data. 
 
@@ -1234,18 +1237,6 @@ perhaps the most simple, and most used in psychology, is to start with the maxim
 however, important to note that there's no obvious right approach to this. the maximal model will often have lower power, and others suggest a model selection criteria is preferable. 
 
 ---
-# correlations between random effects
-
-```{r echo=FALSE}
-VarCorr(mmod)
-```
-
-???
-because we have been discussing random effect structures and maximal models, we need to talk about the correlations between random effects, which are also estimated in our model. 
-our model is not just estimating the variances (and so standard deviations) of our random intercepts and random effects, but is actually estimating a variance-covariance matrix, which means we are estimating the correlation between different random effects. 
-
-
----
 count:false
 # correlations between random effects
 
@@ -1270,6 +1261,10 @@ dotplot.ranef.mer(ranef(m1))
 ]
 
 ???
+because we have been discussing random effect structures and maximal models, we need to talk about the correlations between random effects, which are also estimated in our model. 
+our model is not just estimating the variances (and so standard deviations) of our random intercepts and random effects, but is actually estimating a variance-covariance matrix, which means we are estimating the correlation between different random effects. 
+
+
 to understand these, we can take it to the extreme and consider a correlation of 1 between a random intercept and random effect. so these are perfectly correlated. 
 what does that look like?
 
@@ -1289,8 +1284,7 @@ tibble(
 ) %>%
   ggplot()+
   geom_line(aes(x=pre,y=y,group=g))+
-  labs(x="x1",y=".fitted")+
-  themedapr3()
+  labs(x="x1",y=".fitted")
 ```
 ]
 
@@ -1353,6 +1347,7 @@ so when does it make sense to fix the correlation to 0? well
 --
  
 __When it makes theoretical sense to do so.__
+
 
 ???
 in certain designs, you might consider there to be no theoretical justification for there to be a correlation between random effects.  

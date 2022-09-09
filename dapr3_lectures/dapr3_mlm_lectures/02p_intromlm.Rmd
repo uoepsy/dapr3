@@ -282,7 +282,7 @@ What this actually corresponds to in terms of data, is that we have
 
 
 ---
-# "Fixed" vs "Random"
+# Fixed vs Random
 
 .pull-left[
 $\begin{align}& \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}} \\ & \color{blue}{\beta_{1i}} = \underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}} \\ \quad \\ \end{align}$
@@ -406,7 +406,8 @@ are groups that have have higher (relative to other groups) intercepts, show gre
     
 - in `lmer()`, we add to this the random effect structure in parentheses:  
 
-    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__, REML = __*[TRUE/FALSE]*__
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__),  
+    data = __*[name of dataframe]*__, REML = __*[TRUE/FALSE]*__
 
 ???
 okay, so let's take a look at how we fit these models in R. 
@@ -885,7 +886,7 @@ with simple linear regression models, there is one best set of values for our be
 but for multilevel models, which are considerably more complicated, we estimate the parameters using an iterative procedure like MLE
 
 ---
-# Model Estimation: MLE
+# Model Estimation: ML
 
 Aim: find the values for the unknown parameters that maximize the probability of obtaining the observed data.
 How: This is done via finding values for the parameters that maximize the (log) likelihood function.
@@ -912,7 +913,7 @@ count:false
     - This is considerably easier to do, and can be achieved because multiplication is addition on a log scale.
 
 ---
-# Model Estimation: MLE
+# Model Estimation: ML
 
 In multilevel models, our parameter space is more complex (e.g. both fixed effects and variance components).
 
@@ -926,10 +927,22 @@ in complex models with many parameters, our optimisation algorithms are trying t
 ---
 # Model Estimation: Convergence
 
-TODO 
-get used to warnings
-sometimes model is too complex to be supported by the data 
-balancing act between simplifying our model while preserving attribution of variance to various sources  
+
+- Sometimes a model is too complex to be supported by the data
+
+- Balancing act between simplifying our model while preserving attribution of variance to various sources  
+
+- Get used to seeing lots of errors and warnings:  
+
+<br>
+
+```
+warning(s): Model failed to converge with max|grad| = 0.0021777 (tol = 0.002, component 1) (and others)
+```
+<br>
+```
+message(s): boundary (singular) fit: see help('isSingular')
+```
 
 
 ---
@@ -937,31 +950,21 @@ balancing act between simplifying our model while preserving attribution of vari
 
 - Standard ML results in biased estimates of variance components.
 
-???
-in simple regression, it is rarely variance estimates that are of interest - rather, we are often focussed on the coefficients.  
-but in multilevel models were are more often specifically interested in estimated variance of our random effects. 
-
---
 
 - Restricted Maximum Likelihood (REML) is the default in `lmer()`.
-
-???
-an adaptation called REML can be used in which estimation of the random parts is done assuming the fixed parts to be known. 
-sort of like estimating the fixed effects first and then the variance components. 
-
---
 
     - REML separates the estimation of fixed and random parts of the model, leading to less biased estimates of the variance components.  
 
 ???
+in simple regression, it is rarely variance estimates that are of interest - rather, we are often focussed on the coefficients.  
+but in multilevel models were are more often specifically interested in estimated variance of our random effects. 
+
+an adaptation called REML can be used in which estimation of the random parts is done assuming the fixed parts to be known. 
+sort of like estimating the fixed effects first and then the variance components.
+
 this can lead to less biased estimates of our random effect variances
   
---
 
-- **Use ML to compare models that differ in their fixed effects.**    
-
-???
-because in REML the variance components are included in the likelihood.
 
 
 ---
@@ -1078,7 +1081,7 @@ again, participants vary around this estimate, some have less decline, some have
 .pull-left[
 ```{r eval=FALSE}
 library(sjPlot)
-plot_model(cogtime_model, type="pred")
+plot_model(cogtime_model, type="eff")
 ```
 ]
 
@@ -1089,7 +1092,7 @@ as before, we can use sjPlot to plot our model predicted values
 .pull-right[
 ```{r echo=FALSE, fig.asp=.7}
 library(sjPlot)
-plot_model(cogtime_model, type="pred")
+plot_model(cogtime_model, type="eff")
 ```
 ]
 
@@ -1164,12 +1167,14 @@ so here you can see we've plotted the fitted values, specifying via colour the d
 
 
 ---
+exclude: true
 # MLM Example: Tables
 
 ```{r}
 library(sjPlot)
 tab_model(cogtime_model)
 ```
+
 
 ???
 finally, we can also easily create tables of our model output. 
@@ -1308,87 +1313,93 @@ There are three main approaches to drawing inferences from multilevel models.
 
 ---
 count:false
-# Satterthwaite df approximation
+# df approximations
 
 .pull-left[
-- There are some suggested approaches to approximating the denominator $df$. 
-<br><br>
-- Loading the package **lmerTest** will fit your models and print the summary with p-values approximated by the Satterthwaite method.
+
+Loading the package **lmerTest** will fit your models and print the summary with p-values approximated by the Satterthwaite method.
 ```{r eval=F}
 library(lmerTest)
-full_model <- lmer(cog ~  1 + visit_n + (1 + visit_n | participant), data = cogtime)
+full_model <- lmer(cog ~  1 + visit_n + 
+                     (1 + visit_n | participant), 
+                   data = cogtime, REML = TRUE)
 summary(full_model)
 ```
+
+```
+Linear mixed model fit by REML. t-tests use Satterthwaite
+
+ ...
+ ...
+
+Random effects:
+Groups      Name        Variance Std.Dev. Corr
+participant (Intercept) 10.06    3.17         
+            visit_n      1.22    1.11     0.69
+Residual                37.93    6.16         
+Number of obs: 200, groups:  participant, 20
+
+Fixed effects:
+           Estimate Std. Error    df t value Pr(>|t|)    
+(Intercept)    68.56       1.18 19.00    58.2  < 2e-16 ***
+visit_n        -1.22       0.29 19.00    -4.2  0.00048 ***
+
+ ...
+```
+
 ]
+
 .pull-right[
-```{r echo=F}
-library(lmerTest)
-full_model <- lmer(cog ~  1 + visit_n + (1 + visit_n | participant), data = cogtime)
-summary(full_model)
-```
-]
-```{r echo=F}
-detach("package:lmerTest", unload=TRUE)
-```
-
-
----
-count:false
-# Kenward-Rogers df approximations
-
-- The **pbkrtest** package implements the slightly more reliable Kenward-Rogers method. 
-
+The **pbkrtest** package implements the slightly more reliable Kenward-Rogers method for model comparison.  
+Good for small samples
 ```{r}
 library(pbkrtest)
-restricted_model <- lmer(cog ~ 1 + (1 + visit_n | participant), data = cogtime)
-full_model <- lmer(cog ~ 1 + visit_n + (1 + visit_n | participant), data = cogtime)
+restricted_model <- lmer(cog ~ 1 + 
+                           (1 + visit_n | participant), 
+                         data = cogtime, REML = TRUE)
+full_model <- lmer(cog ~ 1 + visit_n + 
+                     (1 + visit_n | participant), 
+                   data = cogtime, REML = TRUE)
 KRmodcomp(full_model, restricted_model)
 ```
-
+]
 
 ---
-count:false
 # Likelihood ratio tests
 
-.pull-left[
-We can also conduct a Likelihood Ratio Test (LRT). 
+- Compares the log-likelihood of two competing models.  
+
+- remember "likelihood" = a function that associates to a parameter the probability (or probability density) of observing the given sample data. 
+
+- ratio of two likelihoods is **asymptotically** $\chi^2$-square distributed.
+
+    - *this means for small samples (at any "levels") it may be unreliable*
 
 ```{r}
-anova(restricted_model, full_model, test = "LRT")
+restricted_model <- lmer(cog ~ 1 + 
+                           (1 + visit_n | participant), 
+                         data = cogtime, REML = FALSE)
+full_model <- lmer(cog ~ 1 + visit_n + 
+                     (1 + visit_n | participant), 
+                   data = cogtime, REML = FALSE)
+anova(restricted_model, full_model)
 ```
-
-]
-
-.pull-right[
-- Compares the log-likelihood of two competing models.  
-<br><br>
-- what is the "likelihood"?  
-    - a function that associates to a parameter the probability (or probability density) of observing the given sample data. 
-<br><br>
-- ratio of two likelihoods is asymptotically $\chi^2$-square distributed.
-    - **this means for small samples it may be unreliable**
-]
 
 
 ---
-# Options for inference
+# Bootstrap
 
-1. <p style="opacity:.4"> df approximations - assumes $F$-distributed just with unknown $ddf$.<p> 
-
-2. <p style="opacity:.4">Likelihood Ratio Tests - differences in logLik are only asymptotically $\chi^2$distributed.</p>  
-
-3. Bootstrap  
-  - Parametric Bootstrap  
+- Parametric Bootstrap  
   assumes that explanatory variables are fixed and that model specification and the distributions such as $\zeta_i \sim N(0,\sigma_{\zeta})$ and $\varepsilon_i \sim N(0,\sigma_{\varepsilon})$ are correct.
   
-  - Case-based Bootstrap  
+- Case-based Bootstrap  
   minimal assumptions - we just need to ensure that we correctly specify the hierarchical dependency of data.  
   requires decision of at which levels to resample.  
   (discussed more next week)
 
 
 ???
-two of these, we are not going to discuss here, but there are some extra slides in the slide deck for if you are interested in learning about them. 
+
 What we are going to focus on here is bootstrapping multilevel models.  
 There are various different ways we can bootstrap, which vary in the assumptions they make about our model and about the process that generates our data.  
 Today we'll focus on parametric bootstrapping. This assumes that our model is correct, for instance, in that our residuals and our random effect terms are normally distributed. 
@@ -1396,77 +1407,112 @@ Today we'll focus on parametric bootstrapping. This assumes that our model is co
 ---
 # Parametric Bootstrap
 
+The basic premise is that we:  
+
+1. fit model(s) to data
+
+2. Do many times:
+
+  - simulate data based on the parameters of the fitted model(s)
+  - compute some statistic/estimates from the simulated data
+
+3. Construct a distribution of possible values  
+
+---
+# Parametric Bootstrap
+
 .pull-left[
-The idea here is that in order to do inference on the effect of a (set of) predictor(s), you 
-
-1. fit the reduced model (without the predictors) to the data. 
-{{content}}
+## Confidence Intervals
+```{r eval=FALSE}
+full_model <- lmer(cog ~ 1 + visit_n + 
+                     (1 + visit_n | participant), 
+                   data = cogtime)
+confint(full_model, method = "boot")
+```
+```
+              2.5 %  97.5 %
+.sig01       0.6561  5.4831
+.sig02      -0.1509  1.0000
+.sig03       0.6630  1.5906
+.sigma       5.5275  6.8391
+(Intercept) 66.3313 70.8488
+visit_n     -1.7774 -0.6318
+```
 ]
-
-???
-parametric bootstrapping is so called because it draws samples based on the estimated parameters of our model. 
-the first thing we do is fit the reduced model, so the one without our parameters of interest. 
-
---
-
-2. Do many times:  
-  - simulate data from the reduced model
-  - fit both the reduced and the full model to the simulated (null) data
-  - compute some statistic(s), e.g. likelihood ratio.
-{{content}}
-
-???
-we then simulate some data based on the reduced model, and fit both the reduced and the full model to the simulated data, and compute our test statistic. for instance, the likelihood ratio  
-because each simulation is based on the reduced model, which doesn't have our parameters of interest included, this means the process that generates the simulated data doesn't specify an effect of these parameters (i.e., they will be centered at 0). 
-so what we are doing is essentially constructing a load of estimates of our statistic based on lots of simulations of data where the parameter is 0, which is like constructing a null sampling distribution! i.e. assuming there to be no effect, what would our statistic of interest look like if we repeatedly sample. 
-
---
-
-3. Compare the parameter estimates obtained from fitting models to the **data**, to the "null distribution" constructed in step 2. 
-
-???
-so we can compare the estimates obtained when we fit the model to the _DATA_, to this null sampling distribution that we have constructed
-
---
-
 .pull-right[
-Easy to do with `PBmodcomp()` in the **pbkrtest** package.
-```{r}
+## LRT
+(a bootstrapped version of the likelihood ratio test):  
+```{r eval=FALSE}
 library(pbkrtest)
+restricted_model <- lmer(cog ~ 1 + 
+                           (1 + visit_n | participant), 
+                         data = cogtime)
+full_model <- lmer(cog ~ 1 + visit_n + 
+                     (1 + visit_n | participant), 
+                   data = cogtime)
 PBmodcomp(full_model, restricted_model)
+```
+```
+Bootstrap test; time: 79.81 sec; samples: 1000; extremes: 1;
+Requested samples: 1000 Used samples: 979 Extremes: 1
+large : cog ~ 1 + visit_n + (1 + visit_n | participant)
+cog ~ 1 + (1 + visit_n | participant)
+       stat df p.value    
+LRT    13.1  1 0.00029 ***
+PBtest 13.1    0.00204 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 ```
 ]
 
-???
-it all sounds like quite a lot, but there's a very convenient package we can use to do this for us and bootstrap the likelihood ratio test.
 
 ---
 # Summary
 
 - Lots of debate around how best to conduct statistical inferences based on multi-level models. 
-  - denominator degrees of freedom can't be calculated, so traditional $F$ tests cannot be conducted
 
-- Lots of other options (approximations for $df$, likelihood ratio tests, bootstrap)
-  - The choice is yours, but we recommend bootstrapping (of which there are also many different approaches!)
+- Lots of options:
+
+  - approximations for $df$: _easy to implement. generally reliable_  
+      - fit `lmer()` with package **lmerTest**   
+      - `KRmodcomp(mod2, mod1)` from package **pbkrtest**  
+      
+  - likelihood ratio tests: _very quick, but best avoided unless big $n$ at all levels_  
+      - `anova(mod1, mod2)`   
+      
+  - parametric bootstrap: _time consuming, and unstable with more complex models_  
+      - `PBmodcomp(mod2, mod1)` from package **pbkrtest**    
+      - `confint(mod, method="boot")`   
+      
+
 
 ???
 In summary then, making statistical inferences from multilevel models is a difficult, and slightly contentious issue. 
 There are various approaches that we can use, many of which have certain drawbacks, such as requiring perfectly balanced designs, or being less reliable with small sample sizes. 
 ultimately, the decision is yours to make - you may find conducting standard likelihood ratio tests, using the anova function, are more convenient as they do not take much time to compute, but we would recommend a bootstrapping approach as being worth the extra little bit of time. 
 
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
 ---
 class: inverse, center, middle
+exclude: true
 
 <h2 style="text-align: left;opacity:0.3;">Part 1: LM to MLM</h2>
-<h2><b style="opacity:0.4;">Part 2: Inference in MLM </b><b>Examples</b></h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
+<h2>Extra slides (optional): Inference Examples</h2>
 
 ???
 let's look at some examples
 
 ---
+exclude: true
 # Data
 
-```{r}
+```{r eval = FALSE}
 nursedf <- read_csv("https://uoepsy.github.io/data/nurse_stress.csv")
 nursedf <- nursedf %>% 
   mutate(across(c(hospital, expcon, gender, wardtype, hospsize), factor))
@@ -1482,13 +1528,14 @@ our data come from nurses within 25 hospitals and we have information on their a
 
 
 ---
+exclude: true
 # test of a single parameter
 
 > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
 
---
+model summary:  
 
-```{r}
+```{r eval = FALSE}
 mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf)
 summary(mod1)
 ```
@@ -1499,32 +1546,32 @@ after fitting many multilevel models, you will start to get into the habit of be
 t stats > about 2 will tend to pattern with p < .05. NOTE this isn't a rule to follow or based decisions on. 
 
 ---
-count:false
+exclude: true
 # test of a single parameter
 
 > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
 
 __Likelihood Ratio Test:__
-```{r}
+```{r eval = FALSE}
 mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf)
 mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf)
-anova(mod0, mod1, test="Chisq")
+anova(mod0, mod1)
 ```
 
 
 ---
-count:false
+exclude: true
 # test of a single parameter
 
 > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
 
 __Parametric Bootstrap__ 
-```{r eval=F}
+```{r eval = FALSE}
 mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf)
 mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf)
 PBmodcomp(mod1, mod0)
 ```
-```{r echo=F}
+```{r eval = FALSE, echo=F}
 pbs = PBmodcomp(mod1, mod0)
 pbs 
 ```
@@ -1534,7 +1581,7 @@ here we fit a reduced model without the IV, and the full model.
 the parametric bootstrap indicates an improvement in model fit for the full model, suggesting the attending the program influences nurses' stress levels
 
 ---
-count:false
+exclude: true
 # test of a single parameter
 
 > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, **by how much?**
@@ -1544,7 +1591,7 @@ __Parametric Bootstrap Confidence Intervals__
 mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf)
 confint(mod1, method="boot")
 ```
-```{r echo=F, highlight.output=c(8)}
+```{r eval = FALSE, echo=F, highlight.output=c(8)}
 cis = confint(mod1, method="boot")
 cis
 ```
@@ -1555,49 +1602,50 @@ this way we can get an estimate for the value of the fixed effect
 
 
 ---
-count:false
+exclude: true
 # test of a single parameter
 
 > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
 
-Attendance of training programs on job-related stress was found to predict stress levels of nurses in `r length(unique(nursedf$hospital))` hospitals, beyond individual nurses' years of experience, age and gender (Parametric Bootstrap Likelihood Ratio Test statistic = `r pbs$test[2,"stat"]`, p`r map_chr(pbs$test[2,"p.value"], ~ifelse(.<.001, "<.001", paste0("=",.)))`). Having attended the training program was associated with a decrease in `r fixef(mod1)["expcon1"]` (Bootstrap 95% CI [`r paste(round(cis[7,],2), collapse=", ")`] ) standard deviations on the measure of job-related stress. 
+Attendance of training programs on job-related stress was found to predict stress levels of nurses in ` length(unique(nursedf$hospital))` hospitals, beyond individual nurses' years of experience, age and gender (Parametric Bootstrap Likelihood Ratio Test statistic = ` pbs$test[2,"stat"]`, p` map_chr(pbs$test[2,"p.value"], ~ifelse(.<.001, "<.001", paste0("=",.)))`). Having attended the training program was associated with a decrease in ` fixef(mod1)["expcon1"]` (Bootstrap 95% CI [` paste(round(cis[7,],2), collapse=", ")`] ) standard deviations on the measure of job-related stress.
 
 ???
 allowing us to discuss the effect size - how much it estimates the change in stress. 
 
 ---
-count:false
+exclude: true
 # testing that several parameters are simultaneously zero
 
 > Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
 
 __Likelihood Ratio Test__
-```{r}
+```{r eval = FALSE}
 mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
 mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
 anova(mod0, mod1, test="Chisq")
 ```
 
 ---
-count:false
+exclude: true
 # testing that several parameters are simultaneously zero
 
 > Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
 
 __Kenward-Rogers $df$-approximation__
-```{r}
+```{r eval = FALSE}
 mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
 mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
 KRmodcomp(mod1, mod0)
 ```
 
 ---
+exclude: true
 # testing that several parameters are simultaneously zero
 
 > Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
 
 __Parametric Bootstrap__
-```{r}
+```{r eval = FALSE}
 mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
 mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
 PBmodcomp(mod1, mod0)
@@ -1607,6 +1655,7 @@ PBmodcomp(mod1, mod0)
 If we are interested in the collective effects of various parameters, such as the influence of workplace-related factors, like wardtype and hospital size, then we can do the same but where the full model has a number of further predictors
 
 ---
+exclude: true
 # testing random effects 
 
 __are you sure you want to?__
@@ -1616,7 +1665,7 @@ __are you sure you want to?__
 - If needed, the __RLRsim__ package can test a single random effect (e.g. `lm()` vs `lmer()`).
 
 
-```{r}
+```{r eval = FALSE}
 library(RLRsim)
 mod0 <- lm(stress ~ expcon + experien + age + gender + wardtype + hospsize, data = nursedf)
 mod1 <- lmer(stress ~ expcon + experien + age + gender + wardtype + hospsize + 
@@ -1628,6 +1677,7 @@ exactLRT(m = mod1, m0 = mod0)
 we can also, should we wish to, test the benefit of including our random effect. We would rarely want to do this, because our random effects should be based on our theory and/or study design. But if we really need to - then we can use an exact likelihood ratio test. 
 
 ---
+exclude: true
 class: inverse, center, middle, animated, rotateInDownLeft
 
 # End 

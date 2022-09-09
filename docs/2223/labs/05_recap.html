@@ -797,10 +797,10 @@ You might find it helpful to think of the majority of these techniques as either
 <p>A. Fitting a full model and a reduced model. These differ only with respect to the relevant effect. Comparing the overall fit of these models by some metric allows us to isolate the improvement due to our effect of interest. B. Fitting the full model and - using some method of approximating the degrees of freedom for the tests of whether a coefficient is zero. - constructing some confidence intervals (e.g.&nbsp;via bootstrapping) in order to gain a range of plausible values for the estimate (typically we then ask whether zero is within the interval)</p>
 <p>Neither of these is <em>correct</em> or <em>incorrect</em>, but they each have different advantages. In brief:</p>
 <ul>
-<li>Likelihood Ratio Tests = better with bigger samples (of groups, and of observations within groups)</li>
-<li>Satterthwaite <span class="math inline">\(df\)</span> = Very easy to implement</li>
-<li>Kenward-Rogers <span class="math inline">\(df\)</span> = Good when working with small samples</li>
-<li>Parametric Bootstrap = takes time to run, but in general a reliable approach</li>
+<li>Satterthwaite <span class="math inline">\(df\)</span> = Very easy to implement, can fit with REML</li>
+<li>Kenward-Rogers <span class="math inline">\(df\)</span> = Good when working with small samples, can fit with REML</li>
+<li>Likelihood Ratio Tests = better with bigger samples (of groups, and of observations within groups), requires <code>REML = FALSE</code></li>
+<li>Parametric Bootstrap = takes time to run, but in general a reliable approach. , requires <code>REML = FALSE</code> if doing comparisons, but not for confidence intervals</li>
 <li>Non-Parametric Bootstrap = takes time, needs careful thought about which levels to resample, but means we can relax distributional assumptions (e.g.&nbsp;about normality of residuals).</li>
 </ul>
 <p>For the examples below, we’re investigating how “hours per week studied” influences a child’s reading age. We have data from 132 children from 20 schools, and we have fitted the model:</p>
@@ -839,7 +839,7 @@ hrs_week    1.150637  0.2968219 3.876525 0.0001059589</code></pre>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmerTest)</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
-<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(full_model)<span class="sc">$</span>coefficients</span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            Estimate Std. Error       df  t value    Pr(&gt;|t|)
@@ -870,9 +870,9 @@ For this, models must be fitted with REML, <strong>not</strong> ML. The function
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pbkrtest)</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>restricted_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="fu">KRmodcomp</span>(full_model, restricted_model)</span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>large : reading_age ~ 1 + hrs_week + (1 + hrs_week | school)
@@ -924,13 +924,10 @@ I have two models:</li>
 <p>Models must be fitted with ML, <strong>not</strong> REML. The function <code>anova()</code> will re-fit them for you.</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>restricted_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(restricted_model, full_model, <span class="at">test =</span> <span class="st">"Chisq"</span>)</span></code></pre></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>refitting model(s) with ML (instead of REML)</code></pre>
-</div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Data: childread
 Models:
@@ -960,8 +957,12 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pbkrtest)</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">PBmodcomp</span>(full_model, restricted_model, <span class="at">nsim=</span><span class="dv">1000</span>)</span></code></pre></div>
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(pbkrtest)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>restricted_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="fu">PBmodcomp</span>(full_model, restricted_model, <span class="at">nsim=</span><span class="dv">1000</span>)</span></code></pre></div>
 </div>
 <div class="int">
 <p><strong>Reporting</strong></p>
@@ -976,7 +977,9 @@ Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
 <div id="opt-body-19" class="optional-body" style="display: none;">
 <p>Much the same as above, but with just one model we simulate data many times and refit the model, so that we get an empirical distribution that we can use to construct confidence intervals for our effects.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(full_model, <span class="at">method=</span><span class="st">"boot"</span>)</span></code></pre></div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(full_model, <span class="at">method=</span><span class="st">"boot"</span>)</span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>                 2.5 %   97.5 %
 .sig01       0.0000000 3.913368
@@ -1007,17 +1010,17 @@ An alternative is to generate a distribution by <strong>resampling with replacem
 
 </div>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread)</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmeresampler)</span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>fullmod_bs <span class="ot">&lt;-</span> </span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bootstrap</span>(full_model, <span class="co"># this is the model</span></span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.f =</span> fixef, <span class="co"># we want the fixef from each bootstrap</span></span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">type =</span> <span class="st">"case"</span>, <span class="co"># case based bootstrap</span></span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">B=</span><span class="dv">2000</span>, <span class="co"># do 2000 bootstraps</span></span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">resample =</span> <span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">TRUE</span>) <span class="co"># resample both schools and individual children</span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>  ) </span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fullmod_bs, <span class="at">type =</span> <span class="st">"perc"</span>)</span></code></pre></div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>full_model <span class="ot">&lt;-</span> <span class="fu">lmer</span>(reading_age <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> hrs_week <span class="sc">|</span> school), </span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>                   <span class="at">data =</span> childread, <span class="at">REML =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lmeresampler)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>fullmod_bs <span class="ot">&lt;-</span> </span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">bootstrap</span>(full_model, <span class="co"># this is the model</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.f =</span> fixef, <span class="co"># we want the fixef from each bootstrap</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>            <span class="at">type =</span> <span class="st">"case"</span>, <span class="co"># case based bootstrap</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>            <span class="at">B=</span><span class="dv">2000</span>, <span class="co"># do 2000 bootstraps</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>            <span class="at">resample =</span> <span class="fu">c</span>(<span class="cn">TRUE</span>, <span class="cn">TRUE</span>) <span class="co"># resample both schools and individual children</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>  ) </span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a><span class="fu">confint</span>(fullmod_bs, <span class="at">type =</span> <span class="st">"perc"</span>)</span></code></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 2 × 6
   term        estimate  lower upper type  level

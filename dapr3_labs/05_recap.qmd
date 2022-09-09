@@ -508,10 +508,10 @@ B. Fitting the full model and
 Neither of these is _correct_ or _incorrect_, but they each have different advantages. In brief: 
 
 
-- Likelihood Ratio Tests = better with bigger samples (of groups, and of observations within groups)
-- Satterthwaite $df$ = Very easy to implement
-- Kenward-Rogers $df$ = Good when working with small samples
-- Parametric Bootstrap = takes time to run, but in general a reliable approach
+- Satterthwaite $df$ = Very easy to implement, can fit with REML
+- Kenward-Rogers $df$ = Good when working with small samples, can fit with REML
+- Likelihood Ratio Tests = better with bigger samples (of groups, and of observations within groups), requires `REML = FALSE`
+- Parametric Bootstrap = takes time to run, but in general a reliable approach. , requires `REML = FALSE` if doing comparisons, but not for confidence intervals
 - Non-Parametric Bootstrap = takes time, needs careful thought about which levels to resample, but means we can relax distributional assumptions (e.g. about normality of residuals).  
 
 For the examples below, we're investigating how "hours per week studied" influences a child's reading age. We have data from 132 children from 20 schools, and we have fitted the model:   
@@ -551,7 +551,7 @@ Load the __lmerTest__ package, refit the model, and voila!
 ```{r}
 library(lmerTest)
 full_model <- lmer(reading_age ~ 1 + hrs_week + (1 + hrs_week | school), 
-                   data = childread)
+                   data = childread, REML = TRUE)
 summary(full_model)$coefficients
 ```
 
@@ -580,9 +580,9 @@ For this, models must be fitted with REML, __not__ ML. The function `KRmodcomp()
 ```{r}
 library(pbkrtest)
 restricted_model <- lmer(reading_age ~ 1 + (1 + hrs_week | school), 
-                   data = childread)
+                   data = childread, REML = TRUE)
 full_model <- lmer(reading_age ~ 1 + hrs_week + (1 + hrs_week | school), 
-                   data = childread)
+                   data = childread, REML = TRUE)
 KRmodcomp(full_model, restricted_model)
 ```
 
@@ -624,9 +624,9 @@ This method assumes that the ratio of two likelihoods will (as sample size incre
 Models must be fitted with ML, __not__ REML. The function `anova()` will re-fit them for you.   
 ```{r message=T,warning=T}
 restricted_model <- lmer(reading_age ~ 1 + (1 + hrs_week | school), 
-                   data = childread)
+                   data = childread, REML = FALSE)
 full_model <- lmer(reading_age ~ 1 + hrs_week + (1 + hrs_week | school), 
-                   data = childread)
+                   data = childread, REML = FALSE)
 anova(restricted_model, full_model, test = "Chisq")
 ```
 
@@ -647,6 +647,10 @@ set.seed(993)
 ```
 ```{r eval=FALSE}
 library(pbkrtest)
+restricted_model <- lmer(reading_age ~ 1 + (1 + hrs_week | school), 
+                   data = childread, REML = FALSE)
+full_model <- lmer(reading_age ~ 1 + hrs_week + (1 + hrs_week | school), 
+                   data = childread, REML = FALSE)
 PBmodcomp(full_model, restricted_model, nsim=1000)
 ```
 
@@ -661,6 +665,8 @@ A parametric bootstrap likelihood ratio test (R = 1000) indicated that the inclu
 
 Much the same as above, but with just one model we simulate data many times and refit the model, so that we get an empirical distribution that we can use to construct confidence intervals for our effects. 
 ```{r}
+full_model <- lmer(reading_age ~ 1 + hrs_week + (1 + hrs_week | school), 
+                   data = childread, REML = TRUE)
 confint(full_model, method="boot")
 ```
 
@@ -687,7 +693,7 @@ set.seed(993)
 
 ```{r}
 full_model <- lmer(reading_age ~ 1 + hrs_week + (1 + hrs_week | school), 
-                   data = childread)
+                   data = childread, REML = TRUE)
 library(lmeresampler)
 fullmod_bs <- 
   bootstrap(full_model, # this is the model

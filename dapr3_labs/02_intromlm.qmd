@@ -440,7 +440,7 @@ load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
 Each of our participants have measurements at 4 assessments. 
 We need to think about what this means for the **random effects** that we will include in our model (our **random effect structure**). Would we like our models to accommodate individuals to vary in their overall wellbeing, to vary in how they change in wellbeing over the course of the assessment period, or both?
 
-To investigate whether wellbeing changed over the course of the assessments, or whether it stayed the same, we can fit and compare 2 models:  
+To investigate whether wellbeing changed over the course of the assessments, or whether it stayed the same, we could fit and compare 2 models:  
 
 1. The "null" or "intercept-only" model. 
 2. A model with wellbeing predicted by time point.  
@@ -668,18 +668,16 @@ summary(mod)
 
 We now have a model, but we don't have any p-values, confidence intervals, or inferential criteria on which to draw conclusions.  
 
-In the longitudinal study of wellbeing over time, we did a series of model comparisons, performing tests of the incremental inclusion of additional parameters. In the Basketball/HRV example we went straight for the full model. This is in part because the two research aims of the longitudinal example can be matched two models (one for the "overall" trajectory, and one looking at differences between groups), whereas the Basketball/HRV research question simply requires the `stakes*condition` interaction.  
+In the longitudinal study of wellbeing over time, we did a series of model comparisons, performing tests of the incremental inclusion of additional parameters. In the Basketball/HRV example we went straight for the full model. This is in part because the two research aims of the longitudinal example can be matched two models (one for the "overall" trajectory, and one looking at differences between groups), whereas the Basketball/HRV research question simply is interested in the theorised `stakes*condition` interaction.  
 
-There are some options here for you to choose from: you can either perform tests against the null that certain parameter estimates are equal to zero (i.e. testing the fixed effects), or you can fit a reduced model and conduct model comparisons between that and the full model (thereby isolating and testing the improvement in the model due to a certain parameter).  
-
+There are some options here for us to choose from for this model: we can either perform tests against the null that certain parameter estimates are equal to zero (i.e. testing that the interaction is zero), or ca wen fit a reduced model and conduct model comparisons between that and the full model (thereby isolating and testing the improvement in the model due to including the interaction term).  
 There are different methods of implementing these in R, as detailed in the table below. Standard likelihood ratio tests require models to be fitted with ML, and can be less reliable when samples are small (at any level). Often, approximations of the degrees of freedom are preferable, in part because these allow models to be fitted with REML. The more computationally expensive bootstrapping approach is perhaps the most recommended approach as it can provide more accurate p-values for the likelihood ratio test, as well as confidence intervals for our estimates, but for larger models it can take a lot of time to compute. Additionally, when performing the bootstrap it is important to watch out for issues with convergence in the bootstrap iterations - it may indicate your model needs simplification.  
 
 Method |  Model Comparison |  Parameter Estimation|
 |------:|--------:|------------:|
+| Approximations to $ddf$ | Kenward-Rogers: `KRmodcomp(model2, model1)` from the __pbkrtest__ package  | Satterthwaite: load the __lmerTest__ package and re-fit your model (the summary output will then have p-values)  |
 | Likelihood Ratio Test | `anova(model1, model2)` |  |
-| Approximations to $ddf$ | Satterthwaite: `SATmodcomp(model2, model1)` from the __pbkrtest__ package.<br>Kenward-Rogers: `KRmodcomp(model2, model1)` from the __pbkrtest__ package  | Satterthwaite: load the __lmerTest__ package and re-fit your model (the summary output will then have p-values)  |
 | Parametric Bootstrap | `PBmodcomp(model2, model1)` from the __pbkrtest__ package | `confint(model, method="boot")`|
-
 
 
 `r qbegin("10")`
@@ -692,6 +690,8 @@ In this case we have $n=15$ participants (our level 2 sample size), and each par
 
 We'll go through each approach here so you can see what it looks like. There's no *right* answer here.  
 
+__Standard LRT__  
+
 If we choose a model comparison approach, we need to isolate the interaction term, because that's what we're interested in: 
 ```{r}
 mod_res <- lmer(hrv ~ stakes + condition + (1 + stakes | sub), data = bballrep,
@@ -700,7 +700,7 @@ mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes | sub), data = bballrep,
             control = lmerControl(optimizer="bobyqa"))
 ```
 
-We see that the standard likelihood ratio test refits the models with ML rather than REML
+This needs models fitted with ML rather than REML, but it will automatically re-fit them for you:
 ```{r}
 #| message: true
 #| warning: true
@@ -710,30 +710,13 @@ anova(mod_res, mod_full)
 Inclusion of the interaction between size and type of reward was not found to improve model fit, as indicated by a likelihood ratio test ($\chi^2(1) = 0.71, p = .399$). 
 :::
 
-We could instead perform the parametric bootstrap for this test instead. This requires us to remove any incomplete cases from the dataset first, and then re-fit the models: 
-```{r}
-#| echo: false
-set.seed(993)
-```
 
-```{r}
-library(pbkrtest)
-bballrep2 = na.omit(bballrep)
-mod_res <- lmer(hrv ~ stakes + condition + (1 + stakes | sub), data = bballrep2,
-            control = lmerControl(optimizer="bobyqa"))
-mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes | sub), data = bballrep2,
-            control = lmerControl(optimizer="bobyqa"))
-PBmodcomp(mod_full, mod_res)
-```
-
-:::int
-Inclusion of the interaction between size and type of reward was not found to improve model fit, as indicated by a parametric bootstrapped ($k=1000$) likelihood ratio test ($\Delta 2loglik = 0.612, p = .469$). 
-:::
-
+__df approximations__  
 
 If instead we choose the approximation for degrees of freedom, then generally speaking the Kenward Rogers approach is preferable as it is a little more conservative.  
 
 ```{r}
+library(pbkrtest)
 KRmodcomp(mod_full, mod_res)
 ```
 :::int
@@ -754,6 +737,29 @@ summary(mod_full)
 There was no significant interaction between size and type of reward ($\beta = -0.06, SE = 0.07, t(13.04^*) = -0.8, p = .441$). 
 
 $\textrm{ }^*$: denominator degrees of freedom approximated using Satterthwaite method.  
+:::
+
+__parametric bootstrapping__  
+
+We could instead perform the parametric bootstrap for the likelihood ratio test instead. This requires us to remove any incomplete cases from the dataset first, and then re-fit the models.  
+```{r}
+#| echo: false
+set.seed(993)
+```
+
+This will _also_ (just like the standard LRT) refit the models for us with ML rather than REML (it just won't tell us that it's doing so!) 
+```{r}
+library(pbkrtest)
+bballrep2 = na.omit(bballrep)
+mod_res <- lmer(hrv ~ stakes + condition + (1 + stakes | sub), data = bballrep2,
+            control = lmerControl(optimizer="bobyqa"))
+mod_full <- lmer(hrv ~ stakes * condition + (1 + stakes | sub), data = bballrep2,
+            control = lmerControl(optimizer="bobyqa"))
+PBmodcomp(mod_full, mod_res)
+```
+
+:::int
+Inclusion of the interaction between size and type of reward was not found to improve model fit, as indicated by a parametric bootstrapped ($k=1000$) likelihood ratio test ($\Delta 2loglik = 0.612, p = .469$). 
 :::
 
 Lastly, we could also opt to construct parametric bootstrapped confidence intervals around our fixed effect estimates: 
