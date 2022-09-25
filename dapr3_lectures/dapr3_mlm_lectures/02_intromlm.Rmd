@@ -375,19 +375,19 @@ Multi-level models can be used to answer multi-level questions!
 Do phenomena at Level X predict __outcomes__ at Level Y?  
 
 __example:__  
-Does population density in school district predict variation in scores in childrens' first year of school?  
+Does number of siblings predict variation in scores in childrens' first year of school?  
 
 $$
 \begin{align}
 \textrm{score}_{ij} &= \beta_{0i} + \beta_1\textrm{year}_j + \varepsilon_{ij} \\
-\beta_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{district_pop_dens}_i
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{nr siblings}_i
 \end{align}
 $$
 <br>
 Single equation:  
 $$
 \begin{equation}
-\textrm{score}_{ij} = (\gamma_{00} + \zeta_{0i}) + \gamma_{01}\textrm{district_pop_dens}_i + \beta_1\textrm{year}_j + \varepsilon_{ij}
+\textrm{score}_{ij} = (\gamma_{00} + \zeta_{0i}) + \gamma_{01}\textrm{nr siblings}_i + \beta_1\textrm{year}_j + \varepsilon_{ij}
 \end{equation}
 $$
 
@@ -395,7 +395,7 @@ $$
 - other than being one method of accounting for clustering in data, why fit MLM?
 - MLM allows us to ask some interesting multilevel questions
 - e.g. does some predictor at one level influences outcomes at another level.
-- [EXAMPLE]
+- [EXAMPLE] we have measured childrens' performance on a test over time, so multiple observations per child. we fit a model where children's intercept varies, and we ask whether this is predicted by their nr of siblings 
 - note that really this is identical to a beta. it's a fixed constant, it just applies to something measured at level 2
 
 
@@ -408,12 +408,12 @@ Multi-level models can be used to answer multi-level questions!
 Do phenomena at Level X influence __effects__ at Level Y?  
 
 __example:__  
-Does amount of school funding influence childrens' improvement in scores over time?  
+Does being mono/bi-lingual influence childrens' improvement in scores over time?  
 
 $$
 \begin{align}
 \textrm{score}_{ij} &= \beta_{0} + \beta_{1i}\textrm{year}_j + \varepsilon_{ij} \\  
-\beta_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{school_funding}_i
+\beta_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i
 \end{align}
 $$
 
@@ -421,14 +421,15 @@ $$
 Single equation:   
 $$
 \begin{equation}
-\textrm{score}_{ij} = \beta_{0} + (\gamma_{10} + \zeta_{1i})\cdot\textrm{year}_j + \gamma_{11}\textrm{school_funding}_i\cdot\textrm{year}_j + \varepsilon_{ij}
+\textrm{score}_{ij} = \beta_{0} + (\gamma_{10} + \zeta_{1i})\cdot\textrm{year}_j + \gamma_{11}\textrm{bilingual}_i\cdot\textrm{year}_j + \varepsilon_{ij}
 \end{equation}
 $$
 
 ???
 - or if a variable at some level moderates the effect of a variable at a different level
-- [EXAMPLE]
-- and this is really just an interaction, but one effect is at school level, and the other is at child level
+- [EXAMPLE] 
+we have measured childrens' performance on a test over time, so we have multiple observations for each child. we can ask whether the slope of time (and there's a slope for each child) differs depending on whether the child is bilingual
+- and this is really just an interaction, but one effect is at child level, and the other is at observation level
 
 
 ---
@@ -466,8 +467,10 @@ $$
 
 ???
 - can also get more complicated
-- ask questions about correlations between random effects
-- do groups that have have higher (relative to other groups) intercepts, show greater effects of X?  
+- in estimating variances of random effects, the model can also estimate covariances
+- [EQUATION]
+- allows us to ask about how cluster level deviations in one aspect correlate with cluster level deviations at others
+- [EXAMPLE] we have measured childrens' performance on a test over time, and each child has their own intercept and their own slope. we might be interested in whether children who start higher increase more (have steeper slopes)
 
 ---
 # lme4
@@ -491,10 +494,11 @@ lmer(score ~ 1 + year + (1 + year | school), data = ...
 
 
 ???
-okay, so let's take a look at how we fit these models in R. 
-fitting a multilevel model in R is relatively straightforward, and can be achieved with various packages. The one we are going to use, and which is most common, is the lme4 package.   
-we fit the model using the same formula notation, our outcome, the tilde, and our predictor variables. 
-we then add the parameters for which we want to add random effects into parentheses at the end of the formula, with the vertical line separating the grouping variable. 
+- before we go any furtehr, let's look at fitting these models in R
+- it's straightforward
+- lme4 package
+- same notation
+- _BUT_ - we specify the things we want to vary, and what we want to vary them by
 
 
 ---
@@ -503,6 +507,8 @@ class: inverse, center, middle
 <h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>A Visual Explanation</b></h2>
 <h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
 
+???
+okay, lots of equations, let's take a spin a the visual side of this
 
 ---
 # Data
@@ -520,8 +526,11 @@ head(crq_data)
 ]
 
 ???
-First let's introduce some data. We have 200 students from 20 schools, and their scores on an emotion dysregulation scale, and on the childs routines quesstionnire. 
-you can see the two variables here, and the school identifier here.
+Same data we saw last week. 
+- 200 students, from 20 schools. 
+- we're looking at how the level of routine a child has is associated with their regulation of emotions
+
+
 
 ---
 count: false
@@ -559,7 +568,8 @@ schoolplots
 ]
 
 ???
-we can see some panel plots here. each panel a school, each dot a child. 
+- ICC is telling us that 24% variance in the emotion dysregulation scale can be attributed to clustering of children into schools
+- and let's just remind ourselves of the facetted plots - one plot for each school. each dot is a child.
 
 ---
 exclude: true
@@ -602,8 +612,9 @@ summary(lm_mod)
 ]
 
 ???
-now lets fit a straightforward simple linear model to our data. 
-remember that this 1 is implicit in a linear model, and is just telling R that we want to model an intercept.
+- start with the complete pooling again
+- fit a simple linear model
+- remember this "1" is just saying that we want the model to estimate an intercept
 
 --
 
@@ -616,8 +627,8 @@ schoolplots +
 ]
 
 ???
-we can add the fitted values from our model to our plot.  
-note that while we have a facet for each school, the line is the same in all these. 
+- and now, let's add the model fitted values of the model to the plot 
+- while we have a plot for each school, the line is the same in all these. 
 
 ---
 # R: Adding a random intercept
@@ -634,8 +645,9 @@ summary(ri_mod)
 ]
 
 ???
-here we've fitted a random intercept model.  
-the "1" which we talked about in the simple linear model, the intercept, we are now specifying as being modelled by a fixed part and some random by-school variation around this. 
+- okay, let's switch to the random intercept model.  
+- the "1" is that intercept, and we are saying "vary it by schools"
+  - or "each school has can have a different intercept"
 
 --
 
@@ -648,8 +660,11 @@ schoolplots +
 ] 
 
 ???
-and as you might expect, this allows the intercept to vary between our schools. so the fitted values from this random intercept model are the red lines, and we can see that the height is different for each school. some are higher, some are lower, and the average is 4.43, in our fixed effects here.
-note that the slope of the line is the same for all schools. 
+- as you might expect. 
+- and as you might expect, allowing intercept to vary between schools, mean height of line is different. 
+- [BLUE LINE] = simple lm
+- [RED LINE] = random intercept
+- height is different, because different intercept, but slope is same
 
 ---
 # R: Adding a random slope
@@ -665,7 +680,10 @@ summary(rs_mod)
 ]
 
 ???
-and here we add in the random slope, so we are specifying that the effect of CRQ on emotion dysregulation is different for each school. The effect randomly varies between schools, around some fixed center. 
+- in the next model here, let's _also_ allow the slope of crq to vary by schools
+- so the association between the outcome EDS, and the predictor CRQ, can now be different for each school
+- in our plots, that's the slope. so the slope will be different for each school
+- The slope randomly varies between schools, around some fixed center. 
 
 
 --
@@ -680,7 +698,7 @@ schoolplots +
 ]
 
 ???
-the orange lines, which show the fitted values from the random slope model, vary in their slope for each school! 
+- [ORANGE] = random slope
 
 ---
 # Partial Pooling vs No Pooling
@@ -702,8 +720,9 @@ schoolplots +
 ]
 
 ???
-There's an important aspect of multilevel models that we haven't yet touched upon. 
-We saw in the previous lecture that the no-pooling approach, which is where we include a fixed effect of cluster, can fit cluster-specific effects. So here, the black lines show the fitted values for this simple linear model with an interaction between our predictor and our cluster. So we have cluster specific intercepts, and cluster specific effects.
+- some questions in Piazza have started to wonder about the idea of "partial" pooling here.
+- i want to contrast no-pooling (fixed effect of each cluster), in order to show why it is "partial"
+
 
 ---
 # Partial Pooling vs No Pooling
@@ -718,7 +737,8 @@ We saw in the previous lecture that the no-pooling approach, which is where we i
 ]
 
 ???
-these are modelled as different intercept and slope adjustment parameters for each cluster. 
+- Coefficients from the no-pooling are the adjustments for intercept and slope for each school 
+
 
 --
 
@@ -744,9 +764,9 @@ crq_data %>%
 ]
 
 ???
-multilevel models provide an alternative, where we have cluster specific effects, but 'borrow strength' from the population-average effects.   
-The borrowing of strength is more apparent for the (what would be) more extreme clusters, as well as those that have fewer datapoints. What happens to these cluster estimates is that they are shrunk towards the population average. 
-
+- in the multilevel modelling approach, each school gets its own intercept and slope, but these 'borrow strength' from the others.   
+- The borrowing of strength is more apparent for the (what would be) more extreme clusters, as well as those that have fewer datapoints. What happens to these cluster estimates is that they are shrunk towards the population average. 
+- [PLOT]
 
 ---
 class: inverse, center, middle
@@ -774,11 +794,9 @@ knitr::include_graphics("jk_img_sandbox/lmer2.png")
 ]
 
 ???
-In the output of lmer object, as you'd expect we have a bit more information than we do from lm. 
-first.. lets look at the fixed effect part.  
-as in standard linear regression, we have coefficient estimates and the associated standard errors. We also have the t statistic, which is estimate divided by std. error.  
-
-between them, here the intercept and the effect of x here provide us with the overall intercept and slope.
+- more output than we get from lm
+- first [FIXED EFFECTS]
+- [PLOT] we've got an intercept and a slope, that defines a line! 
 
 
 ---
@@ -799,11 +817,15 @@ knitr::include_graphics("jk_img_sandbox/lmer2a.png")
 ]
 
 ???
-moving to our random part, we have the estimated variances of our random effects. so the cluster level variance of our intercept, and of our effect of x. 
-Remember that our random effects are normally distributed with a mean of 0. so the random intercepts have a standard deviation of 1.15.
-so this blue cluster has an intercept of 1.79 plus about 2  
-and this yellow cluster has an intercept of 1.79 minus about 2
-and the same applies to the effects of x
+- [RANDOM]]
+- what model estimates is the variances of the random effects
+- cluster level variance of intercept, and of effect of x. 
+- random effects are N(0,.. )
+- [PLOT]
+  - blue cluster has an intercept of 2 _above_ 
+  - yellow cluster has an intercept of about 2 below
+  - same logic holds for slope
+
 
 
 ---
@@ -824,8 +846,8 @@ knitr::include_graphics("jk_img_sandbox/lmer3.png")
 ]
 
 ???
-The fixed and random parts together provide the cluster specific lines here.  
-so we said that the blue one had a higher intercept, and it has a more negative slope, and we can see that here.  
+- The fixed and random parts together provide the cluster specific lines here.  
+- we said the blue one had a higher intercept, and it has a more negative slope, and we can see that here.  
 
 
 ---
@@ -846,8 +868,8 @@ knitr::include_graphics("jk_img_sandbox/lmer4.png")
 ]
 
 ???
-finally, we have the estimated standard deviation of our level 1 residuals. again, these are assumed to be normally distributed with a mean of 0.  
-and these are the deviations from our cluster specific lines to our individual observations y
+- finally, we have the estimated standard deviation of our level 1 residuals. again, these are assumed to be normally distributed with a mean of 0.  
+- and these are the deviations from our cluster specific lines to our individual observations y
 
 
 ---
@@ -884,9 +906,7 @@ op
 ]
 
 ???
-we can extract all these parts using the functions fixef, ranef and coef.  
-fixef gives us our fixed effects, ranef our random effects.  
-coef gives us our cluster specific coefficients, which are the fixed + ranef
+- fixef, ranef and coef.  
 
 ---
 # ICC in lmer
@@ -908,8 +928,8 @@ In other words, it has computed the ICC based on a value of zero for the random 
 ]
 
 ???
-recall that ICC is the proportion of variance between groups to the total variance.  
-we can get this from our lmer output!  
+- recall that ICC is the proportion of variance between groups to the total variance.  
+- we can get this from our lmer output!  
 we're back to our childhood emotional dysregulation data here, and we can see that we have an estimated variance between schools, and the residual variance. between those, we can calculate the ratio of this to the total.  
 
 
@@ -938,7 +958,8 @@ r.squaredGLMM(mod1)
 ]
 
 ???
-you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
+- no R squared given by default
+- you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
 
 --
 
@@ -978,7 +999,7 @@ but for multilevel models, which are considerably more complicated, we estimate 
 ---
 # Model Estimation: ML
 
-Aim: find the values for the unknown parameters that maximize the probability of obtaining the observed data.
+Aim: find the values for the unknown parameters that maximize the probability of obtaining the observed data.  
 How: This is done via finding values for the parameters that maximize the (log) likelihood function.
 
 ```{r echo=FALSE, out.height="450px"}
@@ -1175,10 +1196,6 @@ plot_model(cogtime_model, type="eff")
 ```
 ]
 
-???
-as before, we can use sjPlot to plot our model predicted values
-
---
 .pull-right[
 ```{r echo=FALSE, fig.asp=.7}
 library(sjPlot)
@@ -1186,17 +1203,27 @@ plot_model(cogtime_model, type="eff")
 ```
 ]
 
+???
+as before, we can use sjPlot to plot our model predicted values
+
 
 ---
 # MLM Example: Plotting the model
 #### **effects::effect()**
 
 .pull-left[
-```{r}
+```{r eval=F}
 library(effects)
 as.data.frame(effect("visit_n",cogtime_model))
 ```
-
+```
+  visit_n   fit    se lower upper
+1       1 67.34 1.208 64.96 69.72
+2       3 64.90 1.452 62.04 67.77
+3       6 61.25 2.083 57.14 65.35
+4       8 58.81 2.582 53.72 63.90
+5      10 56.37 3.110 50.24 62.50
+```
 ```{r eval=FALSE}
 as.data.frame(effect("visit_n",cogtime_model)) %>%
   ggplot(.,aes(x=visit_n, y=fit))+
@@ -1208,10 +1235,13 @@ as.data.frame(effect("visit_n",cogtime_model)) %>%
 
 .pull-right[
 ```{r echo=FALSE, fig.asp=.7}
-as.data.frame(effect("visit_n",cogtime_model)) %>%
-  ggplot(.,aes(x=visit_n, y=fit))+
-  geom_line()+
-  geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)
+# p <- as.data.frame(effect("visit_n",cogtime_model)) %>%
+#   ggplot(.,aes(x=visit_n, y=fit))+
+#   geom_line()+
+#   geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)
+# save(p,file = "effplot.Rdata")
+load("effplot.Rdata")
+p
 ```
 ]
 

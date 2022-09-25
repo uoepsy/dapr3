@@ -3,6 +3,8 @@ title: "week2"
 author: "uoepsystat"
 date: ""
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -13,6 +15,7 @@ library(ICC)
 library(lme4)
 
 active_monkeys <- read_csv("../../data/active_monkeys.csv")
+active_monkeys$monkey <- factor(active_monkeys$monkey)
 ```
 
 Eliza Bliss-Moreau and Mark G. Baxter 2019: 
@@ -35,9 +38,8 @@ Credit goes to Dan Simpson for finding this paper as an excellent example for ex
 
 ignore the clusters, let's just fit a linear model:
 ```{r}
-
-
-
+m1 <- lm(time ~ day, active_monkeys)
+summary(m1)
 ```
 
 what does this look like for each cluster?
@@ -46,29 +48,30 @@ what does this look like for each cluster?
 ```
 
 design tells us that our errors are not independent. 
-Also, it is plainly obvious - look at cluster x in relation to our model fit:
-```{r}
 
-
-```
 
 
 # ICC
 
 we have variance in y:
 ```{r}
-
+active_monkeys %>% 
+  summarise(
+    allvar = var(time)
+  )
 ```
 
 variance in y between clusters
 ```{r}
-
-
+active_monkeys %>% 
+  group_by(monkey) %>%
+  summarise(
+    monkeyvar = var(time)
+  )
 ```
 
 we have variance in cluster means, and in observations around those means
 ```{r}
-
 
 ```
 
@@ -81,14 +84,14 @@ ICC is the ratio of the variance attributable to clusters, vs the overall varian
 
 fixed intercept adjustment: 
 ```{r}
-
-
+m2 <- lm(time ~ day + monkey, active_monkeys)
+summary(m2)
 ```
 
 fixed intercept and slope adjustment: 
 ```{r}
-
-
+m3 <- lm(time ~ day * monkey, active_monkeys)
+summary(m3)
 ```
 
 let's plot model fits
@@ -99,7 +102,7 @@ let's plot model fits
 
 we can see the reduction in residual sums of squares. it is significant
 ```{r}
-
+anova(m1,m2)
 ```
 
 but at what cost? we are now making cluster-specific estimates. e.g. "difference from cluster 1 to cluster 13".. 
@@ -111,6 +114,12 @@ but at what cost? we are now making cluster-specific estimates. e.g. "difference
 
 # pivotting (if time)
 
+
+```{r}
+library(lme4)
+m4 <- lmer(time ~ day + (1|monkey), active_monkeys)
+summary(m4)
+```
 
 
 
