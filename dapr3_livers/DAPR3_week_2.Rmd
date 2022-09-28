@@ -13,23 +13,72 @@ They also have data on whether the participant is left handed or not, with theor
 ```{r}
 library(tidyverse)
 library(lme4)
-# COG TIME (longitudinal)
-cogtime <- read_csv("../../data/cogtimerpm.csv")
+library(broom.mixed)
+
+cogtime <- read_csv("https://uoepsy.github.io/data/cogtimerpm.csv")
+head(cogtime)
 ```
 
 
 
 # fitting multilevel models, summary()
+Researchers are interested in how cognition changes over time. 
 
 lm, random intercepts, random slopes,
 
 ```{r}
-
+m1 <- lm(cog ~ visit_n, data = cogtime)
+library(sjPlot)
+plot_model(m1, type="pred", show.data=TRUE)
 ```
 
 
-int
+```{r}
+m2 <- lmer(cog ~ 1 + visit_n + (1 | participant), data = cogtime)
 
+augment(m2) %>%
+  ggplot(., aes(x = visit_n, y = .fitted, group = participant)) +
+  geom_point()+
+  geom_line()
+
+summary(m2)
+```
+
+```{r}
+m3 <- lmer(cog ~ 1 + visit_n + (1 + visit_n | participant), data = cogtime)
+
+augment(m3) %>%
+  ggplot(., aes(x = visit_n, y = .fitted, group = participant)) +
+  geom_point()+
+  geom_line()
+
+summary(m3)
+
+plot_model(m3, type="pred")
+library(effects)
+as.data.frame(effect(term = "visit_n",mod = m3))
+```
+
+Not possible. 
+to say "the effect of Lhandedness on cognition varies by participant (i.e. is different for each participant)" 
+we would need to be able to define "the effect of Lhandedness on cognition" for a single participant. 
+for Josiah, he is lefthanded. To think about "the effect of being Lhanded on cognition for Josiah", we would need data from Josiah when he is righthanded. But he's never right handed.. 
+
+```{r}
+m4 <- lmer(cog ~ 1 + visit_n * isLhanded + 
+             (1 + visit_n + isLhanded| participant), data = cogtime)
+summary(m4)
+
+plot_model(m4, type="int")
+
+# pick a few select participants to plot
+cogtime %>% filter(participant > 16) %>% 
+ggplot(., aes(x=isLhanded, y = cog))+
+  geom_point()+
+  geom_smooth(method=lm)+
+  facet_wrap(~participant)
+
+```
 
 
 
