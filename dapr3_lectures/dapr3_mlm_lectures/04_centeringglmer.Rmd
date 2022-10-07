@@ -45,7 +45,7 @@ knitr::opts_chunk$set(
   dev = "svg",
   warning = FALSE,
   message = FALSE,
-  cache = FALSE,
+  cache = TRUE,
   fig.asp=.8
 )
 theme_set(
@@ -69,8 +69,293 @@ style_mono_accent(
 
 class: inverse, center, middle
 
-<h2>Part 1: Centering Predictors</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 2: GLMM</h2>
+
+<h2>Part 1: Back to the start</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Centering Predictors</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra Slides (optional): GLMM</h2>
+
+---
+# Research Question
+
+> **How do reaction times change with increasing sleep deprivation?** <span style="opacity:.4">An international study, in which institutions in 20 countries studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.</span>  
+
+---
+# lm: a line
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide1.PNG")
+```
+
+---
+# lm: a line (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide2.PNG")
+```
+
+---
+# lm: lines and differences between them
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide3.PNG")
+```
+
+---
+# lmer: lines with a distribution of intercepts
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide4.PNG")
+```
+
+---
+# lmer: lines with a distribution of intercepts (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide5.PNG")
+```
+
+---
+# lmer: lines with a distribution of intercepts (3)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide6.PNG")
+```
+
+---
+# lmer: lines with a distribution of intercepts (4)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide7.PNG")
+```
+
+---
+# lmer: and with a distribution of slopes
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide8.PNG")
+```
+
+---
+# lmer: and with a distribution of slopes (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide9.PNG")
+```
+
+---
+# fixed and random
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide10.PNG")
+```
+
+- 95% of the time, research is interested in the fixed part. Describes the average group. 
+  - Fixed effects estimates are the bits we test  
+  - Random effects provide context
+
+---
+# lmer: distributions of distributions 
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide11.PNG")
+```
+
+
+---
+# model building 
+
+> How do reaction times change with increasing sleep deprivation? An international study, in which institutions in 20 countries studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
+
+---
+# model building 
+
+> How do reaction times change with increasing sleep deprivation? <span style="opacity:.4">An international study, in which institutions in 20 countries studied 18 participants over 10 days.</span>Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
+
+<br><br>
+
+- The research question tells us our fixed effects.  
+- <span style="opacity:.4">The design tells us our grouping structure</span>
+- <span style="opacity:.4">The random effects are additional levels of complexity that we _may_ be able to fit in order to better represent the world.</span>  
+
+--
+
+```{r eval=FALSE}
+Reaction ~ Age + Caff + Days
+```
+
+
+---
+# model bulding 
+
+> <span style="opacity:.4">How do reaction times change with increasing sleep deprivation?</span> An international study, in which institutions in 20 countries studied 18 participants over 10 days.<span style="opacity:.4">Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.</span>
+
+<br><br>
+
+- The research question tells us our fixed effects.  
+- The design tells us our grouping structure
+- <span style="opacity:.4">The random effects are additional levels of complexity that we _may_ be able to fit in order to better represent the world.</span>  
+
+```{r eval=FALSE}
+Reaction ~ Age + Caff + Days + (_____ | Country/Subject)
+```
+
+
+---
+# model bulding 
+
+> How do reaction times change with increasing sleep deprivation? An international study, in which institutions in 20 countries studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
+
+<br><br>
+
+- The research question tells us our fixed effects.  
+- The design tells us our grouping structure
+- The random effects are additional levels of complexity that we _may_ be able to fit in order to better represent the world.
+
+```{r eval=FALSE}
+Reaction ~ Age + Caff + Days + (????? | Country/Subject)
+```
+
+
+???
+(depending on how much data we have, and how much variability there is)  
+  
+---
+class: center, middle
+
+# in RStudio...  
+
+---
+# maximal structure
+
+- everything that _can (theoretically)_ vary by grouping structure is modelled as doing so
+
+```{r eval=FALSE}
+Reaction ~ Age + Caff + Days + 
+  (1 + Age + Caff + Days | Country) + 
+  (1 + Days | Country:Subject)
+```
+
+- Simplify until model converges
+  - Remember that you have a choice of optimizers (algorithms to try and find a converging model)
+    ```{r eval=FALSE}
+    control = lmerControl(optimizer = ???)
+    ```
+
+
+---
+# how to simplify
+
+Look for:
+
+- Variances/standard deviations of 0 (or very small, e.g. `3.56e-05`)  
+- Correlations of -1 or 1 
+
+```{r eval=FALSE}
+# to extract random effects
+VarCorr(model)
+```
+
+- You might argue that random effects of focal predictors are more important than random effects of covariates  
+- You will be faced with _subjective_ choices
+  - which simplification can you most easily accept?  
+  
+---
+# random effect correlations
+
+- If you remove a correlation between random effects, e.g.:
+
+```{r eval=FALSE}
+(1 + Days || Country)
+```
+
+- be sure that your theory can accept this simplification
+
+- try plotting the random effects from the model without the correlation. 
+  - setting `(1 + Days || Country)` doesn't _prevent_ a correlation between the _estimated_ random effects.
+  - it just tries to _describe_ the pattern with two **uncorrelated** distributions 
+  
+.pull-left[
+Model Parameters
+```{r echo=FALSE, fig.asp=.4}
+fulldat <- read_csv("../../../data/countrysleep.csv")
+m2 = lmer(Reaction ~ 1 + Days + 
+           (1 + Days || Country),
+         control=lmerControl(optimizer="bobyqa"), REML=TRUE,
+         data = fulldat)
+dd <- as.data.frame(ranef(m2)$Country)
+sim = MASS::mvrnorm(n=1e5,mu=c(0,0), Sigma = diag(2) * as.data.frame(VarCorr(m2))[1:2,5]^2)
+sim = as.data.frame(sim)
+names(sim) = names(dd)
+
+plotmod = ggplot(dd, aes(x=`(Intercept)`,y=Days))+
+  #geom_point()+
+  geom_density_2d(data=sim) + 
+  xlim(-40,40) + ylim(-4,4)
+plotran = ggplot(dd, aes(x=`(Intercept)`,y=Days))+
+  geom_point()+
+  xlim(-40,40) + ylim(-4,4)
+ploti = ggplot(data=tibble(x=-40:40),aes(x=x))+
+  stat_function(geom="line",fun=~dnorm(.x, mean=0,sd=as.data.frame(VarCorr(m2))[1,5]),lwd=1) + theme_void()
+plots = ggplot(data=tibble(x=-4:4),aes(x=x))+
+  stat_function(geom="line",fun=~dnorm(.x, mean=0,sd=as.data.frame(VarCorr(m2))[2,5]),lwd=1) +ylim(0,1) + coord_flip() + theme_void()
+library(patchwork)
+(ploti + plot_spacer()) / (plotmod + plots) +
+  plot_layout(heights = c(1, 4),widths = c(1,1))
+```
+]
+.pull-right[
+Random effect estimates 
+```{r echo=FALSE, fig.asp=.4}
+(plot_spacer() + plot_spacer()) / (plotran + plot_spacer()) +
+  plot_layout(heights = c(1, 4),widths = c(1,1))
+```
+
+]
+
+---
+# random effect correlations (2)
+
+- If you remove a correlation between random effects, e.g.:
+
+```{r eval=FALSE}
+(1 + Days || Country)
+```
+
+- be sure that you're comfortable accepting this simplification
+
+- try plotting the individual cluster `lm()` lines  
+  
+.pull-left[
+Individual `lm()` for each cluster:  
+```{r fig.asp=.3}
+ggplot(fulldat, aes(x=Days,y=Reaction,group=Country))+
+  geom_smooth(method=lm,se=F)
+```
+]
+
+---
+# Summary
+
+- think of the multilevel model `lmer()` as an extension of the simple linear model `lm()`  
+
+- the multilevel model allow us to let parts of our model _vary by_ some grouping.  
+
+  - i.e. different intercepts and/or slopes for each group
+  
+- the most straightforward approach to building these models: 
+
+  1. start with most complex model  
+  2. simplify until the model converges  
+
+
+
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Back to the start</h2>
+<h2>Part 2: Centering Predictors</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra Slides (optional): GLMM</h2>
 
 ---
 # Centering
@@ -1064,13 +1349,14 @@ so in this example, if you do more physio than you usually do, then your test ti
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
-# End of Part 1
+# End
 
 ---
 class: inverse, center, middle
 
-<h2 style="text-align: left;opacity:0.3;">Part 1: Centering Predictors</h2>
-<h2>Part 2: GLMM</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 1: Back to the start</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Centering Predictors</h2>
+<h2>Extra Slides (optional): GLMM</h2>
 
 ???
 we're now going to talk about the generalised multilevel model.  
@@ -1474,28 +1760,6 @@ our  effects are cluster specific in that our odds ratio we just saw was the rat
 whereas the population average effect would be the ratio of odds relative to a child picked at random from any school
 
 ---
-# Summary
-
-- Differences between linear and logistic multi-level models are analogous to the differences between single-level linear and logistic regression models.  
-
-- Fixed effects in logistic multilevel models are "conditional upon" holding the cluster constant. 
-
-???
-okay, that's a bit of a tangent. the key thing here is the similarity between lm and glm and lmer and glmer.  
-Much like when we include interactions in a model, our effects of individual predictors are "conditional upon" the level of the other variable. 
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End
-
----
-class: inverse, center, middle
-
-<h2 style="text-align: left;opacity:0.3;">Part 1: Centering Predictors</h2>
-<h2><b style="opacity:0.4;">Part 2: GLMM</b><b>Optional: Why are glmer() coefficients cluster-specific?</b></h2>
-
----
 # why are glmer() coefficients cluster-specific?
 consider a __linear__ multilevel model: `lmer(respiratory_rate ~ treatment + (1|hospital))`
 
@@ -1612,4 +1876,20 @@ consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospi
 
 Hence, the interpretation of $e^{\beta_1}$ is not the odds ratio for the effect of treatment "averaged over hospitals", but rather for patients _from the same hospital_. 
  
- 
+---
+# Summary
+
+- Differences between linear and logistic multi-level models are analogous to the differences between single-level linear and logistic regression models.  
+
+- Fixed effects in logistic multilevel models are "conditional upon" holding the cluster constant. 
+
+???
+okay, that's a bit of a tangent. the key thing here is the similarity between lm and glm and lmer and glmer.  
+Much like when we include interactions in a model, our effects of individual predictors are "conditional upon" the level of the other variable. 
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+

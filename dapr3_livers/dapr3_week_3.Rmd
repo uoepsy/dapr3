@@ -1,0 +1,95 @@
+---
+title: "DAPR3_week_3"
+author: "uoepsy"
+date: "2022-10-03"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lme4)
+
+# the data is in .sav format (comes from spss, so we need to read it in using the haven package)
+nursing <- haven::read_spss("https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/raw/master/chapter%202/Nurses/SPSS/Nurses.sav") %>% 
+  haven::as_factor()
+
+```
+
+you can see the data structure here: 
+https://cehs-research.github.io/eBook_multilevel/images/diagram_hox_nurses.png 
+
+```{r}
+head(nursing)
+```
+
+```{r}
+ggplot(nursing, aes(x=experien, y = stress)) + 
+  geom_point()
+
+ggplot(nursing, aes(x=experien, y = stress)) + 
+  geom_point()+
+  facet_wrap(~hospital)
+
+ggplot(nursing, aes(x=experien, y = stress)) + 
+  geom_point()+
+  facet_wrap(~wardid)
+```
+
+# Creating a meaningless cluster
+
+```{r}
+nursing2 <- nursing %>% mutate(meaningless_cluster = sample(1:10, size = n(), replace = T))
+
+ggplot(nursing2, aes(x=experien, y = stress)) + 
+  geom_point()+
+  facet_wrap(~meaningless_cluster)
+
+library(ICC)
+ICCbare(meaningless_cluster,y=stress,data=nursing2)
+
+lm(stress ~ 1+ experien, data = nursing2) %>% summary
+```
+
+
+# Sample size(s)?  
+
+
+```{r}
+# how many hospitals, and how many observations in each one
+nursing %>% count(hospital)
+# how many "ward"s, and how many observations in each one
+nursing %>% count(ward)
+# how many UNIQUE wards, and how many observations in each one
+nursing %>% count(wardid)
+nursing %>% count(hospital, ward) %>% arrange(n)
+```
+
+
+1. random intercept for each hospital  
+
+in this model, stress levels vary by hospitals (it's more stressful to work in some hospitals than others)  
+```{r}
+lmer(stress ~ experien + (1 | hospital), data = nursing) %>% summary
+```
+
+2. random intercept for each hospital and ward 
+
+in this model, stress levels vary by hospitals _AND_ they vary by wards within hospitals (it's more stressful to work in some wards of a hospital than others)
+```{r}
+lmer(stress ~ experien + (1 | hospital/ward), data = nursing) %>% summary
+```
+
+equivalent model is to use the unique ward id:
+```{r}
+lmer(stress ~ experien + (1 | hospital) + (1 | wardid), data = nursing) %>% summary
+```
+
+this one is _NOT_ equivalent: 
+```{r}
+lmer(stress ~ experien + (1 | hospital) + (1 | ward), data = nursing) %>% summary
+```
+
+
