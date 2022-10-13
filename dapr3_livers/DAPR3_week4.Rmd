@@ -15,24 +15,94 @@ fulldat <- read_csv("https://uoepsy.github.io/data/countrysleep.csv")
 head(fulldat)
 ```
 
+# checking how many countries each person sees
+
+```{r}
+fulldat %>% count(Country, Subject)
+fulldat %>% group_by(Subject) %>%
+  summarise(
+    howmanycountries = n_distinct(Country)
+  ) %>% summary
+```
+
+
+
+
+# nesting and unique labels
+
+(1|country/subject)
+is the same as
+(1|country) + (1|country:subject)
+
+if the labels for subject are unique, then these are all the same:  
+(1|country/subject)
+(1|country) + (1|country:subject)
+(1|country) + (1|subject)
+
+```{r}
+m1 <- lmer(Reaction ~ Age + Caff + Days + 
+             (1 + Age + Days + Caff | Country/Subject) + 
+             (1 + Days | Country:Subject) , 
+           data = fulldat)
+
+```
+
+The model above:   
+
+reaction time is predicted by
+- how old someone is
+- whether they drink caffeine
+- how many days of sleep dep they have
+and
+- countries vary in:
+  - overall RT 1|Country
+  - how age influences RT - age|Country
+  - how caff ifluences RT - Caff|country
+  - how sleep dep ifluences RT - Days|country
+- and people (nested within countries) vary in:
+  - overall RT 1|country:subject
+  - how sleep dep influence RT - Days|country:subject
+
+# why Age|Country but not Age|Subject?  
+
+### Here is a single country's data:
+```{r}
+fulldat %>% filter(Country == "Australia") %>%
+  ggplot(aes(x=Age,y=Reaction))+
+  geom_point()
+```
+
+the "effect of age on RT" (imagine a line through the above plot) could theoretically be different for different countries
+
+### for a single participant
+```{r}
+fulldat %>% filter(Subject=="ropl308") %>%
+  ggplot(aes(x=Age,y=Reaction))+
+  geom_point()
+```
+
+the "effect of age on RT" (imagine a line through the above plot) doesn't really exist for a single participant. would the line be going up or down?  
+
+
+# Simplifying the model
+
 ```{r}
 m <- lmer(Reaction ~ Age + Caff + Days + 
-           (1 + Days | Subject) + 
-           (1 + Age + Days | Country),
+           (1 + Days | Country:Subject) + 
+           (1 + Age + Days + Caff | Country),
          control=lmerControl(optimizer="bobyqa"), 
          REML=TRUE,
          data = fulldat)
 summary(m)
 ```
 
-model is converging (finding a solution) but singular fit (not a solution we want).  
-
-sometimes the warning is false positive, so we can check:
+- model is converging (finding a solution) but singular fit (not a solution we want).  
+- sometimes the warning is false positive, so we can check:
 ```{r}
 isSingular(m)
 ```
 
-checking the estimated parameters of a problematic model can help us to identify how to simplify:  
+- checking the estimated parameters of a problematic model can help us to identify how to simplify:  
 ```{r}
 VarCorr(m)
 ```
@@ -46,35 +116,53 @@ VarCorr(m)
     - probably. lots of psychology results don't hold cross culturally.
     - do countries vary in how age influences RT? not sure. maybe Italians age a lot better than people in the UK or something? 
     
+Let's remove age|country, and see what happens    
     
 ```{r}
 m1 <- lmer(Reaction ~ Age + Caff + Days + 
-           (1 + Days | Subject) + 
-           (1 + Days | Country),
+           (1 + Days | Country:Subject) + 
+           (1 + Days + Caff | Country),
          control=lmerControl(optimizer="bobyqa"), REML=TRUE,
-         data = fulldat2)
+         data = fulldat)
 isSingular(m1)
 VarCorr(m1)
 ```
     
+Let's remove caff|country, and see what happens    
+(trying our best to keep Days|Country and Days|Subject)
+    
+```{r}
+m2 <- lmer(Reaction ~ Age + Caff + Days + 
+           (1 + Days | Country:Subject) + 
+           (1 + Days | Country),
+         control=lmerControl(optimizer="bobyqa"), REML=TRUE,
+         data = fulldat)
+isSingular(m2)
+summary(m2)
+```
     
 Options:   
 
-- remove correlation between 1|Country and Days|Country
-- remove Days|Country altogether (simpler model)
+A - remove Days|Country altogether (simpler model)
+B - remove correlation between 1|Country and Days|Country  
+
 ```{r}
 m2A = lmer(Reaction ~ Age + Caff + Days + 
-           (1 + Days | Subject) + 
+           (1 + Days | Country:Subject) + 
            (1 | Country),
          control=lmerControl(optimizer="bobyqa"), REML=TRUE,
          data = fulldat)
 
-m2B = lmer(Reaction ~ Age + Caff + Days + 
-           (1 + Days | Subject) + 
+m2B = lmerTest::lmer(Reaction ~ Age + Caff + Days + 
+           (1 + Days | Country:Subject) + 
            (1 + Days || Country),
          control=lmerControl(optimizer="bobyqa"), REML=TRUE,
          data = fulldat)
+
+summary(m2B)
 ```
+
+# random effect correlations  
 
 What does it mean to have 1 + Days||Country?  
 Countrys vary in: 
@@ -83,26 +171,32 @@ Countrys vary in:
 
 and these are **NOT** correlated with one another. 
 
-Our problematic model:  
-```{r}
-plot(ranef(m1)$Country)
-cor(ranef(m1)$Country)
-```
-
-the model _without_ the correlation parameter
-```{r}
-plot(ranef(m2B)$Country)
-cor(ranef(m2B)$Country)
-```
-
-plot the cluster lm models 
+these are lots of lms for each country.  
+is starting higher correlated with slope?  
 ```{r}
 ggplot(fulldat, aes(x=Days,y=Reaction,group=Country))+
   geom_smooth(method=lm, se=F)
 ```
 
 
-# AN ASIDE
+
+In our problematic model:  
+```{r}
+plot(ranef(m2)$Country)
+cor(ranef(m2)$Country)
+```
+
+In our model _without_ the correlation parameter, the random effects are still a bit correlated.  
+```{r}
+plot(ranef(m2B)$Country)
+cor(ranef(m2B)$Country)
+```
+
+we can kind of treat the random effects as facts about the world - i.e. as if they are the data our model is being fitted to.  
+
+if the random effects in m2B were still very highly correlated, we would have reason to think our model is not fitting the data very well.  
+
+### AN ASIDE
 
 if 1|Country and Days|Country _WERE_ highly correlated.  
 ```{r}
@@ -127,6 +221,7 @@ plot(ranef(m2BCOR)$Country)
 cor(ranef(m2BCOR)$Country)
 VarCorr(m2BCOR)
 ```
+
 
 
 
