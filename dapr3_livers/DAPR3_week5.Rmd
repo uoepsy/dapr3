@@ -1,0 +1,84 @@
+---
+title: "DAPR3_Week5"
+author: "uoepsy"
+date: "2022-10-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# libraries
+library(tidyverse)
+library(lme4)
+library(HLMdiag)
+library(broom.mixed)
+library(sjPlot)
+library(pbkrtest)
+
+# data
+absint <- read_csv("https://uoepsy.github.io/data/abs_intervention.csv")
+
+# make intervention a factor:
+absint <- absint %>% mutate(interv = factor(interv))
+
+absmod <- lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), 
+               data = absint,
+               control = lmerControl(optimizer="bobyqa"))
+summary(absmod)
+
+# broom.mixed::augment(absmod) %>%
+#   ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
+#   geom_line()
+# 
+# absint %>% count(interv,schoolid,ppt) %>%
+#   mutate(age = 0) %>%
+#   mutate(.fitted = predict(absmod, newdata=.)) %>% 
+#   bind_rows(broom.mixed::augment(absmod), .) %>%
+#   ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
+#   geom_line()+
+#   geom_point(aes(y=ABS),alpha=.2)
+
+absint <- absint %>% mutate(age = age - 12)
+absmod2 <- lmerTest::lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), 
+               data = absint,
+               control = lmerControl(optimizer="bobyqa"))
+
+# broom.mixed::augment(absmod2) %>%
+#   ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
+#   geom_line()
+
+contrasts(absint$interv) <- "contr.sum"
+absmod2a <- lmerTest::lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), 
+               data = absint,
+               control = lmerControl(optimizer="bobyqa"))
+```
+
+> 1. How does the presentation of aggressive behaviours change with age? 
+> 2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
+
+
+# strategy
+
+1. making sure we get out what we want from our model
+  - centering (briefly)
+  - contrasts
+2. results in inline code
+  b. format.pval
+3. random processes and reproducibility
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet quam sem. Mauris lectus diam, fringilla quis efficitur eu, fringilla vitae risus. Pellentesque nec ipsum erat. Suspendisse commodo, eros et varius efficitur, dui neque commodo felis, quis viverra tellus sem et sem. Aenean sodales, mauris vitae commodo tincidunt, turpis quam fringilla orci, vel egestas enim purus in dolor. Maecenas vel nulla dignissim, malesuada nisi ut, tempus nisi. Etiam iaculis tortor id dui egestas, nec bibendum justo pretium. Quisque lorem ex, iaculis at varius non, volutpat euismod nisl. Phasellus id facilisis nisl. Vestibulum mattis volutpat nibh, ac luctus sapien scelerisque non. Proin iaculis euismod faucibus. Donec sodales nisl sit amet nisi lacinia malesuada. In hac habitasse platea dictumst. Pellentesque blandit tellus et nisl fringilla, id commodo nisi porta.
+
+
+# results
+
+Overall, aggressive behaviour increased by ??? with every year of age.  
+Donec blandit placerat viverra. Proin tempor ultrices nulla eget pulvinar. Maecenas blandit pretium est a efficitur. Pellentesque vehicula sapien nec mauris tempor congue. Quisque eu vulputate arcu, sed ultrices urna. In sapien nisl, euismod vel lorem eu, rutrum efficitur metus. Quisque dictum ultrices massa, vitae scelerisque dolor luctus sit amet. Vivamus suscipit ac quam eu suscipit. Pellentesque mauris erat, eleifend ornare lacus et, ullamcorper vehicula nisl. In molestie luctus elit quis bibendum. Nullam ultricies felis ac nunc iaculis dictum. Vestibulum velit sapien, sodales sed elementum id, porttitor sit amet turpis. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; In congue libero lectus.
+
+
+# discussion
+
+Vestibulum lacinia feugiat velit, sit amet lacinia lectus malesuada a. Curabitur a magna a nisi auctor rutrum. Cras diam enim, dictum in lobortis vitae, ultrices ut turpis.
+
+
+
