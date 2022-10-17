@@ -27,7 +27,9 @@ library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 library(patchwork)
-
+library(lme4)
+library(lmeresampler)
+library(effects)
 options(htmltools.dir.version = FALSE)
 options(digits=4,scipen=2)
 options(knitr.table.format="html")
@@ -84,12 +86,15 @@ Alongside this, parents from a cohort of students entering 10 further high schoo
 
 The data is available at https://uoepsy.github.io/data/abs_intervention.csv 
 
+???
+- READ SLIDE DESCRIPTION
+- 2 Research Qs here
 
 ---
 # Data
 
 ```{r echo=FALSE}
-absint<-read_csv("https://uoepsy.github.io/data//abs_intervention.csv")
+absint<-read_csv("https://uoepsy.github.io/data/abs_intervention.csv")
 
 tibble(
   variable = names(absint),
@@ -98,10 +103,15 @@ tibble(
 ```
 
 ```{r}
-absint<-read_csv("https://uoepsy.github.io/data//abs_intervention.csv") %>% mutate(interv=factor(interv))
+absint<-read_csv("https://uoepsy.github.io/data/abs_intervention.csv") %>% mutate(interv=factor(interv))
 head(absint)
 ```
 
+???
+- let's take a look at the data we've been given
+- here are variables
+- here's the top of the data 
+  - describe SLIDE data
 
 
 ---
@@ -116,8 +126,6 @@ head(absint)
 
 ]
 
---
-
 .pull-right[
 > **Research Questions**
 > 1. How does the presentation of aggressive behaviours change with age?  
@@ -125,6 +133,14 @@ head(absint)
 >2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
 ]
+
+???
+- so we need to translate this to a model
+- first.. focus on the main aims
+
+- here are our questions. 
+- QUESTION anyone want to shout out what our outcome is?  
+- WRITE BOARD
 
 ---
 count:false
@@ -155,6 +171,10 @@ ggplot(absint, aes(x=ABS))+
 
 ]
 
+???
+- it's a continuous measure here, so we're in the lmer world
+- we're not using logistic models or anything
+
 ---
 count:false
 # Outcome and Fixed Effects  
@@ -179,11 +199,25 @@ count:false
 >2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
 ```{r echo=FALSE}
-head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
 ```
 
 ]
 
+???
+- QUESTION what are we suggesting might explain levels of aggressive behaviour?  
+  - age
+  - intervention
+  - interaction
+
+- WRITE BOARD
+
+- side note: are these things (age, intervention) measured at different levels? 
+  - intervention is a school thing
+  - age is a thing that changes every observation
+    - e.g. we see ppt1 at age 12, 13, etc.
+- what's known as a cross-level interaction. multilevel models are ideal for this kind of question
+  
 
 
 ---
@@ -202,7 +236,6 @@ head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble(
   - "the effect of a group being *__on average__* higher on $x$" 
 
 ]
---
 .pull-right[
 > **Research Questions**
 > 1. How does the presentation of aggressive behaviours change with age?  
@@ -210,6 +243,22 @@ head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble(
 >2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
 ]
+
+???
+- we should think about whether we are going to want to do any group mean centering here.  
+- BOARD POINT
+
+- our only predictor that could be mean centered is age, intervention is a factor
+- WRITE POSSIBLE BOARD
+- there are two things to think about
+  - how data is collected
+    - each child is measured at age 12, 13, 14.. etc up to the end of school
+    - so each child has the same average age. so group mean centering doesn't do anything
+  - but even if we did have ppt1 from age 9-13, and ppt2 from 11-15, etc. 
+    - do we want to separate out "being older than you're average age" and "being on average a bit older"? 
+    - probably not. these sort of things make more sense when the predictors to be some feature of the person that makes them distinct. e.g. i'm nervous, you're not. contrast that with i'm old, you're not. but you will be one day. 
+- no need to mean center here
+
 ---
 # The Grouping Structure  
 
@@ -221,17 +270,24 @@ head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble(
 - In what different ways can we group our data?   
 
 ]
+???
+- okay, now we start thinking about groups.  
+- first off.. how can we group our data? 
+
 --
 .pull-right[
-```{r}
-nrow(absint)
-absint %>% 
-  mutate(schoolppt = interaction(schoolid,ppt)) %>%
-  summarise(across(everything(), n_distinct))
+```{r echo=FALSE}
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
 ```
 ]
+
 ???
-when should my variable be a "fixed effect" and when should it be the "group"?  
+- shout out and tell me all the ways in which i can group this data
+  - basically looking for anything that isn't continuous
+  - school
+  - child/ppt
+  - intervention
+
 
 ---
 # The Grouping Structure  
@@ -255,11 +311,12 @@ when should my variable be a "fixed effect" and when should it be the "group"?
 >2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
 ```{r echo=FALSE}
-head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
 ```
 ]
 ???
-when should my variable be a "fixed effect" and when should it be the "group"?  
+- okay. there are two further questions we should now ask.
+- NEXT 
 
 ---
 count:false
@@ -284,11 +341,19 @@ count:false
 >2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
 ```{r echo=FALSE}
-head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
 ```
 ]
 ???
-when should my variable be a "fixed effect" and when should it be the "group"?  
+- READ
+- when should my variable be a "fixed effect" and when should it be the "cluster"?  
+- 1. which of those groupings are of specific interest?
+  - interv.
+  - we can't have it both here (fixef) and here (grouping). 
+- we have Interv in our fixed effects, so that's all we need to do with interv right now.  
+- but this specific inferential interest doesn't apply to schools, or children  
+  
+
 
 ---
 count:false
@@ -313,11 +378,16 @@ count:false
 >2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
 ```{r echo=FALSE}
-head(absint, 4L) %>% mutate(ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...")  %>% as_tibble() %>% kable()
 ```
 ]
 ???
-when should my variable be a "fixed effect" and when should it be the "group"?  
+- READ
+- so, we've got our remaining groupings (schools, children)
+- can we think of either of these as a random sample from a broader population of groups?  
+  - yes. we could have done the same study with different children
+  - we could have done the same study with different schools
+- so schools and children are going to go into this grouping structure bit
 
 ---
 # The Grouping Structure  
@@ -337,15 +407,67 @@ when should my variable be a "fixed effect" and when should it be the "group"?
   
   - For each level, how many groups have we sampled?  
 ]
+???
+- now we just need to figure out _how_ they go in there.. 
+- so yet further questions to ask ourselves
+- READ
+
 --
 .pull-right[
+
+```{r}
+nrow(absint)
+absint %>% 
+  mutate(schoolppt = interaction(schoolid,ppt)) %>%
+  summarise(across(everything(), n_distinct))
+```
+
+]
+???
+- so this is a little trick i sometimes use.
+- we have 1528 rows in our data
+- here i'm just making a variable that is both the schoolid and the ppt id. so the values would be "blue river high school ppt 1", and "blue river high school ppt 2" etc. they would be unique.
+- then, summarising across every variable, we can check how many different distinct values we have.
+- we have 20 schools
+- 14 distinct "ppt" labels
+- now this already tells us that the ppt labels aren't unique - because there are less children than schools. 
+- ignore age, abs, and interv, we know about those. 
+- we can see we have 191 "schoolppt" values. so that's actually how many children we have in total
+
+
+
+---
+count: false
+# The Grouping Structure  
+
+.br2.f4.gray.bg-white[
+(g)lmer(outcome ~ fixed effects + (random effects | **grouping structure**), family = error distribution)
+]
+
+.pull-left[
+- In what different ways can we group our data?   
+
+- Of the different ways we can group our data, which groupings are of specific inferential interest?  
+
+- Of the different ways we can group our data, which groupings do we think of as a random sample from a general population of groups? 
+
+  - Is there more than one grouping of this sort, and if so, are these groupings nested? Are the labels unique?  
+  
+  - For each level, how many groups have we sampled?  
+]
+.pull-right[
+
 ```{r}
 table(absint$schoolid, absint$ppt)
 ```
 
 ]
 ???
-when should my variable be a "fixed effect" and when should it be the "group"?  
+- another way to quickly see this is to make a table of schools vs ppts. 
+- we can see the labels for ppt along the top. 
+- and the labels for schools down the left
+- but we know that the cells of this table should reflect _different_ children
+- WRITE BOARD
 
 
 ---
@@ -359,11 +481,18 @@ when should my variable be a "fixed effect" and when should it be the "group"?
 
 - Which of our fixed effects can vary for our random groups?  
 
-  - "does a single group have multiple values for $x$?"  
+  - "does a single group have multiple _distinct_ values for $x$?"  
   
   - "for the data from only one of our groups, can we estimate $y \sim x$?"
 
 ]
+???
+- okay, we're getting there. the next thing is to try and work out _what_ we can allow to vary by our groupings  
+- what's up for grabs? anything in the fixed effects
+- good way to start thinking:
+- READ
+
+
 --
 .pull-right[
 All the data:
@@ -398,7 +527,14 @@ absint %>% mutate(interv=factor(interv)) %>% filter(schoolid == "Central High") 
 ]
 
 ???
-2. when should my variable be a "fixed effect" and when should it be a "random effect" by some group?
+- great way to see, is to plot it
+- so here's all the data on top,
+- here's aggression as a histogram, and aggression over age, and aggression over the intervention y/n
+- below, here it is for a single school. 
+- i can fit the line for age
+- so, if i plot a different schools' data, i might get a different line. in that way, the assocation between aggression and age _could_ vary by schools
+- can i say the same thing for the intervention?
+  - no
 
 ---
 # Random Intercepts and Slopes
@@ -449,7 +585,9 @@ absint %>% mutate(interv=factor(interv)) %>% filter(schoolid == "Central High", 
 ]
 
 ???
-2. when should my variable be a "fixed effect" and when should it be a "random effect" by some group?
+- what about for a single child?
+- age yes, intervention no 
+
 
 ---
 # Our model  
@@ -458,14 +596,14 @@ absint %>% mutate(interv=factor(interv)) %>% filter(schoolid == "Central High", 
 ]
 --
 .br2.f4.green.bg-white[
-&nbsp; &nbsp; &nbsp; lmer(ABS &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ~ age_c * interv + (1 + age_c &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; schoolid&nbsp; /&nbsp; ppt&nbsp; &nbsp; )
+&nbsp; &nbsp; &nbsp; lmer(ABS &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ~ age * interv + (1 + age &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; schoolid&nbsp; /&nbsp; ppt&nbsp; &nbsp; )
 ]
-.pull-left[
-```{r echo=FALSE}
-absint <- absint %>% mutate(age_c = age - 12)
+
+```{r echo=FALSE, include=FALSE}
+absint <- absint %>% mutate(age = age - 12)
 head(absint, 4L) %>% mutate(ABS = round(ABS,1), age_c = age-12) %>% rbind("...")  %>% as_tibble() %>% kable()
 ```
-]
+
 ```{r eval=FALSE,echo=FALSE}
 absmod <- lmer(ABS ~ age_c * interv + (1 + age_c | schoolid/ppt), data = absint,
      control = lmerControl(optimizer="bobyqa"))
@@ -508,14 +646,18 @@ class: inverse, center, middle
 ---
 # Model issues
 
-- Convergence issues. 
+- Check for convergence issues & singular fits. 
 ```{r}
-absmod <- lmer(ABS ~ age_c * interv + (1 + age_c | schoolid/ppt), data = absint,
+absmod <- lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), data = absint,
      control = lmerControl(optimizer="bobyqa"), REML = TRUE)
 ```
 ```{r echo=FALSE}
 absmod@optinfo$message
 ```
+
+???
+simplify if necessary 
+
 --
 
 - Check assumptions have been met
@@ -528,14 +670,18 @@ qqnorm(resid(absmod), main = "level one residuals")
 qqline(resid(absmod))
 qqnorm(ranef(absmod)$schoolid$`(Intercept)`, main="School level random intercepts")
 qqline(ranef(absmod)$schoolid$`(Intercept)`)
-qqnorm(ranef(absmod)$schoolid$age_c, main="School level random slopes of age")
-qqline(ranef(absmod)$schoolid$age_c)
+qqnorm(ranef(absmod)$schoolid$age, main="School level random slopes of age")
+qqline(ranef(absmod)$schoolid$age)
 qqnorm(ranef(absmod)$ppt$`(Intercept)`, main="Child level random intercepts")
 qqline(ranef(absmod)$ppt$`(Intercept)`)
-qqnorm(ranef(absmod)$ppt$age_c, main="Child level random slopes of age")
-qqline(ranef(absmod)$ppt$age_c)
+qqnorm(ranef(absmod)$ppt$age, main="Child level random slopes of age")
+qqline(ranef(absmod)$ppt$age)
 par(mfrow=c(1,1))
 ```
+
+???
+- we saw how this involves checking normality of not just residuals, but of random effects - because we think of htem as level 2 residuals
+- respecify model, transform, or attempt to address in some way.  
 
 
 ---
@@ -543,7 +689,7 @@ par(mfrow=c(1,1))
 
 - Convergence issues. 
 ```{r}
-absmod <- lmer(ABS ~ age_c * interv + (1 + age_c | schoolid/ppt), data = absint,
+absmod <- lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), data = absint,
      control = lmerControl(optimizer="bobyqa"), REML = TRUE)
 ```
 ```{r echo=FALSE}
@@ -566,12 +712,15 @@ plot(absmod,
 ```
 ]
 
+???
+we also want to look at how the spread changes over the fitted values of the model
+
 ---
 # Model issues
 
 - Convergence issues. 
 ```{r}
-absmod <- lmer(ABS ~ age_c * interv + (1 + age_c | schoolid/ppt), data = absint,
+absmod <- lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), data = absint,
      control = lmerControl(optimizer="bobyqa"), REML = TRUE)
 ```
 ```{r echo=FALSE}
@@ -583,19 +732,24 @@ absmod@optinfo$message
 ```{r echo=FALSE, fig.width=16, fig.height=5}
 normst <- list(shapiro.test(resid(absmod)),
 shapiro.test(ranef(absmod)$schoolid$`(Intercept)`),
-shapiro.test(ranef(absmod)$schoolid$age_c),
+shapiro.test(ranef(absmod)$schoolid$age),
 shapiro.test(ranef(absmod)$ppt$`(Intercept)`),
-shapiro.test(ranef(absmod)$ppt$age_c)
+shapiro.test(ranef(absmod)$ppt$age)
 )
 map_chr(normst, ~paste0(.$method," ",.$data.name," W=",round(.$statistic,2),", p=",round(.$p.value,2)))
 ```
+
+???
+- we can, if we want, conduct statistical tests on the residuals, such as checking normality. 
+- however, the visual is usually fine
+
 
 ---
 # Model issues
 
 - Convergence issues. 
 ```{r}
-absmod <- lmer(ABS ~ age_c * interv + (1 + age_c | schoolid/ppt), data = absint,
+absmod <- lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), data = absint,
      control = lmerControl(optimizer="bobyqa"), REML = TRUE)
 ```
 ```{r echo=FALSE}
@@ -614,6 +768,14 @@ l3 <- hlm_influence(absmod, level="schoolid")
 (dotplot_diag(l2$cooksd) + labs(title="Cook's D: Children"))+ 
 (dotplot_diag(l3$cooksd) + labs(title="Cook's D: School")) 
 ```
+
+???
+- we also want to check for influence! 
+- and this is influence at every level, so at the observation
+   - so one child just goes wildly aggressive at age 16, but then goes back to normal 
+   - at the child - so this would be one child who's trajectory of aggression is just not in keeping with the rest. so.. they're just exponentially getting more and more aggressive with age or something
+   - and at the school level. this would be like having a school that is just full of aggressive children, or really calm children. 
+
 
 ---
 # Inference
@@ -641,21 +803,58 @@ l3 <- hlm_influence(absmod, level="schoolid")
     `lmeresampler::bootstrap(model, type = "case", resample = c(....))`
 ]
 
+???
+- once we're happy with the model
+- we need to conduct some inferences, so we can talk about the probability of getting estimates as extreme as the ones we __have__ got, if there were no effect in the true population.  
+
+- we have options of how we do this:
+  - compare models
+  - conduct tests on parameter estimates
+
+- note. should say, model comparisons don't mean we ignore the parameter estimates - e.g. the fixed effects.
+  - we test how their inclusion changes model fit,
+  - but the fixed effect estimate itself is still of interest - it describes the relationship.  
+  
+- and we have a whole load of options on how we do either. 
+- main thing to remember, which i think i've repeated lots of times, LRT needs big samples at all levels, bootstrapping needs stable models (and takes time to compute).  
+
+
 ---
 # Inference
 
+e.g.:  
 ```{r}
-absmod <- lmer(ABS ~ age_c * interv + (1 + age_c | schoolid/ppt), data = absint,
+absmod <- lmerTest::lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), data = absint,
      control = lmerControl(optimizer="bobyqa"), REML = TRUE)
 ```
+```
+Random effects:
+ Groups       Name        Variance Std.Dev. Corr
+ ppt:schoolid (Intercept) 17.379   4.169        
+              age          4.913   2.217    0.69
+ schoolid     (Intercept)  2.505   1.583        
+              age          0.448   0.669    0.26
+ Residual                 49.465   7.033        
+Number of obs: 992, groups:  ppt:schoolid, 196; schoolid, 20
 
-```{r eval=FALSE}
+Fixed effects:
+            Estimate Std. Error     df t value Pr(>|t|)    
+(Intercept)   46.461      0.862 17.915   53.88   <2e-16 ***
+age            1.673      0.385 20.361    4.34   0.0003 ***
+interv1        1.096      1.207 16.818    0.91   0.3766    
+age:interv1   -1.352      0.543 19.560   -2.49   0.0218 *  
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+
+
+```{r echo=FALSE, eval=FALSE}
 library(lmeresampler)
 absmodBS <- bootstrap(absmod, .f=fixef, type = "case", 
                       B = 2000, resample = c(FALSE,TRUE,FALSE))
 confint(absmodBS, type="perc")
-```
-```{r echo=FALSE}
+
 load("absmodBS.RData")
 confint(absmodBS, type="perc")
 ```
@@ -756,7 +955,7 @@ Information to include:
 <small>
 ```{r echo=FALSE}
 library(sjPlot)
-tab_model(absmod, show.p = FALSE, show.obs=FALSE)
+tab_model(absmod, show.p = FALSE, show.obs=FALSE, df.method="satterthwaite")
 ```
 </small>
 ]
@@ -794,7 +993,8 @@ sjPlot::plot_model(absmod, type="int")
 But plotting manually gives you more control:
 ```{r echo=FALSE, fig.asp=.8}
 library(effects)
-effs <- as.data.frame(effect("age_c:interv", absmod))
+#effs <- as.data.frame(effect("age:interv", absmod))
+load("jk_source/effs.RData")
 
 facetlabs <- c(
   `0` = "No Intervention",
@@ -802,7 +1002,7 @@ facetlabs <- c(
 )
 
 broom.mixed::augment(absmod) %>%
-ggplot(., aes(x=age_c+12,
+ggplot(., aes(x=age+12,
               col=interv))+
   geom_point(aes(y=ABS), alpha=.1) +
   geom_line(aes(y=ABS,group=interaction(schoolid,ppt)), alpha=.2) +
@@ -813,7 +1013,7 @@ ggplot(., aes(x=age_c+12,
   facet_grid(~interv, labeller = as_labeller(facetlabs)) -> p1
 
 broom.mixed::augment(absmod) %>%
-ggplot(., aes(x=age_c+12,
+ggplot(., aes(x=age+12,
               col=interv))+
   geom_line(aes(y=.fitted,group=interaction(schoolid,ppt)), alpha=.1) +
   geom_line(data=effs, aes(y=fit), lwd=1)+

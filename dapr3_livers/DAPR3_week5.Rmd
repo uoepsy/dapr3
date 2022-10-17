@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 
 # libraries
 library(tidyverse)
@@ -27,6 +27,7 @@ absmod <- lmer(ABS ~ age * interv + (1 + age | schoolid/ppt),
                control = lmerControl(optimizer="bobyqa"))
 summary(absmod)
 
+plot(1,1)
 # broom.mixed::augment(absmod) %>%
 #   ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
 #   geom_line()
@@ -40,23 +41,46 @@ summary(absmod)
 #   geom_point(aes(y=ABS),alpha=.2)
 
 absint <- absint %>% mutate(age = age - 12)
-absmod2 <- lmerTest::lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), 
-               data = absint,
-               control = lmerControl(optimizer="bobyqa"))
+# absmod2 <- lmerTest::lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), 
+#                data = absint,
+#                control = lmerControl(optimizer="bobyqa"))
 
 # broom.mixed::augment(absmod2) %>%
 #   ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
 #   geom_line()
-
+#?lmer
 contrasts(absint$interv) <- "contr.sum"
+absmod1a <- lmerTest::lmer(ABS ~ age + interv + (1 + age*interv | schoolid/ppt), 
+               data = absint,
+               control = lmerControl(optimizer="bobyqa"))
 absmod2a <- lmerTest::lmer(ABS ~ age * interv + (1 + age | schoolid/ppt), 
                data = absint,
                control = lmerControl(optimizer="bobyqa"))
+summary(absmod2a)
+
+res.fix <- coefficients(summary(absmod2a))
+res.fix <- as.data.frame(res.fix)
+names(res.fix) <- c("est","se","df","t","p")
+res.fix <- res.fix %>% mutate(
+  est = round(est,3),
+  se = round(se,3),
+  df = round(df,2),
+  t= round(t,2),
+  p = format.pval(round(p,3), eps=.001)
+)
+
+set.seed(35)
+res <- confint(absmod2a, method="boot", nsim=10)
+res
+# save(res, file="myresults.Rdata")
+# load("myresults.Rdata")
+res
 ```
 
 > 1. How does the presentation of aggressive behaviours change with age? 
 > 2. Is there any evidence for the efficacy of Parent Management Training (PMT) group sessions in reducing levels of adolescent aggression? 
 
+the effect is 2
 
 # strategy
 
@@ -72,9 +96,25 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent sit amet quam 
 
 # results
 
-Overall, aggressive behaviour increased by ??? with every year of age.  
+Overall, aggressive behaviour increased by 0.99 with every year of age.  
+Overall, aggressive behaviour increased by `r fixef(absmod2a)[2]` with every year of age.  
+Overall, aggressive behaviour increased by `r res.fix[2,1]` with every year of age ($\beta = `r res.fix[2,1]`, SE = `r res.fix[2,2]`, t(`r res.fix[2,3]`^*) = `r res.fix[2,4]`, p = `r res.fix[2,5]`$).  
+
+
+Overall, aggressive behaviour increased by `r fixef(absmod2a)[2]` (95% CI derived via paremetric boostrapping with 10(!!!!) bootstraps [`r res[9,1]` -- `r res[9,2]`])
+
 Donec blandit placerat viverra. Proin tempor ultrices nulla eget pulvinar. Maecenas blandit pretium est a efficitur. Pellentesque vehicula sapien nec mauris tempor congue. Quisque eu vulputate arcu, sed ultrices urna. In sapien nisl, euismod vel lorem eu, rutrum efficitur metus. Quisque dictum ultrices massa, vitae scelerisque dolor luctus sit amet. Vivamus suscipit ac quam eu suscipit. Pellentesque mauris erat, eleifend ornare lacus et, ullamcorper vehicula nisl. In molestie luctus elit quis bibendum. Nullam ultricies felis ac nunc iaculis dictum. Vestibulum velit sapien, sodales sed elementum id, porttitor sit amet turpis. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae; In congue libero lectus.
 
+```{r echo=FALSE}
+library(knitr)
+kable(res)
+```
+
+```{r}
+library(sjPlot)
+tab_model(absmod2a, show.p=FALSE,df.method="satterthwaite", show.ci=FALSE)
+
+```
 
 # discussion
 

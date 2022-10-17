@@ -30,6 +30,7 @@ library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 library(patchwork)
+library(lme4)
 
 options(htmltools.dir.version = FALSE)
 options(digits=4,scipen=2)
@@ -72,12 +73,20 @@ class: inverse, center, middle
 
 <h2>Part 1: Back to the start</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 2: Centering Predictors</h2>
-<h2 style="text-align: left;opacity:0.3;">Extra Slides (optional): GLMM</h2>
+<h2 style="text-align: left;opacity:0.3;">Extra Slides (optional): GLMM</h2>  
+
+<h2 style="text-align: left;">https://www.menti.com/al7vqejztmg1</h2>
+<h2 style="text-align: left;">or menti.com code: 4669 8678</h2>
 
 ---
 # Research Question
 
-> **How do reaction times change with increasing sleep deprivation?** <span style="opacity:.4">An international study, in which institutions in 20 countries studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.</span>  
+> **How do reaction times change with increasing sleep deprivation?** <span style="opacity:.4">An international study, in which institutions in 20 countries each studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.</span>  
+
+
+???
+- so we have a straightforward research question.  
+- how do reaction times change as days without sleep increases? - we're going to ignore the context right now, and just use this as a starting point for a broad view of what we've looked at so far in dapr3  
 
 ---
 # lm: a line
@@ -86,12 +95,37 @@ class: inverse, center, middle
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide1.PNG")
 ```
 
+???
+- our relationship is RT predicted by Days without sleep
+- we can fit a simple regression model where we are estimating two parameters, an interept and slope  
+- beta 0 is the intercept - the average RT at day 0
+- beta 1 is the slope - the amount by which RT increases with every day of no sleep
+
+
 ---
 # lm: a line (2)
 
 ```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide13.PNG")
+```
+
+???
+- this is fine if we have just measured a person with 2 days of no sleep, and another person with 5 days of no sleep, another with 3 days, etc.  
+- because my reaction time is not dependent upon Tom's, or Emma's, or Umberto's etc. 
+
+---
+# lm: a line (3)
+
+```{r echo=FALSE, out.height="600px"}
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide2.PNG")
 ```
+
+???
+- but instead, let's suppose our design involves measuring people over time. 
+- for each person, we have measured their RT with 1 day of no sleep, 2 days of no sleep, etc.. 
+- now all these observations from me are related to one another. they're all high because i have slow reaction times
+- for tom, his are all low - i.e. quick.  
+
 
 ---
 # lm: lines and differences between them
@@ -100,12 +134,27 @@ knitr::include_graphics("jk_img_sandbox/rt_example/Slide2.PNG")
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide3.PNG")
 ```
 
+???
+- in week1 we saw how we might try and model the differences between people directly  
+- we'd get out loads more coefficients for the differences between a set of things that we are not specifically interested in. 
+- the coefficients are the estimated adjustments to get from Tom's RT to my RT
+- we'd rather think of the variation in RT between me and Tom as just some random variation that would be different if the experiment we repeated (because you would have different participants rather than me and Tom).  
+
 ---
 # lmer: lines with a distribution of intercepts
 
 ```{r echo=FALSE, out.height="600px"}
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide4.PNG")
 ```
+
+???
+- multilevel models allow us to think in that way  
+- they allow us to have parts of our model, e.g. the intercept in this plot, as a distribution. 
+- we have a fixed value around which peoples' own intercepts vary
+- so the fixed value is here. to get to mine, we need to add a bit, because i'm slower than the average person
+- to get to Tom's we subtract a bit, because he's faster than the average person
+
+- and the model estimates this fixed value, and the standard deviation of people's differences from that value  
 
 ---
 # lmer: lines with a distribution of intercepts (2)
@@ -114,12 +163,22 @@ knitr::include_graphics("jk_img_sandbox/rt_example/Slide4.PNG")
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide5.PNG")
 ```
 
+???
+- So our intercept now is the combination of a fixed intercept, and random people-level variance around that intercept.
+- we can get out these specific bits for me, for Tom, but we think of our model as really being the estimated variance in all of these. 
+
+
 ---
 # lmer: lines with a distribution of intercepts (3)
 
 ```{r echo=FALSE, out.height="600px"}
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide6.PNG")
 ```
+
+???
+- and this one the model is allowing for people do have different intercepts _only_. 
+- Note they all have the same slope. 
+- so the model thinks that my RT increases by some amount for every day of no sleep, and this is the same amount for Tom, and for everyone. 
 
 ---
 # lmer: lines with a distribution of intercepts (4)
@@ -128,12 +187,24 @@ knitr::include_graphics("jk_img_sandbox/rt_example/Slide6.PNG")
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide7.PNG")
 ```
 
+???
+- So we the association between RT and Days of no sleep is just one fixed number
+- it's only in the fixed effects part of the model syntax
+
 ---
 # lmer: and with a distribution of slopes
 
 ```{r echo=FALSE, out.height="600px"}
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide8.PNG")
 ```
+
+
+???
+- but it doesn't have to be.
+- we can say that the association between RT and days of no sleep _also_ varies between people.  
+- i can cope with no sleep, so my RT doesn't get that much slower
+- Tom can't. he needs his sleep. his RT gets a lot slower as he has more days of no sleep  
+
 
 ---
 # lmer: and with a distribution of slopes (2)
@@ -142,6 +213,15 @@ knitr::include_graphics("jk_img_sandbox/rt_example/Slide8.PNG")
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide9.PNG")
 ```
 
+???
+- and really, just like the intercept is now a distribution
+- the slope is now a distribution.
+  - there's an overall average slope
+  - and people vary a bit around that. 
+  - so Tom's RT goes up a lot more (he's above the average slope) - the T here
+  - my RT doesn't go up as much - i'm below the average slope. the J here
+  - and they are the little additions we make above the overall slope, in order to get to each persons own slope
+
 ---
 # fixed and random
 
@@ -149,27 +229,72 @@ knitr::include_graphics("jk_img_sandbox/rt_example/Slide9.PNG")
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide10.PNG")
 ```
 
+???
 - 95% of the time, research is interested in the fixed part. Describes the average group. 
   - Fixed effects estimates are the bits we test  
   - Random effects provide context
 
 ---
-# lmer: distributions of distributions 
+# nested: distributions of distributions 
 
 ```{r echo=FALSE, out.height="600px"}
 knitr::include_graphics("jk_img_sandbox/rt_example/Slide11.PNG")
 ```
 
+???
+- we can extend the MLM approach to have more levels  
+- so here we have some higher level grouping - Tom and I are both in Psychology, we also measured people in Linguistics, in Engineering, in Philosophy, etc.  
+- around the overall average person from the average department
+  - some departments have higher RT, some lower RT
+  - psychology are really slow
+  - engineering are really fast
+- and _within_ those, people vary around the department 
+  - i'm slower for psychology
+  - Tom's quicker for psychology
+
+
+---
+# crossed: distributions and distributions
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide12.PNG")
+```
+
+???
+- it's much harder to visualise the idea of crossed random effects in these figures, but i'm giving it a go  
+- suppose we tested people's RT on lots of different tasks
+  - the dropping & catching a ruler
+  - pressing a button when they see a light
+  - pressing a button when they hear a sound
+  - etc
+- we've got rid of the department stuff here, so no nesting. 
+- in the coloured points you can see three tasks I did every day, and Tom did the same 3 tasks, etc. 
+- we might expect these tasks to be vary in how quick people perform them. 
+  - e.g. people press buttons quicker when they see a light vs hear a sound
+  - pink task tend to be quick than the blue task. 
+- we can model this variation as task-level differences, alongside person-level differences  
+- intercept is now the RT for average person, on average task
+  - to get to my estimated blue task intercept, we need to
+  - add the "josiah is a slow person" bit
+  - add the "blue task is a slow task" bit  
+
+---
+# https://www.menti.com/al7vqejztmg1
+
+<div style='position: relative; padding-bottom: 56.25%; padding-top: 35px; height: 0; overflow: hidden;'><iframe sandbox='allow-scripts allow-same-origin allow-presentation' allowfullscreen='true' allowtransparency='true' frameborder='0' height='315' src='https://www.mentimeter.com/app/presentation/alp53d3no62krstg7ei7vp2tpixykaxe/ujrfj2ujz5fh/embed' style='position: absolute; top: 0; left: 0; width: 100%; height: 100%;' width='420'></iframe></div>
+---
+# model building 
+
+> How do reaction times change with increasing sleep deprivation? An international study, in which institutions in 20 countries each studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
+
+???
+okay, let's return to our research question and design, so we can see this in action  
+- note we don't have the multiple tasks here, and we also have countries not departments of the uni
 
 ---
 # model building 
 
-> How do reaction times change with increasing sleep deprivation? An international study, in which institutions in 20 countries studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
-
----
-# model building 
-
-> How do reaction times change with increasing sleep deprivation? <span style="opacity:.4">An international study, in which institutions in 20 countries studied 18 participants over 10 days.</span>Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
+> How do reaction times change with increasing sleep deprivation? <span style="opacity:.4">An international study, in which institutions in 20 countries each studied 18 participants over 10 days.</span>Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
 
 <br><br>
 
@@ -177,17 +302,27 @@ knitr::include_graphics("jk_img_sandbox/rt_example/Slide11.PNG")
 - <span style="opacity:.4">The design tells us our grouping structure</span>
 - <span style="opacity:.4">The random effects are additional levels of complexity that we _may_ be able to fit in order to better represent the world.</span>  
 
+???
+- so what are we interested in here? if you were to imagine this being a news headline, what part of it are we going to focus on
+- READ
+- reaction time and days of sleep deprivation  
+- READ
+- we are _also_ aware that there are things we _know_ contribute to reaction times, age and caffeine, and so we may want to control for those  
+
 --
 
 ```{r eval=FALSE}
 Reaction ~ Age + Caff + Days
 ```
 
+???
+which gives us something like this  
+
 
 ---
-# model bulding 
+# model building 
 
-> <span style="opacity:.4">How do reaction times change with increasing sleep deprivation?</span> An international study, in which institutions in 20 countries studied 18 participants over 10 days.<span style="opacity:.4">Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.</span>
+> <span style="opacity:.4">How do reaction times change with increasing sleep deprivation?</span> An international study, in which institutions in 20 countries each studied 18 participants over 10 days.<span style="opacity:.4">Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.</span>
 
 <br><br>
 
@@ -199,11 +334,19 @@ Reaction ~ Age + Caff + Days
 Reaction ~ Age + Caff + Days + (_____ | Country/Subject)
 ```
 
+???
+- to decide _if_ and _what_ grouping structure we want to take into account, we need to know about the design
+- READ
+- we know each person is measured over 10 days
+- so we have 10 datapoints for each person
+- and the people in groups of 18 coming from 20 different countries  
+- so we have people nested in countries
+
 
 ---
-# model bulding 
+# model building 
 
-> How do reaction times change with increasing sleep deprivation? An international study, in which institutions in 20 countries studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
+> How do reaction times change with increasing sleep deprivation? An international study, in which institutions in 20 countries each studied 18 participants over 10 days. Information was also captured on two known predictors of reaction time - age, and whether or not participants regularly consume caffeine.
 
 <br><br>
 
@@ -217,12 +360,17 @@ Reaction ~ Age + Caff + Days + (????? | Country/Subject)
 
 
 ???
-(depending on how much data we have, and how much variability there is)  
+- the last bit is really where the difficulty comes in
+- what should we model as varying by these groups?  
+- it's not a clear answer here. it depends on how much data we have, and how much variability there is in our data   
   
 ---
 class: center, middle
 
 # in RStudio...  
+
+???
+so let's have a go!  
 
 ---
 # maximal structure
@@ -260,7 +408,7 @@ VarCorr(model)
   - which simplification can you most easily accept?  
   
 ---
-# random effect correlations
+# a note on random effect correlations
 
 - If you remove a correlation between random effects, e.g.:
 
@@ -268,7 +416,7 @@ VarCorr(model)
 (1 + Days || Country)
 ```
 
-- be sure that your theory can accept this simplification
+- be sure that you're comfortable accepting this simplification
 
 - try plotting the random effects from the model without the correlation. 
   - setting `(1 + Days || Country)` doesn't _prevent_ a correlation between the _estimated_ random effects.
@@ -313,7 +461,7 @@ Random effect estimates
 ]
 
 ---
-# random effect correlations (2)
+# a note on random effect correlations (2)
 
 - If you remove a correlation between random effects, e.g.:
 
@@ -410,7 +558,7 @@ ggplot(dat, aes(x=iq3))+geom_histogram(binwidth = 2)+
 
 ]
 ???
-now really this isn't doing anything much. we're simply sliding the whole distribution left or right, thereby changing what the number "zero" means in the context of the variable. we can have zero as the mean, as 120, as any number we like. 
+- now really this isn't doing anything much. we're simply sliding the whole distribution left or right, thereby changing what the number "zero" means in the context of the variable. we can have zero as the mean, as 120, as any number we like. 
 
 ---
 # Scaling
@@ -426,7 +574,7 @@ ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
 ]
 
 ???
-if we consider also the spread of the distribution, the standard deviation, then we can do something called standardisation
+- if we consider also the spread of the distribution, the standard deviation, then we can do something called standardisation
 
 --
 .pull-right[
@@ -442,7 +590,9 @@ ggplot(dat, aes(x=iq4))+geom_histogram(binwidth = (2/15))+
 ]
 
 ???
-this is just mean centereing and then dividing by the standard error. note that the shape of the distribution doesn't change, but the scale of the x axis does. so what used to be a move of 15, going from 100 to 115, is now represented as a move of 1. 
+- this is just mean centereing and then dividing by the standard deviation. 
+- note that the shape of the distribution doesn't change, but the scale of the x axis does. 
+- so what used to be a move of 15, going from 100 to 115, is now represented as a move of 1. 
 
 ---
 # Centering predictors in LM
@@ -466,15 +616,15 @@ m4 <- lm(y~I(x-5), data=df)
 ]
 
 ???
-let's first think about how we can center or scale our predictors in a simple regression model. 
-i've used the scale function here, where you can set scale and center to be TRUE/FALSE, so we can mean center but not scale etc. 
-now, we can do whatever we like to our predictor here. these are all linear transformations. the relative distances between each value remain the same. 
+- let's first think about how we can center or scale our predictors in a simple regression model. 
+- i've used the scale function here, where you can set scale and center to be TRUE/FALSE, so we can mean center but not scale etc. 
+- now, we can do whatever we like to our predictor here. these are all linear transformations. the relative distances between each value remain the same. 
 
 
 
 
 ---
-count:false
+count: false
 # Centering predictors in LM
 
 .pull-left[
@@ -490,9 +640,8 @@ anova(m1,m2,m3,m4)
 ]
 
 ???
-and it doesn't do anything to our model fit whatsoever. 
-the effect of our predictor on our outcome variable is EXACTLY the same.  
-we can see this here, a model comparison is showing the residual sums of squares as being identical. 
+- and it doesn't do anything to our model fit whatsoever. - the effect of our predictor on our outcome variable is EXACTLY the same.  
+- we can see this here, a model comparison is showing the residual sums of squares as being identical. 
 
 --
 
@@ -560,10 +709,10 @@ p1 + p2 + p3 + p4
 ]
 
 ???
-so what's the point in doing it? well, it changes how we interpret some of our parameters. 
-remember that our intercept is the estimated mean y when our predictors are zero. 
-given that centering our predictor changes what "zero" is, then we can center predictors to make our intercept the estimated y for the mean value of x. 
-likewise, scaling our predictors changes the interpretation of our coefficient from the estimated change in y associated with a 1 unit increase in x, to the estimated change associated with a 1 STANDARD DEVIATION increase in X. And this may be preferable, especially if, for instance you've got some predictor where 1 unit isn't very useful 
+- so what's the point in doing it? well, it changes how we interpret some of our parameters. 
+- remember that our intercept is the estimated mean y when our predictors are zero. 
+- given that centering our predictor changes what "zero" is, then we can center predictors to make our intercept the estimated y for the mean value of x. 
+- likewise, scaling our predictors changes the interpretation of our coefficient from the estimated change in y associated with a 1 unit increase in x, to the estimated change associated with a 1 STANDARD DEVIATION increase in X. And this may be preferable, especially if, for instance you've got some predictor where 1 unit isn't very useful 
 
 ---
 # Big Fish Little Fish
@@ -644,8 +793,9 @@ data available at https://uoepsy.github.io/data/bflp.csv
 
 
 ???
-now in the single level case, centering and scaling does very little, and thats because however we shift or scale the x-axis here, the distribution remains identically shaped. 
-this is always a little fish, this is always a big fish, and this is always a medium sized fish. 
+- now in the single level case, centering and scaling does very little, and thats because however we shift or scale the x-axis here, the distribution remains identically shaped. 
+- so this is a silly example, we're measuring the self-esteem of some fish, and seeing if bigger fish have higher self esteem.  
+- no matter how we transform 'fish_weight', this is always a little fish, this is always a big fish, and this is always a medium sized fish. 
 
 ---
 # Things are different with multi-level data 
@@ -670,18 +820,13 @@ ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
 ```
 
 ???
-but as soon as we have clusters in our data, as soon as we have multiple levels, then something cool happens. 
-
-how we think about these observations suddenly has another dimension.
-
-it's no longer as simple as "big fish little fish", but fish are large or small FOR THE POND IN WHICH THEY LIVE. 
-
-so our medium fish is still, in some ways, a "medium fish", but in terms of the pond in which it lives, it is the biggest fish. 
-
-and we might have another fish in our dataset which is exactly the same weight, but which is a SMALL fish FOR ITS POND
-
-the reason i'm using this silly example is that thinking of this as the idea of "big fish little pond" can be quite a good starting point, and in education research there is even a concept of "the big fish little pond effect" which is exactly this same concept, only instead of fish in ponds we have children in schools, and instead of weight on the x axis, we have education attainment. 
-so a child who scores close to the overall mean, if they are the top of their class, they feel great! 
+- but as soon as we have clusters in our data, as soon as we have multiple levels, then something cool happens. 
+- how we think about these observations suddenly has another dimension.
+- it's no longer as simple as "big fish medium fish little fish", but fish are large or small FOR THE POND IN WHICH THEY LIVE. 
+- so our medium fish is still, in some ways, a "medium fish", but in terms of the pond in which it lives, it is the biggest fish. 
+- and we might have another fish in our dataset which is exactly the same weight, but which is a SMALL fish FOR ITS POND
+- the reason i'm using this silly example is that thinking of this as the idea of "big fish little pond" can be quite a good starting point, and in education research there is even a concept of "the big fish little pond effect" which is exactly this same concept, only instead of fish in ponds we have children in schools, and instead of weight on the x axis, we have education attainment. 
+- so a child who scores close to the overall mean, if they are the top of their class, they feel great! 
 
 
 
@@ -701,10 +846,13 @@ ggplot(bflp, aes(x=fish_weight, y=self_esteem, col=pond))+
 ]
 
 ???
-you'll start to have noticed a pattern here, in that when we're talking about multilevel models, pretty much everything is at multiple levels. we talked last week about multiple levels of residuals, influence happening at multiple levels etc. 
-well guess what, we now have means at multiple levels. 
+- this idea of being a "big fish for the pond you're in", may well be the thing we're actually interested in! 
+- i'm not interested in whether sharks have more self esteem than minnows (tiny fish).  
+- i'm interested in whether fish who are big _relative to_ those around them, have higher self esteem.  
 
-we have our grand mean, that's simply the average of all of these values
+- you'll start to have noticed a pattern here, in that when we're talking about multilevel models, pretty much everything is at multiple levels. we talked last week about multiple levels of residuals, influence happening at multiple levels etc. 
+- well guess what, we now have means at multiple levels. 
+- we have our grand mean, that's simply the average of all of these values
 
 --
 
@@ -723,7 +871,7 @@ ggplot(bflp, aes(x=fish_weight, y=self_esteem, group=pond, col=pond))+
 ]
 
 ???
-and then we have our group means, which are the means for each group. that's these bigger points here. 
+- and then we have our group means, which are the means for each group. that's these bigger points here. 
 
 ---
 # Group-mean centering
@@ -746,12 +894,11 @@ ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
 ]
 
 ???
-and what having all these means means is that we can mean-center, but instead of centering all our values around the one overall grand mean, we can center each groups values around that group mean. 
-and what we get out of this is a variable that represents something slightly different from what we had. 
-we now have something that shows the amount that an observation is higher or lower than its group average.
-so with these fish we get something that shows if a fish is 5kg heavier, or 3kg lighter etc, THAN THE AVERAGE FOR THAT POND. 
-And what we're looking at here is the WITHIN effect. 
-that is, "within a given group how does being higher on x for that group influence scores on y?" 
+- and what having all these means means is that we can mean-center, but instead of centering all our values around the one overall grand mean, we can center each groups values around that group mean. 
+- and what we get out of this is a variable that represents something slightly different from what we had. - we now have something that shows the amount that an observation is higher or lower than its group average.
+- so with these values we get something that shows if a fish is 5kg heavier, or 3kg lighter etc, THAN THE AVERAGE FOR ITS POND. 
+- And what we're looking at here is the WITHIN effect. 
+- that is, "within a given group how does being higher on x for that group influence scores on y?" 
 
 
 ---
@@ -788,10 +935,10 @@ knitr::include_graphics("jk_img_sandbox/center.gif")
 ```
 
 ???
-but we've lost something, right?
-when we center on the group means, we're lining up all our groups so that the means are all zero. 
-what was the biggest fish in the data, is actually not as big (relative to its pond average) as this other fish here. 
-we have removed information that is contained in the raw scores. 
+- but we've lost something, right?
+- when we center on the group means, we're lining up all our groups so that the means are all zero. 
+- what was the biggest fish in the data, is actually not as big (relative to its pond average) as this other fish here. 
+- we have removed information that is contained in the raw scores. 
 
 ---
 # Group-mean centering
@@ -826,16 +973,16 @@ ggplot(bflpdat, aes(x=xbar, y=self_esteem,color=pond)) +
 ]
 
 ???
-but we can put it back! we jsut need to know the values for the group means. 
-and we have them! 
-and in fact, when we start thinking about these group means, we realise that we're looking at another part of the same question. 
-we're looking at the between-group effect. 
-now these are measured at the group-level, because these are the group averages, and what we're looking at here is the relationship between our outcome and the group-mean of x.
+- but we can put it back! we jsut need to know the values for the group means. 
+- and we have them! 
+- and in fact, when we start thinking about these group means, we realise that we're looking at another part of the same question. 
+- we're looking at the between-group effect. 
+- now these are measured at the group-level, because these are the group averages, and what we're looking at here is the relationship between our outcome and the group-mean of x.
 
-so "if you're a fish from a pond which has a higher average weight of fish, you'll tend to have lower self esteem"
-whereas the ponds with an average weight of fish that is lower, the fish in those ponds tend to have higher self esteem. 
+- so "if you're a fish from a pond which has a higher average weight of fish, you'll tend to have lower self esteem"
+- whereas the ponds with an average weight of fish that is lower, the fish in those ponds tend to have higher self esteem. 
 
-but this is now isolated from the fact that WITHIN each pond, the heavier a fish is, the more self esteem they have
+- but this is now separated from the fact that WITHIN each pond, the heavier a fish is, the more self esteem they have
 
 ---
 # Disaggregating within & between
@@ -859,10 +1006,10 @@ rem <- lmer(self_esteem ~ fish_weight +
 ]
 
 ???
-so what are we going to do with group-mean centering in our multilevel model?
+- so what are we going to do with group-mean centering in our multilevel model?
 
-well this is the model we might be inclined to fit initially. 
-we have self esteem being predicted by fish_weight, and then we have a random intercept for each pond. So some ponds have higher self-esteem, some lower, and we're assuming ponds' self esteem to be normally distributed around the fixed center. 
+- well this is the kind of model we have been fitting so far.  
+- we have self esteem being predicted by fish_weight, and then we have a random intercept for each pond. So some ponds have higher self-esteem, some lower, and we're assuming ponds' self esteem to be normally distributed around the fixed center. 
 
 --
 
@@ -892,8 +1039,9 @@ fixef(wbm)
 ]
 
 ???
-well, take a minute to think about how we split our raw x scores up into two pieces. we can get back to the original weight of any fish by using the average weight of that fishes pond, plus the relative difference from that average to the fish. 
-so it's just additive. and we can put both these new variables into our model and get estimates of these different effects! 
+- and take a minute to think about how we split our raw x scores up into two pieces. 
+- we can get back to the original weight of any fish by using the average weight of that fishes pond, plus the relative difference from that average to the fish. 
+- so it's just additive. and we can put both these new variables into our model and get estimates of these different effects!  
 
 ---
 # Disaggregating within & between
@@ -945,7 +1093,10 @@ fixef(wbm)
 ]
 
 ???
-so what we are estimating now is the separate contributing effects on self esteem of "being a bigger fish FOR YOUR POND" and "being from a pond that has bigger fish". 
+so what we are estimating now is the separate contributing effects on self esteem of 
+  - "being a bigger fish FOR YOUR POND" and 
+  - "being from a pond that has bigger fish". 
+
  
 
 ---
@@ -1049,8 +1200,8 @@ ggplot(alcgad, aes(x=gad, y=alcunits,color=factor(ppt))) +
 data available at https://uoepsy.github.io/data/alcgad.csv 
 ]
 ???
-okay, let's think of a more realistic example. 
-let's suppose we are studying the relationship between anxiety and alcohol use, and we have multiple observations for each participant.  
+- okay, let's think of a more realistic example. 
+- let's suppose we are studying the relationship between anxiety and alcohol use, and we have multiple observations for each participant.  
 
 
 ---
@@ -1071,9 +1222,9 @@ ggplot(., aes(x=gadmc, y=alcunits)) +
 ]
 
 ???
-so we can really ask two separate questions here. 
-we can talk about the within effect. 
-if you are more nervous FOR YOU, do you drink more?
+- so we can really ask two separate questions here. 
+- we can talk about the within effect. 
+- if you are more nervous FOR YOU, do you drink more?
 
 ---
 # A more realistic example
@@ -1093,8 +1244,8 @@ ggplot(., aes(x=gadm, y=alcunits)) +
 ]
 
 ???
-and then we can think about the between effect.  
-this is like asking "is being a more anxious person associated with higher levels of alcohol consumption?"
+- and then we can think about the between effect.  
+- this is like asking "is being a more anxious person associated with higher levels of alcohol consumption?"
 
 ---
 # Modelling within & between effects
@@ -1121,11 +1272,10 @@ summary(alcmod)
 ]
 
 ???
-and just like the bigfish little pond, we can separate out the group mean and the deviations from the group mean. 
-so this is whether a person is more anxious than usual,
-and their overall mean anxiety score.  
-the more anxious you are FOR you, the more you drink
-the more anxious you are ON AVERAGE, the less you drink
+- and just like the bigfish little pond, we can separate out the group mean and the deviations from the group mean. 
+- so this is whether a person is more anxious than usual, and their overall mean anxiety score.  
+- the more anxious you are FOR you, the more you drink
+- the more anxious you are ON AVERAGE, the less you drink
 
 
 ---
@@ -1146,12 +1296,12 @@ summary(alcmod)
 ]
 
 ???
-now another cool thing we can do is fit interactions with these specific effects. 
-so imagine we are testing whether some intervention is aimed to prevent people from using alcohol to "calm their nerves", and we have a group who have the intervention, and a group who don't. 
-the interaction between the intervention and the between effect doesn't make much difference. 
-but for the within effect it does. 
-so you can think of this as the intervention doesn't influence the extent to which more nervous people drink more. 
-but it does influence the extent to which people drink when they are more nervous FOR THEM
+- now another cool thing we can do is fit interactions with these specific effects. 
+- so imagine we are testing whether some intervention is aimed to prevent people from using alcohol to "calm their nerves", and we have a group who have the intervention, and a group who don't. 
+- the interaction between the intervention and the between effect doesn't make much difference. 
+- but for the within effect it does. 
+- so you can think of this as the intervention doesn't influence the extent to which more nervous people drink less. 
+- but it does influence the extent to which people drink when they are more nervous FOR THEM
 
 
 ---
@@ -1171,10 +1321,13 @@ summary(alcmod2)
 ]
 
 ???
-Now that we've discussed the idea of these within & between effects, it raises a question. 
-what exactly are we modeling when we didn't separate them out? what is the meaning of this effect here? This effect represents regression of alcohol consumption on anxiety, pooling over all participants, and it's kind of a weighted composite effect of these within & between relations.  
-Now this might be perfectly sufficient for things like making predictions from your model, the location of this effect is a bit unclear - where is the change? within or between? well, it's kind of both. 
-but really, the substantive and theoretically meaningful questions we have are more often about the specific effects that happen within or between groups, and this total effect doesn't really represent either.  
+- Now that we've discussed the idea of these within & between effects, it raises a question. 
+- what exactly are we modeling when we didn't separate them out? 
+- what is the meaning of this effect here? 
+- This effect represents regression of alcohol consumption on anxiety, pooling over all participants, and it's kind of a weighted composite effect of these within & between relations.  
+- Now this might be perfectly sufficient for things like making predictions from your model, the location of this effect is a bit unclear 
+  - where is the change? within or between? well, it's kind of both. 
+- but really, the substantive and theoretically meaningful questions we have are more often about the specific effects that happen within or between groups, and this total effect doesn't really represent either.  
 
 ---
 # Within & Between effects
@@ -1290,7 +1443,10 @@ p3
 ]
 
 ???
-one last thing to note is that these within & between effects don't have to counteract one another. the two examples we've looked at today have both had the within effect going one way, and the between effect going the other. so when we plot the group lines, we see the lines going up, and you move across these lines tend to be starting lower.
+- so here are the two examples we've just seen
+- one last thing to note is that these within & between effects don't have to counteract one another. 
+- these examples both had the within effect going one way, and the between effect going the other. 
+- so when we plot the group lines like this, we see the lines going up, and you move across these lines tend to be starting lower.
 
 
 ---
@@ -1303,7 +1459,7 @@ p1
 ```
 ]
 ???
-but that doesn't have to be the case, we can think of how both are in the same direction. 
+- but that doesn't have to be the case, we can think of how both are in the same direction. 
 
 
 --
@@ -1330,7 +1486,8 @@ p1 / p2
 ]
 
 ???
-so in this example, if you do more physio than you usually do, then your test time goes down, and if you do, on average, more physio than other people, then your test time tends to be lower. 
+- in this example, if you do more physio than you usually do, then your test time goes down, 
+- if you do, on average, more physio than other people, then your test time tends to be lower. 
 
 ---
 # Summary
