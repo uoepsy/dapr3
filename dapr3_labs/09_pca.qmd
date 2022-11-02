@@ -49,15 +49,31 @@ The goal of principal component analysis (PCA) is to find a _smaller_ number of 
 
 :::
 
-
 :::
 
+# Exercises: Police Performance
+
+```{r}
+#| include: false
+#| eval: false
+job <- read_csv('../../data/job_performance.csv')
+library(psych)
+job_pca <- principal(job, nfactors = ncol(job), covar = TRUE, rotate = 'none')
+set.seed(993)
+job$arrest_rate <- round(job_pca$scores[,1:2] %*% c(1, .1) + rnorm(nrow(job),0,6))
+job$arrest_rate <- job$arrest_rate[,1]+16
+job$arrest_rate <- job$arrest_rate / (max(job$arrest_rate)+2)
+# m <- lm(nr_arrests ~ ., job)
+# car::vif(m)
+# m <- lm(job$nr_arrests ~ job_pca$scores[,1:2])
+# write_csv(job, "../../data/police_performance.csv")
+```
 
 
 :::frame
-__Data: Job Performance__  
+__Data: Police Performance__  
 
-The file [job_performance.csv](https://uoepsy.github.io/data/job_performance.csv) (available at https://uoepsy.github.io/data/job_performance.csv) contains data on fifty police officers who were rated in six different categories as part of an HR procedure. The rated skills were:
+The file [police_performance.csv](https://uoepsy.github.io/data/police_performance.csv) (available at https://uoepsy.github.io/data/police_performance.csv) contains data on fifty police officers who were rated in six different categories as part of an HR procedure. The rated skills were:
 
 - communication skills: `commun`
 - problem solving: `probl_solv`
@@ -66,7 +82,21 @@ The file [job_performance.csv](https://uoepsy.github.io/data/job_performance.csv
 - physical ability: `physical`
 - appearance: `appearance`
 
+The data also contains information on each police officer's arrest rate (proportion of arrests that lead to criminal charges). 
+
+We are interested in if the skills ratings by HR are a good set of predictors of police officer success (as indicated by their arrest rate).  
+
 :::
+
+## 1. Explore  
+
+:::lo
+
+First things first, we should always plot and describe our data. This is always a sensible thing to do - while many of the datasets we give you are nice and clean and organised, the data you get out of questionnaire tools, experiment software etc, are almost always quite a bit messier. It is also very useful to just eyeball the patterns of relationships between variables.  
+
+:::
+
+
 
 `r qbegin("A1")`
 Load the job performance data into R and call it `job`. 
@@ -79,7 +109,7 @@ Let's load the data:
 #| message: false
 library(tidyverse)
 
-job <- read_csv('https://uoepsy.github.io/data/job_performance.csv')
+job <- read_csv('https://uoepsy.github.io/data/police_performance.csv')
 dim(job)
 ```
 There are 50 observations on 6 variables.
@@ -123,19 +153,42 @@ job %>%
 ```
 `r solend()`
 
-# Preliminaries 
-## Is PCA needed?
+
+## 2. Is PCA needed?
 
 :::lo 
 
-If the original variables are highly correlated, it is possible to reduce the dimensionality of the problem under investigation without losing too much information.
+There are many reasons we might want to reduce the dimensionality of data:  
 
-On the other side, when the correlation between the variables under study is weak, a larger number of components is needed in order to explain sufficient variability.
+- Theory testing
+  - What are the number and nature of dimensions that best describe a theoretical construct?
+- Test construction
+  - How should I group my items into sub-scales?
+  - Which items are the best measures of my  constructs?
+- Pragmatic
+  - I have multicollinearity issues/too many variables, how can I defensibly combine my variables? 
+  
+PCA is most often used for the latter - we are less interested in the theory behind our items, we just want a useful way of simplifying lots of variables down to a smaller number. 
+
+Recall that we are wanting to see how well the skills ratings predict arrest rate.  
+We might fit this model: 
+```{r}
+mod <- lm(arrest_rate ~ commun + probl_solv + logical + learn + physical + appearance, data = job)
+```
+However, we might have reason to think that many of these predictors might be quite highly correlated with one another, and so we may be unable to draw accurate inferences. This is borne out in our variance inflation factor (VIF):  
+```{r}
+library(car)
+vif(mod)
+```
+
+As the original variables are highly correlated, it is possible to reduce the dimensionality of the problem under investigation without losing too much information.
+
+On the other side, if the correlation between the variables under study are weak, a larger number of components is needed in order to explain sufficient variability.
 
 :::
 
 `r qbegin("A3")`
-Investigate whether or not the recorded variables are highly correlated and explain whether or not you PCA might be useful in this case.  
+Working with _only_ the skills ratings (not the arrest rate - we'll come back to that right at the end), investigate whether or not the variables are highly correlated and explain whether or not you PCA might be useful in this case.  
 
 **Hint:** We only have 6 variables here, but if we had many, how might you visualise `cor(job)`?
 
@@ -150,7 +203,9 @@ Let's start by looking at the correlation matrix of the data:
 #| fig.cap: "Correlation between the variables in the ``Job'' dataset"
 library(pheatmap)
 
-R <- cor(job)
+job_skills <- job %>% select(-arrest_rate)
+
+R <- cor(job_skills)
 
 pheatmap(R, breaks = seq(-1, 1, length.out = 100))
 ```
@@ -163,43 +218,39 @@ The second group comprises problem solving and logical ability.
 This suggests that PCA might be useful in this problem to reduce the dimensionality without a significant loss of information.
 `r solend()`
 
-## Cov vs Cor
+## 3. Cov vs Cor?
 
-:::statbox
+:::lo
 **Should we perform PCA on the covariance or the correlation matrix?**  
   
-This depends on the variances of the variables in the dataset.
-If the variables have large differences in their variances, then the variables with the largest variances will tend to dominate the first few principal components.  
-
+This depends on the variances of the variables in the dataset. If the variables have large differences in their variances, then the variables with the largest variances will tend to dominate the first few principal components.  
 A solution to this is to standardise the variables prior to computing the covariance matrix - i.e., compute the correlation matrix!  
 
 ```{r}
 # show that the correlation matrix and the covariance matrix of the standardized variables are identical
-all.equal(cor(job), cov(scale(job)))
+all.equal(cor(job_skills), cov(scale(job_skills)))
 ```
 :::
 
 `r qbegin("A4")`
-Look at the variance of the variables in the data set. Do you think that PCA should be carried on the covariance matrix or the correlation matrix?
+Look at the variance of the skills ratings in the data set. Do you think that PCA should be carried on the covariance matrix or the correlation matrix?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 Let's have a look at the standard deviation of each variable:
 ```{r}
-job %>% 
+job_skills %>% 
   summarise(across(everything(), sd))
 ```
 
 As the standard deviations appear to be fairly similar (and so will the variances) we can perform PCA using the covariance matrix.
 `r solend()`
 
-
-
-# Perform PCA
+## 4. Perform PCA
 
 `r qbegin("A5")`
 Using the `principal()` function from the `psych` package, we can perform a PCA of the job performance data, Call the output `job_pca`.
 ```
-job_pca <- principal(job, nfactors = ncol(job), covar = ..., rotate = 'none')
+job_pca <- principal(job_skills, nfactors = ncol(job), covar = ..., rotate = 'none')
 job_pca$loadings
 ```
 Depending on your answer to the previous question, either set `covar = TRUE` or `covar = FALSE` within the `principal()` function.
@@ -210,13 +261,15 @@ Depending on your answer to the previous question, either set `covar = TRUE` or 
 ```{r}
 library(psych)
 
-job_pca <- principal(job, nfactors = ncol(job), covar = TRUE, rotate = 'none')
+job_pca <- principal(job_skills, nfactors = ncol(job), covar = TRUE, rotate = 'none')
 ```
 `r solend()`
 
-## The output  
+:::statbox
+__PCA OUTPUT__  
 
-:::frame
+
+TODO TODO TODO TODO FIXME
 
 ```{r}
 job_pca$loadings
@@ -400,7 +453,7 @@ pc1$uniquenesses
 
 `r optend()`
 
-## How many components to keep?
+## 5. How many components to keep?
 
 :::lo
 
@@ -499,7 +552,7 @@ According to the scree plot criterion, we should **keep as many principal compon
 Alternatively, some people prefer to use the function `scree()` from the `psych` package:
 
 ```{r}
-scree(job, factors = FALSE)
+scree(job_skills, factors = FALSE)
 ```
 
 This also draws a horizontal line at y = 1. So, if you are making a decision about how many PCs to keep by looking at where the plot falls below the y = 1 line, you are basically following Kaiser's rule. In fact, Kaiser's criterion tells you to keep as many PCs as are those with a variance (= eigenvalue) greater than 1.
@@ -534,7 +587,7 @@ How many components should we keep according to the MAP method?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-job_map <- VSS(job, plot=FALSE, method="pc", n = ncol(job))$map
+job_map <- VSS(job_skills, plot=FALSE, method="pc", n = ncol(job_skills))$map
 paste("MAP is lowest for", which.min(job_map), "components")
 ```
 
@@ -552,7 +605,7 @@ The parallel analysis method suggests keeping those components for which the eig
 It can be conducted in R using:
 ```{r}
 #| eval: false
-fa.parallel(job, fa="pc", quant=.95)
+fa.parallel(job_skills, fa="pc", quant=.95)
 ```
 
 :::
@@ -563,7 +616,7 @@ How many components should we keep according to parallel analysis?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-fa.parallel(job, fa="pc", quant=.95)
+fa.parallel(job_skills, fa="pc", quant=.95)
 ```
 
 Parallel analysis suggests to keep 1 principal component only as there is only one PC with an eigenvalue higher than the simulated random ones in red.
@@ -571,9 +624,9 @@ Parallel analysis suggests to keep 1 principal component only as there is only o
 `r solend()`
 
 
-# Interpretation
 
 :::frame
+__Interpretation__  
 
 Because three out of the five selection criteria introduced above suggest to keep 2 principal components, in the following we will work with the first two PCs only.
 
@@ -645,13 +698,12 @@ There seem to be only five outliers, and they are not too high compared to the r
 :::
 
 
-# PCA scores
+## 6. Using PCA scores
 
 Supposing that we decide to reduce our six variables down to two principal components:
 ```{r}
-job_pca2 <- principal(job, nfactors = 2, covar = TRUE, rotate = 'none')
+job_pca2 <- principal(job_skills, nfactors = 2, covar = TRUE, rotate = 'none')
 ```
-
 
 :::rtip
 We can, for each of our observations, get their _scores_ on each of our components.  
@@ -664,7 +716,7 @@ In the literature, some authors also suggest to look at the correlation between 
 
 ```{r}
 # First PC
-cor(job_pca2$scores[,1], job)
+cor(job_pca2$scores[,1], job_skills)
 ```
 
 The first PC is strongly correlated with all the measured variables except `probl_solv` and `logical`.
@@ -672,50 +724,50 @@ As we mentioned above, all variables seem to contributed to the first PC.
 
 ```{r}
 # Second PC
-cor(job_pca2$scores[,2], job)
+cor(job_pca2$scores[,2], job_skills)
 ```
 
 The second PC is strongly correlated with `probl_solv` and `logical`, and slightly negatively correlated with the remaining variables. This separates police offices with clear logical and problem solving skills and a small score on the test (negative sign) from the others.
 
-:::lo
+`r qbegin("A11")`
 We have reduced our six variables down to two principal components, and we are now able to use the scores on each component in a subsequent analysis! 
 
-For instance, __if__ we also had information on how many arrests each police officer made, and the HR department were interested in whether the 6 questions we started with are a good predictor of this.  
-We could imagine conducting an analysis like the below:  
+Join the two PC scores to the original dataset with the arrest rates in. Then fit a linear model to look at how the arrest rate of police officers is predicted by the two components representing different composites of the skills ratings by HR.   
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-#| eval: false
-
-
 # add the PCA scores to the dataset
 job <- 
   job %>% mutate(
-    skills_score1 = job_pca2$scores[,1],
-    skills_score2 = job_pca2$scores[,2]
+    pc1 = job_pca2$scores[,1],
+    pc2 = job_pca2$scores[,2]
   )
 # use the scores in an analysis
-lm(nr_arrests ~ skills_score1 + skills_score2, data = job)
+mod <- lm(arrest_rate ~ pc1 + pc2, data = job)
+
+# multicollinearity isn't a problem, because the components are orthogonal!! 
+library(car)
+vif(mod)
+summary(mod)
 ```
+`r solend()`
 
-:::
-
-
-
-## Plotting the retained principal components
+:::frame
+__Plotting PCA scores__  
 
 We can also visualise the statistical units (police officers) in the reduced space given by the retained principal component scores.
 
 ```{r}
 #| fig-width: 5
 #| fig-align: 'center'
-
-
-tibble(pc1 = job_pca$scores[, 1],
-       pc2 = job_pca$scores[, 2]) %>%
+tibble(pc1 = job_pca2$scores[, 1],
+       pc2 = job_pca2$scores[, 2]) %>%
   ggplot(.,aes(x=pc1,y=pc2))+
   geom_point()
 ```
 
-
+:::
 
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
