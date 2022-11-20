@@ -23,6 +23,39 @@ library(lavaan)
 library(semPlot)
 # knitr::opts_chunk$set(cache = TRUE)
 options(digits=3, scipen = 3)
+.pp <- function(command,top=3,bottom=-3,l=FALSE) {
+  t <- capture.output(eval(command))
+  ln <- length(t)
+  if (class(l)!='logical') {
+    i=0
+    for (n in l) {
+      if (i>0) {
+        cat("...",sep="\n")
+      }
+      i=i+1
+      if (length(n)==1 && (i == 1 || i == length(l))) {
+        if (n<0) {
+          s <- n+1+ln
+          n <- c(s:ln)
+        } else {
+          n <- c(1:n)
+        }
+      }
+      if (!(0 %in% n)) {
+        cat(t[n],sep="\n")
+      }
+    }
+  } else {
+    if (top != 0) {
+      cat(t[1:top],sep="\n")
+    }
+    cat("...",sep="\n")
+    if (bottom !=0) {
+      bottom <- bottom+1+ln
+      cat(t[bottom:ln],sep="\n")
+    }
+  }
+}
 ```
 
 
@@ -69,9 +102,11 @@ Use a function such as `cor` or `corr.test(data)` (from the **psych** package) t
 :::statbox
 __Bartlett's Test__  
 
-The function `cortest.bartlett(cor(data), n = nrow(data))` conducts "Bartlett's test".  that the correlation matrix is proportional to the identity matrix (a matrix of all 0s except for 1s on the diagonal).  
-  - Null hypothesis: observed correlation matrix is equivalent to the identity matrix
+The function `cortest.bartlett(cor(data), n = nrow(data))` conducts "Bartlett's test". This tests against the null that the correlation matrix is proportional to the identity matrix (a matrix of all 0s except for 1s on the diagonal).  
+
+  - Null hypothesis: observed correlation matrix is equivalent to the identity matrix  
   - Alternative hypothesis: observed correlation matrix is not equivalent to the identity matrix.  
+  
 
 `r optbegin("What is the identity matrix?", olabel=FALSE)`
 The "Identity matrix" is a matrix of all 0s except for 1s on the diagonal.  
@@ -98,13 +133,14 @@ You can check the "factorability" of the correlation matrix using `KMO(data)` (a
     - $MSA \sim 0$: large partial correlations compared to the sum of correlations. Not good for FA  
     
 `r optbegin("Kaiser's suggested cuts", toggle=params$TOGGLE)`
+These are Kaiser's corresponding adjectives suggested for each level of the KMO:  
 
-- 0.00 to 0.49 unacceptable  
-- 0.50 to 0.59 miserable  
-- 0.60 to 0.69 mediocre  
-- 0.70 to 0.79 middling  
-- 0.80 to 0.89 meritorious  
-- 0.90 to 1.00 marvelous  
+- 0.00 to 0.49 "unacceptable"  
+- 0.50 to 0.59 "miserable"  
+- 0.60 to 0.69 "mediocre"  
+- 0.70 to 0.79 "middling"  
+- 0.80 to 0.89 "meritorious"  
+- 0.90 to 1.00 "marvelous"  
 
 `r optend()`
 :::
@@ -276,13 +312,88 @@ conduct_efa <- fa(df, nfactors=2, rotate='oblimin', fm="minres")
 
 ## 4. Inspect
 
-:::statbox
-__EFA OUTPUT__  
+We can simply print the name of our model in order to see a lot of information. Let's go through it in pieces.   
 
-TODO FIXXME
+:::statbox
+
+__Loadings__  
+```{r}
+#| echo: false
+.pp(conduct_efa, l=list(1:15))
+```
+
+Factor loading's, like PCA loading's, show the relationship of each measured variable to each factor. They range between -1.00 and 1.00
+Larger absolute values represent stronger relationship between measured variable and factor.  
+
+- The columns that (depending upon estimation method) might be called `MR`/`ML`/`PC` are the factors. The number assigned to is arbitrary, and they might not always be in a numeric order (this has to do with a rotated solution). Typically, the numbering maps to how much variance each factor account for. 
+- __h2:__ This is the "communality", which is how much variance in the item is explained by the factors. It is calculated as the sum of the squared loadings.  
+- __u2:__ This is $1 - h2$. It is the residual variance, or the "uniqueness" for that item (i.e. the amount left unexplained).  
+- __com:__ This is the "Item complexity". It tells us how much a given item reflects a single factor (vs being "more complex" in that it represents multiple factors). It equals one if an item loads only on one factor, 2 if evenly loads on two factors, etc.  
+
+You can get these on their own using
+```{r}
+#| eval: false
+conduct_efa$loadings
+```
 
 :::
 
+:::statbox
+__Variance Accounted For__  
+```{r}
+#| echo: false
+.pp(conduct_efa, l=list(16:21))
+```
+
+Below the factor loadings, we have a familiar set of measures of the variance in the data accounted for by each factor. This is very similar to what we saw with PCA.  
+
+- SS loadings: The sum of the squared loadings. The eigenvalues.  
+- Proportion Var: how much of the overall variance the factor accounts for out of all the variables. 
+- Cumulative Var: cumulative sum of Proportion Var.
+- Proportion Explained: relative amount of variance explained ($\frac{\text{Proportion Var}}{\text{sum(Proportion Var)}}$.
+- Cumulative Proportion: cumulative sum of Proportion Explained.
+
+You can get these on their own using
+```{r}
+#| eval: false
+conduct_efa$Vaccounted
+```
+
+:::
+
+:::statbox
+__Factor Correlations__  
+```{r}
+#| echo: false
+.pp(conduct_efa, l=list(22:28))
+```
+
+Whether we see this section will depend if we have run a factor analysis with $\geq 2$ factors and a rotation.  
+
+- `factor correlations`: shows the correlation matrix between the factors. 
+- `mean item complexity`: shows the mean of the `com` column from the loadings above.  
+
+You can get these on their own using
+```{r}
+#| eval: false
+conduct_efa$Phi
+```
+
+:::
+
+
+:::statbox
+__Tests, Fit Indices etc__  
+
+We also get a whole load of other stuff that can sometimes be useful. These include: a test of an hypothesis that the 2 factors are sufficient; information on the number of observations; fit indices such as RMSEA, TLI RMSR etc; and measures of factor score adequacy (we'll get to talking about factor scores next week).
+```{r}
+#| echo: false
+.pp(conduct_efa, l=list(29:48))
+```
+
+
+
+:::
 
 `r qbegin("A4")`
 Inspect the loadings (`conduct_efa$loadings`) and give the factors you extracted labels based on the patterns of loadings.  
@@ -292,7 +403,7 @@ Look back to the description of the items, and suggest a name for your factors
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
 You can inspect the loadings using:
 ```{r}
-print(conduct_efa$loadings, sort=T)
+print(conduct_efa$loadings, sort=TRUE)
 ```
 We can see that the first five items have high loadings for one factor and the second five items have high loadings for the other.  
   
