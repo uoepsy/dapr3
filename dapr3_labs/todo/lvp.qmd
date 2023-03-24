@@ -1,0 +1,143 @@
+---
+title: "Likelihood vs Probability"
+link-citations: yes
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+library(effects)
+```
+
+
+Upon hearing the terms "probability" and "likelihood", people will often tend to interpret them as synonymous. In statistics, however, the distinction between these two concepts is very important (and often misunderstood).  
+
+:::statbox
+Probability refers to the chance of observing possible results if some certain state of the world were true^[This is the typical frequentist stats view. In Bayesian statistics, probability relates to the reasonable expectation (or "plausibility") of a belief]
+
+Likelihood refers to the probability of some hypotheses, given the data we have.  
+
+:::
+
+
+## Setup
+
+Let's consider a coin toss. For a fair coin, the chance of getting a heads/tails for any given toss is 0.5.  
+We can simulate the number of "heads" in a single fair coin toss with the following code (because it is a single toss, it's just going to return 0 or 1):
+```{r}
+rbinom(n = 1, size = 1, prob = 0.5)
+```
+We can simulate the number of "heads" in 8 fair coin tosses with the following code: 
+```{r}
+rbinom(n = 1, size = 8, prob = 0.5)
+```
+As the coin is fair, what number of heads would we expect to see out of 8 coin tosses? Answer: 4! 
+Doing another 8 tosses:
+```{r}
+rbinom(n = 1, size = 8, prob = 0.5)
+```
+and another 8:
+```{r}
+rbinom(n = 1, size = 8, prob = 0.5)
+```
+We see that they tend to be around our intuition expected number of 4 heads. We can change `n = 1` to ask `rbinom()` to not just do 1 set of 8 coin tosses, but to do 1000 sets of 8 tosses:
+```{r}
+table(rbinom(n = 1000, size = 8, prob = 0.5))
+```
+
+## Probability
+
+We can get to the __probability__ of observing $k$ heads in 8 tosses of a fair coin using `dbinom()`.  
+Let's calculate the probability of observing 2 heads in 8 tosses. 
+
+As coin tosses are independent, we can calculate probability using the product rule ("$P(AB) = P(A)\cdot P(B)$ where $A$ and $B$ are independent). So the probability of observing 2 heads in 2 tosses is $0.5 \cdot 0.5 = 0.25$:
+```{r}
+dbinom(2, size=2, prob=0.5)
+```
+In 8 tosses, those two heads could occur in various ways:
+```{r echo=FALSE}
+ways = replicate(10, paste0(sample(c(rep("T",6),rep("H",2)), 8),collapse=""))
+library(tidyverse)
+tibble(
+  `Ways to get 2 heads in 8 tosses` = c(ways[!duplicated(ways)], "...")
+)
+```
+In fact there are 28 different ways this could happen:
+```{r}
+dim(combn(8, 2))
+```
+The probability of getting 2 heads in 8 tosses of a fair coin is, therefore:
+```{r}
+28 * (0.5^8)
+```
+Or, using `dbinom()`
+```{r}
+dbinom(2, size = 8, prob = 0.5)
+```
+
+:::imp
+The important thing here is that when we are computing the probability, two things are fixed: 
+
+ - the number of coin tosses (8)
+ - the value(s) that govern the coin's behaviour (0.5 chance of landing on heads for _any given toss_)
+ 
+We can then can compute the probabilities for observing various numbers of heads:
+```{r}
+dbinom(0:8, 8, prob = 0.5)
+```
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(tidyverse)
+tibble(
+  n_heads = 0:8,
+  prob = dbinom(0:8, 8, prob = 0.5)
+) %>%
+  ggplot(., aes(x=n_heads, y=prob))+
+  geom_point(size = 2)+
+  geom_segment(aes(x=n_heads,xend=n_heads,y=0,yend=prob), alpha=.3)
+```
+Note that the probability of observing 10 heads in 8 coin tosses is 0, as we would hope! 
+```{r}
+dbinom(10, 8, prob = 0.5)
+```
+:::
+
+## Likelihood 
+
+For likelihood, we are interested in hypotheses about our coin. Do we think it is a fair coin (for which the probability of heads is 0.5?).  
+
+To consider these hypotheses, we need to observe some data, and so we need to have a given number of tosses, and a given number of heads. Whereas above we varied the number of heads, and fixed the parameter that designates the true chance of landing on heads for any given toss, for the likelihood we fix the number of heads observed, and can make statements about different possible parameters that might govern the coins behaviour. 
+
+For example, if we __did__ observe 2 heads in 8 tosses, what is the likelihood of this data given various parameters?  
+Our parameter can take any real number between from 0 to 1, but let's do it for a selection:
+```{r}
+poss_parameters = seq(from = 0, to = 1, by = 0.05)
+dbinom(2, 8, poss_parameters)
+```
+
+So what we are doing here is considering the possible parameters that govern our coin. Given that we observed 2 heads in 8 coin tosses, it seems very unlikely that the coin weighted such that it lands on heads 80% of the time (e.g., the parameter of 0.8 is not likely). You can visualise this as below: 
+
+```{r echo=FALSE}
+curve(
+  dbinom(2,8,x), xlim = c(0,1),
+  ylab="Likelihood",
+  xlab=expression(paste("Binomial ", rho)),
+)
+```
+
+
+Formalizing the intuition
+We have a stochastic process that takes discrete values (i.e. outcomes of tossing a coin 10 times). We calculated the probability of observing a particular set of outcomes (8 correct predictions) by making assumptions about the underlying stochastic process, that is, the probability that our test subject can correctly predict the outcome of the coin toss is \(p\) (e.g. 0.8). We also assumed implicitly that the coin tosses are independent.
+
+## A slightly more formal approach
+
+Let $d$ be our data (our _observed_ outcome), and let $\theta$ be the parameters that govern the data generating process. 
+
+When talking about "probability" we are talking about $P(d | \theta)$ for a given value of $\theta$. 
+
+In reality, we don't actually know what $\theta$ is, but we do observe some data $d$. 
+Given that we know that _if we have a specific value for $\theta$_, then $P(d | \theta)$ gives us the probability of observing $d$, it follows that we would like to figure out what values of $\theta$ maximise $\mathcal{L}(\theta \vert d) = P(d \vert \theta)$, where $\mathcal{L}(\theta \vert d)$ is the "likelihood function" of our unknown parameters $\theta$, conditioned upon our observed data $d$.
