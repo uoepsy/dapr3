@@ -1,6 +1,5 @@
 ---
 title: "Regression Refresh and Clustered Data"
-link-citations: yes
 params: 
     SHOW_SOLS: TRUE
     TOGGLE: TRUE
@@ -28,7 +27,7 @@ These are the main packages we're going to use in this block. It might make sens
 + __patchwork__: for organising plots
 + __ICC__ : for quickly calculating intraclass correlation coefficient
 + __lme4__ : for fitting generalised linear mixed effects models
-+ __lmerTest__ : inference!
++ __parameters__ : inference!
 + __pbkrTest__  : more inference!
 + __HLMdiag__ : for examining case diagnostics at multiple levels
 + __lmeresampler__ : for bootstrapping!
@@ -39,7 +38,7 @@ These are the main packages we're going to use in this block. It might make sens
 
 You can install all of these at once using:  
 ```{r eval=FALSE}
-install.packages(c("tidyverse","ICC","lme4","lmerTest","pbkrTest","effects","broom.mixed","sjPlot","HLMdiag"))
+install.packages(c("tidyverse","ICC","lme4","parameters","pbkrTest","effects","broom.mixed","sjPlot","HLMdiag"))
 # the lmeresampler package has had some recent updates. better to install the most recent version:
 install.packages("devtools")
 devtools::install_github("aloy/lmeresampler")
@@ -270,7 +269,7 @@ __Data: Audio interference in executive functioning__
 #| include: false
 # SDMT ~ audio*headph + (1 + audio | ppt)
 set.seed(24)
-n_groups = 40
+n_groups = 24
 N = n_groups*3*5
 g = rep(1:n_groups, e = N/n_groups)
 
@@ -285,11 +284,11 @@ re_w1  = rnorm(n_groups, sd = 1)[g]
 re_w2  = rnorm(n_groups, sd = 1)[g]
 
 lp = (0 + re0) + 
-  (1)*b + 
-  (-2 + re_w1)*w1 +
-  (-1 + re_w2)*w2 + 
-  (-3)*b*w1 +
-  (-1)*b*w2
+  (2)*b + 
+  (0 + re_w1)*w1 +
+  (-2 + re_w2)*w2 + 
+  (1)*b*w1 +
+  (-2)*b*w2
   
 y = rnorm(N, mean = lp, sd = 1.5) # create a continuous target variable
 
@@ -313,13 +312,21 @@ df %>% transmute(
 
 ef_music <- ef_music %>% group_by(PID) %>%
   mutate(trial_n = paste0("Trial_",formatC(sample(1:15),width=2,flag=0))) %>%
-  arrange(PID,trial_n)
+  arrange(PID,trial_n) %>% ungroup()
 
 ef_sdmt <- ef_music %>% select(PID, trial_n, SDMT) %>%
   pivot_wider(values_from=SDMT,names_from=trial_n)
 
+# for(i in 1:38){
+#   ef_sdmt[sample(1:24,1), sample(2:15,1)] <- NA
+# }
+
 ef_music <- ef_music %>% select(PID, trial_n, audio, headphones) %>%
   arrange(PID,audio)
+
+# write_csv(ef_music,"../../data/ef_music.csv")
+# write_csv(ef_sdmt,"../../data/ef_sdmt.csv")
+
 # executive functioning
 
 # library(lme4)
@@ -380,19 +387,23 @@ For the __.xlsx__ data:
 Reading in the data for each condition is easy, as it's just the same as we have been doing in DAPR previously: 
 
 ```{r}
-# TODO
-# ef_music <- 
+#| eval: false
+ef_music <- read_csv("https://uoepsy.github.io/data/ef_music.csv")
+head(ef_music)
+```
+```{r}
+#| echo: false
 head(ef_music)
 ```
 
 The other data is a bit more tricky, but we can actually do all these steps from within R. 
 
-TODO fix:  
+
 ```{r}
 #| eval: false
 # Step 1 - Download the data:  
 download.file(url = "https://uoepsy.github.io/data/ef_sdmt.xlsx", 
-              destfile = "ef_sdmt.xlsx")
+              destfile = "ef_sdmt.xlsx", mode = "wb")
 # Step 2
 library(readxl)
 # Step 3
@@ -519,7 +530,7 @@ What varies *between* these clusters?
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 What are the units of observations? __trials__  
-What are the groups/clusters? __participants__
+What are the groups/clusters? __participants__  
 What varies *within* these clusters? __the type of audio__    
 What varies *between* these clusters? __whether they listen via headphones or speakers__  
 
@@ -550,9 +561,9 @@ You can think of the "variance between the groups" as the group means varying ar
 ggplot(efdata, aes(x=PID, y=SDMT))+
   geom_point(aes(col=PID),alpha=.3)+
   stat_summary(geom = "pointrange")+
-  geom_hline(yintercept = mean(efdata$SDMT))+
+  geom_hline(yintercept = mean(efdata$SDMT,na.rm=T))+
   theme(axis.text.x = element_text(angle=60,hjust=1))+
-  guides(col=FALSE)
+  guides(col='none')
 ```
 
 You can also think of the ICC as the correlation between two randomly drawn observations from the same group. 
@@ -639,7 +650,7 @@ __ICC = the expected correlation of a *randomly drawn pair* of observations from
 ### Optional - Extra difficult. Calculate ICC manually  
 
 
-We have equal group sizes here (there are 2 $\times$ 15 participants, each with 20 observations), which makes calculating ICC by hand a lot easier, but it's still a bit tricky.  
+We have equal group sizes here (there are 2 $\times$ 12 participants, each with 15 observations), which makes calculating ICC by hand a lot easier, but it's still a bit tricky.  
 
 Let's take a look at the formula for ICC
 
@@ -736,9 +747,9 @@ sswithin = sum(efdata$within)
 Finally, we divide them by the degrees of freedom. 
 ```{r}
 # Mean Squares between
-msb = ssbetween / (40-1)
+msb = ssbetween / (24-1)
 # Mean Squares within 
-mse = sswithin / (600-40)
+mse = sswithin / (360-24)
 ```
 
 And calculate the ICC!!!
@@ -749,29 +760,93 @@ And calculate the ICC!!!
 
 :::
 
-TODO from here: JK
-# ??? 
 
 `r qbegin("10")`
-> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+We have two variables of interest here: 
 
-Using `lm()`, we might fit the following model to investigate the research question above. 
+- `audio` (type of audio listened to in a trial)
+- `headphones` (whether or not the participant had headphones on)
+
+We're going to look at them separately for now (we'll get on to addressing the research question next week).  
+
+Compare how the estimates and the uncertainty (the standard errors) for the `audio` coefficients compare between these two models:  
 ```{r}
-#| eval: false
-lm(SDMT ~ audio * headphones, data = efdata)
+mod1 <- lm(SDMT ~ audio, data = efdata)
+mod2 <- lm(SDMT ~ audio + PID, data = efdata)
 ```
 
-However, we know that this simply ignores that our observations are not independent - we have repeated measures from the same individuals. Given that roughly 45% of the variation in SDMT scores can be attributed to variability between participants (as found when we calculated ICC), we don't want to mis-attribute this to differences between audio conditions.    
+and look how the `headphones` coefficients compare between these two:  
+```{r}
+mod3 <- lm(SDMT ~ headphones, data = efdata)
+mod4 <- lm(SDMT ~ headphones + PID, data = efdata)
+```
 
-Using the "no pooling" method (i.e., including participant as a fixed effect), becomes difficult because the `PID` variable (the participant id variable) also uniquely identifies the two headphone conditions. Note that if we fit the following model, some coefficients are not defined.  
-  
-Try it and see:  
-```{r eval=FALSE}
-lm(SDMT ~ audio*headphones + PID, data = efdata)
+What do you notice?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Recall our answers to question 8: 
+
+What are the units of observations? __trials__   
+What are the groups/clusters? __participants__  
+What varies *within* these clusters? __the type of audio__    
+What varies *between* these clusters? __whether they listen via headphones or speakers__  
+
+:::
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Our standard errors for the `audio` coefficients become narrower when we account for participant-level differences (`mod2`). 
+
+This makes sense, because `mod2` explains some variation in the audio groups as being due to participants - the highest "white noise" point is actually still a decrease in SDMT compared to "no_audio" _for that participant_. Whereas `mod1` doesn't know that that highest "white noise" point is high _because_ it comes from a specific participant. Put another way, having a separate line for each participant (RH plot below), gives us more confidence in the differences between audio-types.  
+
+Because we have perfectly balanced data (every participant has the same number of trials in each audio-type) then our estimates here do not actually change at all.  
+```{r}
+#| echo: false
+broom::augment(mod1) |>
+ggplot(aes(x=audio,y=SDMT))+
+  geom_point(alpha=.1) +
+  stat_summary(geom="pointrange", aes(group=1,col=audio),size=.6) +
+  stat_summary(geom="path", aes(group=1))+
+  guides(col="none")+ylim(15,62) +
+  labs(title="lm(SDMT~audio)")+
+
+broom::augment(mod2) |>
+ggplot(aes(x=audio,y=.fitted))+
+  geom_point(aes(y=SDMT),alpha=.1)+
+  stat_summary(geom="pointrange", aes(group=PID,col=audio)) +
+  stat_summary(geom="path", aes(group=PID))+
+  guides(col="none")+ylim(15,62)+
+  labs(title="lm(SDMT~audio+PID)")
+```
+
+In contrast, our estimates for `headphones` coefficients _do_ change when we include `PID` in the model. And the standard errors actually get _larger_. 
+This is because the inclusion of the participant in `mod4` accounts for some of the variance in each group, which means that our comparison between "speakers" and "headphones" is actually a comparison between two groups of 12 participants (RH plot below), rather than 2 groups of 180 trials (LH plot below).  
+
+```{r}
+#| echo: false
+broom::augment(mod3) |>
+ggplot(aes(x=headphones,y=SDMT))+
+  geom_point(alpha=.1) +
+  stat_summary(geom="pointrange", aes(group=1, col=headphones),size=.6) +
+  stat_summary(geom="path", aes(group=1))+
+  guides(col="none") + ylim(15,62)+
+  labs(title="lm(SDMT~headphones)") +
+
+broom::augment(mod4) |>
+ggplot(aes(x=headphones,y=.fitted))+
+  stat_summary(geom="pointrange", aes(group=PID,col=headphones)) +
+  stat_summary(geom="path", aes(group=1))+
+  guides(col="none")+ylim(15,62)+
+  labs(title="lm(SDMT~headphones+PID)")
 ```
 
 This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA", "mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example [here](example_00_anova.html) if you are interested. However, ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating variables such as time as a factor, and it's not great with missing data.  
 The multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.  
 
-`r qend()`
+`r solend()`
 

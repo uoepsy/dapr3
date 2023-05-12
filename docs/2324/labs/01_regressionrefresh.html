@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.340">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>DAPR3 - Regression Refresh and Clustered Data</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+<script>
+function toggle_visibility(id1, id2) {
+var e = document.getElementById(id1);
+var f = document.getElementById(id2);
+e.style.display = ((e.style.display!='none') ? 'none' : 'block');
+if(f.classList.contains('fa-circle-right')) {
+    f.classList.add('fa-circle-down')
+    f.classList.remove('fa-circle-right')
+} else {
+    f.classList.add('fa-circle-right')
+    f.classList.remove('fa-circle-down')
+}
+}
+</script>
+
+<script src="https://kit.fontawesome.com/120b08a6f5.js" crossorigin="anonymous"></script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">DAPR3</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./csstests.html" rel="" target="">
+ <span class="menu-text">CSS tests</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-multi-level-models" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Multi Level Models</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-multi-level-models">    
+        <li>
+    <a class="dropdown-item" href="./01_regressionrefresh.html" rel="" target="">
+ <span class="dropdown-text">1: Linear Regression | Clustered Data</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./02_intromlm.html" rel="" target="">
+ <span class="dropdown-text">2: Multilevel Models</span></a>
+  </li>  
+        <li class="dropdown-header">3: Assumptions, Diagnostics &amp; Random Effect Structures</li>
+        <li class="dropdown-header">4: Centering in MLM | Logistic</li>
+        <li class="dropdown-header">5: Recap</li>
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-dimension-reduction--sem" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Dimension reduction &amp; SEM</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-dimension-reduction--sem">    
+        <li class="dropdown-header">7: Path Analysis</li>
+        <li class="dropdown-header">8: Path Mediation</li>
+        <li class="dropdown-header">9: Dimension Reduction</li>
+        <li class="dropdown-header">10: EFA: Part 1</li>
+        <li class="dropdown-header">11: EFA: Part 2</li>
+    </ul>
+  </li>
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-extra" role="button" data-bs-toggle="dropdown" aria-expanded="false" rel="" target="">
+ <span class="menu-text">Extra</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-extra">    
+        <li class="dropdown-header">Example: Repeated Measures MLM</li>
+        <li class="dropdown-header">Example: Intervention Study</li>
+        <li class="dropdown-header">Example: Many Trials</li>
+        <li class="dropdown-header">Example: ANOVA (rpt measures &amp; mixed)</li>
+        <li class="dropdown-header">Example: Exploratory Factor Analysis</li>
+        <li class="dropdown-header">Likelihood vs Probability</li>
+        <li class="dropdown-header">Writing 3-level MLM equations</li>
+        <li class="dropdown-header">PCA and Unequal Variances</li>
+    </ul>
+  </li>
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#linear-models-pooling" id="toc-linear-models-pooling" class="nav-link active" data-scroll-target="#linear-models-pooling">Linear Models &amp; Pooling</a></li>
+  <li><a href="#advanced-data-wrangling" id="toc-advanced-data-wrangling" class="nav-link" data-scroll-target="#advanced-data-wrangling">Advanced Data Wrangling</a></li>
+  <li><a href="#clustering-icc" id="toc-clustering-icc" class="nav-link" data-scroll-target="#clustering-icc">Clustering &amp; ICC</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Regression Refresh and Clustered Data</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<div class="lo">
+<p><strong>Preliminaries</strong></p>
+<ol type="1">
+<li>Open Rstudio, and <strong>create a new project for this course!!</strong></li>
+<li>Create a new RMarkdown document or R script (whichever you like) for this week.</li>
+</ol>
+<p>These are the main packages we’re going to use in this block. It might make sense to install them now if you do not have them already.<br>
+<!-- (note, the rstudio.ppls.ed.ac.uk server already has `lme4` and `tidyverse` installed for you).   --></p>
+<ul>
+<li><strong>tidyverse</strong> : for organising data</li>
+<li><strong>patchwork</strong>: for organising plots</li>
+<li><strong>ICC</strong> : for quickly calculating intraclass correlation coefficient</li>
+<li><strong>lme4</strong> : for fitting generalised linear mixed effects models</li>
+<li><strong>parameters</strong> : inference!</li>
+<li><strong>pbkrTest</strong> : more inference!</li>
+<li><strong>HLMdiag</strong> : for examining case diagnostics at multiple levels</li>
+<li><strong>lmeresampler</strong> : for bootstrapping!</li>
+<li><strong>effects</strong> : for tables/plots</li>
+<li><strong>sjPlot</strong> : for tables/plots</li>
+<li><strong>broom.mixed</strong> : tidying methods for mixed models</li>
+</ul>
+<p>You can install all of these at once using:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">"tidyverse"</span>,<span class="st">"ICC"</span>,<span class="st">"lme4"</span>,<span class="st">"parameters"</span>,<span class="st">"pbkrTest"</span>,<span class="st">"effects"</span>,<span class="st">"broom.mixed"</span>,<span class="st">"sjPlot"</span>,<span class="st">"HLMdiag"</span>))</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># the lmeresampler package has had some recent updates. better to install the most recent version:</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">"devtools"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">"aloy/lmeresampler"</span>)</span></code></pre></div>
+</div>
+</div>
+<section id="linear-models-pooling" class="level1">
+<h1>Linear Models &amp; Pooling</h1>
+<div class="frame">
+<p><strong>Data: Wellbeing in Scotland</strong></p>
+<p>In DAPR2, one of the examples we used in <a href="https://uoepsy.github.io/dapr2/2122/labs/1_04_mlr.html">learning about linear regression</a> was in examining the relationship between time spent outdoors and mental wellbeing. In that example researchers had collected data from 32 residents of Edinburgh &amp; Lothians.</p>
+<p>Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.</p>
+<p>Twenty of the Local Authority Areas provided data. It is available at <a href="https://uoepsy.github.io/data/LAAwellbeing.csv">https://uoepsy.github.io/data/LAAwellbeing.csv</a>, and you can read it into your R environment using the code below:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>scotmw <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/LAAwellbeing.csv"</span>)</span></code></pre></div>
+</div>
+<p>The dataset contains information on 132 participants. You can see the variables in the table below</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+
+<div id="bbedzosenf" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>html {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', 'Fira Sans', 'Droid Sans', Arial, sans-serif;
+}
+
+#bbedzosenf .gt_table {
+  display: table;
+  border-collapse: collapse;
+  margin-left: auto;
+  margin-right: auto;
+  color: #333333;
+  font-size: 16px;
+  font-weight: normal;
+  font-style: normal;
+  background-color: #FFFFFF;
+  width: auto;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #A8A8A8;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #A8A8A8;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_heading {
+  background-color: #FFFFFF;
+  text-align: center;
+  border-bottom-color: #FFFFFF;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_caption {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+#bbedzosenf .gt_title {
+  color: #333333;
+  font-size: 125%;
+  font-weight: initial;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-color: #FFFFFF;
+  border-bottom-width: 0;
+}
+
+#bbedzosenf .gt_subtitle {
+  color: #333333;
+  font-size: 85%;
+  font-weight: initial;
+  padding-top: 0;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-color: #FFFFFF;
+  border-top-width: 0;
+}
+
+#bbedzosenf .gt_bottom_border {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_col_headings {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_col_heading {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 6px;
+  padding-left: 5px;
+  padding-right: 5px;
+  overflow-x: hidden;
+}
+
+#bbedzosenf .gt_column_spanner_outer {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: normal;
+  text-transform: inherit;
+  padding-top: 0;
+  padding-bottom: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+#bbedzosenf .gt_column_spanner_outer:first-child {
+  padding-left: 0;
+}
+
+#bbedzosenf .gt_column_spanner_outer:last-child {
+  padding-right: 0;
+}
+
+#bbedzosenf .gt_column_spanner {
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: bottom;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  overflow-x: hidden;
+  display: inline-block;
+  width: 100%;
+}
+
+#bbedzosenf .gt_group_heading {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  text-align: left;
+}
+
+#bbedzosenf .gt_empty_group_heading {
+  padding: 0.5px;
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  vertical-align: middle;
+}
+
+#bbedzosenf .gt_from_md > :first-child {
+  margin-top: 0;
+}
+
+#bbedzosenf .gt_from_md > :last-child {
+  margin-bottom: 0;
+}
+
+#bbedzosenf .gt_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  margin: 10px;
+  border-top-style: solid;
+  border-top-width: 1px;
+  border-top-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 1px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 1px;
+  border-right-color: #D3D3D3;
+  vertical-align: middle;
+  overflow-x: hidden;
+}
+
+#bbedzosenf .gt_stub {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bbedzosenf .gt_stub_row_group {
+  color: #333333;
+  background-color: #FFFFFF;
+  font-size: 100%;
+  font-weight: initial;
+  text-transform: inherit;
+  border-right-style: solid;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+  padding-left: 5px;
+  padding-right: 5px;
+  vertical-align: top;
+}
+
+#bbedzosenf .gt_row_group_first td {
+  border-top-width: 2px;
+}
+
+#bbedzosenf .gt_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bbedzosenf .gt_first_summary_row {
+  border-top-style: solid;
+  border-top-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_first_summary_row.thick {
+  border-top-width: 2px;
+}
+
+#bbedzosenf .gt_last_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_grand_summary_row {
+  color: #333333;
+  background-color: #FFFFFF;
+  text-transform: inherit;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bbedzosenf .gt_first_grand_summary_row {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  padding-left: 5px;
+  padding-right: 5px;
+  border-top-style: double;
+  border-top-width: 6px;
+  border-top-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_striped {
+  background-color: rgba(128, 128, 128, 0.05);
+}
+
+#bbedzosenf .gt_table_body {
+  border-top-style: solid;
+  border-top-width: 2px;
+  border-top-color: #D3D3D3;
+  border-bottom-style: solid;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_footnotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_footnote {
+  margin: 0px;
+  font-size: 90%;
+  padding-left: 4px;
+  padding-right: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bbedzosenf .gt_sourcenotes {
+  color: #333333;
+  background-color: #FFFFFF;
+  border-bottom-style: none;
+  border-bottom-width: 2px;
+  border-bottom-color: #D3D3D3;
+  border-left-style: none;
+  border-left-width: 2px;
+  border-left-color: #D3D3D3;
+  border-right-style: none;
+  border-right-width: 2px;
+  border-right-color: #D3D3D3;
+}
+
+#bbedzosenf .gt_sourcenote {
+  font-size: 90%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+#bbedzosenf .gt_left {
+  text-align: left;
+}
+
+#bbedzosenf .gt_center {
+  text-align: center;
+}
+
+#bbedzosenf .gt_right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#bbedzosenf .gt_font_normal {
+  font-weight: normal;
+}
+
+#bbedzosenf .gt_font_bold {
+  font-weight: bold;
+}
+
+#bbedzosenf .gt_font_italic {
+  font-style: italic;
+}
+
+#bbedzosenf .gt_super {
+  font-size: 65%;
+}
+
+#bbedzosenf .gt_footnote_marks {
+  font-style: italic;
+  font-weight: normal;
+  font-size: 75%;
+  vertical-align: 0.4em;
+}
+
+#bbedzosenf .gt_asterisk {
+  font-size: 100%;
+  vertical-align: 0;
+}
+
+#bbedzosenf .gt_indent_1 {
+  text-indent: 5px;
+}
+
+#bbedzosenf .gt_indent_2 {
+  text-indent: 10px;
+}
+
+#bbedzosenf .gt_indent_3 {
+  text-indent: 15px;
+}
+
+#bbedzosenf .gt_indent_4 {
+  text-indent: 20px;
+}
+
+#bbedzosenf .gt_indent_5 {
+  text-indent: 25px;
+}
+</style>
+
+<table class="gt_table table table-sm table-striped small" data-quarto-postprocess="true">
+<thead class="gt_col_headings">
+<tr class="header">
+<th id="variable" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">variable</th>
+<th id="description" class="gt_col_heading gt_columns_bottom_border gt_left" data-quarto-table-cell-role="th" scope="col">description</th>
+</tr>
+</thead>
+<tbody class="gt_table_body">
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">ppt</td>
+<td class="gt_row gt_left" headers="description">Participant ID</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">name</td>
+<td class="gt_row gt_left" headers="description">Participant Name</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">laa</td>
+<td class="gt_row gt_left" headers="description">Local Authority Area</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">outdoor_time</td>
+<td class="gt_row gt_left" headers="description">Self report estimated number of hours per week spent outdoors</td>
+</tr>
+<tr class="odd">
+<td class="gt_row gt_left" headers="variable">wellbeing</td>
+<td class="gt_row gt_left" headers="description">Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being. The scale is scored by summing responses to each item, with items answered on a 1 to 5 Likert scale. The minimum scale score is 14 and the maximum is 70.</td>
+</tr>
+<tr class="even">
+<td class="gt_row gt_left" headers="variable">density</td>
+<td class="gt_row gt_left" headers="description">LAA Population Density (people per square km)</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</div>
+<div class="sticky">
+<p><strong>Regression Refresh</strong></p>
+<p>Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:</p>
+<p><span class="math display">\[
+\begin{align}\\
+&amp; \text{for observation }i \\
+&amp; \color{red}{Y_i}\color{black} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} X_{1i} \ + \ ... \ + \ \beta_p \cdot{} X_{pi}}\color{black} + \varepsilon_i \\
+\end{align}
+\]</span></p>
+<p>And if we wanted to write this more simply, we can express <span class="math inline">\(X_1\)</span> to <span class="math inline">\(X_p\)</span> as an <span class="math inline">\(n \times p\)</span> matrix (samplesize <span class="math inline">\(\times\)</span> parameters), and <span class="math inline">\(\beta_0\)</span> to <span class="math inline">\(\beta_p\)</span> as a vector of coefficients:</p>
+<p><span class="math display">\[
+\begin{align}
+&amp; \color{red}{\mathbf{y}}\color{black} = \color{blue}{\boldsymbol{X\beta}}\color{black} + \boldsymbol{\varepsilon} \\
+&amp; \quad \\
+&amp; \text{where} \\
+&amp; \varepsilon \sim N(0, \sigma) \text{ independently} \\
+\end{align}
+\]</span> In R, we fitted these models using:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lm</span>(y <span class="sc">~</span> x1 <span class="sc">+</span> x2 <span class="sc">+</span> .... xp, <span class="at">data =</span> mydata)  </span></code></pre></div>
+</div>
+</div>
+<div class="question-begin">
+Question 1
+</div>
+<div class="question-body">
+<p>Read in the Local Authority data from <a href="https://uoepsy.github.io/data/LAAwellbeing.csv">https://uoepsy.github.io/data/LAAwellbeing.csv</a> and plot the bivariate relationship between wellbeing and time spent outdoors.</p>
+<p>Using <code>lm()</code>, fit the simple linear model:</p>
+<p><span class="math display">\[
+\text{Wellbeing}_i = \beta_0 + \beta_1 \cdot \text{Hours per week spent outdoors}_i + \varepsilon_i
+\]</span></p>
+<p>Think about the assumptions we make about this model:</p>
+<p><span class="math display">\[
+\text{where} \quad \varepsilon_i \sim N(0, \sigma) \text{ independently}
+\]</span> Have we satisfied this assumption (specifically, the assumption of <em>independence</em> of errors)?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-1" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-1', 'sol-start-1')"> Solution </span>
+</div>
+<div id="sol-body-1" class="solution-body" style="display: none;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>scotmw <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/LAAwellbeing.csv"</span>) </span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> scotmw, <span class="fu">aes</span>(<span class="at">x =</span> outdoor_time, <span class="at">y =</span> wellbeing))<span class="sc">+</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>()<span class="sc">+</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method =</span> <span class="st">"lm"</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>simplemod <span class="ot">&lt;-</span> <span class="fu">lm</span>(wellbeing <span class="sc">~</span> outdoor_time, <span class="at">data =</span> scotmw)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(simplemod)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:
+lm(formula = wellbeing ~ outdoor_time, data = scotmw)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-27.4395  -7.5658  -0.3175   6.0831  26.7208 
+
+Coefficients:
+             Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)   39.2723     2.6674  14.723   &lt;2e-16 ***
+outdoor_time   0.1603     0.1462   1.096    0.275    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 11.43 on 130 degrees of freedom
+Multiple R-squared:  0.009155,  Adjusted R-squared:  0.001534 
+F-statistic: 1.201 on 1 and 130 DF,  p-value: 0.2751</code></pre>
+</div>
+</div>
+<p>Our model from the previous question will assume that the residuals for all participants are independent of one another. But is this a reasonable assumption that we can make? Might we not think that the residents of the highlands might have generally higher levels of wellbeing than those living in Glasgow? Additionally, the association between outdoor time and wellbeing might be different depending on where you live?</p>
+<p>The natural grouping of the people into their respective geographic area introduces a level of <em>dependence</em> which we would be best to account for.</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question 2
+</div>
+<div class="question-body">
+<p>Try running the code below.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> scotmw, <span class="fu">aes</span>(<span class="at">x =</span> outdoor_time, <span class="at">y =</span> wellbeing))<span class="sc">+</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>()<span class="sc">+</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method=</span><span class="st">"lm"</span>,<span class="at">se=</span><span class="cn">FALSE</span>)</span></code></pre></div>
+</div>
+<p>Then try editing the code to include an aesthetic mapping from the LAA to the color in the plot.</p>
+<p>How do your thoughts about the relationship between outdoor time and wellbeing change?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-2" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-2', 'sol-start-2')"> Solution </span>
+</div>
+<div id="sol-body-2" class="solution-body" style="display: none;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> scotmw, <span class="fu">aes</span>(<span class="at">x =</span> outdoor_time, <span class="at">y =</span> wellbeing))<span class="sc">+</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>()<span class="sc">+</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method=</span><span class="st">"lm"</span>,<span class="at">se=</span><span class="cn">FALSE</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(<span class="at">data =</span> scotmw, <span class="fu">aes</span>(<span class="at">x =</span> outdoor_time, <span class="at">y =</span> wellbeing, <span class="at">col =</span> laa))<span class="sc">+</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>()<span class="sc">+</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_smooth</span>(<span class="at">method=</span><span class="st">"lm"</span>,<span class="at">se=</span><span class="cn">FALSE</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>From the second plot, we see a lot of the LAA appear to have a positive relationship (outdoor time is associated with higher wellbeing). There seem to be differences between LAAs in both the general wellbeing level (residents of Na h-Eileanan Siar - the outer hebrides - have high wellbeing), and in how outdoor time is associated with wellbeing (for instance, outdoor time doesn’t seem to help in Glasgow City).</p>
+</div>
+<p class="solution-end">
+</p>
+<div class="frame">
+<p><strong>Complete Pooling</strong></p>
+<p>We can consider the simple regression model (<code>lm(wellbeing ~ outdoor_time, data = scotmw)</code>) to “pool” the information from all observations together. In this ‘Complete Pooling’ approach, we simply ignore the natural clustering of the people into their local authority areas, as if we were unaware of it. The problem is that this assumes the same regression line for all local authority areas, which might not be that appropriate. Additionally, we violate the assumption that our residuals are independent, because all of the residuals from certain groups will be more like one another than they are to the others.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid figure-img" width="350"></p>
+<figcaption class="figure-caption">Complete pooling can lead to bad fit for certain groups</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div class="frame">
+<p><strong>No Pooling</strong></p>
+<p>There are various ways we could attempt to deal with the problem that our data are in groups (or “clusters”). With the tools you have learned in DAPR2, you may be tempted to try including LAA in the model as another predictor, to allow for some local authority areas being generally better than others:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lm</span>(wellbeing <span class="sc">~</span> outdoor_time <span class="sc">+</span> laa, <span class="at">data =</span> scotmw)</span></code></pre></div>
+</div>
+<p>Or even to include an interaction to allow for local authority areas to show different patterns of association between outdoor time and wellbeing:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">lm</span>(wellbeing <span class="sc">~</span> outdoor_time <span class="sc">*</span> laa, <span class="at">data =</span> scotmw)</span></code></pre></div>
+</div>
+<p>This approach gets termed the “No Pooling” method, because the information from each cluster contributes <em>only</em> to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, but it means that a) we are estimating <em>a lot</em> of parameters, and b) we are not necessarily estimating the parameter of interest (the <em>overall</em> effect of practice on reading age). Furthermore, we’ll probably end up having high variance in the estimates at each group.</p>
+</div>
+<div class="question-begin">
+Question 3
+</div>
+<div class="question-body">
+<p>Fit a linear model which accounts for the grouping of participants into their different local authorities, but holds the association between outdoor time and wellbeing as constant across LAAs:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>mod1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(wellbeing <span class="sc">~</span> outdoor_time <span class="sc">+</span> laa, <span class="at">data =</span> scotmw)</span></code></pre></div>
+</div>
+<p>Can you construct a plot of the <strong>fitted</strong> values from this model, coloured by LAA?</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Hint:</strong> you might want to use the <code>augment()</code> function from the <strong>broom</strong> package</p>
+</div>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-3" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-3', 'sol-start-3')"> Solution </span>
+</div>
+<div id="sol-body-3" class="solution-body" style="display: none;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(mod1) <span class="sc">%&gt;%</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(.,<span class="fu">aes</span>(<span class="at">x=</span>outdoor_time, <span class="at">y=</span>.fitted, <span class="at">col=</span>laa))<span class="sc">+</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question 4
+</div>
+<div class="question-body">
+<p>What happens (to the plot, and to your parameter estimates) when you include the interaction between <code>laa</code> and <code>outdoor_time</code>?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-4" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-4', 'sol-start-4')"> Solution </span>
+</div>
+<div id="sol-body-4" class="solution-body" style="display: none;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mod2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(wellbeing <span class="sc">~</span> outdoor_time <span class="sc">*</span> laa, <span class="at">data =</span> scotmw)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>broom<span class="sc">::</span><span class="fu">augment</span>(mod2) <span class="sc">%&gt;%</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(.,<span class="fu">aes</span>(<span class="at">x=</span>outdoor_time, <span class="at">y=</span>.fitted, <span class="at">col=</span>laa))<span class="sc">+</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>We can see now that our model is fitting a different relationship between wellbeing and outdoor time for each LAA. This is good - we’re going to get better estimates for different LAAs (e.g.&nbsp;wellbeing of residents of the Highlands increases with more outdoor time, and wellbeing of residents of Glasgow does not).</p>
+<p>We can see that this model provides a better fit - it results in a significant reduction in the residual sums of squares:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(mod1, mod2)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Analysis of Variance Table
+
+Model 1: wellbeing ~ outdoor_time + laa
+Model 2: wellbeing ~ outdoor_time * laa
+  Res.Df    RSS Df Sum of Sq   F   Pr(&gt;F)   
+1    111 2826.9                             
+2     92 1864.4 19    962.57 2.5 0.001975 **
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+</div>
+</div>
+<p>But accounting for this heterogeneity over clusters in the effect of interest comes at the expense of not pooling information across groups to get one estimate for “<strong>the</strong> association between outdoor time and wellbeing”. Additionally, these models will tend to have low statistical power because they are using fewer observations (only those within each cluster) to estimate parameters which only represent within-cluster effects.</p>
+</div>
+<p class="solution-end">
+</p>
+</section>
+<section id="advanced-data-wrangling" class="level1">
+<h1>Advanced Data Wrangling</h1>
+<p>With more complex data structures comes more in-depth data wrangling in order to get it ready for fitting and estimating our model. Typically, the data we get will not be neat and tidy, and will come in different formats. Often we simply get whatever our experiment/questionnaire software spits out, and we have to work from there. When you are designing a study, you can do work on the front end to minimise the data-wrangling. Try to design an experiment/questionnaire while keeping in mind what the data comes out looking like.</p>
+<p>Below we have some data from a fake experiment. We’ve tried to make it a bit more difficult to work with - a bit more similar to what we would <em>actually</em> get when doing real-life research.</p>
+<div class="frame">
+<p><strong>Data: Audio interference in executive functioning</strong></p>
+<p>This data is from a simulated study that aims to investigate the following research question:</p>
+<blockquote class="blockquote">
+<p>How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used?</p>
+</blockquote>
+<p>24 healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room.</p>
+<p>The data is in stored in two separate files - the research administering the tests recorded the SDMT score in one spreadsheet, while details of the audio used in the experiment are held in a separate sheet</p>
+<ol type="1">
+<li>Information about the audio condition for each trial of each participant is stored in <strong>.csv</strong> format at <a href="https://uoepsy.github.io/data/ef_music.csv">https://uoepsy.github.io/data/ef_music.csv</a>. The data is in long format (1 row per participant-trial).</li>
+</ol>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 89%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: left;">description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">PID</td>
+<td style="text-align: left;">Participant ID</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">trial_n</td>
+<td style="text-align: left;">Trial Number (1-15)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">audio</td>
+<td style="text-align: left;">Audio heard during the test (‘no_audio’, ‘white_noise’,‘music’)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">headphones</td>
+<td style="text-align: left;">Whether the participant listened via speakers in the room or via noise cancelling headphones</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<ol start="2" type="1">
+<li>Information on participants’ Symbol Digit Modalities Test (SDMT) for each trial is stored in <strong>.xlsx</strong> format at <a href="https://uoepsy.github.io/data/ef_sdmt.xlsx">https://uoepsy.github.io/data/ef_sdmt.xlsx</a>. The data is in wide format (1 row per participant, 1 column per trial).</li>
+</ol>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<table class="table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;">variable</th>
+<th style="text-align: left;">description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">PID</td>
+<td style="text-align: left;">Participant ID</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Trial_01</td>
+<td style="text-align: left;">SDMT score in trial 1</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Trial_02</td>
+<td style="text-align: left;">SDMT score in trial 2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Trial_03</td>
+<td style="text-align: left;">SDMT score in trial 3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">…</td>
+<td style="text-align: left;">SDMT score in trial …</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">…</td>
+<td style="text-align: left;">SDMT score in trial …</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Trial_15</td>
+<td style="text-align: left;">SDMT score in trial 15</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="question-begin">
+Question 5
+</div>
+<div class="question-body">
+<p>Get the data into your R session.</p>
+<p><strong>Note:</strong> For one of the files, this is a bit different to how we have given you data in previous exercises. You may remember that for a <strong>.csv</strong> file, you can read directly into R from the link using, <code>read_csv("https://uoepsy.......)</code>.</p>
+<p>However, in reality you are likely to be confronted with data in all sorts of weird formats, such as <strong>.xlsx</strong> files from MS Excel. Have a look around the internet to try and find any packages/functions/techniques for getting both the datasets in to R.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>For the <strong>.xlsx</strong> data:</p>
+<ul>
+<li>Step 1: download the data to your computer<br>
+</li>
+<li>Step 2: load the <strong>readxl</strong> package.<br>
+</li>
+<li>Step 3: use the <code>read_xlsx()</code> function to read in the data, pointing it to the relevant place on your computer.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-5" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-5', 'sol-start-5')"> Solution </span>
+</div>
+<div id="sol-body-5" class="solution-body" style="display: none;">
+<p>Reading in the data for each condition is easy, as it’s just the same as we have been doing in DAPR previously:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>ef_music <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/ef_music.csv"</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ef_music)</span></code></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  PID    trial_n  audio       headphones
+  &lt;chr&gt;  &lt;chr&gt;    &lt;fct&gt;       &lt;fct&gt;     
+1 PPT_01 Trial_02 no_audio    speakers  
+2 PPT_01 Trial_08 no_audio    speakers  
+3 PPT_01 Trial_11 no_audio    speakers  
+4 PPT_01 Trial_13 no_audio    speakers  
+5 PPT_01 Trial_15 no_audio    speakers  
+6 PPT_01 Trial_01 white_noise speakers  </code></pre>
+</div>
+</div>
+<p>The other data is a bit more tricky, but we can actually do all these steps from within R.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1 - Download the data:  </span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(<span class="at">url =</span> <span class="st">"https://uoepsy.github.io/data/ef_sdmt.xlsx"</span>, </span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">destfile =</span> <span class="st">"ef_sdmt.xlsx"</span>, <span class="at">mode =</span> <span class="st">"wb"</span>)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readxl)</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 3</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>ef_sdmt <span class="ot">&lt;-</span> <span class="fu">read_xlsx</span>(<span class="st">"ef_sdmt.xlsx"</span>)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ef_sdmt)</span></code></pre></div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 16
+  PID    Trial…¹ Trial…² Trial…³ Trial…⁴ Trial…⁵ Trial…⁶ Trial…⁷ Trial…⁸ Trial…⁹
+  &lt;chr&gt;    &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+1 PPT_01      38      31      33      13      19      22      24      23      26
+2 PPT_02      47      43      30      38      56      61      58      55      47
+3 PPT_03      29      36      29      34      44      36      35      41      27
+4 PPT_04      23      14       8      36      27      16      26      15      14
+5 PPT_05      22      24      18      19      23      15      32      18      30
+6 PPT_06      29      27      37      39      36      40      28      26      30
+# … with 6 more variables: Trial_10 &lt;dbl&gt;, Trial_11 &lt;dbl&gt;, Trial_12 &lt;dbl&gt;,
+#   Trial_13 &lt;dbl&gt;, Trial_14 &lt;dbl&gt;, Trial_15 &lt;dbl&gt;, and abbreviated variable
+#   names ¹​Trial_01, ²​Trial_02, ³​Trial_03, ⁴​Trial_04, ⁵​Trial_05, ⁶​Trial_06,
+#   ⁷​Trial_07, ⁸​Trial_08, ⁹​Trial_09</code></pre>
+</div>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="rtip">
+<p><strong>Pivot!</strong></p>
+<p>One of the more confusing things to get to grips with is the idea of reshaping a dataframe.<br>
+For different reasons, you might sometimes want to have data in wide, or in long format.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif" class="img-fluid figure-img" style="width:80.0%"></p>
+<figcaption class="figure-caption">Source: https://fromthebottomoftheheap.net/2019/10/25/pivoting-tidily/</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>When the data is wide, we can make it long using <code>pivot_longer()</code>. When we make data longer, we’re essentially making lots of columns into 2 longer columns. Above, in the animation, the wide variable <strong>x</strong>, <strong>y</strong> and <strong>z</strong> go into a new longer column called <strong>name</strong> that specifies which (x/y/z) it came from, and the values get put into the <strong>val</strong> column.</p>
+<p>The animation takes a shortcut in the code it displays above, but you could also use <code>pivot_longer(c(x,y,z), names_to = "name", values_to = "val")</code>. To reverse this, and put it back to being wide, we tell R which columns to take the names and values <em>from</em>: <code>pivot_wider(names_from = name, values_from = val)</code>.</p>
+</div>
+<div class="question-begin">
+Question 6
+</div>
+<div class="question-body">
+<p>Is each dataset in wide or long format? We want them both in long format, so try to reshape either/both if necessary.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-3-contents" aria-controls="callout-3" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-3" class="callout-3-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p><strong>Hint:</strong> in the tidyverse functions, you can specify all columns between column <strong>x</strong> and column <strong>z</strong> by using the colon, <code>x:z</code>.</p>
+</div>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-6" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-6', 'sol-start-6')"> Solution </span>
+</div>
+<div id="sol-body-6" class="solution-body" style="display: none;">
+<p>Only the SDMT data is in wide format:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ef_sdmt)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 16
+  PID    Trial…¹ Trial…² Trial…³ Trial…⁴ Trial…⁵ Trial…⁶ Trial…⁷ Trial…⁸ Trial…⁹
+  &lt;chr&gt;    &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;
+1 PPT_01      38      31      33      13      19      22      24      23      26
+2 PPT_02      47      43      30      38      56      61      58      55      47
+3 PPT_03      29      36      29      34      44      36      35      41      27
+4 PPT_04      23      14       8      36      27      16      26      15      14
+5 PPT_05      22      24      18      19      23      15      32      18      30
+6 PPT_06      29      27      37      39      36      40      28      26      30
+# … with 6 more variables: Trial_10 &lt;dbl&gt;, Trial_11 &lt;dbl&gt;, Trial_12 &lt;dbl&gt;,
+#   Trial_13 &lt;dbl&gt;, Trial_14 &lt;dbl&gt;, Trial_15 &lt;dbl&gt;, and abbreviated variable
+#   names ¹​Trial_01, ²​Trial_02, ³​Trial_03, ⁴​Trial_04, ⁵​Trial_05, ⁶​Trial_06,
+#   ⁷​Trial_07, ⁸​Trial_08, ⁹​Trial_09</code></pre>
+</div>
+</div>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>ef_sdmt_long <span class="ot">&lt;-</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>  ef_sdmt <span class="sc">%&gt;%</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(Trial_01<span class="sc">:</span>Trial_15, <span class="at">names_to =</span> <span class="st">"trial_n"</span>, <span class="at">values_to =</span> <span class="st">"SDMT"</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ef_sdmt_long)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 3
+  PID    trial_n   SDMT
+  &lt;chr&gt;  &lt;chr&gt;    &lt;dbl&gt;
+1 PPT_01 Trial_01    38
+2 PPT_01 Trial_02    31
+3 PPT_01 Trial_03    33
+4 PPT_01 Trial_04    13
+5 PPT_01 Trial_05    19
+6 PPT_01 Trial_06    22</code></pre>
+</div>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="rtip">
+<p><strong>Joining data</strong></p>
+<p>There are lots of different ways to join data-sets, depending on whether we want to keep rows from one data-set or the other, or keep only those in both data-sets etc.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/messy/joins.png" class="img-fluid figure-img" style="width:80.0%"></p>
+<figcaption class="figure-caption">Check out the help documentation for them all using <code>?full_join</code>.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div class="question-begin">
+Question 7
+</div>
+<div class="question-body">
+<p>Now comes a fun bit.<br>
+We have two datasets for this study. We’re interested in how the type of audio (information on this is contained in <code>ef_music.csv</code>) interferes with scores on an executive functioning task (scores are held in the <code>ef_sdmt.xlsx</code>).</p>
+<p>We’re going to need to join these together!</p>
+<p>We can just stick them side by side, because they’re in different orders:</p>
+<div class="columns">
+<div class="column" style="width:40%;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ef_music)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 4
+  PID    trial_n  audio       headphones
+  &lt;chr&gt;  &lt;chr&gt;    &lt;fct&gt;       &lt;fct&gt;     
+1 PPT_01 Trial_02 no_audio    speakers  
+2 PPT_01 Trial_08 no_audio    speakers  
+3 PPT_01 Trial_11 no_audio    speakers  
+4 PPT_01 Trial_13 no_audio    speakers  
+5 PPT_01 Trial_15 no_audio    speakers  
+6 PPT_01 Trial_01 white_noise speakers  </code></pre>
+</div>
+</div>
+</div><div class="column" style="width:10%;">
+<!-- empty column to create gap -->
+</div><div class="column" style="width:40%;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(ef_sdmt_long)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 3
+  PID    trial_n   SDMT
+  &lt;chr&gt;  &lt;chr&gt;    &lt;dbl&gt;
+1 PPT_01 Trial_01    38
+2 PPT_01 Trial_02    31
+3 PPT_01 Trial_03    33
+4 PPT_01 Trial_04    13
+5 PPT_01 Trial_05    19
+6 PPT_01 Trial_06    22</code></pre>
+</div>
+</div>
+</div>
+</div>
+<p>Provided that both data-sets contain information on participant number and trial number, which uniquely identify each observation, we can join them together by matching on those variables!</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-4-contents" aria-controls="callout-4" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-4" class="callout-4-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>We’re going to want to use one of <code>left/right/semi/anti/full_join()</code>, and give the function both the long formatted datasets.<br>
+We should end up with 600 rows (40 participants * 15 trials each).</p>
+</div>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-7" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-7', 'sol-start-7')"> Solution </span>
+</div>
+<div id="sol-body-7" class="solution-body" style="display: none;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>efdata <span class="ot">&lt;-</span> <span class="fu">full_join</span>(ef_music, ef_sdmt_long)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(efdata)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 5
+  PID    trial_n  audio       headphones  SDMT
+  &lt;chr&gt;  &lt;chr&gt;    &lt;fct&gt;       &lt;fct&gt;      &lt;dbl&gt;
+1 PPT_01 Trial_02 no_audio    speakers      31
+2 PPT_01 Trial_08 no_audio    speakers      23
+3 PPT_01 Trial_11 no_audio    speakers      23
+4 PPT_01 Trial_13 no_audio    speakers      24
+5 PPT_01 Trial_15 no_audio    speakers      34
+6 PPT_01 Trial_01 white_noise speakers      38</code></pre>
+</div>
+</div>
+</div>
+<p class="solution-end">
+</p>
+</section>
+<section id="clustering-icc" class="level1">
+<h1>Clustering &amp; ICC</h1>
+<div class="question-begin">
+Question 8
+</div>
+<div class="question-body">
+<p>Continuing with our audio/executive functioning study, consider the following questions:</p>
+<p>What are the units of observations?<br>
+What are the groups/clusters?<br>
+What varies <em>within</em> these clusters?<br>
+What varies <em>between</em> these clusters?</p>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-8" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-8', 'sol-start-8')"> Solution </span>
+</div>
+<div id="sol-body-8" class="solution-body" style="display: none;">
+<p>What are the units of observations? <strong>trials</strong><br>
+What are the groups/clusters? <strong>participants</strong><br>
+What varies <em>within</em> these clusters? <strong>the type of audio</strong><br>
+What varies <em>between</em> these clusters? <strong>whether they listen via headphones or speakers</strong></p>
+</div>
+<p class="solution-end">
+</p>
+<div class="question-begin">
+Question 9
+</div>
+<div class="question-body">
+<p>Calculate the ICC, using the <code>ICCbare()</code> function from the <strong>ICC</strong> package.</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Hint
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Remember, you can look up the help for a function by typing a <code>?</code> followed by the function name in the console.</p>
+</div>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-9" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-9', 'sol-start-9')"> Solution </span>
+</div>
+<div id="sol-body-9" class="solution-body" style="display: none;">
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ICC)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ICCbare</span>(<span class="at">x =</span> PID, <span class="at">y =</span> SDMT, <span class="at">data =</span> efdata)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.4782452</code></pre>
+</div>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<p>Think back to the lectures, and about what the ICC represents - the ratio of the variance between the groups to the total variance.<br>
+You can think of the “variance between the groups” as the group means varying around the overall mean (the black dots around the black line), and the total variance as that plus the addition of the variance of the individual observations around each group mean (each set of coloured points around their respective larger black dot):</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(efdata, <span class="fu">aes</span>(<span class="at">x=</span>PID, <span class="at">y=</span>SDMT))<span class="sc">+</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">col=</span>PID),<span class="at">alpha=</span>.<span class="dv">3</span>)<span class="sc">+</span></span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">stat_summary</span>(<span class="at">geom =</span> <span class="st">"pointrange"</span>)<span class="sc">+</span></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept =</span> <span class="fu">mean</span>(efdata<span class="sc">$</span>SDMT,<span class="at">na.rm=</span>T))<span class="sc">+</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">axis.text.x =</span> <span class="fu">element_text</span>(<span class="at">angle=</span><span class="dv">60</span>,<span class="at">hjust=</span><span class="dv">1</span>))<span class="sc">+</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">guides</span>(<span class="at">col=</span><span class="st">'none'</span>)</span></code></pre></div>
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-33-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>You can also think of the ICC as the correlation between two randomly drawn observations from the same group. This is a bit of a tricky thing to get your head round if you try to relate it to the type of “correlation” that you are familiar with. Pearson’s correlation (e.g think about a typical scatterplot) operates on <em>pairs of observations</em> (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on <em>data which is structured in groups</em>.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Optional: ICC as the expected correlation between two observations from same group
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Let’s suppose we had only 2 observations in each group.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code>  cluster observation   y
+1 group_1           1   4
+2 group_1           2   2
+3 group_2           1   4
+4 group_2           2   2
+5 group_3           1   7
+6 group_3           2   5
+7     ...         ... ...</code></pre>
+</div>
+</div>
+<p>The ICC for this data is 0.18:</p>
+<p>Now suppose we <em>reshape</em> our data so that we have one row per group, and one column for each observation to look like this:</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 3
+  cluster obs1  obs2 
+  &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+1 group_1 4     2    
+2 group_2 4     2    
+3 group_3 7     5    
+4 group_4 2     7    
+5 group_5 3     8    
+6 group_6 6     7    
+7 ...     ...   ...  </code></pre>
+</div>
+</div>
+<p>Calculating Pearson’s correlation on those two columns yields 0.2, which isn’t quite right. It’s close, but not quite..</p>
+<div class="imp">
+<p>The crucial thing here is that it is completely arbitrary which observations get called “obs1” and which get called “obs2”.<br>
+The data aren’t paired, but <strong>grouped.</strong></p>
+</div>
+<p>Essentially, there are lots of different combinations of “pairs” here. There are the ones we have shown above:</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 3
+  cluster obs1  obs2 
+  &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+1 group_1 4     2    
+2 group_2 4     2    
+3 group_3 7     5    
+4 group_4 2     7    
+5 group_5 3     8    
+6 group_6 6     7    
+7 ...     ...   ...  </code></pre>
+</div>
+</div>
+<p>But we might have equally chosen these:</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 3
+  cluster obs1  obs2 
+  &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+1 group_1 2     4    
+2 group_2 2     4    
+3 group_3 7     5    
+4 group_4 7     2    
+5 group_5 3     8    
+6 group_6 6     7    
+7 ...     ...   ...  </code></pre>
+</div>
+</div>
+<p>or these:</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 7 × 3
+  cluster obs1  obs2 
+  &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;
+1 group_1 2     4    
+2 group_2 4     2    
+3 group_3 7     5    
+4 group_4 2     7    
+5 group_5 8     3    
+6 group_6 6     7    
+7 ...     ...   ...  </code></pre>
+</div>
+</div>
+<p>If we take the correlation of all these combinations of pairings, then we get our ICC of 0.18!</p>
+<p><strong>ICC = the expected correlation of a <em>randomly drawn pair</em> of observations from the same group.</strong></p>
+<!-- We could even do this via simulation, and write our own customised function! -->
+<!-- The code below creates a function for us to use. Can you figure out how it works?  -->
+<!-- ```{r} -->
+<!-- get_random_pair <- function(){ -->
+<!--   my_sub = sample(unique(bball$sub), 1) -->
+<!--   my_obs = sample(bball$hrv[bball$sub == my_sub], size=2) -->
+<!--   my_obs -->
+<!-- } -->
+<!-- ``` -->
+<!-- Try it out, by running it several times.  -->
+<!-- ```{r} -->
+<!-- get_random_pair() -->
+<!-- ``` -->
+<!-- Now let's make our computer do it loads and loads of times: -->
+<!-- ```{r} -->
+<!-- # replicate is a way of making R execute the same code repeatedly, n times. -->
+<!-- sims <- replicate(1e6, get_random_pair()) -->
+<!-- # t() is short for "transpose" and simple rotates the object 90 degrees (so rows become columns and columns become rows) -->
+<!-- sims <- t(sims) -->
+<!-- cor(sims[,1], sims[,2]) -->
+<!-- ``` -->
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Optional - Extra difficult. Calculate ICC manually
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>We have equal group sizes here (there are 2 <span class="math inline">\(\times\)</span> 12 participants, each with 15 observations), which makes calculating ICC by hand a lot easier, but it’s still a bit tricky.</p>
+<p>Let’s take a look at the formula for ICC</p>
+<p><span class="math display">\[
+\begin{align}
+ICC \; (\rho) = &amp; \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\
+\qquad \\
+= &amp; \frac{\frac{MS_b - MS_e}{k}}{\frac{MS_b - MS_e}{k} + MS_e} \\
+\qquad \\
+= &amp; \frac{MS_b - MS_e}{MS_b + (k-1)MS_e} \\
+\qquad \\
+\qquad \\
+\text{Where:} &amp; \\
+k = &amp; \textrm{number of observations in each group} \\
+\qquad \\
+MS_b = &amp; \textrm{Mean Squares between groups} \\
+= &amp; \frac{\text{Sums Squares between groups}}{df_\text{groups}}
+= \frac{\sum\limits_{i=1}(\bar{y}_i - \bar{y})^2}{\textrm{n groups}-1}\\
+\qquad \\
+MS_e = &amp; \textrm{Mean Squares within groups} \\
+= &amp; \frac{\text{Sums Squares within groups}}{df_\text{within groups}}
+= \frac{\sum\limits_{i=1}\sum\limits_{j=1}(y_{ij} - \bar{y_i})^2}{\textrm{n obs}-\textrm{n groups}}\\
+\end{align}
+\]</span> So we’re going to need to calculate the grand mean of <span class="math inline">\(y\)</span>, the group means of <span class="math inline">\(y\)</span>, and then the various squared differences between group means and grand mean, and between observations and their respective group means.</p>
+<p>The code below will give us a new column which is the overall mean of y. This bit is fairly straightforward.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>efdata <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">grand_mean =</span> <span class="fu">mean</span>(SDMT)</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div class="rtip">
+<p>We have seen a lot of the combination of <code>group_by() %&gt;% summarise()</code>, but we can also combine <code>group_by()</code> with <code>mutate()</code>!</p>
+</div>
+<p>Try the following:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>efdata <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">grand_mean =</span> <span class="fu">mean</span>(SDMT)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(PID) <span class="sc">%&gt;%</span></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_mean =</span> <span class="fu">mean</span>(SDMT)</span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+</div>
+<div class="rtip">
+<p><strong>The grouping gets carried forward.</strong></p>
+<p>Using <code>group_by()</code> can quite easily land you in trouble if you forget that you have grouped the dataframe.</p>
+<p>Look at the output of <code>class()</code> when we have grouped the data. It still mentions something about the grouping.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>efdata <span class="ot">&lt;-</span> efdata <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">grand_mean =</span> <span class="fu">mean</span>(SDMT)</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span> </span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(PID) <span class="sc">%&gt;%</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_mean =</span> <span class="fu">mean</span>(SDMT)</span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(efdata)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "grouped_df" "tbl_df"     "tbl"        "data.frame"</code></pre>
+</div>
+</div>
+<p>To remove the grouping, we can use <code>ungroup()</code> (we could also just add this to the end of our code sequence above and re-run it):</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>efdata <span class="ot">&lt;-</span> <span class="fu">ungroup</span>(efdata)</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a><span class="fu">class</span>(efdata)</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "tbl_df"     "tbl"        "data.frame"</code></pre>
+</div>
+</div>
+</div>
+<p>Now we need to create a column which is the squared differences between the observations <span class="math inline">\(y_{ij}\)</span> and the group means <span class="math inline">\(\bar{y_i}\)</span>.<br>
+We also want a column which is the squared differences between the group means <span class="math inline">\(\bar{y_i}\)</span> and the overall mean <span class="math inline">\(\bar{y}\)</span>.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>efdata <span class="ot">&lt;-</span> efdata <span class="sc">%&gt;%</span> </span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">within =</span> (SDMT<span class="sc">-</span>group_mean)<span class="sc">^</span><span class="dv">2</span>,</span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">between =</span> (group_mean<span class="sc">-</span>grand_mean)<span class="sc">^</span><span class="dv">2</span></span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div>
+</div>
+<p>And then we want to sum them:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" aria-hidden="true" tabindex="-1"></a>ssbetween <span class="ot">=</span> <span class="fu">sum</span>(efdata<span class="sc">$</span>between)</span>
+<span id="cb46-2"><a href="#cb46-2" aria-hidden="true" tabindex="-1"></a>sswithin <span class="ot">=</span> <span class="fu">sum</span>(efdata<span class="sc">$</span>within)</span></code></pre></div>
+</div>
+<p>Finally, we divide them by the degrees of freedom.</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Mean Squares between</span></span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a>msb <span class="ot">=</span> ssbetween <span class="sc">/</span> (<span class="dv">24-1</span>)</span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Mean Squares within </span></span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a>mse <span class="ot">=</span> sswithin <span class="sc">/</span> (<span class="dv">360-24</span>)</span></code></pre></div>
+</div>
+<p>And calculate the ICC!!!</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ICC</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a>(msb<span class="sc">-</span>mse) <span class="sc">/</span>(msb <span class="sc">+</span> (<span class="dv">14</span><span class="sc">*</span>mse))</span></code></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0.4782452</code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="question-begin">
+Question 10
+</div>
+<div class="question-body">
+<p>We have two variables of interest here:</p>
+<ul>
+<li><code>audio</code> (type of audio listened to in a trial)</li>
+<li><code>headphones</code> (whether or not the participant had headphones on)</li>
+</ul>
+<p>We’re going to look at them separately for now (we’ll get on to addressing the research question next week).</p>
+<p>Compare how the estimates and the uncertainty (the standard errors) for the <code>audio</code> coefficients compare between these two models:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a>mod1 <span class="ot">&lt;-</span> <span class="fu">lm</span>(SDMT <span class="sc">~</span> audio, <span class="at">data =</span> efdata)</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a>mod2 <span class="ot">&lt;-</span> <span class="fu">lm</span>(SDMT <span class="sc">~</span> audio <span class="sc">+</span> PID, <span class="at">data =</span> efdata)</span></code></pre></div>
+</div>
+<p>and look how the <code>headphones</code> coefficients compare between these two:</p>
+<div class="cell" data-layout-align="center">
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>mod3 <span class="ot">&lt;-</span> <span class="fu">lm</span>(SDMT <span class="sc">~</span> headphones, <span class="at">data =</span> efdata)</span>
+<span id="cb51-2"><a href="#cb51-2" aria-hidden="true" tabindex="-1"></a>mod4 <span class="ot">&lt;-</span> <span class="fu">lm</span>(SDMT <span class="sc">~</span> headphones <span class="sc">+</span> PID, <span class="at">data =</span> efdata)</span></code></pre></div>
+</div>
+<p>What do you notice?</p>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Hints
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>Recall our answers to question 8:</p>
+<p>What are the units of observations? <strong>trials</strong><br>
+What are the groups/clusters? <strong>participants</strong><br>
+What varies <em>within</em> these clusters? <strong>the type of audio</strong><br>
+What varies <em>between</em> these clusters? <strong>whether they listen via headphones or speakers</strong></p>
+</div>
+</div>
+</div>
+</div>
+<p class="question-end">
+</p>
+<div class="solution-begin">
+<span id="sol-start-10" class="fa-solid fa-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-10', 'sol-start-10')"> Solution </span>
+</div>
+<div id="sol-body-10" class="solution-body" style="display: none;">
+<p>Our standard errors for the <code>audio</code> coefficients become narrower when we account for participant-level differences (<code>mod2</code>).</p>
+<p>This makes sense, because <code>mod2</code> explains some variation in the audio groups as being due to participants - the highest “white noise” point is actually still a decrease in SDMT compared to “no_audio” <em>for that participant</em>. Whereas <code>mod1</code> doesn’t know that that highest “white noise” point is high <em>because</em> it comes from a specific participant. Put another way, having a separate line for each participant (RH plot below), gives us more confidence in the differences between audio-types.</p>
+<p>Because we have perfectly balanced data (every participant has the same number of trials in each audio-type) then our estimates here do not actually change at all.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-50-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>In contrast, our estimates for <code>headphones</code> coefficients <em>do</em> change when we include <code>PID</code> in the model. And the standard errors actually get <em>larger</em>. This is because the inclusion of the participant in <code>mod4</code> accounts for some of the variance in each group, which means that our comparison between “speakers” and “headphones” is actually a comparison between two groups of 12 participants (RH plot below), rather than 2 groups of 180 trials (LH plot below).</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="01_regressionrefresh_files/figure-html/unnamed-chunk-51-1.png" class="img-fluid figure-img" style="width:80.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA (“repeated measures ANOVA”, “mixed ANOVA”). These methods can partition out variance due to one level of clustering (e.g.&nbsp;subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example <a href="example_00_anova.html">here</a> if you are interested. However, ANOVA has a lot of constraints - it can’t handle multiple levels of clustering (e.g.&nbsp;children in classes in schools), it will likely require treating variables such as time as a factor, and it’s not great with missing data.<br>
+The multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.</p>
+</div>
+<p class="solution-end">
+</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
