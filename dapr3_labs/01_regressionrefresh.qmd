@@ -14,7 +14,7 @@ library(patchwork)
 ```
 
 
-:::lo
+:::frame
 **Preliminaries**  
  
 1. Open Rstudio, and **create a new project for this course!!** 
@@ -53,35 +53,18 @@ library(broom.mixed)
 library(effects)
 ```
 
-# Linear Models & Pooling
+:::lo
+__This Week__  
 
-
-:::frame
-__Data: Wellbeing in Scotland__  
-
-In DAPR2, one of the examples we used in [learning about linear regression](https://uoepsy.github.io/dapr2/2122/labs/1_04_mlr.html) was in examining the relationship between time spent outdoors and mental wellbeing. In that example researchers had collected data from 32 residents of Edinburgh & Lothians.  
-
-Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.  
-
-Twenty of the Local Authority Areas provided data. It is available at [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv), and you can read it into your R environment using the code below: 
-```{r eval=FALSE}
-scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
-```
-The dataset contains information on 132 participants. You can see the variables in the table below
-```{r echo=FALSE, message=FALSE,warning=FALSE}
-library(gt)
-scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
-tibble(variable=names(scotmw),
-       description=c("Participant ID","Participant Name","Local Authority Area","Self report estimated number of hours per week spent outdoors","Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being. The scale is scored by summing responses to each item, with items answered on a 1 to 5 Likert scale. The minimum scale score is 14 and the maximum is 70.","LAA Population Density (people per square km)")
-) %>% gt()
-
-```
 
 :::
 
 
-:::sticky
-__Regression Refresh__
+
+# Exercises: Linear Models & Pooling
+
+:::{.callout-note collapse="true"}
+## Regression Refresh
 
 Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:
 
@@ -106,20 +89,41 @@ In R, we fitted these models using:
 ```{r eval=F}
 lm(y ~ x1 + x2 + .... xp, data = mydata)  
 ```
-
 :::
 
+:::frame
+__Data: Wellbeing Across Scotland__  
+
+In DAPR2, one of the examples we used in [learning about linear regression](https://uoepsy.github.io/dapr2/2122/labs/1_04_mlr.html) was in examining the relationship between time spent outdoors and mental wellbeing. In that example researchers had collected data from 32 residents of Edinburgh & Lothians.  
+
+Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.  
+
+Twenty of the Local Authority Areas provided data. It is available at [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv), and you can read it into your R environment using the code below: 
+```{r eval=FALSE}
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+```
+The dataset contains information on 132 participants. You can see the variables in the table below
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(gt)
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+tibble(variable=names(scotmw),
+       description=c("Participant ID","Participant Name","Local Authority Area","Self report estimated number of hours per week spent outdoors","Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being. The scale is scored by summing responses to each item, with items answered on a 1 to 5 Likert scale. The minimum scale score is 14 and the maximum is 70.","LAA Population Density (people per square km)")
+) %>% gt()
+
+```
+
+:::
 
 `r qbegin("1")`
 Read in the Local Authority data from [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv) and plot the bivariate relationship between wellbeing and time spent outdoors.   
 
-Using `lm()`, fit the simple linear model:  
+Then, using `lm()`, fit the simple linear model:  
 
 $$
 \text{Wellbeing}_i = \beta_0 + \beta_1 \cdot \text{Hours per week spent outdoors}_i + \varepsilon_i
 $$
 
-Think about the assumptions we make about this model:
+Think about the assumptions we make about the model:
 
 $$
 \text{where} \quad \varepsilon_i \sim N(0, \sigma) \text{ independently}
@@ -159,24 +163,26 @@ How do your thoughts about the relationship between outdoor time and wellbeing c
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-```{r}
-ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
-  geom_point()+
-  geom_smooth(method="lm",se=FALSE)
-```
+From the second plot, we see a lot of the LAA appear to have a positive relationship (outdoor time is associated with higher wellbeing). There seem to be differences between LAAs in both the general wellbeing level (residents of Na h-Eileanan Siar  - the outer hebrides - have high wellbeing), and in how outdoor time is associated with wellbeing (for instance, outdoor time doesn't seem to help in Glasgow City).  
+
 
 ```{r}
-ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing, col = laa))+
+p1 <- ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
   geom_point()+
   geom_smooth(method="lm",se=FALSE)
+
+p2 <- ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing, col = laa))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+
+library(patchwork)
+p1 + p2
 ```
-  
-From the second plot, we see a lot of the LAA appear to have a positive relationship (outdoor time is associated with higher wellbeing). There seem to be differences between LAAs in both the general wellbeing level (residents of Na h-Eileanan Siar  - the outer hebrides - have high wellbeing), and in how outdoor time is associated with wellbeing (for instance, outdoor time doesn't seem to help in Glasgow City).  
 
 `r solend()`
 
-:::frame
-**Complete Pooling**  
+:::{.callout-note collapse="true"}
+## Complete Pooling
 
 We can consider the simple regression model (`lm(wellbeing ~ outdoor_time, data = scotmw)`) to "pool" the information from all observations together. In this 'Complete Pooling' approach, we simply ignore the natural clustering of the people into their local authority areas, as if we were unaware of it. The problem is that this assumes the same regression line for all local authority areas, which might not be that appropriate. Additionally, we violate the assumption that our residuals are independent, because all of the residuals from certain groups will be more like one another than they are to the others.  
 
@@ -191,8 +197,8 @@ ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
 
 :::
 
-:::frame  
-**No Pooling**  
+:::{.callout-note collapse="true"}
+## No Pooling  
 
 There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters"). With the tools you have learned in DAPR2, you may be tempted to try including LAA in the model as another predictor, to allow for some local authority areas being generally better than others:
 ```{r eval=FALSE}
@@ -217,7 +223,7 @@ Can you construct a plot of the **fitted** values from this model, coloured by L
 
 :::{.callout-tip collapse="true"}
 ### Hint  
-__Hint:__ you might want to use the `augment()` function from the **broom** package
+you might want to use the `augment()` function from the **broom** package
 
 :::
 
@@ -251,10 +257,11 @@ anova(mod1, mod2)
 ```
 
 But accounting for this heterogeneity over clusters in the effect of interest comes at the expense of not pooling information across groups to get one estimate for "**the** association between outdoor time and wellbeing". Additionally, these models will tend to have low statistical power because they are using fewer observations (only those within each cluster) to estimate parameters which only represent within-cluster effects.  
-`r solend()`
+`r solend()`  
 
 
-# Advanced Data Wrangling
+
+# Exercises: Advanced Data Wrangling
 
 With more complex data structures comes more in-depth data wrangling in order to get it ready for fitting and estimating our model. Typically, the data we get will not be neat and tidy, and will come in different formats. Often we simply get whatever our experiment/questionnaire software spits out, and we have to work from there. When you are designing a study, you can do work on the front end to minimise the data-wrangling. Try to design an experiment/questionnaire while keeping in mind what the data comes out looking like.  
 
@@ -262,7 +269,6 @@ Below we have some data from a fake experiment. We've tried to make it a bit mor
 
 :::frame
 __Data: Audio interference in executive functioning__  
-
 
 ```{r}
 #| echo: false
@@ -341,7 +347,10 @@ This data is from a simulated study that aims to investigate the following resea
 
 `r length(unique(ef_music$PID))` healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room.  
 
-The data is in stored in two separate files - the research administering the tests recorded the SDMT score in one spreadsheet, while details of the audio used in the experiment are held in a separate sheet
+The data is in stored in two separate files - the researcher administering the tests recorded the SDMT score in one spreadsheet, while details of the audio used in the experiment are held in a separate sheet.  
+
+:::{.callout-note collapse="true"}
+#### ef_music.csv  
 
 1. Information about the audio condition for each trial of each participant is stored in __.csv__ format at [https://uoepsy.github.io/data/ef_music.csv](https://uoepsy.github.io/data/ef_music.csv). The data is in long format (1 row per participant-trial).  
 ```{r echo=FALSE}
@@ -352,14 +361,18 @@ tibble(
                   "Audio heard during the test ('no_audio', 'white_noise','music')","Whether the participant listened via speakers in the room or via noise cancelling headphones")
   ) %>% knitr::kable()
 ```
+:::
+:::{.callout-note collapse="true"}
+#### ef_sdmt.xlsx
 
-2. Information on participants' Symbol Digit Modalities Test (SDMT) for each trial is stored in **.xlsx** format at [https://uoepsy.github.io/data/ef_sdmt.xlsx](https://uoepsy.github.io/data/ef_sdmt.xlsx). The data is in wide format (1 row per participant, 1 column per trial).   
+Information on participants' Symbol Digit Modalities Test (SDMT) for each trial is stored in **.xlsx** format at [https://uoepsy.github.io/data/ef_sdmt.xlsx](https://uoepsy.github.io/data/ef_sdmt.xlsx). The data is in wide format (1 row per participant, 1 column per trial).   
 ```{r echo=FALSE}
 tibble(
   variable = c(names(ef_sdmt)[c(1:4)],"...","...",names(ef_sdmt)[16]),
   description = c("Participant ID",paste0("SDMT score in trial ",c(1,2,3,"...","...",15)))
 ) %>% knitr::kable()
 ```
+:::
 
 
 :::
@@ -418,8 +431,8 @@ head(ef_sdmt)
 
 `r solend()`
 
-:::rtip
-**Pivot!**    
+:::{.callout-note collapse="true"}
+## Pivoting dataframes  
 
 One of the more confusing things to get to grips with is the idea of reshaping a dataframe.  
 For different reasons, you might sometimes want to have data in wide, or in long format. 
@@ -431,8 +444,8 @@ knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts
 When the data is wide, we can make it long using `pivot_longer()`. When we make data longer, we're essentially making lots of columns into 2 longer columns. Above, in the animation, the wide variable **x**, **y** and **z** go into a new longer column called **name** that specifies which (x/y/z) it came from, and the values get put into the **val** column.  
 
 The animation takes a shortcut in the code it displays above, but you could also use `pivot_longer(c(x,y,z), names_to = "name", values_to = "val")`. To reverse this, and put it back to being wide, we tell R which columns to take the names and values *from*: `pivot_wider(names_from = name, values_from = val)`.  
-:::
 
+:::
 
 `r qbegin("6")`
 Is each dataset in wide or long format? We want them both in long format, so try to reshape either/both if necessary.
@@ -458,8 +471,8 @@ head(ef_sdmt_long)
 ```
 `r solend()`
 
-:::rtip
-__Joining data__
+:::{.callout-note collapse="true"}
+## Joining dataframes  
 
 There are lots of different ways to join data-sets, depending on whether we want to keep rows from one data-set or the other, or keep only those in both data-sets etc. 
 
@@ -517,7 +530,7 @@ head(efdata)
 
 
 
-# Clustering & ICC
+# Exercises: Clustering & ICC
 
 `r qbegin("8")`
 Continuing with our audio/executive functioning study, consider the following questions:  
@@ -539,6 +552,8 @@ What varies *between* these clusters? __whether they listen via headphones or sp
 `r qbegin("9")`
 Calculate the ICC, using the `ICCbare()` function from the **ICC** package.  
 
+What does it show?  
+
 :::{.callout-tip collapse="true"}
 ### Hint  
 
@@ -549,11 +564,16 @@ Remember, you can look up the help for a function by typing a `?` followed by th
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+47% of the variance in SDMT scores is explained by the participant groupings.  
 ```{r}
 library(ICC)
 ICCbare(x = PID, y = SDMT, data = efdata)
 ```
 `r solend()`
+
+
+:::{.callout-note collapse="true"}
+## ICC
 
 Think back to the lectures, and about what the ICC represents - the ratio of the variance between the groups to the total variance.  
 You can think of the "variance between the groups" as the group means varying around the overall mean (the black dots around the black line), and the total variance as that plus the addition of the variance of the individual observations around each group mean (each set of coloured points around their respective larger black dot):
@@ -758,6 +778,7 @@ And calculate the ICC!!!
 (msb-mse) /(msb + (14*mse))
 ```
 
+:::
 :::
 
 
