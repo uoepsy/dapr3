@@ -29,6 +29,14 @@ Please use the lab sessions to go over exercises from previous weeks, as well as
 
 :::
 
+::: {.callout-tip collapse="true"}
+#### Hints
+
+
+:::
+
+
+
 
 # Flashcards: `lm` to `lmer`
 
@@ -272,7 +280,27 @@ cbind(
 ::: {.callout-note collapse="true"}
 ## Assumptions, Influence
 
-TODO
+In the simple linear model $\color{red}{y} = \color{blue}{\beta_0 + \beta_1(x)} + \varepsilon$, we distinguished between the systematic model part $\beta_0 + \beta_1(x)$, around which observations randomly vary (the $\varepsilon$ part) - i.e. $\color{red}{\text{outcome}} = \color{blue}{\text{model}} + \text{error}$.  
+
+In the multi-level model, our random effects are another source of random variation - $\color{red}{\text{outcome}} = \color{blue}{\text{model}} + \text{group_error} + \text{individual_error}$. As such, random effects are another form of residual, and our assumptions of zero mean constant variance apply at both levels of residuals (see @fig-assump).   
+
+```{r}
+#| echo: false
+#| label: fig-assump
+#| fig-cap: "The black dashed lines show our model assumptions."
+knitr::include_graphics("images/assump.png")
+```
+
+- We can assess these normality of both `resid(model)` and `ranef(model)` by constructing plots using functions such as `hist()`, `qqnorm()` and `qqline()`.   
+- We can also use `plot(model, type=c("p","smooth"))` to give us our residuals vs fitted plot (smooth line should be horizontal at approx zero, showing zero mean).  
+- `plot(model, form = sqrt(abs(resid(.))) ~ fitted(.), type = c("p","smooth"))` will give us our scale-location plot (smooth line should be horizontal, showing constant variance).  
+
+We can also use the `check_model()` function from the __performance__ package to get lots of info at once:  
+```{r}
+library(performance)
+check_model(random_slopes_model)
+```
+
 
 :::
 
@@ -281,7 +309,7 @@ TODO
 
 |                  | df approximations                                                  | likelihood-based                                                    | case-based bootstrap |
 | ---------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------- |
-| model parameters | `library(parameters)`<br>`model_parameters(model, ci_method="kr")` | `confint(model, type="profile")`                                    |`library(lmeresampler)`<br>`bootstrao(model, .f=fixef, type="case", B = 2000, resample = c(??,??))`                      | 
+| model parameters | `library(parameters)`<br>`model_parameters(model, ci_method="kr")` | `confint(model, type="profile")`                                    |`library(lmeresampler)`<br>`bootstrap(model, .f=fixef, type="case", B = 2000, resample = c(??,??))`                      | 
 | model comparison | `library(pbkrtest)`<br>`KRmodcomp(model1,model0)`                  | `anova(model0,model)`                                               |                      |
 |                  | fit models with `REML=TRUE`.<br>good option for small samples      | fit models with `REML=FALSE`.<br>needs large N at both levels (40+) | takes time, needs careful thought about which levels to resample, but means we can relax distributional assumptions (e.g. about normality of residuals)                     |
 
@@ -440,7 +468,7 @@ knitr::include_graphics("images/structure_nested.png")
 
 ---
 
-::: {.callout-note collapse="true"}
+::: {.callout-tip collapse="true" icon=false appearance="simple"}
 ## MLM in a nutshell
 
 MLM allows us to model effects in the linear model as _varying_ between groups. Our coefficients we remember from simple linear models (the $\beta$'s) are modelled as a distribution that has an overall mean around which our groups vary. We can see this in @fig-unlmm, where both the intercept and the slope of the line are modelled as varying by-groups. @fig-unlmm shows the overall line in blue, with a given group's line in green.  
@@ -538,6 +566,13 @@ Residuals:
 - $\widehat \sigma_\epsilon = `r su[4]`$
 
 :::
+
+---
+
+# Exercises: Less guided
+
+
+TODO
 
 
 

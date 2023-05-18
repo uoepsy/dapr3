@@ -60,7 +60,6 @@ __This Week__
 :::
 
 
-
 # Exercises: Linear Models & Pooling
 
 :::{.callout-note collapse="true"}
@@ -99,7 +98,9 @@ In DAPR2, one of the examples we used in [learning about linear regression](http
 Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.  
 
 Twenty of the Local Authority Areas provided data. It is available at [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv), and you can read it into your R environment using the code below: 
-```{r eval=FALSE}
+```{r}
+#| eval: false
+#| code-copy: true
 scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
 ```
 The dataset contains information on 132 participants. You can see the variables in the table below
@@ -200,21 +201,19 @@ ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
 :::{.callout-note collapse="true"}
 ## No Pooling  
 
-There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters"). With the tools you have learned in DAPR2, you may be tempted to try including LAA in the model as another predictor, to allow for some local authority areas being generally better than others:
+There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters"). With the tools you have learned in DAPR2, you may be tempted to try including LAA in the model as another predictor, to account for all LAA-related variation in wellbeing:  
 ```{r eval=FALSE}
 lm(wellbeing ~ outdoor_time + laa, data = scotmw)
 ```
-Or even to include an interaction to allow for local authority areas to show different patterns of association between outdoor time and wellbeing:
-```{r eval=FALSE}
-lm(wellbeing ~ outdoor_time * laa, data = scotmw)
-```
 
-This approach gets termed the "No Pooling" method, because the information from each cluster contributes *only* to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, but it means that a) we are estimating *a lot* of parameters, and b) we are not necessarily estimating the parameter of interest (the *overall* effect of practice on reading age). Furthermore, we'll probably end up having high variance in the estimates at each group.  
+This approach gets termed the "No Pooling" method, because the information from each cluster contributes *only* to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, and is nice because it eliminates _all_ of the LAA-level variation when estimating the coefficient for `outdoor_time`. But it has some considerable drawbacks in that it a) involves estimating *a lot* of parameters, and b) doesn't allow for the effect of outdoor time on wellbeing to be different for each LAA. 
+Extending this to include an interaction term `outdoor_time * laa` results in even more parameters, and the loss of the effect of interest (the effect of outdoor_time on wellbeing, within a given LAA). Furthermore, we have high variance in the estimates at each LAA because data from each LAA contributes to _only_ that LAA's slope.  
+
 
 :::
 
 `r qbegin("3")`
-Fit a linear model which accounts for the grouping of participants into their different local authorities, but holds the association between outdoor time and wellbeing as constant across LAAs:
+Fit the linear model below which accounts for the grouping of participants into their different local authorities, but holds the association between outdoor time and wellbeing as constant across LAAs:
 ```{r}
 mod1 <- lm(wellbeing ~ outdoor_time + laa, data = scotmw)
 ```
@@ -239,7 +238,8 @@ augment(mod1) %>%
 `r solend()`
 
 `r qbegin("4")`
-What happens (to the plot, and to your parameter estimates) when you include the interaction between `laa` and `outdoor_time`?
+What happens (to the plot, and to your parameter estimates) when you include the interaction between `laa` and `outdoor_time`?  
+Does it improve the model fit?  
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
@@ -256,9 +256,9 @@ We can see that this model provides a better fit - it results in a significant r
 anova(mod1, mod2)
 ```
 
-But accounting for this heterogeneity over clusters in the effect of interest comes at the expense of not pooling information across groups to get one estimate for "**the** association between outdoor time and wellbeing". Additionally, these models will tend to have low statistical power because they are using fewer observations (only those within each cluster) to estimate parameters which only represent within-cluster effects.  
+In order to account for the heterogeneity between LAAs in the `wellbeing~outdoor_time` relationship, this approach requires estimating a whole bunch of parameters (i.e. interaction terms between the `outdoor_time` slope and _every_ LAA). Additionally, these interaction terms will tend to have low statistical power because they are using fewer observations (only those within each cluster) to estimate parameters which only represent within-cluster effects.  
 `r solend()`  
-
+<br>
 
 
 # Exercises: Advanced Data Wrangling
@@ -349,7 +349,7 @@ This data is from a simulated study that aims to investigate the following resea
 
 The data is in stored in two separate files - the researcher administering the tests recorded the SDMT score in one spreadsheet, while details of the audio used in the experiment are held in a separate sheet.  
 
-:::{.callout-note collapse="true"}
+:::{.callout-note collapse=true icon=false appearance="simple"}
 #### ef_music.csv  
 
 1. Information about the audio condition for each trial of each participant is stored in __.csv__ format at [https://uoepsy.github.io/data/ef_music.csv](https://uoepsy.github.io/data/ef_music.csv). The data is in long format (1 row per participant-trial).  
@@ -362,7 +362,7 @@ tibble(
   ) %>% knitr::kable()
 ```
 :::
-:::{.callout-note collapse="true"}
+:::{.callout-note collapse=true icon=false appearance="simple"}
 #### ef_sdmt.xlsx
 
 Information on participants' Symbol Digit Modalities Test (SDMT) for each trial is stored in **.xlsx** format at [https://uoepsy.github.io/data/ef_sdmt.xlsx](https://uoepsy.github.io/data/ef_sdmt.xlsx). The data is in wide format (1 row per participant, 1 column per trial).   
@@ -527,7 +527,7 @@ efdata <- full_join(ef_music, ef_sdmt_long)
 head(efdata)
 ```
 `r solend()`
-
+<br>
 
 
 # Exercises: Clustering & ICC

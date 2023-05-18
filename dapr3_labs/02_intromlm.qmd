@@ -84,8 +84,7 @@ $$
 :::{.callout-note collapse="true"}
 ## Fitting Multilevel Models: Model Formula
 
-To fit multilevel models, qe're going to use the `lme4` package, and specifically the functions `lmer()` and `glmer()`.  
-"(g)lmer" here stands for "(generalised) linear mixed effects regression". 
+To fit multilevel models, we're going to use the `lme4` package, and specifically the functions `lmer()` and `glmer()`.^["(g)lmer" here stands for "(generalised) linear mixed effects regression".] 
 
 You will have seen some use of these functions in the lectures. The broad syntax is:  
 <br>
@@ -242,6 +241,7 @@ knitr::include_graphics("images/intro/mle2.png")
 
 :::
 :::
+<br>  
 
 # Exercises: Cross-Sectional
 
@@ -282,17 +282,26 @@ summary(ri_model)
 `r qbegin("2")`
 Sometimes the easiest way to start understanding your model is to visualise it. 
  
-Load the package **broom.mixed**. Along with some handy functions `tidy()` and `glance()` which give us the information we see in `summary()`, there is a handy function called `augment()` which returns us the data in the model plus the fitted values, residuals, hat values, Cook's D etc.. 
+Load the package **broom.mixed**. Along with some handy functions `tidy()` and `glance()` which give us the information we see in `summary()`, there is a handy function called `augment()` which returns us the data in the model plus the fitted values, residuals, hat values, Cook's D etc..  
+
+:::{.callout-note collapse=true}
+#### broom.mixed  
+
 ```{r}
-#| eval: false
-library(broom.mixed)
-augment(model)
+#| include: false
+model <- ri_model
 ```
+
+the broom.mixed package has some useful functions (just like those in the __broom__ package for `lm()`):  
+
 ```{r}
-#| echo: false
 library(broom.mixed)
-augment(ri_model)
+glance(model) # for overall model stats
+tidy(model) # for parameter stats
+augment(model) # observation level stuff (data + model)
 ```
+:::
+
 
 Add to the code below to plot the model fitted values, and color them according to LAA. 
 (you will need to edit `ri_model` to be whatever name you assigned to your model).
@@ -394,7 +403,7 @@ D) the standard deviation of the distances from all the individual observations 
 `r solend()`
 
 
-`r qbegin()`
+`r qbegin("5")`
 Match the colours sections and descriptions from the previous question, to the mathematical terms in the model equation:  
 
 $$
@@ -420,7 +429,7 @@ $$
 `r solend()`
 
 
-`r qbegin("5")`
+`r qbegin("6")`
 Fit a model which allows *also* (along with the intercept) the effect of `outdoor_time` to vary by-LAA.   
 
 Then, using `augment()` again, plot the model fitted values. What do you think you will see?  
@@ -437,19 +446,19 @@ augment(rs_model) %>%
 ```
 
 `r solend()`
-
+<br>
 
 # Exercises: Repeated Measures
 
 While the wellbeing example considers the groupings or 'clusters' of different LAAs, a more common grouping in psychological research is that of several observations belonging to the same individual. One obvious benefit of this is that we can collect many more observations with fewer participants but control for the resulting dependency of observations. 
 
 :::frame
-__Data: Audio interference in executive functioning__  
+__Data: REPLICATION Audio/SDMT study__  
 
 
 Recall the data from the previous week, from an experiment in which executive functioning was measured (via the SDMT) for people when listening to different types of audio, either via normal speakers or via noise-cancelling headphones.  
 
-This week, we have data from a replication of that study, in which the researchers managed to recruit 30 participants. Unfortunately, some participants did not complete all the trials, so we have an unbalanced design. The data is available at [https://uoepsy.github.io/data/ef_replication.csv](https://uoepsy.github.io/data/ef_replication.csv).  
+This week, we have data from a __replication__ of that study, in which the researchers managed to recruit 30 participants. Unfortunately, some participants did not complete all the trials, so we have an unbalanced design. The data is available at [https://uoepsy.github.io/data/ef_replication.csv](https://uoepsy.github.io/data/ef_replication.csv).  
 ```{r}
 #| include: false
 set.seed(5)
@@ -516,7 +525,7 @@ tibble(variable=names(efrep),
 
 :::
 
-`r qbegin("6")`
+`r qbegin("7")`
 How many participants are there in the data?   
 How many have complete data (15 trials)?  
 What is the average number of trials that participants completed? What is the minimum?   
@@ -555,7 +564,7 @@ efrep %>%
 `r solend()`
 
 
-`r qbegin()`
+`r qbegin("8")`
 The model below is sometimes referred to as the "null model" (or "intercept only model"). The grouping structure of the data is specified in the model, but nothing more.  
 
 ```{r}
@@ -589,7 +598,7 @@ ICCbare(x = PID, y = SDMT, data = efrep)
 
 `r solend()`
 
-`r qbegin("7")`
+`r qbegin("9")`
 Set the reference levels of the `audio` and `headphones` variables to "no audio" and "speakers" respectively.    
 Fit a multilevel model to address the research question below.  
 
@@ -600,7 +609,7 @@ Fit a multilevel model to address the research question below.
 #### things to think about:  
 
 - what is our outcome variable of interest?
-- what are our predictor variables that we are interested in?
+- what are our predictor variables (and interactions?) that we are interested in?
     - these should be in the fixed effects part.    
 - what is the clustering?
     - this should be the random effects `(1 | cluster)` part
@@ -610,7 +619,7 @@ Fit a multilevel model to address the research question below.
       - if so, we might be able to fit a random slope of `headphones | cluster`. if not, then it doesn't make sense to do so. 
 
 
-_If you get an error about model convergence, consider changing the optimiser (see the "estimation" box [above](02_intromlm.html#model-estimation))_
+_If you get an error about model convergence, consider changing the optimiser (see the "model estimation" box)_
 
 :::
 
@@ -633,7 +642,7 @@ summary(sdmt_mod)
 
 `r solend()`
 
-`r qbegin("8")`
+`r qbegin("10")`
 We now have a model, but we don't have any p-values, confidence intervals, or inferential criteria on which to draw conclusions.  
 
 Pick a method of your choosing and perform a test of/provide an interval for the relevant effect of interest.  
@@ -688,6 +697,7 @@ res[,9] <- format.pval(res[,9],eps=.001,digits=2)
 res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
 ```
 
+:::int
 SDMT scores were modelled using linear mixed effects regression, with fixed effects of audio-type (no audio/white noise/music, treatment coded with no audio as the reference level), audio delivery (speakers/ANC-headphones, treatment coded with speakers as the reference level) and their interaction. Participant-level random intercepts and random slopes of audio-type were also included. The model was fitted using the **lme4** package in R, and estimated with restricted estimation maximum likelihood (REML) using the bobyqa optimizer. Denominator degrees of freedom for all tests were approximated using the Kenward-Rogers method.  
 
 Inclusion of the interaction between headphones and audio-type was found to improve model fit ($F(2, 26.8) = 10.64, p < .001$), suggesting that the interference of different types of audio on executive functioning is dependent upon whether the audio is presented through ANC-headphones or through speakers.  
@@ -704,7 +714,7 @@ These results suggest that while music appears to interfere with executive funct
 library(sjPlot)
 plot_model(sdmt_mod, type="int")
 ```
-
+:::
 `r solend()`
 <br>
   
@@ -752,15 +762,14 @@ The researchers had two main questions:
 - Q2): Did the employment condition groups differ in the how wellbeing changed over the assessment period?   
 
 The data is available, in **.rda** format, at [https://uoepsy.github.io/data/wellbeingwork3.rda](https://uoepsy.github.io/data/wellbeingwork3.rda). You can read it directly into your R environment using: 
-```{r}
-#| code-copy: true
+```{}
 load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
 ```
 After running the code above you will find the data in an object called `wellbeingwork3` in your environment.  
 
 :::
 
-`r qbegin("9")`  
+`r qbegin("11")`  
 
 > Q1): Overall, did the participants' wellbeing stay the same or did it change?  
 
@@ -770,7 +779,7 @@ We need to think about what this means for the **random effects** that we will i
 
 To investigate whether wellbeing changed over the course of the assessments, or whether it stayed the same, we can fit and compare 2 models:  
 
-1. The "null" or "intercept-only" model. 
+1. A null model. 
 2. A model with wellbeing predicted by time point.  
 
 And we can then compare them in terms of model fit (as mentioned above, there are lots of different ways we might do this).  
@@ -789,12 +798,18 @@ Our sample size here (180 participants, each with 4 observations) is reasonably 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+```{r}
+load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
+head(wellbeingwork3)
+```
+
+
 This is our null model:
 ```{r}
 m.null <- lmer(Wellbeing ~ 1 + (1 | ID), data=wellbeingwork3, REML=FALSE)
 summary(m.null)
 ```
-We can see the `4.76 / (4.76 + 22.48)`, or `r (4.76 / (4.76 + 22.48)) %>% round(.,2)` of the total variance is attributable to participant-level variation. 
+We can see the `4.76 / (4.76 + 22.48)`, or `r (4.76 / (4.76 + 22.48)) %>% round(.,2)` of the total variance in wellbeing is attributable to participant-level variation. 
 
 Now lets suppose we want to compare this null model with a model with an effect of `TimePoint` (to assess whether there is overall change over time).
 Which model should we compare `m.null` to?  
@@ -803,15 +818,15 @@ Which model should we compare `m.null` to?
 modA <- lmer(Wellbeing ~ 1 + TimePoint + (1 + TimePoint | ID), data=wellbeingwork3, REML=FALSE)
 modB <- lmer(Wellbeing ~ 1 + TimePoint + (1 | ID), data=wellbeingwork3, REML=FALSE)
 ```
-A comparison between these `m.null` and `modA` will not be assessing the influence of _only_ the fixed effect of TimePoint (remember, we shouldn't compare models that differ in both fixed and random effects)  
+A comparison between `m.null` and `modA` will not be assessing the influence of _only_ the fixed effect of TimePoint (remember, we shouldn't compare models that differ in both fixed and random effects)  
 However, `modB` doesn't include our by-participant random effects of timepoint, so comparing this to `m.null` is potentially going to mis-attribute random deviations in participants' change to being an overall effect of timepoint.  
 
-If we want to conduct a model comparison to isolate the effect of overall change over time (a fixed effect of `TimePoint`), we _might_ want to compare these two models:
+If we want to conduct a model comparison to isolate the average change over time (a fixed effect of `TimePoint`), we _might_ want to compare these two models:
 ```{r}
 m.base0 <- lmer(Wellbeing ~ 1 + (1 + TimePoint | ID), data=wellbeingwork3, REML=FALSE)
 m.base <- lmer(Wellbeing ~ 1 + TimePoint + (1 + TimePoint | ID), data=wellbeingwork3, REML=FALSE)
 ```
-The first of these models is a bit weird to think about - how can we have by-participant random deviations of `TimePoint` if we don't have a fixed effect of `TimePoint`? That makes very little sense. What it is actually fitting is a model where there is assumed to be __no overall effect__ of TimePoint. So the fixed effect is 0. 
+The first of these models is a bit weird to think about - how can we have by-participant random deviations of `TimePoint` if we don't have a fixed effect of `TimePoint`? That makes very little sense. What it is actually fitting is a model where the average participant has no effect of TimePoint. So the fixed effect is 0. 
 
 ```{r}
 # Straightforward LRT
@@ -820,7 +835,7 @@ anova(m.base0, m.base)
 
 `r solend()`
 
-`r qbegin("10")`
+`r qbegin("12")`
 
 > Q: Did the employment condition groups differ in the how wellbeing changed over the assessment period?   
 
@@ -861,7 +876,7 @@ Conditions differed in change over assessment period $\chi^2(2)=23.71, p < .001$
 `r solend()`
 
 
-`r qbegin("11")`
+`r qbegin("13")`
 
 Visualise the model estimated change in wellbeing over time for each Condition.  
 
@@ -901,7 +916,7 @@ plot_model(m.full, type="int")
 `r solend()`
 
 
-`r qbegin("12")`
+`r qbegin("14")`
 
 Examine the parameter estimates and interpret them (i.e., what does each parameter represent?  
 Can you match them with parts of the plot obtained from `plot_model(m.full, type="int")`?  

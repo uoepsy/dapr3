@@ -3,6 +3,8 @@ title: "Centering in MLM | Logistic MLM"
 params: 
     SHOW_SOLS: TRUE
     TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r}
@@ -29,7 +31,7 @@ __This Week__
 ::: {.callout-note collapse="true"}
 ## Centering & Scaling in LM
 
-We have some data from a study investigating how perceived persuasiveness of a speaker is influenced by the rate at which they speak (you may remember this from the first report in DAPR2 last year!). 
+We have some data from a study investigating how perceived persuasiveness of a speaker is influenced by the rate at which they speak.  
 ```{r}
 dap2 <- read_csv("https://uoepsy.github.io/data/dapr2_2122_report1.csv")
 ```
@@ -103,6 +105,7 @@ What changes when you center or scale a predictor in a standard regression model
 - The **test** of the slope of the predictor remains exactly the same.  
 
 :::
+<br>
 
 
 # Exercises: Centering in the MLM
@@ -320,7 +323,7 @@ hangrywb <- lmer(q_irritability ~ (avg_hunger + hunger_gc) * fivetwo +
             control = lmerControl(optimizer="bobyqa"))
 ```
 
-Below, we have obtained p-values using the Satterthwaite Approximation of $df$ for the test of whether the fixed effects are zero, so we can see the significance of each estimate.  
+Below, we have obtained p-values using the Kenward Rogers Approximation of $df$ for the test of whether the fixed effects are zero, so we can see the significance of each estimate.  
 
 Provide an answer for each of these questions:
 
@@ -332,14 +335,9 @@ Provide an answer for each of these questions:
 
 ```{r}
 #| echo: false
-res = summary(lmerTest::lmer(q_irritability ~ (avg_hunger + hunger_gc)* fivetwo + (1 + hunger_gc | ppt), data = hangry,
-                control = lmerControl(optimizer="bobyqa")))$coefficients
-res[,1] = round(res[,1],3)
-res[,2] = round(res[,2],2)
-res[,3] = round(res[,3],1)
-res[,4] = round(res[,4],2)
-res[,5] = format.pval(res[,5],digits=2,eps=.001)
-gt::gt(as_tibble(res) %>% mutate(term=row.names(res)) %>% relocate(term))
+library(parameters)
+model_parameters(hangrywb, ci_method = "kr", ci_random = FALSE) |>
+  print_html()
 ```
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -394,48 +392,54 @@ The interaction `hunger_gc:fivetwo1` gave us the adjustment to get from the red 
 `r solend()`
 
 `r qbegin(7)`
-Load the `lmerTest` package and fit the model again. 
-Take a look at the summary - you should now have the $df$, $t$-value, and $p$-value for each estimate.  
+Provide tests or confidence intervals for the parameters of interest, and write-up the results.  
 
-Write-up the results.
+::: {.callout-tip collapse="true"}
+#### Remember: some options for inference
+
+
+|                  | df approximations                                                  | likelihood-based                                                     |   |
+| ---------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- | 
+| model parameters | `library(parameters)`<br>`model_parameters(model, ci_method="kr")` | `confint(model, type="profile")`                                     |    
+| model comparison | `library(pbkrtest)`<br>`KRmodcomp(model1,model0)`                  | `anova(model0,model)`                                                | 
+|                  | fit models with `REML=TRUE`.<br>good option for small samples      | fit models with `REML=FALSE`.<br>needs large N at both levels (40+) |  
+
+:::
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-library(lmerTest)
-hangrywb2 <- lmer(q_irritability ~ (avg_hunger + hunger_gc)* fivetwo + 
-                (1 + hunger_gc | ppt), 
-                data = hangry,
-                REML = TRUE,
-                control = lmerControl(optimizer="bobyqa"))
-summary(hangrywb2)
+library(parameters)
+model_parameters(hangrywb, ci_method = "kr", ci_random = FALSE)
+```
+
+```{r}
+#| include: false
+res = as.data.frame(model_parameters(hangrywb, ci_method = "kr", ci_random = FALSE))
+res[,2:8] <- apply(res[,2:8],2,function(x) round(x,2))
+res[,9] <- format.pval(res[,9],digits=1, eps=.001)
+res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
+res
 ```
 
 To investigate the association between irritability and hunger, and whether this relationship is different depending on whether or not participants are on a restricted diet such as the five-two, a multilevel linear model was fitted.  
-To disaggregate between the differences in irritability due to people being in general more/less hungry, and those due to people being more/less hungry than usual for them, irritability was regressed onto both participants' average hunger scores their relative hunger levels. Both of these were allowed to interact with whether or not participants were on the five-two diet. Random intercepts and slopes of relative-hunger level were included for participants. The model was fitting with restricted maximum likelihood estimation with the **lme4** package (Bates et al., 2015), using the _bobyqa_ optimiser from the **lme4**. $P$-values were obtained using the Satterthwaite approximation for degrees of freedom.  
+To disaggregate between the differences in irritability due to people being in general more/less hungry, and those due to people being more/less hungry than usual for them, irritability was regressed onto both participants' average hunger scores their relative hunger levels. Both of these were allowed to interact with whether or not participants were on the five-two diet. Random intercepts and slopes of relative-hunger level were included for participants. The model was fitting with restricted maximum likelihood estimation with the **lme4** package (Bates et al., 2015), using the _bobyqa_ optimiser from the **lme4**. $P$-values were obtained using Wald tests with Kenward-Roger approximation of denominator degrees of freedom.  
 
-Results indicate that for people on no diet, being more hungry than normal was associated with greater irritability ($\beta = `r res[3,1]`,\ SE = `r res[3,2]`,\ t(`r res[3,3]`) = `r res[3,4]`,\ p = `r res[3,5]`$), and that this was increased for those following the five-two diet ($\beta = `r res[6,1]`,\ SE = `r res[6,2]`,\ t(`r res[6,3]`) = `r res[6,4]`,\ p `r res[6,5]`$). 
-Although for those not on a specific diet there was no evidence for an association between irritability and being generally a more hungry person ($p = `r res[2,5]`$), there a significant interaction was found between average hunger and being on the five-two diet ($\beta = `r res[5,1]`,\ SE = `r res[5,2]`,\ t(`r res[5,3]`) = `r res[5,4]`,\ p `r res[5,5]`$), suggesting that when dieting, hungrier people tend to be more irritable than less hungry people.  
-Results suggest that the 'hangry hypothesis' may occur _within_ people (when a person is more hungry than they usually are, they tend to be more irritable), but not necessarily between hungry/less hungry people. Dieting was found to increase the association for both between-hunger and within-hunger with irritability.  
+Results indicate that for people on no diet, being more hungry than normal was associated with greater irritability ($\beta = `r res[3,2]`,\ SE = `r res[3,3]`,\ t(`r res[3,7]`) = `r res[3,8]`,\ p`r res[3,9]`$), and that this was increased for those following the five-two diet ($\beta = `r res[6,2]`,\ SE = `r res[6,3]`,\ t(`r res[6,7]`) = `r res[6,8]`,\ p`r res[6,9]`$). 
+Although for those not on a specific diet there was no evidence for an association between irritability and being generally a more hungry person ($p`r res[2,9]`$), there a significant interaction was found between average hunger and being on the five-two diet ($\beta = `r res[5,2]`,\ SE = `r res[5,3]`,\ t(`r res[5,7]`) = `r res[5,8]`,\ p`r res[5,9]`$), suggesting that when dieting, hungrier people tend to be more irritable than less hungry people.  
+Results suggest that the 'hangry hypothesis' may occur _within_ people (when a person is more hungry than they usually are, they tend to be more irritable), but not necessarily between hungry/less hungry people. Dieting was found to increase the association of both between-person hunger and within-person hunger with irritability.  
 `r solend()`
 
 
 :::statbox
 __Other within-group transformations__  
 
-As well as within-group mean centering a predictor (like we have done above). There are quite a few similar things we can do, for which the logic is the same.  
-
-For instance, we can within-group standardise a predictor. This would disagregate within and between effects, but interpretation would of the within effect would be the estimated change in $y$ associated with being 1 standard deviation higher in $x$ _for that group_.  
-
-We can also do within-group transformations on our outcome variable. This allows to address questions such as:    
-
-"Are people more irritable __than they usually are__ *($y$ is group-mean centered)* if they are, __for them__, more hungry __than they usually are__ *($x$ is group-mean centered)*?"
-
+As well as within-group mean centering a predictor (like we have done above), we can within-group _standardise_ a predictor. This would disagregate within and between effects, but interpretation would of the within effect would be the estimated change in $y$ associated with being 1 standard deviation higher in $x$ _for that group_.  
 
 :::
+<br>
 
 
-
-# Optional: Logistic MLM
+# Optional Exercises: Logistic MLM
 
 :::frame
 **Don't forget to look back at other materials!** 
@@ -444,8 +448,9 @@ Back in DAPR2, we introduced logistic regression in semester 2, week 8. The lab 
 That content will provide a lot of the groundwork for this week, so we recommend revisiting it if you feel like it might be useful. 
 :::
 
-:::rtip
-__`lmer()` >> `glmer()`__
+
+::: {.callout-note collapse="true"}
+#### From `lmer()` to `glmer()`
 
 Remember how we simply used `glm()` and could specify the `family = "binomial"` in order to fit a logistic regression? Well it's much the same thing for multi-level models! 
 
@@ -453,29 +458,30 @@ Remember how we simply used `glm()` and could specify the `family = "binomial"` 
 + Binomial model: `glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial(link='logit'))`
     + or just `glmer(y ~ x1 + x2 + (1 | g), data = data, family = "binomial")`
     + or `glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial)`
-    
+  
 :::
-    
-`r optbegin("Binary? Binomial?", olabel=F,show=T,toggle=params$TOGGLE)`
-For binary regression, all the data in our outcome variable has to be a 0 or a 1.  
-For example, the `correct` variable below:  
-```{r}
-#| echo: false
-tibble(participant = c(1,1,1),question=c(1,2,3),correct=c(1,0,1)) %>% rbind(rep("...",3)) %>%
-  gt::gt()
-```
 
-But we can re-express this information in a different way, when we know the total number of questions asked.
-```{r}
-#| echo: false
-tibble(participant = c(1,2,3),questions_correct=c(2,1,3),questions_incorrect=c(1,2,0)) %>% rbind(rep("...",3)) %>% gt::gt()
-```
 
-To model data when it is in this form, we can express our outcome as `cbind(questions_correct, questions_incorrect)`
-`r optend()`
+<!-- `r optbegin("Binary? Binomial?", olabel=F,show=T,toggle=params$TOGGLE)` -->
+<!-- For binary regression, all the data in our outcome variable has to be a 0 or a 1.   -->
+<!-- For example, the `correct` variable below:   -->
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- tibble(participant = c(1,1,1),question=c(1,2,3),correct=c(1,0,1)) %>% rbind(rep("...",3)) %>% -->
+<!--   gt::gt() -->
+<!-- ``` -->
+
+<!-- But we can re-express this information in a different way, when we know the total number of questions asked. -->
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- tibble(participant = c(1,2,3),questions_correct=c(2,1,3),questions_incorrect=c(1,2,0)) %>% rbind(rep("...",3)) %>% gt::gt() -->
+<!-- ``` -->
+
+<!-- To model data when it is in this form, we can express our outcome as `cbind(questions_correct, questions_incorrect)` -->
+<!-- `r optend()` -->
 
 :::frame
-__Memory Recall & Finger Tapping__ 
+__Data: Memory Recall & Finger Tapping__ 
 
 > **Research Question:** After accounting for effects of sentence length, does the rhythmic tapping of fingers aid memory recall? 
 
@@ -496,7 +502,7 @@ tibble(
 :::
 
 
-`r qbegin("8 (Optional)")`
+`r qbegin("Optional")`
 > **Research Question:** After accounting for effects of sentence length, does the rhythmic tapping of fingers aid memory recall? 
 
 Fit an appropriate model to answer the research question.  
@@ -540,9 +546,13 @@ summary(tapmod2)
 
 `r solend()`
 
-:::frame
 
-Take some time to remind yourself from DAPR2 of the [interpretation of logistic regression coefficients](https://uoepsy.github.io/dapr2/2122/labs/2_07_binary.html).  
+
+::: {.callout-note collapse="true"}
+#### From Log odds to odds ratios
+
+
+Take some time to remind yourself from DAPR2 of the [interpretation of logistic regression coefficients](https://uoepsy.github.io/dapr2/2223/lectures/dapR2_16_binarylogistic.html#37).  
 
 In `family = binomial(link='logit')`, we are modelling the log-odds. 
 We can obtain estimates on this scale using:  
@@ -556,7 +566,7 @@ We can use `exp()`, to get these back into odds and odds ratios.
 
 :::
 
-`r qbegin("9 (Optional)")`
+`r qbegin("Optional")`
 Interpret each of the fixed effect estimates from your model.  
 
 `r qend()`
@@ -573,7 +583,7 @@ exp(fixef(tapmod2))
 
 `r solend()`
 
-`r qbegin("10 (Optional)")`
+`r qbegin("Optional")`
 Checking the assumptions in non-gaussian models in general (i.e. those where we set the `family` to some other error distribution) can be a bit tricky, and this is especially true for multilevel models.  
 
 For the logistic MLM, the standard assumptions of normality etc for our Level 1 residuals `residuals(model)` do not hold. However, it is still useful to quickly plot the residuals and check that $|residuals|\leq 2$ (or $|residuals|\leq 3$ if you're more relaxed). We don't need to worry too much about the pattern though. 
@@ -582,14 +592,6 @@ While we're more relaxed about Level 1 residuals, we _do_ still want our random 
 
 1. Plot the level 1 residuals and check whether any are greater than 3 in magnitude
 2. Plot the random effects (the level 2 residuals) and assess the normality. 
-
-::: {.callout-caution collapse="true"}
-#### for beyond DAPR3
-
-- The **HLMdiag** package doesn’t support diagnosing influential points/clusters for `glmer`, but there is a package called **influence.me** which might help:  [https://journal.r-project.org/archive/2012/RJ-2012-011/RJ-2012-011.pdf](https://journal.r-project.org/archive/2012/RJ-2012-011/RJ-2012-011.pdf){target="_blank"}
-- There are packages which aim to create more interpretable residual plots for these models via simulation, such as the **DHARMa** package:  [https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html](https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html){target="_blank"}
-
-:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -623,10 +625,15 @@ hist(ranef(tapmod2)$ppt[, 2], main = "Random slope of condition")
 par(mfrow=c(1,1))
 ```
 
-
-
 `r solend()`
 
+::: {.callout-caution collapse="true"}
+#### for beyond DAPR3
+
+- The **HLMdiag** package doesn’t support diagnosing influential points/clusters for `glmer`, but there is a package called **influence.me** which might help:  [https://journal.r-project.org/archive/2012/RJ-2012-011/RJ-2012-011.pdf](https://journal.r-project.org/archive/2012/RJ-2012-011/RJ-2012-011.pdf){target="_blank"}
+- There are packages which aim to create more interpretable residual plots for these models via simulation, such as the **DHARMa** package:  [https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html](https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html){target="_blank"}
+
+:::
 
 
 
