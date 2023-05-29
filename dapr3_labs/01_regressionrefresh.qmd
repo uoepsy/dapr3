@@ -17,7 +17,7 @@ library(patchwork)
 :::frame
 **Preliminaries**  
  
-1. Open Rstudio, and **create a new project for this course!!** 
+1. Open Rstudio!  
 2. Create a new RMarkdown document or R script (whichever you like) for this week. 
 
 These are the main packages we're going to use in this block. It might make sense to install them now if you do not have them already.  
@@ -175,6 +175,71 @@ p1 + p2
 ```
 
 `r solend()`
+
+:::{.callout-note collapse="true"}
+## Information, pooled?
+
+With our current toolset (linear regression), there are two avenues for us with respect to how we analyse clustered data. We can either ignore the clustering completely (and violate our assumptions), we can add the cluster-level differences in as another predictor. These reflect different ways in which we can "pool" information from across the different clusters.  
+
+:::sticky
+__Complete Pooling__  
+
+All information from different clusters is pooled together estimate the relevant association (make one big line).  
+
+```{r}
+#| eval: false
+lm(wellbeing ~ outdoor_time, data = scotmw)
+```
+Take all the people (individual observations), fit a regression line for `wellbeing ~ outdoor_time`.  
+
+:::
+
+:::sticky
+__No Pooling__  
+
+Information from each cluster contributes **only** to an estimate for that specific cluster.  
+```{r}
+#| eval: false
+lm(wellbeing ~ outdoor_time * LAA, data = scotmw)
+```
+Take the people from each LAA and estimate `wellbeing ~ outdoortime` for each LAA. Treat the LAAs as completely independent, and estimate LAA-specific differences in wellbeing, and LAA-specific differences in the effect of outdoor_time on wellbeing. Get _loads_ of coefficients that aren't really of interest.   
+
+
+:::
+
+
+Estimating the LAA-specific differences in our model (the no-pooling approach) is clearly better than simply ignoring them, but it does mean that we are treating the LAAs as if they are completely _independent_ entities.  
+Suppose we had another LAA - "LAA X" - for which we had only _two_ people's data (@fig-borrowstrength). Intuitively, we don't want to trust the line for LAA X as much as we trust the others (where we have c8 people's data). In the no-pooling approach, it is only those two people from LAA X that contribute to the LAA X line.  Take this further, and imagine we have only one person's data from some LAA Y. In the no-pooling method, the model doesn't learn _anything_ from the other LAAs and cannot estimate a line for LAA Y.  
+
+What would be great is if we could _somehow_ use the information from the other LAAs to inform our estimation of what is going on in LAAs X and Y. This is what multi-level modelling achieves, _partially_ pooling information across the groups, and this is where we'll turn to next.    
+
+```{r}
+#| echo: false
+#| label: fig-borrowstrength
+#| fig-cap: "Blue lines show the estimated fitted values from the no-pooling approach lm(grade ~ motiv * schoolid). School X's estimate is based on just the 3 datapoints from that school, and does not take into account any of the other schools in anyway."
+set.seed(123)
+bind_rows(
+  scotmw |> filter(laa %in% sort(unique(scotmw$laa))[c(1:4)]),
+  tibble(
+    laa = "LAA X",
+    outdoor_time = c(15,18),
+    wellbeing = 150 + -6*outdoor_time + rnorm(2,0,10)
+  )
+) |> bind_rows(x=_, 
+               tibble(laa="LAA Y",outdoor_time = 10, wellbeing = 55)
+               ) -> tdf 
+
+tdf |> 
+  ggplot(aes(x=outdoor_time,y=wellbeing))+
+  geom_point()+
+  geom_line(data=broom::augment(lm(wellbeing~outdoor_time*laa,tdf)),aes(y=.fitted),
+            col="blue",lwd=.5)+
+  facet_wrap(~laa)
+ 
+```
+
+:::
+
 
 :::{.callout-note collapse="true"}
 ## Complete Pooling
@@ -580,199 +645,8 @@ ggplot(efdata, aes(x=PID, y=SDMT))+
   guides(col='none')
 ```
 
-You can also think of the ICC as the correlation between two randomly drawn observations from the same group. 
-This is a bit of a tricky thing to get your head round if you try to relate it to the type of "correlation" that you are familiar with. Pearson's correlation (e.g think about a typical scatterplot) operates on *pairs of observations* (a set of values on the x-axis and their corresponding values on the y-axis), whereas ICC operates on *data which is structured in groups*.  
-  
-::: {.callout-note collapse="true"}
-### Optional: ICC as the expected correlation between two observations from same group
+You can also think of the ICC as the correlation between two randomly drawn observations from the same group. Imagine we took a random pair of observations from the same participant and plotted them against one another. Then we did the same thing again, and again, and so on. The correlation between these random pairs is the ICC.  
 
-Let's suppose we had only 2 observations in each group.  
-```{r echo=FALSE}
-tempdat <- read.csv("https://uoepsy.github.io/data/iccexplainer.csv")
-head(tempdat) %>% rbind(.,rep("...", 3))
-```
-
-```{r include=F}
-library(nlme)
-res <- lme(y ~ 1, random = ~ 1 | cluster, data=tempdat, method="ML")
-ic <- getVarCov(res)[1] / (getVarCov(res)[1] + res$sigma^2)
-```
-The ICC for this data is `r round(ic,2)`:
-
-Now suppose we *reshape* our data so that we have one row per group, and one column for each observation to look like this:
-```{r echo=F}
-tempdat_wide <- tempdat %>% 
-  pivot_wider(names_from=observation, values_from=y, names_prefix = "obs") 
-tempdat_wide %>% head %>% rbind(.,rep("...", 3))
-```
-Calculating Pearson's correlation on those two columns yields `r cor(tempdat_wide$obs1, tempdat_wide$obs2) %>% round(.,2)`, which isn't quite right. It's close, but not quite.. 
-
-:::imp 
-The crucial thing here is that it is completely arbitrary which observations get called "obs1" and which get called "obs2".  
-The data aren't paired, but __grouped.__ 
-:::
-
-Essentially, there are lots of different combinations of "pairs" here. 
-There are the ones we have shown above:
-```{r echo=F}
-head(tempdat_wide) %>% rbind(., rep("...",3))
-```
-But we might have equally chosen these:
-```{r echo=F}
-sample_n(tempdat, n()) %>% arrange(cluster) %>% group_by(cluster) %>% 
-  mutate(observation = 1:n()) %>% ungroup %>%
-  pivot_wider(names_from=observation, values_from=y, names_prefix = "obs") %>% head() %>% rbind(., rep("...",3))
-```
-or these:
-```{r echo=F}
-sample_n(tempdat, n()) %>% arrange(cluster) %>% group_by(cluster) %>% 
-  mutate(observation = 1:n()) %>% ungroup %>%
-  pivot_wider(names_from=observation, values_from=y, names_prefix = "obs") %>% head() %>% rbind(., rep("...",3))
-```
-
-If we take the correlation of all these combinations of pairings, then we get our ICC of `r round(ic, 2)`!
-
-__ICC = the expected correlation of a *randomly drawn pair* of observations from the same group.__
-
-<!-- We could even do this via simulation, and write our own customised function! -->
-<!-- The code below creates a function for us to use. Can you figure out how it works?  -->
-<!-- ```{r} -->
-<!-- get_random_pair <- function(){ -->
-<!--   my_sub = sample(unique(bball$sub), 1) -->
-<!--   my_obs = sample(bball$hrv[bball$sub == my_sub], size=2) -->
-<!--   my_obs -->
-<!-- } -->
-<!-- ``` -->
-<!-- Try it out, by running it several times.  -->
-<!-- ```{r} -->
-<!-- get_random_pair() -->
-<!-- ``` -->
-
-<!-- Now let's make our computer do it loads and loads of times: -->
-<!-- ```{r} -->
-<!-- # replicate is a way of making R execute the same code repeatedly, n times. -->
-<!-- sims <- replicate(1e6, get_random_pair()) -->
-<!-- # t() is short for "transpose" and simple rotates the object 90 degrees (so rows become columns and columns become rows) -->
-<!-- sims <- t(sims) -->
-<!-- cor(sims[,1], sims[,2]) -->
-
-<!-- ``` -->
-
-:::
-
-::: {.callout-note collapse="true"}
-### Optional - Extra difficult. Calculate ICC manually  
-
-
-We have equal group sizes here (there are 2 $\times$ 12 participants, each with 15 observations), which makes calculating ICC by hand a lot easier, but it's still a bit tricky.  
-
-Let's take a look at the formula for ICC
-
-$$
-\begin{align}
-ICC \; (\rho) = & \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\
-\qquad \\
-= & \frac{\frac{MS_b - MS_e}{k}}{\frac{MS_b - MS_e}{k} + MS_e} \\
-\qquad \\
-= & \frac{MS_b - MS_e}{MS_b + (k-1)MS_e} \\
-\qquad \\
-\qquad \\
-\text{Where:} & \\ 
-k = & \textrm{number of observations in each group} \\
-\qquad \\
-MS_b = & \textrm{Mean Squares between groups} \\
- = & \frac{\text{Sums Squares between groups}}{df_\text{groups}}
-= \frac{\sum\limits_{i=1}(\bar{y}_i - \bar{y})^2}{\textrm{n groups}-1}\\
-\qquad \\
-MS_e = & \textrm{Mean Squares within groups} \\
-= & \frac{\text{Sums Squares within groups}}{df_\text{within groups}} 
-= \frac{\sum\limits_{i=1}\sum\limits_{j=1}(y_{ij} - \bar{y_i})^2}{\textrm{n obs}-\textrm{n groups}}\\
-\end{align}
-$$
-So we're going to need to calculate the grand mean of $y$, the group means of $y$, and then the various squared differences between group means and grand mean, and between observations and their respective group means.  
-
-The code below will give us a new column which is the overall mean of y. This bit is fairly straightforward. 
-```{r eval=F}
-efdata %>% mutate(
-  grand_mean = mean(SDMT)
-)
-```
-
-
-:::rtip
-We have seen a lot of the combination of `group_by() %>% summarise()`, but we can also combine `group_by()` with `mutate()`!
-:::
-
-Try the following:
-```{r eval=F}
-efdata %>% mutate(
-    grand_mean = mean(SDMT)
-  ) %>% 
-  group_by(PID) %>%
-  mutate(
-    group_mean = mean(SDMT)
-  )
-```
-
-
-:::rtip
-**The grouping gets carried forward.**  
-
-Using `group_by()` can quite easily land you in trouble if you forget that you have grouped the dataframe. 
-
-Look at the output of `class()` when we have grouped the data. It still mentions something about the grouping. 
-```{r}
-efdata <- efdata %>% mutate(
-    grand_mean = mean(SDMT)
-  ) %>% 
-  group_by(PID) %>%
-  mutate(
-    group_mean = mean(SDMT)
-  )
-
-class(efdata)
-```
-
-To remove the grouping, we can use `ungroup()` (we could also just add this to the end of our code sequence above and re-run it):
-
-```{r}
-efdata <- ungroup(efdata)
-class(efdata)
-```
-
-:::
-
-Now we need to create a column which is the squared differences between the observations $y_{ij}$ and the group means $\bar{y_i}$.  
-We also want a column which is the squared differences between the group means $\bar{y_i}$ and the overall mean $\bar{y}$.  
-```{r}
-efdata <- efdata %>% 
-  mutate(
-    within = (SDMT-group_mean)^2,
-    between = (group_mean-grand_mean)^2
-  )
-```
-
-And then we want to sum them:
-```{r}
-ssbetween = sum(efdata$between)
-sswithin = sum(efdata$within)
-```
-
-Finally, we divide them by the degrees of freedom. 
-```{r}
-# Mean Squares between
-msb = ssbetween / (24-1)
-# Mean Squares within 
-mse = sswithin / (360-24)
-```
-
-And calculate the ICC!!!
-```{r}
-# ICC
-(msb-mse) /(msb + (14*mse))
-```
-
-:::
 :::
 
 
@@ -860,8 +734,9 @@ ggplot(aes(x=headphones,y=.fitted))+
   labs(title="lm(SDMT~headphones+PID)")
 ```
 
-This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA", "mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example [here](example_00_anova.html) if you are interested. However, ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating variables such as time as a factor, and it's not great with missing data.  
-The multi-level model (MLM) provides a more flexible framework, and this is what we will begin to look at next week.  
+This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA", "mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example [here](example_00_anova.html) if you are interested. However, ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating variables such as time as a factor, and it's not great with missing data.   
+
+The multi-level model (MLM) provides a far more flexible framework __and also allows you to obtain the same ANOVA style tables__^[ANOVA is just a special case of the linear model], and this is what we will begin to look at next week.  
 
 `r solend()`
 

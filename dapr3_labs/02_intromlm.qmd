@@ -59,18 +59,23 @@ The $\color{orange}{\zeta}$ components also get termed the "random effects" part
 ::: {.callout-note collapse="true"}
 #### Alternative ("mixed effect") notation
 
-Many people use the symbol $u$ in place of $\zeta$.  
-In various resources, you are likely to see $\alpha$ used to denote the intercept instead of $\beta_0$.  
+Many people use the symbol $u$ in place of $\zeta$, and in various resources, you are likely to see $\alpha$ used to denote the intercept instead of $\beta_0$.  
 
-Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading. This often fits with the name "mixed effects" for these models:
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading.  
+
+This often fits with the name "mixed effects" for these models, as the "effect" of a predictor is a mix of both a fixed and a random part:  
 
 $$
 \color{red}{y_{ij}}\color{black} = (\color{blue}{\beta_0}\color{black} + \color{orange}{\zeta_{0i}}\color{black}) \cdot 1 + ( \color{blue}{\beta_{1}}\color{black} + \color{orange}{\zeta_{1i}} \color{black}) \cdot x_{ij}  +  \varepsilon_{ij} \\
 $$
 
-And then we also have the condensed matrix form of the model, in which the Z matrix represents the grouping structure, and the $u$ (or $\zeta$) are the estimated random deviations. 
+In words, this equation is denoting: 
 $$
-\mathbf{y} = \boldsymbol{X\beta} + \boldsymbol{Zu} + \boldsymbol{\varepsilon}
+\begin{align}
+\color{red}{\text{outcome}}\color{black} = &(\color{blue}{\text{overall intercept}}\color{black} + \color{orange}{\text{random adjustment to intercept by group}}\color{black}) \cdot 1 \, + \\
+&( \color{blue}{\text{overall slope}}\color{black} + \color{orange}{\text{random adjustment to slope by group}} \color{black}) \cdot \text{predictor}\, + \\
+& \text{residual} \\
+\end{align}
 $$
 :::
 
@@ -376,7 +381,7 @@ knitr::include_graphics("images/intro/summarylmer2.png")
 </div>
 <br>
 <br>
-Match the coloured sections Red, Orange, Yellow and Blue in @fig-lmersummap to the descriptions below of @fig-modfit A through D. 
+Match the coloured sections Yellow (W), Red (X), Blue (Y), and Orange (Z) in @fig-lmersummap to the descriptions below of @fig-modfit A through D. 
 
 A) where the black line cuts the y axis
 B) the standard deviation of the distances from all the individual LAA lines to the black line
@@ -388,10 +393,10 @@ D) the standard deviation of the distances from all the individual observations 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-+ Yellow = B
-+ Red = D    
-+ Blue = A   
-+ Orange = C      
++ A = Blue (Y)
++ B = Yellow (W)
++ C = Orange (Z)
++ D = Red (X)
 
 `r solend()`
 
@@ -414,10 +419,12 @@ $$
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-+ Yellow = B = $\sigma_{\color{orange}{\zeta_{0}}}$
-+ Red = D = $\sigma_{\varepsilon}$    
-+ Blue = A = $\gamma_{00}$  
-+ Orange = C = $\beta_{1}$     
++ A = Blue (Y) = $\gamma_{00}$  
++ B = Yellow (W) = $\sigma_{\color{orange}{\zeta_{0}}}$
++ C = Orange (Z) = $\beta_{1}$     
++ D = Red (X) = $\sigma_{\varepsilon}$    
+
+
 
 `r solend()`
 
@@ -650,11 +657,12 @@ As with normal regression, we have two main ways in which we can conduct inferen
 There are a whole load of different methods available for drawing inferences from multilevel models, which means it can be a bit of a never-ending rabbit hole. For the purposes of this course, we'll limit ourselves to these two:  
 
 
-|                  | df approximations                                                  | likelihood-based                                                     |   |
-| ---------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- | 
-| model parameters | `library(parameters)`<br>`model_parameters(model, ci_method="kr")` | `confint(model, type="profile")`                                     |    
-| model comparison | `library(pbkrtest)`<br>`KRmodcomp(model1,model0)`                  | `anova(model0,model)`                                                | 
-|                  | fit models with `REML=TRUE`.<br>good option for small samples      | fit models with `REML=FALSE`.<br>needs large N at both levels (40+) |  
+|                  | df approximations                                                  | likelihood-based                                                    | 
+| ---------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------- | 
+| tests or CIs for model parameters | `library(parameters)`<br>`model_parameters(model, ci_method="kr")` | `confint(model, type="profile")`                                    | 
+| model comparison<br><small>(different fixed effects, same random effects)</small> | `library(pbkrtest)`<br>`KRmodcomp(model1,model0)`                  | `anova(model0,model)`                                               |
+|                  | fit models with `REML=TRUE`.<br>good option for small samples      | fit models with `REML=FALSE`.<br>needs large N at both levels (40+) | 
+
 
 :::
 
@@ -878,7 +886,7 @@ Visualise the model estimated change in wellbeing over time for each Condition.
 
 There are lots of ways you can visualise the model, try a couple: 
 
-1. Using the **effects** package, this might help: `as.data.frame(effect("TimePoint:Condition", model))`  
+1. Using the **effects** package, this might help: `as.data.frame(effect("TimePoint*Condition", model))`  
 2. We can also use **sjPlot**, as we have seen in DAPR2  
 
 :::
@@ -889,7 +897,7 @@ There are lots of ways you can visualise the model, try a couple:
 
 Using the `effect()` function (and then adding the means and SEs from the original data):  
 ```{r}
-ef <- as.data.frame(effect("TimePoint:Condition", m.full))
+ef <- as.data.frame(effect("TimePoint*Condition", m.full))
 
 ggplot(ef, aes(TimePoint, fit, color=Condition)) + 
   geom_line() +
