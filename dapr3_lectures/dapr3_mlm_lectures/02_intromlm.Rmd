@@ -6,6 +6,7 @@ institute: "Department of Psychology<br/>The University of Edinburgh"
 date: ""
 output:
   xaringan::moon_reader:
+    self-contained: true
     lib_dir: jk_libs/libs
     css: 
       - xaringan-themer.css
@@ -501,14 +502,14 @@ lmer(score ~ 1 + year + (1 + year | school), data = ...
 ---
 class: inverse, center, middle
 
-<h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>A Visual Explanation</b></h2>
+<h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>School Example</b></h2>
 <h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
 
 ???
 okay, lots of equations, let's take a spin a the visual side of this
 
 ---
-# Data
+# School Example: Data
 
 .pull-left[
 
@@ -531,7 +532,7 @@ Same data we saw last week.
 
 ---
 count: false
-# Data
+# School Example: Data
 
 .pull-left[
 
@@ -598,7 +599,7 @@ __Reminder:__ the Intraclass Correlation Coefficient is ratio of variance betwee
 And we can see the clustering of our outcome variable, the emotion dysregulation scale, by different schools. These are just the distributions of children from each schools' scores, and we have an icc of .244, so we can say that roughly 24% of the variance in our outcome is explained by the clustering of schools. 
 
 ---
-# R: fitting lm
+# School Example: fitting lm
 
 .pull-left[
 ```{r highlight.output=c(11,12)}
@@ -628,7 +629,7 @@ schoolplots +
 - while we have a plot for each school, the line is the same in all these. 
 
 ---
-# R: Adding a random intercept
+# School Example: Adding a random intercept
 
 .pull-left[
 vary the intercept by schools.
@@ -664,7 +665,7 @@ schoolplots +
 - height is different, because different intercept, but slope is same
 
 ---
-# R: Adding a random slope
+# School Example: Adding a random slope
 
 .pull-left[
 vary the intercept and the effect (slope) of CRQ by schools
@@ -766,6 +767,76 @@ crq_data %>%
 - [PLOT]
 
 ---
+# School Example: ICC from lmer
+
+.pull-left[
+```{r highlight.output=c(13,14)}
+null_mod <- lmer(emot_dysreg ~ 1 + (1 | schoolid), data = crq_data) 
+summary(null_mod)
+```
+]
+.pull-right[
+```{r}
+0.0845 / (0.0845 + 0.2588)
+```
+
+Note: ICC is conditional on zero values of random-effects covariates.
+In other words, it has computed the ICC based on a value of zero for the random slope variable(s), so any interpretation of the ICC is also based on a value of zero for the slope variable(s).
+
+]
+
+???
+- recall that ICC is the proportion of variance between groups to the total variance.  
+- we can get this from our lmer output!  
+we're back to our childhood emotional dysregulation data here, and we can see that we have an estimated variance between schools, and the residual variance. between those, we can calculate the ratio of this to the total.  
+
+
+Once we introduce random slopes/coefficients, things get more complicated. the ICC will be a function of the variable(s) for which random slopes are specified. 
+
+---
+# School Example: Explained Variance 
+
+.pull-left[
+__ $R^2$ __  
+
+- Recall $R^2$ is proportion of variance explained
+
+- In MLM, multiple variance components (not just $\varepsilon$). Do random effects "explain" variance?  
+    - "marginal $R^2$" = variance explained due to fixed effects
+    - "conditional $R^2$" = variance explained due to fixed + random
+
+```{r warning=F, message=F}
+library(performance)
+rs_mod <- lmer(emot_dysreg ~ crq + 
+                 (1 + crq | schoolid), 
+               data = crq_data)
+r2(rs_mod)
+```
+
+
+]
+
+???
+- no R squared given by default
+- you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
+
+--
+
+.pull-right[
+__Proportional Reduction in Variance (PRV)__  
+
+- $PRV = \frac{\text{var}_{m0} - \text{var}_{m1}}{\text{var}_{m0}}$
+
+- where $\text{var}_{m0}$ and $\text{var}_{m1}$ are variance components from models with and without a parameter.  
+
+
+]
+
+???
+Another metric we have is the proportional reduction in variance. We can consider how the inclusion of a variable in a model reduces a variance component, for instance the residual variance. 
+
+
+---
 class: inverse, center, middle
 
 <h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>lme4 Output</b></h2>
@@ -774,8 +845,9 @@ class: inverse, center, middle
 ???
 let's look now towards how we interpret the output from multilevel models in the lme4 package in R. 
 
+
 ---
-# Understanding MLM output
+# R: lmer output
 
 .pull-left[
 ```{r echo=FALSE, highlight.output=c(20,21)}
@@ -798,7 +870,7 @@ knitr::include_graphics("jk_img_sandbox/lmer2.png")
 
 ---
 count: false
-# Understanding MLM output
+# R: lmer output
 
 .pull-left[
 ```{r echo=FALSE, highlight.output=c(13,14)}
@@ -827,7 +899,7 @@ knitr::include_graphics("jk_img_sandbox/lmer2a.png")
 
 ---
 count: false
-# Understanding MLM output
+# R: lmer output
 
 .pull-left[
 ```{r echo=FALSE, highlight.output=c(13,14,20,21)}
@@ -849,7 +921,7 @@ knitr::include_graphics("jk_img_sandbox/lmer3.png")
 
 ---
 count: false
-# Understanding MLM output
+# R: lmer output
 
 .pull-left[
 ```{r echo=FALSE, highlight.output=c(15)}
@@ -870,7 +942,7 @@ knitr::include_graphics("jk_img_sandbox/lmer4.png")
 
 
 ---
-# Extracting MLM output
+# R: parameters
 
 .pull-left[
 ```{r echo=FALSE}
@@ -880,9 +952,31 @@ summary(model, correlation=F)
 ```
 ]
 .pull-right[
+Fixed effects:  
 ```{r}
 fixef(model)
 ```
+
+Variance components:  
+```{r}
+VarCorr(model)
+```
+
+
+]
+
+
+---
+# R: ranef coef
+
+.pull-left[
+```{r echo=FALSE}
+my_data<-read_csv("lme4output.csv")
+model=lmer(y ~ x + (1 + x | group), my_data)
+summary(model, correlation=F)
+```
+]
+.pull-right[
 ```{r eval=F}
 ranef(model)
 ```
@@ -900,77 +994,13 @@ row.names(op)[6] <- "..."
 op
 ```
 
+coef = fixef + ranef
+
 ]
 
 ???
 - fixef, ranef and coef.  
 
----
-# ICC in lmer
-
-.pull-left[
-```{r highlight.output=c(13,14)}
-base_mod <- lmer(emot_dysreg ~ 1 + (1 | schoolid), data = crq_data) 
-summary(base_mod)
-```
-]
-.pull-right[
-```{r}
-0.0845 / (0.0845 + 0.2588)
-```
-
-Note: ICC is conditional on zero values of random-effects covariates.
-In other words, it has computed the ICC based on a value of zero for the random slope variable(s), so any interpretation of the ICC is also based on a value of zero for the slope variable(s).
-
-]
-
-???
-- recall that ICC is the proportion of variance between groups to the total variance.  
-- we can get this from our lmer output!  
-we're back to our childhood emotional dysregulation data here, and we can see that we have an estimated variance between schools, and the residual variance. between those, we can calculate the ratio of this to the total.  
-
-
-Once we introduce random slopes/coefficients, things get more complicated. the ICC will be a function of the variable(s) for which random slopes are specified. 
-
-
----
-# Explained Variance in MLM
-
-.pull-left[
-__ $R^2$ __  
-
-- Recall $R^2$ is proportion of variance explained
-
-- In MLM, multiple variance components (not just $\varepsilon$). Do random effects "explain" variance?  
-    - "marginal $R^2$" = variance explained due to fixed effects
-    - "conditional $R^2$" = variance explained due to fixed + random
-
-```{r warning=F, message=F}
-library(MuMIn)
-mod1 <- lmer(emot_dysreg ~ 1 + crq + (1 | schoolid), data = crq_data)
-r.squaredGLMM(mod1)
-```
-
-
-]
-
-???
-- no R squared given by default
-- you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
-
---
-
-.pull-right[
-__Proportional Reduction in Variance (PRV)__  
-
-- $PRV = \frac{\text{var}_{m0} - \text{var}_{m1}}{\text{var}_{m0}}$
-
-- where $\text{var}_{m0}$ and $\text{var}_{m1}$ are variance components from models with and without a parameter.  
-
-]
-
-???
-Another metric we have is the proportional reduction in variance. We can consider how the inclusion of a variable in a model reduces a variance component, for instance the residual variance. 
 
 ---
 class: inverse, center, middle
@@ -1056,8 +1086,8 @@ message(s): boundary (singular) fit: see help('isSingular')
 ---
 # Model Estimation: ML vs REML
 
-- Standard ML results in biased estimates of variance components.
-
+TODO add more detail  
+- Standard ML results in biased estimates of variance components (esp. for small samples).
 
 - Restricted Maximum Likelihood (REML) is the default in `lmer()`.
 
@@ -1078,14 +1108,14 @@ this can lead to less biased estimates of our random effect variances
 ---
 class: inverse, center, middle
 
-<h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>Example</b></h2>
+<h2><b style="opacity:0.4;">Part 1: LM to MLM </b><b>Longitudinal Example</b></h2>
 <h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
 
 ???
 Okay, let's take a look at an example
 
 ---
-# MLM Example
+# Longitudinal Example: Data & RQ
 
 Researchers are interested in how cognition changes over time. 
 
@@ -1110,7 +1140,8 @@ we have data from some participants - here's our participant identifier, and eac
 ggplot(cogtime, aes(x=visit_n, y = cog, col=participant))+
   geom_line(alpha = 0.5)+
   guides(col=FALSE)+
-  scale_x_continuous(breaks=1:10)
+  scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
@@ -1119,9 +1150,14 @@ we can plot our data as a line for each participant, and see the overall pattern
 
 
 ---
-# MLM Example
+# Longitudinal Example: Model Spec
 
-__determining our random effect structure__
+__fixef effects__  
+
+"cognition over time" = `cog ~ visit_n`  
+
+
+__random effect structure__
 
 - multiple data-points per participant: **1 | participant**
 
@@ -1156,7 +1192,7 @@ cogtime_model <- lmer(cog ~ visit_n + (1 + visit_n | participant), data = cogtim
 so here's our model 
 
 ---
-# MLM Example
+# Longitudinal Example: Model Output
 
 .pull-left[
 __model output__
@@ -1166,37 +1202,49 @@ summary(cogtime_model)
 ```
 ]
 .pull-right[
-__raw data__  
+__visual sketch__  
 
-```{r fig.asp=.7}
-ggplot(cogtime, aes(x=visit_n, y = cog, col=participant))+
-  geom_path(alpha = 0.5)+
-  guides(col=FALSE)+
-  scale_x_continuous(breaks=1:10)
+```{r echo=FALSE,fig.asp=.7}
+library(ggdist)
+
+plotline = MASS::mvrnorm(n=100, mu=fixef(cogtime_model),Sigma=sqrt(VarCorr(cogtime_model)[[1]])) %>%
+  as_tibble()
+
+ggplot(cogtime, aes(x=visit_n, y=cog))+
+  geom_point(col=NA)+
+  stat_dist_halfeye(aes(x=0,dist="norm",arg1=fixef(cogtime_model)[1],arg2=sqrt(diag(VarCorr(cogtime_model)[[1]]))[1]),alpha=.3, fill="orange") +
+  geom_abline(data=plotline, aes(intercept=`(Intercept)`,slope=visit_n),alpha=.1)+ 
+  geom_abline(intercept=fixef(cogtime_model)[1],slope=fixef(cogtime_model)[2],lwd=2)+
+  scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
 ???
-and if we examine our model output, we see that at baseline, the estimated average score is 68.6, and participants tend to vary around this, with a standard deviation of 3.17. 
+and if we examine our model output, we see that at baseline, the estimated average score is 67.3, and participants tend to vary around this, with a standard deviation of 1.21. 
 for every visit, there is an estimated decline of 1.22 in our outcome, cognitive test scores.
 again, participants vary around this estimate, some have less decline, some have more. 
 
 
 ---
-# MLM Example: Plotting the model
+# Longitudinal Example: Plotting Effects
 #### **sjPlot::plot_model()**
 
 .pull-left[
 ```{r eval=FALSE}
 library(sjPlot)
-plot_model(cogtime_model, type="eff")
+plot_model(cogtime_model, type="eff") +
+  scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
 .pull-right[
 ```{r echo=FALSE, fig.asp=.7}
 library(sjPlot)
-plot_model(cogtime_model, type="eff")
+plot_model(cogtime_model, term="visit_n", type="eff") +
+  scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
@@ -1205,7 +1253,7 @@ as before, we can use sjPlot to plot our model predicted values
 
 
 ---
-# MLM Example: Plotting the model
+# Longitudinal Example: Plotting Effects
 #### **effects::effect()**
 
 .pull-left[
@@ -1225,7 +1273,9 @@ as.data.frame(effect("visit_n",cogtime_model))
 as.data.frame(effect("visit_n",cogtime_model)) %>%
   ggplot(.,aes(x=visit_n, y=fit))+
   geom_line()+
-  geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)
+  geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3) +
+  scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
@@ -1234,11 +1284,12 @@ as.data.frame(effect("visit_n",cogtime_model)) %>%
 ```{r echo=FALSE, fig.asp=.7}
 # p <- as.data.frame(effect("visit_n",cogtime_model)) %>%
 #   ggplot(.,aes(x=visit_n, y=fit))+
-#   geom_line()+
-#   geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)
+#   geom_line(lwd=1,col="darkgreen")+
+#   geom_ribbon(aes(ymin=lower,ymax=upper),col="darkgreen", fill="darkgreen", lty = "dashed", alpha=.4)
 # save(p,file = "effplot.Rdata")
 load("effplot.Rdata")
-p
+p + scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
@@ -1246,7 +1297,7 @@ p
 if we want to extract the data and do this manually, we can use the effects package
 
 ---
-# MLM Example: Plotting the model
+# Longitudinal Example: Plotting Fits
 #### **broom.mixed::augment()** for cluster-specific fits
 
 .pull-left[
@@ -1257,9 +1308,8 @@ augment(cogtime_model)
 ```{r eval=FALSE}
 ggplot(augment(cogtime_model), 
        aes(x=visit_n, y=.fitted,
-           col=participant))+
-  geom_line() +
-  guides(col=FALSE)
+           group=participant))+
+  geom_line()
 ```
 ]
 
@@ -1273,9 +1323,10 @@ and if we want to extract the cluster-specific fitted values we can use a functi
 library(broom.mixed)
 ggplot(augment(cogtime_model), 
        aes(x=visit_n, y=.fitted,
-           col=participant))+
+           group=participant))+
   geom_line() +
-  guides(col=FALSE)
+  scale_x_continuous(breaks=0:9)+
+  ylim(0,100)
 ```
 ]
 
@@ -1284,17 +1335,60 @@ so here you can see we've plotted the fitted values, specifying via colour the d
 
 
 ---
-exclude: true
-# MLM Example: Tables
+count: false
+# Longitudinal Example: Plotting Fits
+#### **broom.mixed::augment()** for cluster-specific fits
 
+.pull-left[
 ```{r}
-library(sjPlot)
-tab_model(cogtime_model)
+library(broom.mixed)
+augment(cogtime_model)
 ```
+```{r eval=FALSE}
+ggplot(augment(cogtime_model), 
+       aes(x=visit_n, y=.fitted,
+           group=participant))+
+  geom_line()
+```
+]
 
+.pull-right[
+```{r echo=F, fig.asp=.8}
+library(broom.mixed)
+p + scale_x_continuous(breaks=0:9)+
+  ylim(0,100) + 
+  geom_line(data=augment(cogtime_model), 
+       aes(x=visit_n, y=.fitted,
+           group=participant), alpha=.1)
+```
+]
+
+???
+
+generally, our main finding of interest is the fixed effect line, but it can be nice to also plot behind that the cluster specific fits, or a sample of them. to add context. 
+
+
+
+---
+# Longitudinal Example: Tables  
+
+.pull-left[
+```{r eval=FALSE}
+library(sjPlot)
+tab_model(cogtime_model, df.method = "kr")
+```
+]
+.pull-right[
+```{r eval=FALSE}
+library(parameters)
+model_parameters(cogtime_model, ci_method = "kr") %>% 
+  print_html()
+```
+]
 
 ???
 finally, we can also easily create tables of our model output. 
+we'll talk about this df.method in just a second.. 
 
 
 ---
@@ -1614,188 +1708,190 @@ class: inverse, center, middle, animated, rotateInDownLeft
 
 # End
 
----
-class: inverse, center, middle
-exclude: true
-
-<h2 style="text-align: left;opacity:0.3;">Part 1: LM to MLM</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2>
-<h2>Extra slides (optional): Inference Examples</h2>
-
-???
-let's look at some examples
-
----
-exclude: true
-# Data
-
-```{r eval = FALSE}
-nursedf <- read_csv("https://uoepsy.github.io/data/nurse_stress.csv")
-nursedf <- nursedf %>% 
-  mutate(across(c(hospital, expcon, gender, wardtype, hospsize), factor))
-head(nursedf)
-```
 
 
-_The files nurses.csv contains three-level simulated data from a hypothetical study on stress in hospitals. The data are from nurses working in wards nested within hospitals. It is a cluster-randomized experiment. In each of 25 hospitals, four wards are selected and randomly assigned to an experimental and a control condition. In the experimental condition, a training program is offered to all nurses to cope with job-related stress. After the program is completed, a sample of about 10 nurses from each ward is given a test that measures job-related stress. Additional variables are: nurse age (years), nurse experience (years), nurse gender (0 = male, 1 = female), type of ward (0 = general care, 1 = special care), and hospital size (0 = small, 1 = medium, 2 = large)._  
-(From https://multilevel-analysis.sites.uu.nl/datasets/ )
+<!-- --- -->
+<!-- class: inverse, center, middle -->
+<!-- exclude: true -->
 
-???
-our data come from nurses within 25 hospitals and we have information on their age, gender, years of experience, stress levels, and whether they took part in a training program to cope with jobrelated stress. 
+<!-- <h2 style="text-align: left;opacity:0.3;">Part 1: LM to MLM</h2> -->
+<!-- <h2 style="text-align: left;opacity:0.3;">Part 2: Inference in MLM</h2> -->
+<!-- <h2>Extra slides (optional): Inference Examples</h2> -->
 
+<!-- ??? -->
+<!-- let's look at some examples -->
 
----
-exclude: true
-# test of a single parameter
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # Data -->
 
-> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
-
-model summary:  
-
-```{r eval = FALSE}
-mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf)
-summary(mod1)
-```
-
-???
-we can see our model summary here.
-after fitting many multilevel models, you will start to get into the habit of being able to spot when an effect is likely to be significant.
-t stats > about 2 will tend to pattern with p < .05. NOTE this isn't a rule to follow or based decisions on. 
-
----
-exclude: true
-# test of a single parameter
-
-> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
-
-__Likelihood Ratio Test:__
-```{r eval = FALSE}
-mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf)
-mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf)
-anova(mod0, mod1)
-```
+<!-- ```{r eval = FALSE} -->
+<!-- nursedf <- read_csv("https://uoepsy.github.io/data/nurse_stress.csv") -->
+<!-- nursedf <- nursedf %>%  -->
+<!--   mutate(across(c(hospital, expcon, gender, wardtype, hospsize), factor)) -->
+<!-- head(nursedf) -->
+<!-- ``` -->
 
 
----
-exclude: true
-# test of a single parameter
+<!-- _The files nurses.csv contains three-level simulated data from a hypothetical study on stress in hospitals. The data are from nurses working in wards nested within hospitals. It is a cluster-randomized experiment. In each of 25 hospitals, four wards are selected and randomly assigned to an experimental and a control condition. In the experimental condition, a training program is offered to all nurses to cope with job-related stress. After the program is completed, a sample of about 10 nurses from each ward is given a test that measures job-related stress. Additional variables are: nurse age (years), nurse experience (years), nurse gender (0 = male, 1 = female), type of ward (0 = general care, 1 = special care), and hospital size (0 = small, 1 = medium, 2 = large)._   -->
+<!-- (From https://multilevel-analysis.sites.uu.nl/datasets/ ) -->
 
-> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
-
-__Parametric Bootstrap__ 
-```{r eval = FALSE}
-mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf)
-mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf)
-PBmodcomp(mod1, mod0)
-```
-```{r eval = FALSE, echo=F}
-pbs = PBmodcomp(mod1, mod0)
-pbs 
-```
-
-???
-here we fit a reduced model without the IV, and the full model.
-the parametric bootstrap indicates an improvement in model fit for the full model, suggesting the attending the program influences nurses' stress levels
-
----
-exclude: true
-# test of a single parameter
-
-> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, **by how much?**
-
-__Parametric Bootstrap Confidence Intervals__
-```{r echo=T, eval=F}
-mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf)
-confint(mod1, method="boot")
-```
-```{r eval = FALSE, echo=F, highlight.output=c(8)}
-cis = confint(mod1, method="boot")
-cis
-```
-
-???
-we can also construct parametric bootstrap confidence intervals.  
-this way we can get an estimate for the value of the fixed effect
+<!-- ??? -->
+<!-- our data come from nurses within 25 hospitals and we have information on their age, gender, years of experience, stress levels, and whether they took part in a training program to cope with jobrelated stress.  -->
 
 
----
-exclude: true
-# test of a single parameter
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # test of a single parameter -->
 
-> After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much?
+<!-- > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much? -->
 
-Attendance of training programs on job-related stress was found to predict stress levels of nurses in ` length(unique(nursedf$hospital))` hospitals, beyond individual nurses' years of experience, age and gender (Parametric Bootstrap Likelihood Ratio Test statistic = ` pbs$test[2,"stat"]`, p` map_chr(pbs$test[2,"p.value"], ~ifelse(.<.001, "<.001", paste0("=",.)))`). Having attended the training program was associated with a decrease in ` fixef(mod1)["expcon1"]` (Bootstrap 95% CI [` paste(round(cis[7,],2), collapse=", ")`] ) standard deviations on the measure of job-related stress.
+<!-- model summary:   -->
 
-???
-allowing us to discuss the effect size - how much it estimates the change in stress. 
+<!-- ```{r eval = FALSE} -->
+<!-- mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf) -->
+<!-- summary(mod1) -->
+<!-- ``` -->
 
----
-exclude: true
-# testing that several parameters are simultaneously zero
+<!-- ??? -->
+<!-- we can see our model summary here. -->
+<!-- after fitting many multilevel models, you will start to get into the habit of being able to spot when an effect is likely to be significant. -->
+<!-- t stats > about 2 will tend to pattern with p < .05. NOTE this isn't a rule to follow or based decisions on.  -->
 
-> Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # test of a single parameter -->
 
-__Likelihood Ratio Test__
-```{r eval = FALSE}
-mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
-mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
-anova(mod0, mod1, test="Chisq")
-```
+<!-- > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much? -->
 
----
-exclude: true
-# testing that several parameters are simultaneously zero
-
-> Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
-
-__Kenward-Rogers $df$-approximation__
-```{r eval = FALSE}
-mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
-mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
-KRmodcomp(mod1, mod0)
-```
-
----
-exclude: true
-# testing that several parameters are simultaneously zero
-
-> Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience? 
-
-__Parametric Bootstrap__
-```{r eval = FALSE}
-mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf)
-mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf)
-PBmodcomp(mod1, mod0)
-```
-
-???
-If we are interested in the collective effects of various parameters, such as the influence of workplace-related factors, like wardtype and hospital size, then we can do the same but where the full model has a number of further predictors
-
----
-exclude: true
-# testing random effects 
-
-__are you sure you want to?__
-
-- Justify the random effect structure based on study design, theory, and practicalities more than tests of significance.
-
-- If needed, the __RLRsim__ package can test a single random effect (e.g. `lm()` vs `lmer()`).
+<!-- __Likelihood Ratio Test:__ -->
+<!-- ```{r eval = FALSE} -->
+<!-- mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf) -->
+<!-- mod1 <- lmer(Zstress ~ 1 + experien + age + gender + expcon + (1 | hospital), data = nursedf) -->
+<!-- anova(mod0, mod1) -->
+<!-- ``` -->
 
 
-```{r eval = FALSE}
-library(RLRsim)
-mod0 <- lm(stress ~ expcon + experien + age + gender + wardtype + hospsize, data = nursedf)
-mod1 <- lmer(stress ~ expcon + experien + age + gender + wardtype + hospsize + 
-               (1 | hospital), data = nursedf)
-exactLRT(m = mod1, m0 = mod0)
-```
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # test of a single parameter -->
 
-???
-we can also, should we wish to, test the benefit of including our random effect. We would rarely want to do this, because our random effects should be based on our theory and/or study design. But if we really need to - then we can use an exact likelihood ratio test. 
+<!-- > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much? -->
 
----
-exclude: true
-class: inverse, center, middle, animated, rotateInDownLeft
+<!-- __Parametric Bootstrap__  -->
+<!-- ```{r eval = FALSE} -->
+<!-- mod0 <- lmer(Zstress ~ 1 + experien + age + gender + (1 | hospital), data = nursedf) -->
+<!-- mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf) -->
+<!-- PBmodcomp(mod1, mod0) -->
+<!-- ``` -->
+<!-- ```{r eval = FALSE, echo=F} -->
+<!-- pbs = PBmodcomp(mod1, mod0) -->
+<!-- pbs  -->
+<!-- ``` -->
 
-# End 
+<!-- ??? -->
+<!-- here we fit a reduced model without the IV, and the full model. -->
+<!-- the parametric bootstrap indicates an improvement in model fit for the full model, suggesting the attending the program influences nurses' stress levels -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # test of a single parameter -->
+
+<!-- > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, **by how much?** -->
+
+<!-- __Parametric Bootstrap Confidence Intervals__ -->
+<!-- ```{r echo=T, eval=F} -->
+<!-- mod1 <- lmer(Zstress ~ 1 + experien + age + gender +  expcon + (1 | hospital), data = nursedf) -->
+<!-- confint(mod1, method="boot") -->
+<!-- ``` -->
+<!-- ```{r eval = FALSE, echo=F, highlight.output=c(8)} -->
+<!-- cis = confint(mod1, method="boot") -->
+<!-- cis -->
+<!-- ``` -->
+
+<!-- ??? -->
+<!-- we can also construct parametric bootstrap confidence intervals.   -->
+<!-- this way we can get an estimate for the value of the fixed effect -->
+
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # test of a single parameter -->
+
+<!-- > After accounting for nurses' age, gender and experience, does having been offered a training program to cope with job-related stress appear to reduce levels of stress, and if so, by how much? -->
+
+<!-- Attendance of training programs on job-related stress was found to predict stress levels of nurses in ` length(unique(nursedf$hospital))` hospitals, beyond individual nurses' years of experience, age and gender (Parametric Bootstrap Likelihood Ratio Test statistic = ` pbs$test[2,"stat"]`, p` map_chr(pbs$test[2,"p.value"], ~ifelse(.<.001, "<.001", paste0("=",.)))`). Having attended the training program was associated with a decrease in ` fixef(mod1)["expcon1"]` (Bootstrap 95% CI [` paste(round(cis[7,],2), collapse=", ")`] ) standard deviations on the measure of job-related stress. -->
+
+<!-- ??? -->
+<!-- allowing us to discuss the effect size - how much it estimates the change in stress.  -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # testing that several parameters are simultaneously zero -->
+
+<!-- > Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience?  -->
+
+<!-- __Likelihood Ratio Test__ -->
+<!-- ```{r eval = FALSE} -->
+<!-- mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf) -->
+<!-- mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf) -->
+<!-- anova(mod0, mod1, test="Chisq") -->
+<!-- ``` -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # testing that several parameters are simultaneously zero -->
+
+<!-- > Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience?  -->
+
+<!-- __Kenward-Rogers $df$-approximation__ -->
+<!-- ```{r eval = FALSE} -->
+<!-- mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf) -->
+<!-- mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf) -->
+<!-- KRmodcomp(mod1, mod0) -->
+<!-- ``` -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # testing that several parameters are simultaneously zero -->
+
+<!-- > Do ward type and hospital size influence levels of stress in nurses beyond the effects of age, gender, training and experience?  -->
+
+<!-- __Parametric Bootstrap__ -->
+<!-- ```{r eval = FALSE} -->
+<!-- mod0 <- lmer(Zstress ~ experien + age + gender + expcon + (1 | hospital), data = nursedf) -->
+<!-- mod1 <- lmer(Zstress ~ experien + age + gender + expcon + wardtype + hospsize + (1 | hospital), data = nursedf) -->
+<!-- PBmodcomp(mod1, mod0) -->
+<!-- ``` -->
+
+<!-- ??? -->
+<!-- If we are interested in the collective effects of various parameters, such as the influence of workplace-related factors, like wardtype and hospital size, then we can do the same but where the full model has a number of further predictors -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- # testing random effects  -->
+
+<!-- __are you sure you want to?__ -->
+
+<!-- - Justify the random effect structure based on study design, theory, and practicalities more than tests of significance. -->
+
+<!-- - If needed, the __RLRsim__ package can test a single random effect (e.g. `lm()` vs `lmer()`). -->
+
+
+<!-- ```{r eval = FALSE} -->
+<!-- library(RLRsim) -->
+<!-- mod0 <- lm(stress ~ expcon + experien + age + gender + wardtype + hospsize, data = nursedf) -->
+<!-- mod1 <- lmer(stress ~ expcon + experien + age + gender + wardtype + hospsize +  -->
+<!--                (1 | hospital), data = nursedf) -->
+<!-- exactLRT(m = mod1, m0 = mod0) -->
+<!-- ``` -->
+
+<!-- ??? -->
+<!-- we can also, should we wish to, test the benefit of including our random effect. We would rarely want to do this, because our random effects should be based on our theory and/or study design. But if we really need to - then we can use an exact likelihood ratio test.  -->
+
+<!-- --- -->
+<!-- exclude: true -->
+<!-- class: inverse, center, middle, animated, rotateInDownLeft -->
+
+<!-- # End  -->
 
