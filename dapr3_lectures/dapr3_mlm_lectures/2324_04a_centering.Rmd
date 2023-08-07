@@ -1,0 +1,1073 @@
+---
+title: "<b>Centering Predictors in MLM</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    self-contained: true
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+params: 
+    show_extra: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+
+xaringanExtra::use_share_again()
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+knitr::opts_chunk$set(
+  dev = "svg",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  fig.asp = .8
+)
+
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+
+theme_set(
+    theme_minimal() + 
+    theme(text = element_text(size=20))
+)
+
+source("jk_source/jk_presfuncs.R")
+
+library(xaringanthemer)
+
+style_mono_accent(
+  base_color = "#88B04B", # DAPR3 
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+---
+# Centering
+
+.pull-left[
+Suppose we have a variable for which the mean is 100.  
+```{r echo=FALSE, fig.asp=.8}
+set.seed(57)
+dat <- tibble(
+  iq = 100+(scale(rnorm(200,100,15))[,1]*15)
+)
+dat$iq2 = dat$iq-100
+dat$iq3 = dat$iq-120
+dat$iq4 = (dat$iq-100)/15
+ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=99.5,xmax=100.5, fill="red")+
+  labs(x="IQ")
+```
+]
+--
+.pull-right[
+We can re-center this so that the mean becomes zero:
+```{r echo=FALSE,fig.asp=.8}
+ggplot(dat, aes(x=iq2))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=-0.5,xmax=0.5, fill="red")+
+  geom_vline(xintercept=0)+
+  labs(x="IQ - 100")
+```
+
+]
+
+---
+count:false
+# Centering
+
+.pull-left[
+Suppose we have a variable for which the mean is 100.  
+```{r echo=FALSE,fig.asp=.8}
+ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=99.5,xmax=100.5, fill="red")+
+  labs(x="IQ")
+```
+]
+.pull-right[
+We can re-center this so that _any_ value becomes zero:
+```{r echo=FALSE,fig.asp=.8}
+ggplot(dat, aes(x=iq3))+geom_histogram(binwidth = 2)+
+  geom_vline(xintercept=0)+
+  geom_rect(ymin=0,ymax=1, xmin=-19.5,xmax=-20.5, fill="red")+
+  labs(x="IQ - 120")
+```
+
+]
+???
+- now really this isn't doing anything much. we're simply sliding the whole distribution left or right, thereby changing what the number "zero" means in the context of the variable. we can have zero as the mean, as 120, as any number we like. 
+
+---
+# Scaling
+
+.pull-left[
+Suppose we have a variable for which the mean is 100.  
+The standard deviation is 15
+```{r echo=FALSE, fig.asp=.8}
+ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=99.5,xmax=100.5, fill="red")+
+  labs(x="IQ")
+```
+]
+
+???
+- if we consider also the spread of the distribution, the standard deviation, then we can do something called standardisation
+
+--
+.pull-right[
+We can scale this so that a change in 1 is equivalent to a change in 1 standard deviation:
+
+```{r echo=FALSE, fig.asp=.8}
+ggplot(dat, aes(x=iq4))+geom_histogram(binwidth = (2/15))+
+  geom_rect(ymin=0,ymax=1, xmin=-0.5/15,xmax=0.5/15, fill="red")+
+  geom_vline(xintercept=0)+
+  labs(x="(IQ - 100) / 15")
+```
+
+]
+
+???
+- this is just mean centereing and then dividing by the standard deviation. 
+- note that the shape of the distribution doesn't change, but the scale of the x axis does. 
+- so what used to be a move of 15, going from 100 to 115, is now represented as a move of 1. 
+
+---
+# Centering predictors in LM
+
+.pull-left[
+```{r include=F}
+library(lme4)
+set.seed(934)
+df <- tibble(
+  x = rnorm(200,4,1),
+  y = pmax(0.1,.3+.5*x + rnorm(200))
+)
+```
+
+```{r}
+m1 <- lm(y~x,data=df)
+m2 <- lm(y~scale(x, center=T,scale=F),data=df)
+m3 <- lm(y~scale(x, center=T,scale=T),data=df)
+m4 <- lm(y~I(x-5), data=df)
+```
+]
+
+???
+- let's first think about how we can center or scale our predictors in a simple regression model. 
+- i've used the scale function here, where you can set scale and center to be TRUE/FALSE, so we can mean center but not scale etc. 
+- now, we can do whatever we like to our predictor here. these are all linear transformations. the relative distances between each value remain the same. 
+
+
+
+
+---
+count: false
+# Centering predictors in LM
+
+.pull-left[
+```{r}
+m1 <- lm(y~x,data=df)
+m2 <- lm(y~scale(x, center=T,scale=F),data=df)
+m3 <- lm(y~scale(x, center=T,scale=T),data=df)
+m4 <- lm(y~I(x-5), data=df)
+```
+```{r}
+anova(m1,m2,m3,m4)
+```
+]
+
+???
+- and it doesn't do anything to our model fit whatsoever. - the effect of our predictor on our outcome variable is EXACTLY the same.  
+- we can see this here, a model comparison is showing the residual sums of squares as being identical. 
+
+--
+
+.pull-right[
+```{r echo=FALSE, fig.align="center"}
+set.seed(934)
+df <- tibble(
+  x = rnorm(200,4,1),
+  y = pmax(0.1,.3+.5*x + rnorm(200))
+)
+
+mod = lm(y~x,df)
+p1 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=0,xend=0,y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=max(df$x),y=0,yend=0)+
+  geom_point(data=tibble(x=0,y=coef(mod)[1]),size=4)+
+  labs(title="Raw X")+
+  scale_x_continuous(limits=c(0,7),breaks=0:7)
+
+mod = lm(y~scale(x,scale=F),df)
+p2 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=mean(df$x),xend=mean(df$x),y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=max(df$x),y=0,yend=0)+
+  geom_point(data=tibble(x=mean(df$x),y=coef(mod)[1]),size=4)+
+  scale_x_continuous(limits=c(0,7),breaks=map_dbl(seq(4,-4), ~mean(df$x)-.),
+                     labels=seq(-4,4))+
+  labs(title="Mean centered X")
+  
+  
+mod = lm(y~scale(x),df)
+p3 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=mean(df$x),xend=mean(df$x),y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=30,y=0,yend=0)+
+  geom_point(data=tibble(x=mean(df$x),y=coef(mod)[1]),size=4)+
+  scale_x_continuous(limits=c(0,7),
+                     breaks=c(mean(df$x)-(2*sd(df$x)), mean(df$x)-sd(df$x), 
+                              mean(df$x), 
+                              mean(df$x)+sd(df$x), mean(df$x)+(2*sd(df$x))),
+                     labels=c(-2,-1,0,1,2))+
+  labs(title="Scaled X")
+
+
+
+mod = lm(y~x,df %>% mutate(x=x-5))
+p4 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=5,xend=5,y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=30,y=0,yend=0)+
+  geom_point(data=tibble(x=5,y=coef(mod)[1]),size=4)+
+  scale_x_continuous(limits=c(0,7),breaks=0:7, labels=c(0:7)-5)+
+  labs(title="x-5")
+p1 + p2 + p3 + p4 
+```
+]
+
+???
+- so what's the point in doing it? well, it changes how we interpret some of our parameters. 
+- remember that our intercept is the estimated mean y when our predictors are zero. 
+- given that centering our predictor changes what "zero" is, then we can center predictors to make our intercept the estimated y for the mean value of x. 
+- likewise, scaling our predictors changes the interpretation of our coefficient from the estimated change in y associated with a 1 unit increase in x, to the estimated change associated with a 1 STANDARD DEVIATION increase in X. And this may be preferable, especially if, for instance you've got some predictor where 1 unit isn't very useful 
+
+---
+# Big Fish Little Fish
+
+```{r eval=FALSE, echo=FALSE}
+set.seed(667)
+doit<-1
+while(doit){
+  df<-as.data.frame(c())
+  Ngroups = round(rnorm(1,10,0))
+  NperGroup = rdunif(Ngroups, 10, 20)
+  N = sum(NperGroup)
+  dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+  xxm = rnorm(Ngroups,0,1)
+  xxm = rdunif(Ngroups, 2, 10)
+  xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+  xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+  #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+  xx = xxm+xgc 
+  l2p = sample(1:4, Ngroups, replace=T)
+  l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+  
+  e = rnorm(N, sd = 1)
+    
+  y = 0 +
+      dd[igs,1]+
+      -3*xxm+
+      2*xgc + 
+      dd[igs,2]*xgc +
+      0*l2p +
+      e
+  d = data.frame(y,xxm,xgc,igs,l2p)
+  df<-rbind(df,d)
+  
+  lmer(y ~ xxm + xgc + l2p + (1+xgc | igs), data =df,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  
+  if(!isSingular(m)){
+    doit <- 0
+  }
+}
+
+df %>% transmute(
+  pond = paste0("pond_",igs),
+  tyoe = l2p,
+  self_esteem = round(3+scale(y)[,1]*.6,2),
+  fish_weight = round(31+scale(xxm+xgc)[,1]*11),
+) -> bflp
+write.csv(bflp, "../../uoepsy/data/bflp.csv", row.names=F)
+```
+
+```{r echo=FALSE, fig.asp=.7, fig.align="center"}
+bflp <- read_csv("https://uoepsy.github.io/data/bflp.csv")
+library(ggforce)
+library(ggfx)
+ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
+  geom_point()+
+  #geom_line(aes(group=pond))+
+  geom_smooth(method="lm")+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  geom_mark_ellipse(aes(label = "BIG FISH",filter = fish_weight > 60),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  geom_mark_ellipse(aes(label = "LITTLE FISH",filter = fish_weight == 5),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  geom_mark_ellipse(aes(label = "MEDIUM FISH", filter = (pond == "pond_6" & fish_weight==34)),con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  ylim(1,5)
+```
+
+data available at https://uoepsy.github.io/data/bflp.csv  
+
+
+???
+- now in the single level case, centering and scaling does very little, and thats because however we shift or scale the x-axis here, the distribution remains identically shaped. 
+- so this is a silly example, we're measuring the self-esteem of some fish, and seeing if bigger fish have higher self esteem.  
+- no matter how we transform 'fish_weight', this is always a little fish, this is always a big fish, and this is always a medium sized fish. 
+
+---
+# Things are different with multi-level data 
+
+```{r echo=FALSE, fig.asp=.7, fig.align="center"}
+ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
+  with_blur(geom_point(),sigma=3)+
+  with_blur(geom_line(aes(group=pond),alpha=.5),sigma=3)+
+  geom_point(data=filter(bflp, pond=="pond_6"))+
+  geom_line(data=filter(bflp, pond=="pond_6"))+
+  #geom_smooth(method="lm")+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  with_blur(geom_mark_ellipse(aes(label = "BIG FISH",filter = fish_weight > 60),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE),sigma=3)+
+  with_blur(geom_mark_ellipse(aes(label = "LITTLE FISH",filter = fish_weight == 5),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE),sigma=3)+
+  geom_mark_ellipse(aes(label = "BIG FISH, LITTLE POND", filter = (pond == "pond_6" & fish_weight==34)),con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  ylim(1,5)
+```
+
+???
+- but as soon as we have clusters in our data, as soon as we have multiple levels, then something cool happens. 
+- how we think about these observations suddenly has another dimension.
+- it's no longer as simple as "big fish medium fish little fish", but fish are large or small FOR THE POND IN WHICH THEY LIVE. 
+- so our medium fish is still, in some ways, a "medium fish", but in terms of the pond in which it lives, it is the biggest fish. 
+- and we might have another fish in our dataset which is exactly the same weight, but which is a SMALL fish FOR ITS POND
+- the reason i'm using this silly example is that thinking of this as the idea of "big fish little pond" can be quite a good starting point, and in education research there is even a concept of "the big fish little pond effect" which is exactly this same concept, only instead of fish in ponds we have children in schools, and instead of weight on the x axis, we have education attainment. 
+- so a child who scores close to the overall mean, if they are the top of their class, they feel great! 
+
+
+
+---
+# Multiple means
+
+.pull-left[
+__Grand mean__
+
+```{r echo=FALSE, fig.asp=.8}
+ggplot(bflp, aes(x=fish_weight, y=self_esteem, col=pond))+
+  geom_point(alpha=.4)+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")+
+  geom_vline(xintercept=mean(bflp$fish_weight),lty="dotted", lwd=1)
+```
+]
+
+???
+- this idea of being a "big fish for the pond you're in", may well be the thing we're actually interested in! 
+- i'm not interested in whether sharks have more self esteem than minnows (tiny fish).  
+- i'm interested in whether fish who are big _relative to_ those around them, have higher self esteem.  
+
+- you'll start to have noticed a pattern here, in that when we're talking about multilevel models, pretty much everything is at multiple levels. we talked last week about multiple levels of residuals, influence happening at multiple levels etc. 
+- well guess what, we now have means at multiple levels. 
+- we have our grand mean, that's simply the average of all of these values
+
+--
+
+.pull-right[
+__Group means__
+
+```{r echo=FALSE, fig.asp=.8}
+bflp %>% group_by(pond) %>% summarise(s=sd(fish_weight), fish_weight = mean(fish_weight), self_esteem = mean(self_esteem)) %>% ungroup -> sdff
+ggplot(bflp, aes(x=fish_weight, y=self_esteem, group=pond, col=pond))+
+  geom_point(alpha=.4)+
+  geom_point(data=sdff,size=4)+
+  #geom_errorbarh(data=sdff,aes(xmin=fish_weight-(2*s), xmax=fish_weight+(2*s)))+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+]
+
+???
+- and then we have our group means, which are the means for each group. that's these bigger points here. 
+
+---
+# Group-mean centering
+
+.pull-left[
+<center>__ $x_{ij} - \bar{x}_i$ __</center><br>
+```{r echo=FALSE}
+bflp %>% group_by(pond) %>%
+  mutate(
+    xbar = mean(fish_weight),
+    xbari = fish_weight - mean(fish_weight)
+  ) -> bflpdat
+ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
+  geom_point()+
+  geom_line(aes(group=pond), alpha=.2)+
+  geom_vline(xintercept=0, lty="dotted",lwd=1)+
+  labs(x="Fish weight difference from pond average (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+]
+
+???
+- and what having all these means means is that we can mean-center, but instead of centering all our values around the one overall grand mean, we can center each groups values around that group mean. 
+- and what we get out of this is a variable that represents something slightly different from what we had. - we now have something that shows the amount that an observation is higher or lower than its group average.
+- so with these values we get something that shows if a fish is 5kg heavier, or 3kg lighter etc, THAN THE AVERAGE FOR ITS POND. 
+- And what we're looking at here is the WITHIN effect. 
+- that is, "within a given group how does being higher on x for that group influence scores on y?" 
+
+
+---
+# Group-mean centering
+
+```{r include=FALSE}
+bflp %>% group_by(pond) %>% summarise(s=sd(fish_weight), fish_weight = mean(fish_weight), self_esteem = mean(self_esteem)) %>% ungroup -> sdff
+
+bind_rows(
+  sdff %>% mutate(t=0),
+  sdff %>% mutate(t=1,fish_weight=0)) -> sdff
+
+bind_rows(bflp %>% mutate(t=0),
+          bflp %>% group_by(pond) %>% 
+            mutate(m=mean(fish_weight),fish_weight=fish_weight-m, t=1) %>% ungroup
+) -> bflpa
+```
+```{r eval=FALSE, include=FALSE}
+library(gganimate)
+ggplot(bflpa, aes(x=fish_weight, y=self_esteem,color=pond)) +
+  geom_point(alpha=.7)+
+  geom_line(aes(group=pond), alpha=.1)+
+  geom_point(data=sdff,size=4)+
+  #geom_errorbarh(data=sdff,aes(x=0,xmin=0-(2*s), xmax=0+(2*s)), alpha=.5)+
+  labs(x="Fish weight",y="Self Esteem Scale (1-5)")+
+  guides(color="none") +
+  transition_states(t) -> p
+
+anim_save("jk_img_sandbox/center.gif", p)
+```
+<br>
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/center.gif")
+```
+
+???
+- but we've lost something, right?
+- when we center on the group means, we're lining up all our groups so that the means are all zero. 
+- what was the biggest fish in the data, is actually not as big (relative to its pond average) as this other fish here. 
+- we have removed information that is contained in the raw scores. 
+
+---
+# Group-mean centering
+
+.pull-left[
+<center>__ $x_{ij} - \bar{x}_i$ __</center><br>
+```{r echo=FALSE}
+bflp %>% group_by(pond) %>%
+  mutate(
+    xbar = mean(fish_weight),
+    xbari = fish_weight - mean(fish_weight)
+  ) -> bflpdat
+ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
+  geom_point()+
+  geom_line(aes(group=pond), alpha=.2)+
+  geom_vline(xintercept=0, lty="dotted",lwd=1)+
+  labs(x="Fish weight difference from pond average (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+]
+
+.pull-right[
+<center>__ $\bar{x}_i$ __</center><br>
+```{r echo=FALSE}
+ggplot(bflpdat, aes(x=xbar, y=self_esteem,color=pond)) +
+  stat_summary(geom="pointrange")+
+  #geom_point(alpha=.4)+
+  #geom_line(aes(group=patient), alpha=.4)+
+  labs(x="Pond Average fish weight (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+]
+
+???
+- but we can put it back! we jsut need to know the values for the group means. 
+- and we have them! 
+- and in fact, when we start thinking about these group means, we realise that we're looking at another part of the same question. 
+- we're looking at the between-group effect. 
+- now these are measured at the group-level, because these are the group averages, and what we're looking at here is the relationship between our outcome and the group-mean of x.
+
+- so "if you're a fish from a pond which has a higher average weight of fish, you'll tend to have lower self esteem"
+- whereas the ponds with an average weight of fish that is lower, the fish in those ponds tend to have higher self esteem. 
+
+- but this is now separated from the fact that WITHIN each pond, the heavier a fish is, the more self esteem they have
+
+---
+# Disaggregating within & between
+
+.pull-left[
+**RE model**  
+$$
+\begin{align}
+y_{ij} &= \beta_{0i} + \beta_{1}(x_j) + \varepsilon_{ij} \\
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}
+$$
+
+
+```{r}
+rem <- lmer(self_esteem ~ fish_weight + 
+              (1 | pond), data=bflp)
+```
+
+]
+
+???
+- so what are we going to do with group-mean centering in our multilevel model?
+
+- well this is the kind of model we have been fitting so far.  
+- we have self esteem being predicted by fish_weight, and then we have a random intercept for each pond. So some ponds have higher self-esteem, some lower, and we're assuming ponds' self esteem to be normally distributed around the fixed center. 
+
+--
+
+.pull-right[
+**Within-between model**  
+$$
+\begin{align}
+y_{ij} &= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}
+$$
+
+```{r}
+bflp <- 
+  bflp %>% group_by(pond) %>%
+    mutate(
+      fw_pondm = mean(fish_weight),
+      fw_pondc = fish_weight - mean(fish_weight)
+    ) %>% ungroup
+
+wbm <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+              (1 | pond), data=bflp)
+fixef(wbm)
+```
+
+]
+
+???
+- and take a minute to think about how we split our raw x scores up into two pieces. 
+- we can get back to the original weight of any fish by using the average weight of that fishes pond, plus the relative difference from that average to the fish. 
+- so it's just additive. and we can put both these new variables into our model and get estimates of these different effects!  
+
+---
+# Disaggregating within & between
+
+.pull-left[
+```{r echo=FALSE, fig.asp=.8, fig.align="center"}
+broom.mixed::augment(wbm) %>%
+  ggplot(.,aes(x=fw_pondm, y=self_esteem, group=pond))+
+  geom_point() + #geom_line(alpha=.2) +
+  geom_abline(intercept=fixef(wbm)[1], slope=fixef(wbm)[2]) -> p1
+
+broom.mixed::augment(wbm) %>%
+  ggplot(.,aes(x=fw_pondc, y=self_esteem, group=pond))+
+  geom_point() + #geom_line(alpha=.2) +
+  geom_abline(intercept=fixef(wbm)[1]+(fixef(wbm)[2]*mean(bflp$fw_pondm)), slope=fixef(wbm)[3]) -> p2
+
+broom.mixed::augment(wbm) %>%
+  ggplot(.,aes(x=fw_pondc + fw_pondm, y=.fitted, group=pond))+
+  geom_point() + geom_line(alpha=.2) -> p3
+
+(p1+p2)/p3
+```
+]
+
+.pull-right[
+**Within-between model**  
+$$
+\begin{align}
+y_{ij} &= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}
+$$
+
+```{r}
+bflp <- 
+  bflp %>% group_by(pond) %>%
+    mutate(
+      fw_pondm = mean(fish_weight),
+      fw_pondc = fish_weight - mean(fish_weight)
+    ) %>% ungroup
+
+wbm <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+              (1 | pond), data=bflp)
+fixef(wbm)
+```
+
+
+]
+
+???
+so what we are estimating now is the separate contributing effects on self esteem of 
+  - "being a bigger fish FOR YOUR POND" and 
+  - "being from a pond that has bigger fish". 
+
+ 
+
+---
+# A more realistic example
+
+```{r eval=FALSE, echo=FALSE}
+library(lme4)
+set.seed(77)
+doit<-1
+while(doit){
+  Ngroup2s = 10
+  dd2<-MASS::mvrnorm(n=Ngroup2s, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  cor(dd2)
+  i = 2
+  df<-as.data.frame(c())
+  for(i in 1:Ngroup2s){
+    Ngroups = round(rnorm(1,10,0))
+    Nxgroups = 2
+    
+    #NperGroup = rep(Nxgroups*nrep,Ngroups)
+    NperGroup = rdunif(Ngroups, 5, 10)*Nxgroups
+    N = sum(NperGroup)
+    
+    dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddb<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddx<-MASS::mvrnorm(n=Nxgroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    
+    igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+    xgs = map(1:Ngroups, ~rep(1:Nxgroups,NperGroup[.]/Nxgroups)) %>% unlist
+    #x = map(1:Ngroups, ~rep(1:NperGroup[.],Nxgroups)) %>% unlist
+    xxm = rnorm(Ngroups,50,10)
+    xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+    xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+    #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+    xx = xxm+xgc 
+    
+    l2p = sample(0:1, Ngroups, replace=T)
+    l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+    
+    l3p = i %% 2
+    e = rnorm(N, sd = 15)
+    
+    y = 0 +
+      dd[igs,1]+
+      dd2[i,1]+
+      #ddx[xgs, 1] + 
+      -3*xxm+
+      #-.05*(xx2 %in% c(1,2,4))*xgc+
+      +4*xgc + 
+      dd[igs,2]*xgc +
+      #ddb[igs,2]*xxm + 
+      1*dd2[i,2]*xxm +
+      -3*l2p*xgc +
+      2*l3p +
+      e
+    d = data.frame(y,xxm,xgc,igs,xgs,i, l2p,l3p)
+    #ggplot(d,aes(x=x,y=y,group=factor(igs)))+facet_wrap(~xgs)+geom_path()
+    d$ng2 = i
+    df<-rbind(df,d)
+  }
+  df %>% filter(xgs == 1) %>%
+  lmer(y ~ xxm + xgc + l2p + l3p + (1+xgc | ng2/igs), data =.,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  t3 = attributes(VarCorr(m)[[2]])$stddev
+  t4 = attributes(VarCorr(m)[[2]])$correlation
+  
+  if(!isSingular(m) & all(t1 != 0) & !(t2[lower.tri(t2)] %in% c(0,1,-1)) & all(t3 != 0) & !(t4[lower.tri(t4)] %in% c(0,1,-1)) ){
+    doit <- 0
+  }
+}
+
+df %>% filter(xgs==1) %>% transmute(
+  alcunits = round(8+(scale(y)[,1]*4)),
+  gad = xxm + xgc,
+  gad = round(8+(scale(gad)[,1]*3)),
+  center = ng2,
+  ppt = igs,
+  group = l2p,
+  urb_rural = l3p
+) %>% filter(center %in% c(2:5,8)) %>% 
+  mutate(center=paste0("C",center),
+         ppt = paste0("C",center,"_",ppt)) -> alcgad
+write.csv(alcgad, "../../uoepsy/data/alcgad.csv", row.names=F)
+```
+
+.pull-left[
+A research study investigates how anxiety is associated with drinking habits. Data was collected from 50 participants. Researchers administered the generalised anxiety disorder (GAD-7) questionnaire to measure levels of anxiety over the past week, and collected information on the units of alcohol participants had consumed within the week. Each participant was observed on 10 different occasions. 
+]
+.pull-right[
+```{r echo=FALSE, fig.asp=.7}
+alcgad <- read_csv("https://uoepsy.github.io/data/alcgad.csv") %>% mutate(interv = group)
+ggplot(alcgad, aes(x=gad, y=alcunits,color=factor(ppt))) +
+  geom_point(alpha=.4)+
+  labs(x="Generalised Anxiety Disorder (GAD-7)",y="Units of Alcohol in previous 7 days")+
+  guides(color="none")
+```
+
+data available at https://uoepsy.github.io/data/alcgad.csv 
+]
+???
+- okay, let's think of a more realistic example. 
+- let's suppose we are studying the relationship between anxiety and alcohol use, and we have multiple observations for each participant.  
+
+
+---
+# A more realistic example
+
+.pull-left[
+Is being more nervous (than you usually are) associated with higher consumption of alcohol?
+]
+.pull-right[
+```{r echo=FALSE, fig.asp=.8}
+alcgad %>% group_by(ppt) %>% mutate(gadm=mean(gad),gadmc=gad-gadm) %>%
+ggplot(., aes(x=gadmc, y=alcunits)) +
+  geom_point(alpha=.4)+
+  labs(x="Generalised Anxiety Disorder (GAD-7)\n relative to participant average",y="Units of Alcohol in previous 7 days")+
+  geom_smooth(method="lm",se=F)+
+  guides(color="none")
+```
+]
+
+???
+- so we can really ask two separate questions here. 
+- we can talk about the within effect. 
+- if you are more nervous FOR YOU, do you drink more?
+
+---
+# A more realistic example
+
+.pull-left[
+Is being generally more nervous (relative to others) associated with higher consumption of alcohol?
+]
+.pull-right[
+```{r echo=FALSE, fig.asp=.8}
+alcgad %>% group_by(ppt) %>% mutate(gadm=mean(gad),gadmc=gad-gadm) %>%
+ggplot(., aes(x=gadm, y=alcunits)) +
+  geom_smooth(method="lm",se=F)+
+  stat_summary(aes(group=ppt),geom="pointrange")+
+  labs(x="Generalised Anxiety Disorder (GAD-7)\nparticipant average",y="Units of Alcohol in previous 7 days")+
+  guides(color="none")
+```
+]
+
+???
+- and then we can think about the between effect.  
+- this is like asking "is being a more anxious person associated with higher levels of alcohol consumption?"
+
+---
+# Modelling within & between effects
+
+.pull-left[
+```{r}
+alcgad <- 
+  alcgad %>% group_by(ppt) %>% 
+  mutate(
+    gadm=mean(gad),
+    gadmc=gad-gadm
+  )
+alcmod <- lmer(alcunits ~ gadm + gadmc + 
+                 (1 + gadmc | ppt), 
+               data=alcgad,
+               control=lmerControl(optimizer = "bobyqa"))
+```
+]
+.pull-right[
+```{r}
+summary(alcmod)
+```
+
+]
+
+???
+- and just like the bigfish little pond, we can separate out the group mean and the deviations from the group mean. 
+- so this is whether a person is more anxious than usual, and their overall mean anxiety score.  
+- the more anxious you are FOR you, the more you drink
+- the more anxious you are ON AVERAGE, the less you drink
+
+
+---
+# Modelling within & between interactions
+
+.pull-left[
+```{r}
+alcmod <- lmer(alcunits ~ (gadm + gadmc)*interv + 
+                 (1 | ppt), 
+               data=alcgad,
+               control=lmerControl(optimizer = "bobyqa"))
+```
+]
+.pull-right[
+```{r}
+summary(alcmod)
+```
+]
+
+???
+- now another cool thing we can do is fit interactions with these specific effects. 
+- so imagine we are testing whether some intervention is aimed to prevent people from using alcohol to "calm their nerves", and we have a group who have the intervention, and a group who don't. 
+- the interaction between the intervention and the between effect doesn't make much difference. 
+- but for the within effect it does. 
+- so you can think of this as the intervention doesn't influence the extent to which more nervous people drink less. 
+- but it does influence the extent to which people drink when they are more nervous FOR THEM
+
+
+---
+# Total effect
+
+.pull-left[
+```{r}
+alcmod2 <- lmer(alcunits ~ gad + (1 | ppt), 
+                data=alcgad,
+                control=lmerControl(optimizer = "bobyqa"))
+```
+]
+.pull-right[
+```{r}
+summary(alcmod2)
+```
+]
+
+???
+- Now that we've discussed the idea of these within & between effects, it raises a question. 
+- what exactly are we modeling when we didn't separate them out? 
+- what is the meaning of this effect here? 
+- This effect represents regression of alcohol consumption on anxiety, pooling over all participants, and it's kind of a weighted composite effect of these within & between relations.  
+- Now this might be perfectly sufficient for things like making predictions from your model, the location of this effect is a bit unclear 
+  - where is the change? within or between? well, it's kind of both. 
+- but really, the substantive and theoretically meaningful questions we have are more often about the specific effects that happen within or between groups, and this total effect doesn't really represent either.  
+
+---
+# Within & Between effects
+
+```{r include=FALSE}
+library(lme4)
+set.seed(86)
+doit<-1
+while(doit){
+  Ngroup2s = 10
+  dd2<-MASS::mvrnorm(n=Ngroup2s, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  cor(dd2)
+  i = 2
+  df<-as.data.frame(c())
+  for(i in 1:Ngroup2s){
+    Ngroups = round(rnorm(1,10,0))
+    Nxgroups = 2
+    
+    #NperGroup = rep(Nxgroups*nrep,Ngroups)
+    NperGroup = rdunif(Ngroups, 5, 10)*Nxgroups
+    N = sum(NperGroup)
+    
+    dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddb<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddx<-MASS::mvrnorm(n=Nxgroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    
+    igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+    xgs = map(1:Ngroups, ~rep(1:Nxgroups,NperGroup[.]/Nxgroups)) %>% unlist
+    #x = map(1:Ngroups, ~rep(1:NperGroup[.],Nxgroups)) %>% unlist
+    xxm = rnorm(Ngroups,50,10)
+    xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+    xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+    #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+    xx = xxm+xgc 
+    
+    l2p = sample(1:4, Ngroups, replace=T, prob = c(.2,.5,.3,.1))
+    l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+    
+    l3p = i %% 2
+    e = rnorm(N, sd = 15)
+    
+    y = 0 +
+      dd[igs,1]+
+      dd2[i,1]+
+      #ddx[xgs, 1] + 
+      -5*xxm+
+      #-.05*(xx2 %in% c(1,2,4))*xgc+
+      -6*xgc + 
+      dd[igs,2]*xgc +
+      #ddb[igs,2]*xxm + 
+      1*dd2[i,2]*xxm +
+      -3*l2p + 
+      2*l3p +
+      e
+    d = data.frame(y,xxm,xgc,igs,xgs,i, l2p,l3p)
+    #ggplot(d,aes(x=x,y=y,group=factor(igs)))+facet_wrap(~xgs)+geom_path()
+    d$ng2 = i
+    df<-rbind(df,d)
+  }
+  df %>% filter(xgs == 1) %>%
+  lmer(y ~ xxm + xgc + l2p + l3p + (1+xgc | ng2/igs), data =.,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  t3 = attributes(VarCorr(m)[[2]])$stddev
+  t4 = attributes(VarCorr(m)[[2]])$correlation
+  
+  if(!isSingular(m) & all(t1 != 0) & !(t2[lower.tri(t2)] %in% c(0,1,-1)) & all(t3 != 0) & !(t4[lower.tri(t4)] %in% c(0,1,-1)) ){
+    doit <- 0
+  }
+}
+
+df %>% filter(xgs==1) %>% transmute(
+  tgu = 8+(scale(y)[,1]*4),
+  phys = round(xxm + xgc),
+  hospital = ng2,
+  patient = igs,
+  prioritylevel = l2p,
+  private = l3p
+) %>% filter(hospital%in%c(5,6)) %>% 
+  mutate(hospital=paste0("Hospital_",hospital),
+patient = paste0(hospital,patient))-> tgudat
+
+ggplot(tgudat, aes(x=phys, y=tgu,color=patient)) +
+  geom_point(alpha=.4)+
+  geom_smooth(aes(group=patient), method="lm",se=F,alpha=.4)+
+  labs(x="Daily amount of Physiotherapy\n(minutes)", y="Time Get up and Go test (seconds)")+
+  guides(color="none") -> p1
+
+ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
+  geom_point()+
+  geom_smooth(aes(group=pond),method="lm",se=F,alpha=.4)+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  ylim(1,5) -> p2
+
+ggplot(alcgad, aes(x=gad, y=alcunits,color=factor(ppt))) +
+  geom_point(alpha=.4)+
+  geom_smooth(aes(group=ppt), method="lm",se=F,alpha=.4)+
+  labs(x="Generalised Anxiety Disorder (GAD-7)",y="Units of Alcohol in previous 7 days")+
+  guides(color="none") -> p3
+```
+
+.pull-left[
+```{r echo=FALSE, fig.asp=.8}
+p2
+```
+]
+.pull-right[
+```{r echo=FALSE, fig.asp=.8}
+p3
+```
+]
+
+???
+- so here are the two examples we've just seen
+- one last thing to note is that these within & between effects don't have to counteract one another. 
+- these examples both had the within effect going one way, and the between effect going the other. 
+- so when we plot the group lines like this, we see the lines going up, and you move across these lines tend to be starting lower.
+
+
+---
+count:false
+# Within & Between effects
+
+.pull-left[
+```{r echo=FALSE, fig.asp=.8}
+p1
+```
+]
+???
+- but that doesn't have to be the case, we can think of how both are in the same direction. 
+
+
+--
+
+.pull-right[
+```{r echo=FALSE}
+tgudat %>% group_by(patient) %>% mutate(physm= mean(phys),physc = phys-physm) %>% ungroup %>%
+ggplot(., aes(x=physc, y=tgu,color=patient)) +
+  geom_point()+
+  geom_line(aes(group=patient), alpha=.4)+
+  #geom_smooth(method="lm",se=F,alpha=.1)+
+  labs(x="Daily amount of Physiotherapy\n(minutes relative to patient average)", y="TUG")+
+  guides(color="none") ->p1
+
+tgudat %>% group_by(patient) %>% mutate(physm= mean(phys),physc = phys-physm) %>% ungroup %>%
+ggplot(., aes(x=physm, y=tgu,color=patient)) +
+  #geom_point(alpha=.4)+
+  #geom_line(aes(group=patient), alpha=.4)+
+  stat_summary(geom="pointrange")+
+  labs(x="Average daily amount of Physiotherapy\n(minutes)", y="TUG")+
+  guides(color="none") -> p2
+p1 / p2
+```
+]
+
+???
+- in this example, if you do more physio than you usually do, then your test time goes down, 
+- if you do, on average, more physio than other people, then your test time tends to be lower. 
+
+---
+# Summary
+
+- Applying the same linear transformation to a predictor (e.g. grand-mean centering, or standardising) makes __no difference__ to our model or significance tests
+  - but it may change the meaning and/or interpretation of our parameters
+
+- When data are clustered, we can apply group-level transformations, e.g. __group-mean centering.__ 
+
+- Group-mean centering our predictors allows us to disaggregate __within__ from __between__ effects.  
+  - allowing us to ask the theoretical questions that we are actually interested in
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+

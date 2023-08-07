@@ -1,0 +1,607 @@
+---
+title: "<b>GLMM</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    self-contained: true
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+params: 
+    show_extra: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+
+xaringanExtra::use_share_again()
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+knitr::opts_chunk$set(
+  dev = "svg",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  fig.asp = .8
+)
+
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+
+theme_set(
+    theme_minimal() + 
+    theme(text = element_text(size=20))
+)
+
+source("jk_source/jk_presfuncs.R")
+
+library(xaringanthemer)
+
+style_mono_accent(
+  base_color = "#88B04B", # DAPR3 
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+
+???
+we're now going to talk about the generalised multilevel model.  
+up til now, all of the outcome variables that we have been studying have been continuous.  
+the generalised model allows us to also study outcomes that follow different distributions. 
+we're going to look specifically about the logistic model as a means of studying binary outcomes - that is, outcomes that are comprised of two distinct categories. 
+
+
+
+---
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+\begin{align}
+& \color{red}{y} = \color{blue}{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)} + \mathbf{\boldsymbol{\varepsilon}}\\
+\end{align}
+$$ 
+]
+
+???
+let's first just think back to our single level linear model.
+in this model is the outcome variable, y, is modelled as the weighted linear combination of our predictor variables, plus some random error
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+\begin{align}
+& \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+\end{align}
+$$ 
+]
+???
+we can write this list of explanatory variables and betas as X the matrix of predictors, and beta, the vector of coefficients. 
+
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+\begin{align}
+& \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+& \text{where } -\infty \leq \color{red}{y} \leq \infty \\
+\end{align}
+$$ 
+
+]
+
+???
+now in this model, the outcome variable itself, y, is modelled directly as X beta plus the error term. 
+and because x beta is simply defining a straight line (or, when we have lots more predictors, we extend this idea to more dimensions, but the logic is the same - the straight line model is a model of y. and straight lines just extend infinitely, so y, in these models, can be any value
+
+--
+
+.pull-right[
+### &nbsp;
+
+$$
+\begin{align}
+\color{red}{??} = & \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+\end{align}
+$$ 
+]
+???
+but we don't have to use this model to model the outcome variable DIRECTLY. 
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+\begin{align}
+& \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+& \text{where } -\infty \leq \color{red}{y} \leq \infty \\
+\end{align}
+$$ 
+
+]
+
+.pull-right[
+### glm()
+
+$$
+\begin{align}
+\color{red}{ln \left( \frac{p}{1-p} \right) } & = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+& \text{where } 0 \leq p \leq 1 \\
+\end{align}
+$$ 
+]
+???
+when faced with an outcome variable that is binary, either 0 or 1, like "correct" or "incorrect", fitting a straight line to these values would mean we end up with predicted values outside the possible range of probability (e.g. below 0 or greater than 1).  
+what we can do, however, is model something such as the log-odds, which are a way of translating probabilities to be unbounded from negative infinity to infinity
+
+---
+count:false
+# lm() and glm()
+
+.pull-left[
+### lm()  
+$$
+\begin{align}
+& \color{red}{y} = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+& \text{where } -\infty \leq \color{red}{y} \leq \infty \\
+\end{align}
+$$ 
+
+]
+
+.pull-right[
+### glm()
+
+$$
+\begin{align}
+\color{red}{ln \left( \frac{p}{1-p} \right) } & = \color{blue}{\underbrace{\beta_0 + \beta_1(x_1) + ... + \beta_k(x_k)}_{\mathbf{X \boldsymbol{\beta}}}} + \boldsymbol{\varepsilon} \\
+& \text{where } 0 \leq p \leq 1 \\
+\end{align}
+$$ 
+
+glm() is the __generalised__ linear model. 
+
+we can specify the link function to model outcomes with different distributions.  
+this allows us to fit models such as the _logistic_ regression model:
+```{}
+glm(y~x, family = binomial(link="logit"))
+```
+]
+???
+so what we are doing here is not modelling the outcome directly, but modeling it by specifying some relation between the linear prediction (this bit in blue) and the observed outcome variable. and in this case we have the logit link. 
+
+---
+# logistic regression visualised
+
+.pull-left[
+### continuous outcome
+<br><br>
+```{r echo=FALSE, fig.asp=.7}
+set.seed(94)
+tibble(
+  x=rnorm(200,10,3),
+  y=2*x+rnorm(200,0,5)
+) %>% lm(y~x,data=.) -> mod
+ggplot(broom::augment(mod), aes(x=x,y=y))+
+  geom_point()
+```
+]
+.pull-right[
+### binary outcome
+<br><br>
+```{r echo=FALSE, fig.asp=.7}
+set.seed(35)
+tibble(
+  x=rnorm(200,0,3),
+  y=rbinom(200, size = 1, prob = plogis(.45*x))
+) %>% glm(y~x,data=.,family=binomial) -> mod1
+ggplot(broom::augment(mod1), aes(x=x,y=y))+
+  geom_point() +
+  #geom_smooth(method="glm",method.args=list(family=binomial),se=F, fullrange=T)+
+  #geom_smooth(method="lm",se=F)+
+  #geom_smooth(method="lm",se=F,fullrange=T)+
+  #labs(y="probability")+
+  xlim(0,12)+
+  NULL
+```
+]
+???
+let's visualise this idea then. we have a continuous outcome on the left plot and a binary outcome on the right one. 
+
+---
+count:false
+# logistic regression visualised
+
+.pull-left[
+### linear regression
+we model __y__ directly as linear combination of one or more predictor variables 
+```{r echo=FALSE, fig.asp=.7}
+ggplot(broom::augment(mod), aes(x=x,y=y))+
+  geom_point() +
+  geom_smooth(method="lm",se=F,fullrange=T)
+```
+]
+.pull-right[
+### logistic regression
+__probability__ is _not_ linear..  
+but we can model it indirectly  
+```{r echo=FALSE, fig.asp=.7}
+ggplot(broom::augment(mod1), aes(x=x,y=y))+
+  geom_point() +
+  geom_smooth(method="glm",method.args=list(family=binomial),se=F, fullrange=T)+
+  #geom_smooth(method="lm",se=F)+
+  #geom_smooth(method="lm",se=F,fullrange=T)+
+  labs(y="probablity\nP(y=1)")+
+  xlim(0,12)+
+  NULL
+```
+]
+???
+with the continuous outcome, we can model the outcome directly. 
+with the binary outcome, we can't because probability is not linear. it is bounded between 0 and 1
+
+---
+count:false
+# logistic regression visualised
+
+$ln \left( \frac{p}{1-p} \right)$  
+__log-odds__ are linear  
+
+```{r echo=FALSE,eval=FALSE}
+ggplot(broom::augment(mod1) %>% mutate(fit2 = predict(mod1,type="link"),pob =log(y/(1-y))), 
+       aes(x=x,y=fit2))+
+  geom_line() + 
+  geom_point(aes(y=pob),size=7,alpha=.3)+
+  labs(y="log-odds\n ln(p/p-1)")+
+  NULL + 
+ggplot(broom::augment(mod1) %>% mutate(fit2 = exp(predict(mod1,type="link")),pob =y/(1-y)), 
+       aes(x=x,y=fit2))+
+  geom_line() + 
+  geom_point(aes(y=pob),size=7,alpha=.3)+
+  labs(y="odds\n p/p-1")+ylim(0,70)+
+  NULL +
+ggplot(broom::augment(mod1) %>% mutate(fit2 = exp(predict(mod1,type="link"))/(1+exp(predict(mod1,type="link"))),pob =y), 
+       aes(x=x,y=fit2))+
+  geom_line() + 
+  geom_point(aes(y=pob),size=7,alpha=.3)+
+  labs(y="probability\n p")+
+  NULL
+```
+
+```{r echo=FALSE, out.height = "400px"}
+knitr::include_graphics("jk_img_sandbox/logoddp.png")
+```
+
+
+???
+so what we do is model the log-odds. the odds of an event is the probabilty of it happening, divided by the probability of it not happening. and these can range from 0 to infinity.
+when we take the natural log of these, we get something that ranges from negative to postivie infinity.  
+  
+now if we try to take our raw outcome variable as probabilities which we can translate into log-odds, we run into a little problem. 
+when we observe a binary variable, we observe whether something IS or ISN'T. we don't MEASURE the probability that someone gets a question correct. We just measure that it IS correct or incorrect. 
+now if we translate those into log-odds, we get values of negative infinity and infinity for values of 0 and 1 respectively. 
+We can try to fit a line to these, but it doesn't really make sense. what would the residuals be? residuals would also all be infinity, and so it becomes impossible to work out anything!  
+so when we fit these models, we use maximum likelihood estimation to find the slope of this line that has the greatest probability of giving rise to the data that we have. 
+now this is all covered in dapr2, so it's maybe worth going back to some of these if you are interested. 
+
+---
+# lmer() and glmer()
+
+.pull-left[
+
+```{r echo=FALSE,fig.asp=.8}
+crq <- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
+linmod <- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), crq)
+crq %>% mutate(
+  fit = predict(linmod)
+) %>% 
+  ggplot(.,aes(x=crq, y=fit))+
+  geom_point(aes(y=emot_dysreg))+
+  geom_smooth(method="lm",se=F,aes(group=schoolid))+
+  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nEmotion Dysregulation Score (EDS)")
+```
+
+] 
+.pull-right[
+
+```{r echo=FALSE,fig.asp=.8}
+logmod <- glmer(detention ~ crq + (1 + crq | schoolid), crq, family=binomial)
+crq %>% mutate(
+  fit = predict(logmod, type="response")
+) %>% 
+  ggplot(.,aes(x=crq, y=fit))+
+  geom_point(aes(y=detention))+
+  geom_smooth(method="glm", method.args=list(family=binomial),aes(group=schoolid), se=F)+
+  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nProbability of receiving detention")
+```
+
+]
+
+???
+but for now we'll return to the multilevel model.  
+we've seen already that for the linear mixed model, we can model groups of observations as varying in the intercept and slopes. 
+and not much is different for the logistic multilevel model, we can simply allow those groups to vary in intercept and slope of the log-odds. and then when we translate these back on to the probability scale, we see that the probability curve is different for each group
+
+---
+count:false
+# lmer() and glmer()
+
+.pull-left[
+```{r echo=FALSE,fig.asp=.8}
+crq <- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
+linmod <- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), crq)
+crq %>% mutate(
+  fit = predict(linmod)
+) %>% 
+  ggplot(.,aes(x=crq, y=fit))+
+  geom_point(aes(y=emot_dysreg))+
+  geom_smooth(method="lm",se=F,aes(group=schoolid))+
+  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nEmotion Dysregulation Score (EDS)")
+```
+
+] 
+.pull-right[
+
+
+```{r echo=FALSE,fig.asp=.8}
+logmod <- glmer(detention ~ crq + (1 + crq | schoolid), crq, family=binomial)
+crq %>% mutate(
+  fit = predict(logmod, type="link")
+) %>% 
+  ggplot(.,aes(x=crq, y=fit))+
+  geom_point(aes(y=log(detention/(1-detention))))+
+  geom_smooth(method="lm",aes(group=schoolid), se=F)+
+  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nLog-Odds of receiving detention")
+```
+
+]
+???
+but really this is the same idea underneath, when we see the fit on the log-odds scale
+
+---
+# fitting glmer()
+
+.pull-left[
+
+> Researchers are interested in whether the level of routine a child has in daily life influences their probability of receiving a detention at school. 200 pupils from 20 schools completed a survey containing the Child Routines Questionnaire (CRQ), and a binary variable indicating whether or not they had received detention in the past school year. 
+
+]
+.pull-right[
+```{r}
+crq <- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
+crq %>% 
+  select(schoolid, crq, detention) %>%
+  head()
+```
+]
+
+```{r}
+detentionmod <- glmer(detention ~ crq + (1 + crq | schoolid),
+      data = crq, 
+      family="binomial",
+      control = glmerControl(optimizer = "bobyqa"))
+```
+
+
+???
+and when we fit these models just like lm and glm, we have the glmer() function, where we can set the family. 
+so we might be interested in how the level of routine a child has influences probabiltiy of receiving a detentiom at school. we can fit this model with glmer(), and you can see the structure is much the same as with lmer. 
+
+family
+lmerControl >> glmerControl
+
+
+---
+# fitting glmer()
+
+.pull-left[
+```{r}
+summary(detentionmod)
+```
+]
+.pull-right[
+```{r}
+exp(fixef(detentionmod))
+```
+]
+
+???
+one thing to note is that our summary output  now has p-values based on Wald tests.  
+
+The other key thing is that these fixed effects are in terms of changes in log-odds. so just like a single level logistic regression, we can exponentiate them to get an odds ratio 
+so this is that for each unit increase on the CRQ, a child has 0.11 times the odds of receiving a detention. 
+
+---
+# interpretating coefficients
+
+
+- `lm(y ~ x + ...)`
+  - $\beta_x$ denotes the change in the average $y$ when $x$ is increased by one unit and all other covariates are fixed.
+
+- `lmer(y ~ x + ... + (1 + x + ... | cluster))`
+  - $\beta_x$ denotes the change in the average $y$ when $x$ is increased by one unit, averaged across clusters
+
+- `glmer(ybin ~ x + ... + (1 + x + ... | cluster), family=binomial)`
+  - $e^{\beta_x}$ denotes the change in the average $y$ when $x$ is increased by one unit, __holding cluster constant.__
+ 
+
+???
+there's one more nuance to the logistic multilevel model, and that is that the effects we get out are cluster-specific. 
+because the model is using a non-linear link function (the logit), when we exponentiate the fixed effect, the resulting number is interpreted as the effect "when holding the cluster constant". 
+
+so there is this distinction beteen cluster specific and population average effects, which is quite tricky.  
+our  effects are cluster specific in that our odds ratio we just saw was the ratio of odds of receiving detention when our predictor increases by 1, for a child FROM THE SAME SCHOOL.
+whereas the population average effect would be the ratio of odds relative to a child picked at random from any school
+
+---
+# why are glmer() coefficients cluster-specific?
+consider a __linear__ multilevel model: `lmer(respiratory_rate ~ treatment + (1|hospital))`
+
+Imagine two patients from different hospitals. One has a treatment, one does not. 
+  - patient $j$ from hospital $i$ is "control"   
+  - patient $j'$ from hospital $i'$ is "treatment"  
+
+The difference in estimated outcome between patient $j$ and patient $j'$ is the "the effect of having treatment" plus the distance in random deviations between hospitals $i$ and $i'$  
+
+model for patient $j$ from hospital $i$  
+$\hat{y}_{ij} = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)$
+
+model for patient $j'$ from hospital $i'$  
+$\hat{y}_{i'j'} = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)$
+
+difference:  
+$\hat{y}_{i'j'} - \hat{y}_{ij} = \beta_1 + (\zeta_{0i'} - \zeta_{0i}) = \beta_1$
+
+Because $\zeta \sim N(0,\sigma_\zeta)$, the differences between all different $\zeta_{0i'} - \zeta_{0i}$ average out to be 0. 
+
+???
+the zeta differences here will be, on average 0. 
+hist(replicate(1000, mean(map_dbl(combn(rnorm(100),2, simplify=F), diff))),breaks=20)
+
+
+---
+# why are glmer() coefficients cluster-specific?
+
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+
+Imagine two patients from different hospitals. One has a treatment, one does not. 
+  - patient $j$ from hospital $i$ is "control"   
+  - patient $j'$ from hospital $i'$ is "treatment"  
+  
+The difference in __probability of outcome__ between patient $j$ and patient $j'$ is the "the effect of having treatment" plus the distance in random deviations between hospitals $i$ and $i'$  
+
+model for patient $j$ from hospital $i$  
+$log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)$
+
+model for patient $j'$ from hospital $i'$  
+$log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)$
+
+difference (log odds):  
+$log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) - log \left( \frac{p_{ij}}{1 - p_{ij}} \right) = \beta_1 + (\zeta_{0i'} - \zeta_{0i})$
+
+---
+# why are glmer() coefficients cluster-specific?
+
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+
+Imagine two patients from different hospitals. One has a treatment, one does not. 
+  - patient $j$ from hospital $i$ is "control"   
+  - patient $j'$ from hospital $i'$ is "treatment"  
+  
+The difference in __probability of outcome__ between patient $j$ and patient $j'$ is the "the effect of having treatment" plus the distance in random deviations between hospitals $i$ and $i'$  
+
+model for patient $j$ from hospital $i$  
+$log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)$
+
+model for patient $j'$ from hospital $i'$  
+$log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)$
+
+difference (odds ratio):  
+$\frac{p_{i'j'}/(1 - p_{i'j'})}{p_{ij}/(1 - p_{ij})} = \exp(\beta_1 + (\zeta_{0i'} - \zeta_{0i}))$
+
+---
+# why are glmer() coefficients cluster-specific?
+
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`
+
+Imagine two patients from different hospitals. One has a treatment, one does not. 
+  - patient $j$ from hospital $i$ is "control"   
+  - patient $j'$ from hospital $i'$ is "treatment"  
+  
+The difference in __probability of outcome__ between patient $j$ and patient $j'$ is the "the effect of having treatment" plus the distance in random deviations between hospitals $i$ and $i'$  
+
+model for patient $j$ from hospital $i$  
+$log \left( \frac{p_{ij}}{1 - p_{ij}} \right)  = (\gamma_{00} + \zeta_{0i}) + \beta_1 (Treatment_{ij} = 0)$
+
+model for patient $j'$ from hospital $i'$  
+$log \left( \frac{p_{i'j'}}{1 - p_{i'j'}} \right) = (\gamma_{00} + \zeta_{0i'}) + \beta_1 (Treatment_{i'j'} = 1)$
+
+difference (odds ratio):  
+$\frac{p_{i'j'}/(1 - p_{i'j'})}{p_{ij}/(1 - p_{ij})} = \exp(\beta_1 + (\zeta_{0i'} - \zeta_{0i})) \neq \exp(\beta_1)$
+
+```{r eval=F,echo=F}
+#fixed effect is 1.2
+gamma00 = 1.2
+# 10 groups. random effects are:
+zetas = rnorm(10)
+# the difference between random chosen observation from group i with x = 0, 
+# and randomly chosen observation from group i' with x = 1
+# is gamma_00 + (ranef_i' - ranef_i)
+# these are all the (ranef_i' - ranef_i)'s
+map_dbl(combn(zetas, 2, simplify=F),diff)
+# so the expected value, because we assume zetas are N(0,s), is gamma00:
+hist(replicate(1e4, mean(gamma00 + map_dbl(combn(rnorm(10),2, simplify=F), diff))), breaks=20)
+# hence beta (e.g. gamma + zeta) is the effect of x "averaged across clusters"
+
+##### 
+# BUT WAIT!
+# glmm says "what about me?"
+# logistic model means gamma00 and zetas are all in log-odds. 
+# the exponent of gamma_00 + (ranef_i' - ranef_i) is not the exponent of gamma_00
+gamma00 = 1.2 # equivalent to odds ratio of 3.3
+zetas = rnorm(10) # random deviations (in log odds) around gamma 
+hist(replicate(1e4, mean(exp(gamma00 + map_dbl(combn(rnorm(10),2, simplify=F), diff)))), breaks=20)
+```
+
+---
+# why are glmer() coefficients cluster-specific?
+
+consider a __logistic__ multilevel model: `glmer(needs_op ~ treatment + (1|hospital), family="binomial")`  
+
+Hence, the interpretation of $e^{\beta_1}$ is not the odds ratio for the effect of treatment "averaged over hospitals", but rather for patients _from the same hospital_. 
+ 
+---
+# Summary
+
+- Differences between linear and logistic multi-level models are analogous to the differences between single-level linear and logistic regression models.  
+
+- Fixed effects in logistic multilevel models are "conditional upon" holding the cluster constant. 
+
+???
+okay, that's a bit of a tangent. the key thing here is the similarity between lm and glm and lmer and glmer.  
+Much like when we include interactions in a model, our effects of individual predictors are "conditional upon" the level of the other variable. 
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+

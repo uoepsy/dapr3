@@ -1,0 +1,145 @@
+---
+title: 'Analysis Walkthrough 3'
+code-fold: true
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+```{r setup, include=F}
+knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
+```
+
+:::frame
+ 
+Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way:  
+
+  - First the data and research context is introduced. For the purpose of these tutorials, we will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
+  - Second, we go through any tidying of the data that is required, before creating some brief descriptives and visualizations of the raw data.
+  - Then, we conduct an analysis. Where possible, we translate the research questions into formal equations prior to fitting the models in **lme4**. Model comparisons are conducted, along with checks of distributional assumptions on our model residuals. 
+  - Finally, we visualize and interpret our analysis.
+  
+Please note that there will be only minimal explanation of the steps undertaken here, as these pages are intended as example analyses rather than additional labs readings. Please also be aware that there are many decisions to be made throughout conducting analyses, and it may be the case that you disagree with some of the choices we make here. As always with these things, it is how we justify our choices that is important. We warmly welcome any feedback and suggestions to improve these examples: please email [ppls.psych.stats@ed.ac.uk](mailto:ppls.psych.stats@ed.ac.uk). 
+
+:::
+ 
+# Overview 
+
+:::frame
+The data used for this example are simulated to represent data from 30 participants who took part in an experiment designed to investigate whether fluency of speech influences how believable an utterance is perceived to be.  
+
+Each participant listened to the same 20 statements, with 10 being presented in fluent speech, and 10 being presented with a disfluency (an "erm, ..."). Fluency of the statements was counterbalanced such that 15 participants heard statements 1 to 10 as fluent and 11 to 20 as disfluent, and the remaining 15 participants heard statements 1 to 10 as disfluent, and 11 to 20 as fluent. The order of the statements presented to each participant was random. 
+
+The data are available at [https://uoepsy.github.io/data/erm_belief.csv](https://uoepsy.github.io/data/erm_belief.csv). 
+:::
+
+```{r}
+require(tidyverse)
+set.seed(8753)
+lists <- tibble(
+  sentence = rep(1:20,2),
+  s_int = rep(c(rnorm(18,0,1),-5,6),2),
+  s_c = rep(rnorm(20,0,1),2),
+  condition = c(rep(c("disfluent","fluent"),e=10),rep(c("fluent","disfluent"),e=10)),
+  list = rep(1:2,e=20)
+)
+pdat <- tibble(
+  ppt = paste0("ppt_",1:30),
+  ppt_int = rnorm(30,0,1),
+  ppt_c = rnorm(30,0,1),
+  list = rep(1:2,15)
+)
+outdat <- left_join(pdat, lists) %>%
+  mutate(
+    belief = 50 + ppt_int + s_int + 
+      (-2 + ppt_c + s_c) * (condition=="disfluent") +
+      rnorm(n(),0,5)
+  ) %>%
+  select(ppt,sentence,condition,belief)
+set.seed(46)
+outdat$statement = c(sample(read_csv("data/statements.csv")$statement,19), "The square root of 16 is 4")[outdat$sentence]
+
+outdat <- outdat %>% group_by(ppt)%>%
+  mutate(trial_n = paste0("trial_",sample(formatC(1:20,flag="0",width=2)))) %>%
+  relocate(trial_n, .after=ppt) %>%
+  arrange(ppt, trial_n)
+
+#write_csv(outdat, "../../data/erm_belief.csv")
+
+# m=lme4::lmer(belief~condition+(1+condition|ppt)+(1+condition|statement),outdat)
+# lme4::dotplot.ranef.mer(lme4::ranef(m))
+# outdat |> mutate(
+#   statement_id = paste0("item_",sentence)
+# ) |> select(ppt,statement_id,condition,belief,statement) |>
+#   write_csv("../../data/erm_belief.csv")
+```
+
+
+
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### How we simulated the data
+
+```{r}
+set.seed(983)
+library(tidyverse)
+simMIX <- tibble(
+  ppt = factor(rep(paste("ID", 1:50, sep=""),each=3)),
+  ppt_int = rep(rnorm(50,0,15), each=3), 
+  stress = round(
+    c(rnorm(75,c(60,55,52),sd=c(5, 6, 5)),
+      rnorm(75,c(65,40,30),sd=c(6, 10, 5))) + ppt_int,
+    0),
+  time = as_factor(rep(c("Pre", "During", "Post"), 50)),
+  group = as_factor(c(rep("Control", 75), rep("Treatment", 75)))
+) %>% select(-ppt_int)
+```
+
+:::
+
+
+# Data Wrangling
+
+
+
+
+# Descriptives
+
+
+# Visualizations
+
+
+
+
+# Analysis
+
+## Equations
+
+
+$$
+\begin{aligned}
+&\text{for timepoint }j \text{ from participant } i \\
+  \operatorname{stress}_{i[j]}  &= \beta_{0i} + \beta_{1i}(\operatorname{timeDuring}_j) + \beta_{2i}(\operatorname{timePost}_j) + \varepsilon_{i[j]} \\
+  \beta_{0i} &= \gamma_{00} + \gamma_{01}(\operatorname{groupTreatment}_i) + \zeta_{0i} \\
+  \beta_{1i} &= \gamma_{10} + \gamma_{11}(\operatorname{groupTreatment}_i) \\
+  \beta_{2i} &= \gamma_{20} + \gamma_{21}(\operatorname{groupTreatment}_i) \\
+\end{aligned}
+$$
+
+## Fitting the models
+
+
+
+## Check Model
+
+
+# Visualise Model
+
+
+# Interpret model
+
+
+
+

@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>The Multilevel Model</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Josiah King" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <b>The Multilevel Model</b>
+]
+.subtitle[
+## Data Analysis for Psychology in R 3
+]
+.author[
+### Josiah King
+]
+.institute[
+### Department of Psychology<br/>The University of Edinburgh
+]
+
+---
+
+
+
+
+class: inverse, center, middle
+
+&lt;h1 style="text-align: left;"&gt;This Lecture:&lt;/h1&gt;
+&lt;h3 style="text-align: left;"&gt;1. Multilevel model structure&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:1"&gt;2. From `lm` to `lmer`&lt;/h3&gt;
+&lt;h3 style="text-align: left;"&gt;3. Model estimation&lt;/h3&gt;
+&lt;h3 style="text-align: left;"&gt;4. Examples and useful packages&lt;/h3&gt;
+
+???
+
+- last week = little taster. 
+- often, starting with LM is a good place, so that's what we'll do
+
+---
+class: inverse, center, middle
+
+&lt;h1 style="text-align: left;"&gt;This Lecture:&lt;/h1&gt;
+&lt;h3 style="text-align: left;"&gt;1. Multilevel model structure&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;2. From `lm` to `lmer`&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;3. Model estimation&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;4. Examples and useful packages&lt;/h3&gt;
+
+---
+# Terminology
+
+
+
+&lt;div class="figure" style="text-align: center"&gt;
+&lt;img src="jk_img_sandbox/mlmname.png" alt="(size weighted by hits on google scholar)" width="827" /&gt;
+&lt;p class="caption"&gt;(size weighted by hits on google scholar)&lt;/p&gt;
+&lt;/div&gt;
+
+???
+- lots of different names
+- lots of different terminology
+- [DESCRIBE PLOT]
+
+---
+# Notation 
+&lt;!-- $$ --&gt;
+&lt;!-- \begin{align} --&gt;
+&lt;!-- &amp; \text{for observation }i \\ --&gt;
+&lt;!-- \quad \\ --&gt;
+&lt;!-- &amp; \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ --&gt;
+&lt;!-- \end{align} --&gt;
+&lt;!-- $$ --&gt;
+**Simple regression**  
+.pull-left[
+`\(\begin{align} &amp; \text{for observation }i \\ \quad \\ \quad \\ &amp; \color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i \\ \end{align}\)`
+]
+
+???
+- DAPR2 = almost entire focus on this [EQUATION]
+- [COLOURS] = observations equals model plus error
+- indexing is just at one level: observation i
+- EG: test score ~ revision hours
+  - we have score of person i 
+  - intercept and slope x hours i
+  - residual for that person i
+
+---
+# Notation 
+
+&lt;!-- $$ --&gt;
+&lt;!-- \begin{align} --&gt;
+&lt;!-- &amp; \text{for observation }j\text{ in group }i \\ --&gt;
+&lt;!-- \quad \\ --&gt;
+&lt;!-- &amp; \text{Level 1:} \\ --&gt;
+&lt;!-- &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ --&gt;
+&lt;!-- &amp; \text{Level 2:} \\ --&gt;
+&lt;!-- &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ --&gt;
+&lt;!-- &amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ --&gt;
+&lt;!-- \quad \\ --&gt;
+&lt;!-- &amp; \text{Where:} \\ --&gt;
+&lt;!-- &amp; \gamma_{00}\text{ is the population intercept, and }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ --&gt;
+&lt;!-- &amp; \gamma_{10}\text{ is the population slope, and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ --&gt;
+&lt;!-- $$ --&gt;
+**Multi-level**  
+.pull-left[
+`\(\begin{align} &amp; \text{for observation }j\text{ in group }i \\ \quad \\ &amp; \text{Level 1:} \\ &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ &amp; \text{Level 2:} \\ &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ &amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}\)`
+]
+
+???
+- MLM = models that fit a structure with &gt;1 level of observation
+- canonical example = child j from class i
+- NOTE i and j in some textbooks are switched 
+- the MLM has a level 1 equation
+  - school/child, this is for each child j [EQUATION]   
+  - betas are now indexed to the school i from which that child j comes
+
+- [OVERSIMPLIFIED] - its like lots of regression models for each group, smushed into one model
+
+
+
+--
+
+.pull-right[
+`\(\begin{align} &amp; \text{Where:} \\ &amp; \gamma_{00}\text{ is the population intercept}\\ &amp; \text{and  }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ \qquad \\ &amp; \gamma_{10}\text{ is the population slope,}\\ &amp; \text{and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ \end{align}\)`
+]
+
+???
+- to define each beta, we need another equation
+- equations for betas are at level 2
+  - level 2 = higher than level 1
+  - school/child: this is a school-level equation specifying school level deviations
+- for each school i, some deviation for that group, zeta_i from an overall average
+
+---
+count: false
+# Notation 
+
+**Multi-level**  
+.pull-left[
+`\(\begin{align} &amp; \text{for observation }j\text{ in group }i \\ \quad \\ &amp; \text{Level 1:} \\ &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ &amp; \text{Level 2:} \\ &amp; \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ &amp; \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ \quad \\ \end{align}\)`
+]
+.pull-right[
+`\(\begin{align} &amp; \text{Where:} \\ &amp; \gamma_{00}\text{ is the population intercept}\\ &amp; \text{and  }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\ \qquad \\ &amp; \gamma_{10}\text{ is the population slope,}\\ &amp; \text{and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\ \end{align}\)`
+]
+
+
+We are now assuming `\(\color{orange}{\zeta_0}\)`, `\(\color{orange}{\zeta_1}\)`, and `\(\varepsilon\)` to be normally distributed with a mean of 0, and we denote their variances as `\(\sigma_{\color{orange}{\zeta_0}}^2\)`, `\(\sigma_{\color{orange}{\zeta_1}}^2\)`, `\(\sigma_\varepsilon^2\)` respectively.   
+
+The `\(\color{orange}{\zeta}\)` components also get termed the "random effects" part of the model, Hence names like "random effects model", etc.
+
+???
+- clever MLM = model group deviations as a distribution
+- NOTE: a bit like the errors epsilon are deviations around a line, zetas are random deviations around some estimate
+- what model is actually _estimating_ is __not__ the zetas, but _variances_ (sd) of the zetas
+
+- hence "random effects" - we are supposing the school differences are because we have randomly sampled a set of schools
+- different schools = different set of deviations
+- randomly drawn from a population of schools
+
+- NOTE we can choose what to be random effect
+  - e.g. random intercept
+
+
+---
+# Notation 
+
+**Mixed-effects == Multi Level**
+
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
+
+`\(\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{\beta_{0i}}} \cdot 1 + \underbrace{(\gamma_{10} + \color{orange}{\zeta_{1i}})}_{\color{blue}{\beta_{1i}}} \cdot x_{ij}  +  \varepsilon_{ij} \\\)`
+
+.footnote[
+**other notation to be aware of**  
+
+- Many people use the symbol `\(u\)` in place of `\(\zeta\)`  
+
+- Sometimes people use `\(\beta_{00}\)` instead of `\(\gamma_{00}\)`  
+
+- In various resources, you are likely to see `\(\alpha\)` used to denote the intercept instead of `\(\beta_0\)`  
+
+]
+
+???
+- MLM collapses into one line
+- sub in level 2 eqs into level 1
+- termed "Mixed Effects" because effects = a mix of fixed values and random deviations around them. 
+
+
+
+---
+# Notation 
+
+__Matrix form (optional)__
+
+And then we also have the condensed matrix form of the model, in which the Z matrix represents the grouping structure of the data, and `\(\zeta\)` contains the estimated random deviations. 
+
+
+`\(\begin{align} \color{red}{\begin{bmatrix} y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ \end{bmatrix}} &amp; = \color{blue}{\begin{bmatrix} 1 &amp; x_{11} \\ 1 &amp; x_{12} \\ 1 &amp; x_{21} \\ 1 &amp; x_{22} \\1 &amp; x_{31} \\ 1 &amp; x_{32} \\ \end{bmatrix} \begin{bmatrix} \gamma_{00} \\ \beta_1 \\  \end{bmatrix}} &amp; + &amp; \color{orange}{ \begin{bmatrix} 1 &amp; 0 &amp; 0 \\ 1 &amp; 0 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 1 \\ 0 &amp; 0 &amp; 1 \\ \end{bmatrix} \begin{bmatrix}\zeta_{01} \\ \zeta_{02} \\ \zeta_{03} \end{bmatrix}} &amp; + &amp; \begin{bmatrix} \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32} \end{bmatrix} \\ \qquad \\ \\ \color{red}{\boldsymbol y}\;\;\;\;\; &amp; = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} &amp; + &amp; \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} &amp; + &amp; \;\;\;\varepsilon \\ \end{align}\)`
+
+&lt;!-- $$ --&gt;
+&lt;!-- \begin{align}  --&gt;
+&lt;!-- \color{red}{ --&gt;
+&lt;!-- \begin{bmatrix} --&gt;
+&lt;!-- y_{11} \\ y_{12} \\ y_{21} \\ y_{22} \\ y_{31} \\ y_{32} \\ --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- } &amp; =  --&gt;
+&lt;!-- \color{blue}{ --&gt;
+&lt;!-- \begin{bmatrix} --&gt;
+&lt;!-- 1 &amp; x_{11} \\ --&gt;
+&lt;!-- 1 &amp; x_{12} \\ --&gt;
+&lt;!-- 1 &amp; x_{21} \\ --&gt;
+&lt;!-- 1 &amp; x_{22} \\ --&gt;
+&lt;!-- 1 &amp; x_{31} \\ --&gt;
+&lt;!-- 1 &amp; x_{32} \\ --&gt;
+&lt;!-- \end{bmatrix}  --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- \gamma_{00} \\ \beta_1 \\   --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- }  --&gt;
+&lt;!-- &amp; --&gt;
+&lt;!-- + &amp; --&gt;
+&lt;!-- \color{orange}{ --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- 1 &amp; 0 &amp; 0 \\  --&gt;
+&lt;!-- 1 &amp; 0 &amp; 0 \\ --&gt;
+&lt;!-- 0 &amp; 1 &amp; 0 \\ --&gt;
+&lt;!-- 0 &amp; 1 &amp; 0 \\ --&gt;
+&lt;!-- 0 &amp; 0 &amp; 1 \\ --&gt;
+&lt;!-- 0 &amp; 0 &amp; 1 \\ --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- \zeta_{01} \\ \zeta_{02} \\ \zeta_{03}  --&gt;
+&lt;!-- \end{bmatrix} --&gt;
+&lt;!-- } --&gt;
+&lt;!-- &amp; + &amp; --&gt;
+&lt;!-- \begin{bmatrix}  --&gt;
+&lt;!-- \varepsilon_{11} \\ \varepsilon_{12} \\ \varepsilon_{21} \\ \varepsilon_{22} \\ \varepsilon_{31} \\ \varepsilon_{32}  --&gt;
+&lt;!-- \end{bmatrix} \\  --&gt;
+&lt;!-- \qquad \\  --&gt;
+&lt;!-- \\ --&gt;
+&lt;!-- \color{red}{\boldsymbol y}\;\;\;\;\; &amp; = \qquad \mathbf{\color{blue}{X \qquad \;\;\boldsymbol \beta}} &amp; + &amp; \qquad \; \mathbf{\color{orange}{Z \qquad \;\;\;\;\; \boldsymbol \zeta}} &amp; + &amp; \;\;\;\varepsilon \\  --&gt;
+&lt;!-- \end{align} --&gt;
+&lt;!-- $$ --&gt;
+
+???
+- [OPTIONAL] 
+- can also express this as matrix of data and coefficients
+- same as we did in prev lecture for simple regression
+
+- y = vector length n
+- x = n by p matrix
+- beta = vector p coefficients
+- z = n by g matrix of grouping structure
+- zeta = a matrix of random effects zeta, 
+
+
+---
+# Fixed vs Random
+
+.pull-left[
+`\(\begin{align}&amp; \text{Level 1:} \\ &amp; \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{1ij} + \beta_2 \cdot x_{2ij}} + \varepsilon_{ij} \\ &amp; \text{Level 2:} \\ &amp; \color{blue}{\beta_{0i}} = \underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}} \\ &amp; \color{blue}{\beta_{1i}} = \underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}} \\ \quad \\ \end{align}\)`
+]
+.pull-right[
+`\(\color{red}{y_{ij}} = (\underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}}) \cdot 1 + (\underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}}) \cdot x_{1ij} + \underbrace{\beta_2}_{\textrm{fixed}} \cdot x_{2ij} +  \varepsilon_{ij} \\\)`
+]
+
+`\(\color{orange}{\zeta_i}\)` is "random" because considered a random sample from larger population such that `\(\color{orange}{\zeta_i} \sim N(0, \sigma^2_{\color{orange}{\zeta_i}})\)`. 
+
+???
+- both MLM or "mixed effects", we model our "effects" (i.e., the estimated influence that variables exert over our outcome) as randomly varying across our observed groups. 
+- our effects can either be:
+  - a fixed constant for all our groups
+  - a fixed estimate around which our groups randomly vary.   
+
+- [EQUATION] effect of beta2 is just a single constant
+- effect of beta0 and beta1 are fixed values around which we have groups deviating
+
+---
+# Fixed vs Random
+
+I have groups in my data, should I:  
+
+a. include group as a fixed effect predictor `\(\color{blue}{\beta \cdot Group}\)`  
+b. consider the groups to be 'clusters' and include group-level random effects `\(\color{orange}{\zeta_{i}}\)`
+
+| Criterion: | Repetition: &lt;br&gt; _If the experiment were repeated:_ | Desired inference: &lt;br&gt; _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed effects  | &lt;center&gt;Same levels would be used&lt;/center&gt;     |    &lt;center&gt;The levels used &lt;/center&gt;                                   |
+| Random effects | &lt;center&gt;Different levels would be used&lt;/center&gt;   | &lt;center&gt;A population from which the levels used&lt;br&gt; are just a (random) sample&lt;/center&gt; |
+
+Practical points:  
+- Sometimes there isn't enough variability between groups to model random effects. 
+  - `\(\sigma^2_{\color{orange}{\zeta}}\)` gets estimated as (too close to) zero.
+- Sometimes you might not have sufficient data (e.g. only have 6 'clusters'). 
+  - estimate of `\(\sigma^2_{\color{orange}{\zeta}}\)` needs sufficient `\(n\)`  
+
+???
+- random parts = those we consider to be random sample from larger population
+- school/child example - schools themselves are a sample of schools
+- instead of schools, we had whether the child was public vs private school
+  - only 2 groups, and chance is that these are of specific inferential interest
+- you can think of it as "if someone were to replicate this experiment, would they use the same levels of this variable?". 
+
+
+- important: not everything that can be modelled as a random effect SHOULD be modelled as such.  
+- for example, recall these models estimate the variance in group deviations around fixed estimates. 
+  - with 3 groups, we have 3 deviations. but that's only 3 datapoints to base an estimate of variance on  
+
+
+---
+# Advantages of MLM
+
+Multi-level models can be used to answer multi-level questions!  
+&lt;br&gt;&lt;br&gt;
+Do phenomena at Level X predict __outcomes__ at Level Y?  
+
+__example:__  
+`\(n\)` participants, each completes reaction time task 10 times.  
+Q: Does handedness (L vs R) predict variation in reaction times?  
+
+$$
+`\begin{align}
+\textrm{for person }i\textrm{, observation }j \\
+\textrm{reaction time}_{ij} &amp;= \beta_{0i} + \varepsilon_{ij} \\
+\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{handedness}_i
+\end{align}`
+$$
+&lt;br&gt;
+Single equation:  
+$$
+`\begin{equation}
+\textrm{reaction time}_{ij} = (\gamma_{00} + \zeta_{0i}) + \gamma_{01}\textrm{handedness}_i + \varepsilon_{ij}
+\end{equation}`
+$$
+
+???
+- other than being one method of accounting for clustering in data, why fit MLM?
+- MLM allows us to ask some interesting multilevel questions
+- e.g. does some predictor at one level influences outcomes at another level.
+- [EXAMPLE] we have measured childrens' performance on a test over time, so multiple observations per child. we fit a model where children's intercept varies, and we ask whether this is predicted by their nr of siblings 
+- note that really this is identical to a beta. it's a fixed constant, it just applies to something measured at level 2
+
+
+
+---
+# Advantages of MLM
+
+Multi-level models can be used to answer multi-level questions!  
+&lt;br&gt;&lt;br&gt;
+Do phenomena at Level X influence __effects__ at Level Y?  
+
+__example:__  
+Q: Does being mono/bi-lingual influence childrens' grades over the duration of their schooling?  
+
+$$
+`\begin{align}
+\textrm{for child }i\textrm{, in year }j \\
+\textrm{grade}_{ij} &amp;= \beta_{0} + \beta_{1i}\textrm{school year}_j + \varepsilon_{ij} \\  
+\beta_{1i} &amp;= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i
+\end{align}`
+$$
+
+&lt;br&gt;
+Single equation:   
+$$
+`\begin{equation}
+\textrm{grade}_{ij} = \beta_{0} + (\gamma_{10} + \zeta_{1i})\cdot\textrm{year}_j + \gamma_{11}\textrm{bilingual}_i\cdot\textrm{school year}_j + \varepsilon_{ij}
+\end{equation}`
+$$
+
+???
+- or if a variable at some level moderates the effect of a variable at a different level
+- [EXAMPLE] 
+we have measured childrens' performance on a test over time, so we have multiple observations for each child. we can ask whether the slope of time (and there's a slope for each child) differs depending on whether the child is bilingual
+- and this is really just an interaction, but one effect is at child level, and the other is at observation level
+
+
+---
+# Advantages of MLM
+
+Multi-level models can be used to answer multi-level questions!  
+&lt;br&gt;&lt;br&gt;
+Do random variances covary?  
+
+__example:__  
+Q: Do people who have higher cognitive scores at start of study show less decline over the study period than those who have lower scores?  
+
+$$
+`\begin{align}
+\textrm{for person }i\textrm{, at time }j \\
+\textrm{cognition}_{ij} &amp;= \beta_{0i} + \beta_{1i}\textrm{time}_j + \varepsilon_{ij} \\
+\beta_{0i} &amp;= \gamma_{00} + \zeta_{0i}\\
+\beta_{1i} &amp;= \gamma_{10} + \zeta_{1i}\\
+\end{align}`
+$$
+$$
+`\begin{equation}
+\begin{bmatrix} \zeta_{0i} \\ \zeta_{1i} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \sigma_0^2 &amp; \rho \sigma_0 \sigma_1 \\
+        \rho \sigma_0 \sigma_1 &amp; \sigma_1^2
+    \end{bmatrix}
+\right)
+\end{equation}`
+$$
+
+
+
+???
+- can also get more complicated
+- in estimating variances of random effects, the model can also estimate covariances
+- [EQUATION]
+- allows us to ask about how cluster level deviations in one aspect correlate with cluster level deviations at others
+- [EXAMPLE] we have measured childrens' performance on a test over time, and each child has their own intercept and their own slope. we might be interested in whether children who start higher increase more (have steeper slopes)
+
+---
+class: inverse, center, middle
+
+&lt;h1 style="text-align: left;"&gt;This Lecture:&lt;/h1&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;1. Multilevel model structure&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:1"&gt;2. From `lm` to `lmer`&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;3. Model estimation&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;4. Examples and useful packages&lt;/h3&gt;
+
+---
+# The lme4 package
+
+- **lme4** package (many others are available, but **lme4** is most popular).  
+
+- `lmer()` function.  
+
+- syntax is similar to `lm()`, in that we specify:   
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
+    
+- in `lmer()`, we add to this the random effect structure in parentheses:  
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__),  
+    data = __*[name of dataframe]*__, REML = __*[TRUE/FALSE]*__
+    
+    
+
+```r
+lmer(score ~ 1 + year + (1 + year | school), data = ...
+```
+
+
+???
+- okay, lots of equations, let's take a spin a the visual side of this
+- before we go any furtehr, let's look at fitting these models in R
+- it's straightforward
+- lme4 package
+- same notation
+- _BUT_ - we specify the things we want to vary, and what we want to vary them by
+
+
+
+---
+# eg1 (Longitudinal): Data
+
+.pull-left[
+
+&gt; In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
+
+Each participant has 10 datapoints. Participants are clusters.  
+
+
+]
+.pull-right[
+
+```r
+d3 &lt;- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+head(d3)
+```
+
+```
+## # A tibble: 6 × 7
+##   sitename ppt   condition visit   age   ACE imp  
+##   &lt;chr&gt;    &lt;chr&gt; &lt;chr&gt;     &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;
+## 1 Sncbk    PPT_1 control       5    68  82.3 imp  
+## 2 Sncbk    PPT_1 control       9    76  81.5 imp  
+## 3 Sncbk    PPT_1 control       6    70  83.3 imp  
+## 4 Sncbk    PPT_1 control       2    62  85.6 imp  
+## 5 Sncbk    PPT_1 control      10    78  80.4 imp  
+## 6 Sncbk    PPT_1 control       4    66  83.1 imp
+```
+]
+
+???
+Same data we saw last week. 
+- 200 datapoints, from 20 participants. 
+- we're looking at how cognition changes over time
+
+
+
+---
+count: false
+# eg1: Data
+
+.pull-left[
+
+&gt; In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
+
+
+```r
+library(ICC)
+ICCbare(x=ppt, y=ACE, data=d3)
+```
+
+```
+## [1] 0.4799
+```
+
+__Reminder:__ the Intraclass Correlation Coefficient is ratio of variance between clusters to the total variance (variance within + variance between).
+
+
+
+```r
+pptplots &lt;- 
+  ggplot(d3, aes(x = visit, y = ACE, 
+                  col = ppt)) +
+  geom_point()+
+  facet_wrap(~ppt) + 
+  guides(col = "none") +
+  labs(x = "visit", y = "cognition")
+```
+]
+.pull-right[
+
+
+```r
+pptplots
+```
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-7-1.svg)&lt;!-- --&gt;
+
+]
+
+???
+- ICC is telling us that 48% variance in cognitive scores can be attributed to the variation between participants
+- and let's just remind ourselves of the facetted plots - one plot for each person. each dot is an observed score on a test.
+
+---
+exclude: true
+# eg1: ICC
+
+.pull-left[
+
+```r
+library(ggridges)
+ggplot(d3, aes(x = ACE, y = ppt, 
+                fill = ppt)) +
+  geom_density_ridges(jittered_points = TRUE, 
+                      position = "raincloud", alpha = .4,
+                      quantile_lines=TRUE,
+                      quantile_fun=function(x,...) mean(x)) +
+  guides(fill=FALSE)
+```
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-8-1.svg)&lt;!-- --&gt;
+]
+.pull-right[
+
+```r
+library(ICC)
+ICCbare(x=ppt, y=ACE, data=d3)
+```
+
+```
+## [1] 0.4799
+```
+
+__Reminder:__ the Intraclass Correlation Coefficient is ratio of variance between clusters to the total variance (variance within + variance between).
+
+]
+
+???
+And we can see the clustering of our outcome variable, the emotion dysregulation scale, by different schools. These are just the distributions of children from each schools' scores, and we have an icc of .48, so we can say that roughly 24% of the variance in our outcome is explained by the clustering of schools. 
+
+---
+# eg1: Fitting lm
+
+.pull-left[
+
+```r
+lm_mod &lt;- lm(ACE ~ 1 + visit, data = d3)
+summary(lm_mod)
+```
+
+```
+## 
+## Call:
+## lm(formula = ACE ~ 1 + visit, data = d3)
+## 
+## Residuals:
+##    Min     1Q Median     3Q    Max 
+## -4.868 -1.054 -0.183  1.146  6.632 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+*## (Intercept)  85.6259     0.3022   283.3  &lt; 2e-16 ***
+*## visit        -0.3857     0.0488    -7.9  2.9e-13 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.88 on 175 degrees of freedom
+## Multiple R-squared:  0.263,	Adjusted R-squared:  0.259 
+## F-statistic: 62.5 on 1 and 175 DF,  p-value: 2.9e-13
+```
+
+]
+
+???
+- start with the complete pooling again
+- fit a simple linear model
+- remember this "1" is just saying that we want the model to estimate an intercept
+
+--
+
+.pull-right[
+
+```r
+pptplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
+```
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-11-1.svg)&lt;!-- --&gt;
+
+]
+
+???
+- and now, let's add the model fitted values of the model to the plot 
+- while we have a plot for each school, the line is the same in all these. 
+
+---
+# eg1: Adding a random intercept
+
+.pull-left[
+vary the intercept by participant.
+
+```r
+library(lme4)
+ri_mod &lt;- lmer(ACE ~ 1 + visit + 
+                 (1 | ppt), data = d3)
+summary(ri_mod)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: ACE ~ 1 + visit + (1 | ppt)
+##    Data: d3
+## 
+## REML criterion at convergence: 595.4
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.8830 -0.5445 -0.0232  0.6491  3.0494 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+*##  ppt      (Intercept) 2.25     1.5     
+##  Residual             1.21     1.1     
+## Number of obs: 177, groups:  ppt, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+*## (Intercept)  85.6497     0.3800   225.4
+## visit        -0.3794     0.0287   -13.2
+## 
+## Correlation of Fixed Effects:
+##       (Intr)
+## visit -0.411
+```
+
+]
+
+???
+- okay, let's switch to the random intercept model.  
+- the "1" is that intercept, and we are saying "vary it by schools"
+  - or "each school has can have a different intercept"
+
+--
+
+.pull-right[
+
+```r
+pptplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
+```
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-13-1.svg)&lt;!-- --&gt;
+] 
+
+???
+- as you might expect. 
+- and as you might expect, allowing intercept to vary between schools, mean height of line is different. 
+- [BLUE LINE] = simple lm
+- [RED LINE] = random intercept
+- height is different, because different intercept, but slope is same
+
+---
+# eg1: Adding a random slope
+
+.pull-left[
+vary the intercept and the slope (`ACE ~ visit`) by participants
+
+```r
+rs_mod &lt;- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), data = d3)
+summary(rs_mod)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: ACE ~ 1 + visit + (1 + visit | ppt)
+##    Data: d3
+## 
+## REML criterion at convergence: 365.2
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.3120 -0.6818 -0.0526  0.7016  2.4022 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+*##  ppt      (Intercept) 0.157    0.396         
+*##           visit       0.104    0.322    -0.59
+##  Residual             0.244    0.494         
+## Number of obs: 177, groups:  ppt, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+*## (Intercept)  85.5843     0.1201  712.67
+*## visit        -0.3588     0.0733   -4.89
+## 
+## Correlation of Fixed Effects:
+##       (Intr)
+## visit -0.534
+```
+
+]
+
+???
+- in the next model here, let's _also_ allow the slope of crq to vary by schools
+- so the association between the outcome EDS, and the predictor CRQ, can now be different for each school
+- in our plots, that's the slope. so the slope will be different for each school
+- The slope randomly varies between schools, around some fixed center. 
+
+
+--
+
+.pull-right[
+
+```r
+pptplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1) + 
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1) + 
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=1)
+```
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-15-1.svg)&lt;!-- --&gt;
+]
+
+???
+- [ORANGE] = random slope
+
+---
+# eg1: Partial Pooling vs No Pooling
+
+.pull-left[
+Why not fit a fixed effect adjustment to the slope of x for each group?  
+`lm(y ~ x * group)`?
+
+
+```r
+fe_mod &lt;- lm(ACE ~ visit * ppt, data = d3)
+```
+]
+
+.pull-right[
+
+```r
+pptplots + 
+  geom_line(aes(y=fitted(fe_mod)), col = "black", lwd=1)
+```
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-17-1.svg)&lt;!-- --&gt;
+]
+
+???
+- i want to contrast no-pooling (fixed effect of each cluster), in order to show why it is "partial"
+
+
+---
+# eg1: Partial Pooling vs No Pooling
+
+.pull-left[
+- We talked last week about how this results in a lot of output. With 20 clusters, we get: intercept at reference cluster, adjustment for every other cluster, the effect of x at reference cluster, adjustment to effect of x for every other cluster. 
+    
+    ```r
+    length(coef(fe_mod))
+    ```
+    
+    ```
+    ## [1] 40
+    ```
+- information is not combined in anyway (data from cluster `\(i\)` contributes to differences from reference cluster to cluster `\(i\)`, but nothing else. Information in cluster 1 to 19 doesn't influence what the model thinks about cluster-20).  
+
+]
+
+???
+- Coefficients from the no-pooling are the adjustments for intercept and slope for each school 
+
+
+--
+
+.pull-right[
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-19-1.svg)&lt;!-- --&gt;
+]
+
+???
+- in the multilevel modelling approach, each school gets its own intercept and slope, but these 'borrow strength' from the others.   
+- The borrowing of strength is more apparent for the (what would be) more extreme clusters, as well as those that have fewer datapoints. What happens to these cluster estimates is that they are shrunk towards the population average. 
+- [PLOT]
+
+---
+# eg1: ICC from lmer
+
+.pull-left[
+Fit an intercept-only model:  
+
+```r
+null_mod &lt;- lmer(ACE ~ 1 + (1 | ppt), data = d3) 
+summary(null_mod)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: ACE ~ 1 + (1 | ppt)
+##    Data: d3
+## 
+## REML criterion at convergence: 708.9
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.8421 -0.5566 -0.0103  0.5847  2.6783 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev.
+*##  ppt      (Intercept) 2.22     1.49    
+*##  Residual             2.54     1.59    
+## Number of obs: 177, groups:  ppt, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   83.574      0.356     235
+```
+]
+.pull-right[
+
+```r
+2.22 / (2.22 + 2.54)
+```
+
+```
+## [1] 0.4664
+```
+
+Note: ICC is conditional on random intercepts only (inclusion of random slopes will affect your random intercept).  
+
+]
+
+???
+- recall that ICC is the proportion of variance between groups to the total variance.  
+- we can get this from our lmer output!  
+we're back to our childhood emotional dysregulation data here, and we can see that we have an estimated variance between schools, and the residual variance. between those, we can calculate the ratio of this to the total.  
+
+
+Once we introduce random slopes/coefficients, things get more complicated. the ICC will be a function of the variable(s) for which random slopes are specified. 
+
+---
+# eg1: Explained Variance 
+
+.pull-left[
+__ `\(R^2\)` __  
+
+- Recall `\(R^2\)` is proportion of variance explained
+
+- In MLM, multiple variance components (not just `\(\varepsilon\)`). Do random effects "explain" variance?  
+    - "marginal `\(R^2\)`" = variance explained due to fixed effects
+    - "conditional `\(R^2\)`" = variance explained due to fixed + random
+
+
+```r
+library(performance)
+rs_mod &lt;- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), 
+               data = d3)
+r2(rs_mod)
+```
+
+```
+## # R2 for Mixed Models
+## 
+##   Conditional R2: 0.947
+##      Marginal R2: 0.233
+```
+
+
+]
+
+???
+- no R squared given by default
+- you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
+
+--
+
+.pull-right[
+__Proportional Reduction in Variance (PRV)__  
+
+- `\(PRV = \frac{\text{var}_{m0} - \text{var}_{m1}}{\text{var}_{m0}}\)`
+
+- where `\(\text{var}_{m0}\)` and `\(\text{var}_{m1}\)` are variance components from models with and without a parameter.  
+
+
+]
+
+???
+Another metric we have is the proportional reduction in variance. We can consider how the inclusion of a variable in a model reduces a variance component, for instance the residual variance. 
+
+
+
+---
+# lmer output
+
+.pull-left[
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  group    (Intercept) 1.326    1.152         
+##           x           0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+*## (Intercept)   1.7890     0.2858    6.26
+*## x            -0.6250     0.0996   -6.27
+```
+]
+.pull-right[
+&lt;img src="jk_img_sandbox/lmer2.png" width="1391" /&gt;
+]
+
+???
+let's look now towards how we interpret the output from multilevel models in the lme4 package in R. 
+
+- more output than we get from lm
+- first [FIXED EFFECTS]
+- [PLOT] we've got an intercept and a slope, that defines a line! 
+
+
+---
+count: false
+# lmer output
+
+.pull-left[
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+*##  group    (Intercept) 1.326    1.152         
+*##           x           0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.7890     0.2858    6.26
+## x            -0.6250     0.0996   -6.27
+```
+]
+.pull-right[
+&lt;img src="jk_img_sandbox/lmer2a.png" width="1391" /&gt;
+]
+
+???
+- [RANDOM]]
+- what model estimates is the variances of the random effects
+- cluster level variance of intercept, and of effect of x. 
+- random effects are N(0,.. )
+- [PLOT]
+  - blue cluster has an intercept of 2 _above_ 
+  - yellow cluster has an intercept of about 2 below
+  - same logic holds for slope
+
+
+
+---
+count: false
+# lmer output
+
+.pull-left[
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+*##  group    (Intercept) 1.326    1.152         
+*##           x           0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+*## (Intercept)   1.7890     0.2858    6.26
+*## x            -0.6250     0.0996   -6.27
+```
+]
+.pull-right[
+&lt;img src="jk_img_sandbox/lmer3.png" width="1391" /&gt;
+]
+
+???
+- The fixed and random parts together provide the cluster specific lines here.  
+- we said the blue one had a higher intercept, and it has a more negative slope, and we can see that here.  
+
+
+---
+count: false
+# lmer output
+
+.pull-left[
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  group    (Intercept) 1.326    1.152         
+##           x           0.152    0.390    -0.88
+*##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.7890     0.2858    6.26
+## x            -0.6250     0.0996   -6.27
+```
+]
+.pull-right[
+&lt;img src="jk_img_sandbox/lmer4.png" width="1391" /&gt;
+]
+
+???
+- finally, we have the estimated standard deviation of our level 1 residuals. again, these are assumed to be normally distributed with a mean of 0.  
+- and these are the deviations from our cluster specific lines to our individual observations y
+
+
+---
+# Model Parameters
+
+.pull-left[
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  group    (Intercept) 1.326    1.152         
+##           x           0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.7890     0.2858    6.26
+## x            -0.6250     0.0996   -6.27
+```
+]
+.pull-right[
+Fixed effects:  
+
+```r
+fixef(model)
+```
+
+```
+## (Intercept)           x 
+##       1.789      -0.625
+```
+
+Variance components:  
+
+```r
+VarCorr(model)
+```
+
+```
+##  Groups   Name        Std.Dev. Corr 
+##  group    (Intercept) 1.152         
+##           x           0.390    -0.88
+##  Residual             0.512
+```
+
+
+]
+
+
+---
+# Model Predictions: ranef, coef
+
+.pull-left[
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: y ~ x + (1 + x | group)
+##    Data: my_data
+## 
+## REML criterion at convergence: 334.6
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1279 -0.7009  0.0414  0.6645  2.1010 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  group    (Intercept) 1.326    1.152         
+##           x           0.152    0.390    -0.88
+##  Residual             0.262    0.512         
+## Number of obs: 170, groups:  group, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   1.7890     0.2858    6.26
+## x            -0.6250     0.0996   -6.27
+```
+]
+.pull-right[
+
+```r
+ranef(model)
+```
+
+```
+##            (Intercept)       x
+## cluster_1       0.7019 -0.3113
+## cluster_10      1.8388 -0.3828
+## cluster_11     -0.0781  0.1098
+## cluster_12     -1.7005  0.3658
+## cluster_13     -1.0825   0.355
+## ...                ...     ...
+```
+
+```r
+coef(model)
+```
+
+```
+##            (Intercept)       x
+## cluster_1        2.491 -0.9363
+## cluster_10      3.6278 -1.0078
+## cluster_11       1.711 -0.5152
+## cluster_12      0.0885 -0.2592
+## cluster_13      0.7065   -0.27
+## ...                ...     ...
+```
+
+coef = fixef + ranef
+
+]
+
+???
+- fixef, ranef and coef.  
+
+
+---
+class: inverse, center, middle
+
+&lt;h1 style="text-align: left;"&gt;This Lecture:&lt;/h1&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;1. Multilevel model structure&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;2. From `lm` to `lmer`&lt;/h3&gt;
+&lt;h3 style="text-align: left;"&gt;3. Model estimation&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;4. Examples and useful packages&lt;/h3&gt;
+
+
+---
+# Model Estimation
+
+- For standard linear models, we can calculate the parameters using a *closed form solution*.
+
+
+- Multilevel models are too complicated, we *estimate* all the parameters using an iterative procedure like Maximum Likelihood Estimation (MLE).
+
+???
+When it comes to how the parameters of our multilevel model are estimated, things can become more complicated. 
+with simple linear regression models, there is one best set of values for our betas, which is the one that minimizes the sums of squared residuals, and these can be calculated algebraicially.  
+but for multilevel models, which are considerably more complicated, we estimate the parameters using an iterative procedure like MLE
+
+---
+# Model Estimation: ML
+
+Aim: find the values for the unknown parameters that maximize the probability of obtaining the observed data.  
+How: This is done via finding values for the parameters that maximize the (log) likelihood function.
+
+&lt;img src="jk_img_sandbox/1stderiv.png" width="747" height="450px" /&gt;
+
+???
+you might remember this idea from logistic regression models at the end of DAPR2. 
+the idea here is that the process step-by-step finds values for the parameters that have the greatest likelihood, given the data we observed - i.e, those values that maxmimise the probability of observing our data. 
+
+Although we can think of max likelihood estimation in terms of a reaching the apex of a curve, this only really applies in the estimation of a single parameter
+
+---
+count:false
+# Model Estimation: (log)Likelihood
+
+- Data = multiple observations: `\(1, ..., n\)` 
+
+- From our axioms of probability, we can combine these *i.i.d* by multiplication to get the likelihood of our parameters given our entire sample
+
+- Instead of taking the **product** of the individual likelihoods, we can take the **summation** of the log-likelihoods
+    - This is considerably easier to do, and can be achieved because multiplication is addition on a log scale.
+
+---
+# Model Estimation: ML
+
+In multilevel models, our parameter space is more complex (e.g. both fixed effects and variance components).
+
+&lt;img src="jk_img_sandbox/multisurftb.png" width="524" height="450px" /&gt;
+
+???
+in complex models with many parameters, our optimisation algorithms are trying to find the high point of a hugely complex surface. 
+
+---
+# Model Estimation: Convergence
+
+
+- Sometimes a model is too complex to be supported by the data
+
+- Balancing act between simplifying our model while preserving attribution of variance to various sources  
+
+- Get used to seeing lots of errors and warnings:  
+
+&lt;br&gt;
+
+__Convergence Warnings__  
+```
+warning(s): Model failed to converge with max|grad| = 0.0021777 (tol = 0.002, component 1) (and others)
+```
+&lt;br&gt;
+__Singular Fits__   
+```
+message(s): boundary (singular) fit: see help('isSingular')
+```
+
+
+---
+# Model Estimation: ML vs REML
+
+.pull-left[
+__Maximum Likelihood__  
+
+The standard MLE procedure for multilevel models treats the fixed effects as _known_ when estimating the variance components at each iteration.  
+
+This can lead to biased estimates of variance components (esp. for small samples).
+
+]
+.pull-right[
+__Restricted Maximum Likelihood (REML)__
+
+REML is the default in `lmer()` and separates the estimation of the fixed and random parts. it estimates the variance components _first_.  
+
+This leads to less biased estimates of the variance components. Better for small samples (and will converge with ML with `\(n \rightarrow \infty\)`).  
+
+]
+
+&lt;img src="jk_img_sandbox/mlreml.png" width="549" style="display: block; margin: auto;" /&gt;
+  
+(Image from from McNeish 2017: https://doi.org/10.1080/00273171.2017.1344538 )
+
+
+
+???
+in simple regression, it is rarely variance estimates that are of interest - rather, we are often focussed on the coefficients.  
+but in multilevel models were are more often specifically interested in estimated variance of our random effects. 
+
+an adaptation called REML can be used in which estimation of the random parts is done assuming the fixed parts to be known. 
+sort of like estimating the fixed effects first and then the variance components.
+
+this can lead to less biased estimates of our random effect variances
+  
+
+
+
+
+---
+class: inverse, center, middle
+
+&lt;h1 style="text-align: left;"&gt;This Lecture:&lt;/h1&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;1. Multilevel model structure&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;2. From `lm` to `lmer`&lt;/h3&gt;
+&lt;h3 style="text-align: left;opacity:.4"&gt;3. Model estimation&lt;/h3&gt;
+&lt;h3 style="text-align: left;"&gt;4. Examples and useful packages&lt;/h3&gt;
+
+???
+Okay, let's take a look at an example
+
+---
+# eg2 (Cross-Sectional): Data
+
+.pull-left[
+
+&gt; Are children with more day-to-day routine better at regulating their emotions? 200 children from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). 
+
+- each individual datapoint is a child. children are clustered in schools. 
+
+
+```r
+crq_data &lt;- read_csv("https://uoepsy.github.io/data/crqeds.csv")
+head(crq_data)
+```
+
+```
+## # A tibble: 6 × 4
+##   schoolid   EDS   CRQ schooltype
+##   &lt;chr&gt;    &lt;dbl&gt; &lt;dbl&gt; &lt;chr&gt;     
+## 1 school1   4.12  1.92 State     
+## 2 school1   3.22  1.65 State     
+## 3 school1   4.86  3.56 State     
+## 4 school1   4.79  1.45 State     
+## 5 school1   3.58  0.81 State     
+## 6 school1   4.41  2.71 State
+```
+
+]
+.pull-right[
+
+
+
+]
+
+???
+we can plot our data as a line for each participant, and see the overall pattern. 
+
+
+---
+# eg2: Model Spec
+
+__fixed effects__  
+
+"Are children with more day-to-day routine better at regulating their emotions?"  
+`EDS ~ CRQ`
+
+
+__random effect structure__
+
+- multiple data-points (children) per school: **1 | schoolid**
+
+???
+let's think about what our random effect structure might look like. we have several observations for each participant, and we might expect scores to vary between participants. so we'll fit a random intercept. 
+
+--
+
+- explanatory variable of interest (`CRQ`) varies *within* schools: **CRQ | schoolid**
+
+???
+our independent variable, visit_n, is also likely to vary between participants. some participants will decline slower, or faster, than others. 
+
+
+--
+
+- allow by-school intercepts to correlate with by-school slopes: **1 + CRQ | schoolid**  
+(more on this in future weeks)
+
+???
+we'll also allow our random intercepts and slopes to correlate. we'll touch on this more in future weeks, but the default for lme4 is to allow random effects to covary. essentially, this means that we model a parameter to account for the extent that people's intercepts and slopes are correlated, for instance, people who start higher might decline less steeply,
+
+--
+
+__fitting the model__
+
+
+```r
+EDSmodel &lt;- lmer(EDS ~ 1 + CRQ + (1 + CRQ | schoolid), data = crq_data)
+```
+
+???
+so here's our model 
+
+---
+# eg2: Model Output
+
+.pull-left[
+__model output__
+
+
+```r
+summary(EDSmodel)
+```
+
+```
+## Linear mixed model fit by REML ['lmerMod']
+## Formula: EDS ~ 1 + CRQ + (1 + CRQ | schoolid)
+##    Data: crq_data
+## 
+## REML criterion at convergence: 288.6
+## 
+## Scaled residuals: 
+##    Min     1Q Median     3Q    Max 
+## -1.879 -0.836  0.041  0.644  2.051 
+## 
+## Random effects:
+##  Groups   Name        Variance Std.Dev. Corr 
+##  schoolid (Intercept) 0.242    0.492         
+##           CRQ         0.019    0.138    -0.80
+##  Residual             0.239    0.489         
+## Number of obs: 174, groups:  schoolid, 20
+## 
+## Fixed effects:
+##             Estimate Std. Error t value
+## (Intercept)   4.4377     0.1569   28.28
+## CRQ          -0.0517     0.0506   -1.02
+## 
+## Correlation of Fixed Effects:
+##     (Intr)
+## CRQ -0.873
+```
+]
+.pull-right[
+__visual sketch__  
+
+{{content}}
+
+]
+
+???
+and if we examine our model output, we see that at baseline, the estimated average score is 67.3, and participants tend to vary around this, with a standard deviation of 1.21. 
+for every visit, there is an estimated decline of 1.22 in our outcome, cognitive test scores.
+again, participants vary around this estimate, some have less decline, some have more. 
+
+
+--
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-46-1.svg)&lt;!-- --&gt;
+
+
+
+---
+# eg2: Plotting Effects
+#### **sjPlot::plot_model()**
+
+.pull-left[
+
+```r
+library(sjPlot)
+plot_model(EDSmodel, type="eff", show.data=TRUE)
+```
+]
+
+.pull-right[
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-48-1.svg)&lt;!-- --&gt;
+]
+
+???
+as before, we can use sjPlot to plot our model predicted values
+
+
+---
+# eg2: Plotting Effects
+#### **effects::effect()**
+
+.pull-left[
+
+```r
+library(effects)
+as.data.frame(effect("CRQ",EDSmodel))
+```
+```
+  visit_n   fit    se lower upper
+1       1 67.34 1.208 64.96 69.72
+2       3 64.90 1.452 62.04 67.77
+3       6 61.25 2.083 57.14 65.35
+4       8 58.81 2.582 53.72 63.90
+5      10 56.37 3.110 50.24 62.50
+```
+
+```r
+as.data.frame(effect("CRQ",EDSmodel)) %&gt;%
+  ggplot(.,aes(x=CRQ, y=fit))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lower,ymax=upper), alpha=.3)
+```
+]
+
+
+.pull-right[
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-51-1.svg)&lt;!-- --&gt;
+]
+
+???
+if we want to extract the data and do this manually, we can use the effects package
+
+---
+# eg2: Plotting Fits
+#### **broom.mixed::augment()** for cluster-specific fits
+
+.pull-left[
+
+```r
+library(broom.mixed)
+augment(EDSmodel)
+```
+
+```
+## # A tibble: 174 × 14
+##      EDS   CRQ schoolid .fitted    .resid   .hat    .cooksd .fixed   .mu .offset
+##    &lt;dbl&gt; &lt;dbl&gt; &lt;fct&gt;      &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+##  1  4.12  1.92 school1     4.13 -0.00685  0.0930    1.11e-5   4.34  4.13       0
+##  2  3.22  1.65 school1     4.10 -0.881    0.107     2.18e-1   4.35  4.10       0
+##  3  4.86  3.56 school1     4.28  0.577    0.180     1.86e-1   4.25  4.28       0
+##  4  4.79  1.45 school1     4.08  0.708    0.123     1.68e-1   4.36  4.08       0
+##  5  3.58  0.81 school1     4.02 -0.441    0.203     1.30e-1   4.40  4.02       0
+##  6  4.41  2.71 school1     4.20  0.208    0.0977    1.08e-2   4.30  4.20       0
+##  7  4.23  3.01 school1     4.23 -0.000425 0.118     5.69e-8   4.28  4.23       0
+##  8  3.66  1.61 school1     4.10 -0.437    0.110     5.56e-2   4.35  4.10       0
+##  9  4.22  2.17 school1     4.15  0.0694   0.0870    1.05e-3   4.33  4.15       0
+## 10  4.42  2.28 school2     4.08  0.337    0.101     2.95e-2   4.32  4.08       0
+## # ℹ 164 more rows
+## # ℹ 4 more variables: .sqrtXwt &lt;dbl&gt;, .sqrtrwt &lt;dbl&gt;, .weights &lt;dbl&gt;,
+## #   .wtres &lt;dbl&gt;
+```
+
+```r
+ggplot(augment(EDSmodel), 
+       aes(x=CRQ, y=.fitted,
+           group=schoolid))+
+  geom_line()
+```
+]
+
+???
+and if we want to extract the cluster-specific fitted values we can use a function like augment() from the broom.mixed package. or fitted() 
+
+--
+
+.pull-right[
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-54-1.svg)&lt;!-- --&gt;
+]
+
+???
+so here you can see we've plotted the fitted values, specifying via colour the different lines for each participant 
+
+
+---
+count: false
+# eg2: Plotting Fits
+#### **broom.mixed::augment()** for cluster-specific fits
+
+.pull-left[
+
+```r
+library(broom.mixed)
+augment(EDSmodel)
+```
+
+```
+## # A tibble: 174 × 14
+##      EDS   CRQ schoolid .fitted    .resid   .hat    .cooksd .fixed   .mu .offset
+##    &lt;dbl&gt; &lt;dbl&gt; &lt;fct&gt;      &lt;dbl&gt;     &lt;dbl&gt;  &lt;dbl&gt;      &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+##  1  4.12  1.92 school1     4.13 -0.00685  0.0930    1.11e-5   4.34  4.13       0
+##  2  3.22  1.65 school1     4.10 -0.881    0.107     2.18e-1   4.35  4.10       0
+##  3  4.86  3.56 school1     4.28  0.577    0.180     1.86e-1   4.25  4.28       0
+##  4  4.79  1.45 school1     4.08  0.708    0.123     1.68e-1   4.36  4.08       0
+##  5  3.58  0.81 school1     4.02 -0.441    0.203     1.30e-1   4.40  4.02       0
+##  6  4.41  2.71 school1     4.20  0.208    0.0977    1.08e-2   4.30  4.20       0
+##  7  4.23  3.01 school1     4.23 -0.000425 0.118     5.69e-8   4.28  4.23       0
+##  8  3.66  1.61 school1     4.10 -0.437    0.110     5.56e-2   4.35  4.10       0
+##  9  4.22  2.17 school1     4.15  0.0694   0.0870    1.05e-3   4.33  4.15       0
+## 10  4.42  2.28 school2     4.08  0.337    0.101     2.95e-2   4.32  4.08       0
+## # ℹ 164 more rows
+## # ℹ 4 more variables: .sqrtXwt &lt;dbl&gt;, .sqrtrwt &lt;dbl&gt;, .weights &lt;dbl&gt;,
+## #   .wtres &lt;dbl&gt;
+```
+
+```r
+ggplot(augment(EDSmodel), 
+       aes(x=CRQ, y=.fitted,
+           group=schoolid))+
+  geom_line()
+```
+]
+
+.pull-right[
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-57-1.svg)&lt;!-- --&gt;
+]
+
+???
+
+generally, our main finding of interest is the fixed effect line, but it can be nice to also plot behind that the cluster specific fits, or a sample of them. to add context. 
+
+
+
+---
+# eg2: Tables  
+
+
+- From __sjPlot__ package, the `tab_model()` function works well
+
+- From __parameters__ package, we can use: 
+  
+  ```r
+  model_parameters(EDSmodel) %&gt;%
+      print_html()
+  ```
+
+
+???
+finally, we can also easily create tables of our model output. 
+
+---
+# eg3 (rpt measures): Data
+
+.pull-left[
+
+&gt; Does clothing seem more attractive to shoppers when it is viewed on a model, and is this dependent on item price? 30 participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it. Each participant saw 20 items, ranging in price from £5 to £100. 15 participants saw these items worn by a model, while the other 15 saw the items against a white background.  
+
+- each individual datapoint is trial. Trials are grouped into participants.  
+
+
+
+
+```r
+head(clothesdf)
+```
+
+```
+##   purch_rating price   ppt condition
+## 1           51     5 ppt_1 item_only
+## 2           43    10 ppt_1 item_only
+## 3           42    15 ppt_1 item_only
+## 4           35    20 ppt_1 item_only
+## 5           33    25 ppt_1 item_only
+## 6           38    30 ppt_1 item_only
+```
+
+```r
+ggplot(clothesdf, aes(x=price,y=purch_rating, group=ppt))+
+  geom_point(alpha=.1)+
+  geom_path(alpha=.1)+
+  stat_summary(aes(group=condition), geom="pointrange")+
+  facet_wrap(~condition)
+```
+]
+.pull-right[
+
+![](2324_02a_intromlm_files/figure-html/unnamed-chunk-62-1.svg)&lt;!-- --&gt;
+
+]
+
+
+
+---
+# eg3: Model Spec
+
+__fixed effects__  
+
+" Does clothing seem more attractive to shoppers when it is viewed on a model, and is this dependent on item price?"
+`Purchase Rating ~ Price * Condition`
+
+__random effect structure__
+
+- multiple data-points (trials) per participant: **1 | ppt**
+
+- Price varies *within* participants (each participant sees items of different prices): **Price | ppt**
+
+- Condition is *between* participants (each participant only sees in one condition): ~~Condition | ppt~~
+
+- allow by-participant intercepts to correlate with by-participant slopes: **1 + Price | ppt**  
+(more on this in future weeks)
+
+__fitting the model__
+
+
+```r
+lmer(Purchase_Rating ~ 1 + Price * Condition + (1 + Price | ppt), 
+     data = clothesdf)
+```
+
+
+
+---
+# Summary
+
+- We can extend our linear model equation to model certain parameters as random cluster-level adjustments around a fixed center.
+
+- `\(\color{red}{y_i} = \color{blue}{\beta_0 \cdot{} 1 \; + \; \beta_1 \cdot{} x_{i} } + \varepsilon_i\)`  
+becomes  
+`\(\color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij}\)`  
+`\(\color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}}\)`
+
+- We can express this as one equation if we prefer:
+`\(\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{\beta_{0i}}} \cdot 1 +  \color{blue}{\beta_{1i} \cdot x_{ij}}  +  \varepsilon_{ij}\)`
+
+- This allows us to model cluster-level variation around the intercept ("random intercept") and around slopes ("random slope"). 
+
+- We can fit this using the **lme4** package in R
+
+???
+okay, let's take stock before we have a longer break. 
+we've covered extending linear model equations to have equations specified at multiple levels, packaged in these parentheses if you prefer. 
+what this allowed us to do, using the lme4 package, is model group or cluster level variation in our effects, and we talked briefly about how this has certain advantages such as the idea of more extreme clusters and more sparse clusters, being shrunk towards the average effect. 
+
+we've also seen some of the questions that this allows us to answer. we used the children in schools example to discuss how we might ask whether school level predictors influence things that happen at the child level. 
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

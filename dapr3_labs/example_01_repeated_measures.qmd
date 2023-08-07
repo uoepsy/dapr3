@@ -1,0 +1,274 @@
+---
+title: 'Analysis Walkthrough 1'
+code-fold: true
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+```{r setup, include=F}
+knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
+```
+
+:::frame
+
+Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way:  
+
+  - First the data and research context is introduced. For the purpose of these tutorials, we will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
+  - Second, we go through any tidying of the data that is required, before creating some brief descriptives and visualizations of the raw data.
+  - Then, we conduct an analysis. Where possible, we translate the research questions into formal equations prior to fitting the models in **lme4**. Model comparisons are conducted, along with checks of distributional assumptions on our model residuals. 
+  - Finally, we visualize and interpret our analysis.
+  
+Please note that there will be only minimal explanation of the steps undertaken here, as these pages are intended as example analyses rather than additional labs readings. Please also be aware that there are many decisions to be made throughout conducting analyses, and it may be the case that you disagree with some of the choices we make here. As always with these things, it is how we justify our choices that is important. We warmly welcome any feedback and suggestions to improve these examples: please email [ppls.psych.stats@ed.ac.uk](mailto:ppls.psych.stats@ed.ac.uk). 
+
+:::
+
+# Overview
+
+:::frame
+These data are simulated to represent data from a fake experiment, in which participants were asked to drive around a route in a 30mph zone. Each participant completed the route 3 times (i.e. "repeated measures"), but each time they were listening to different audio (either speech, classical music or rap music). Their average speed across the route was recorded. 
+This is a fairly simple design, that we might use to ask "how is the type of audio being listened to associated with driving speeds?" 
+
+The data are available at [https://uoepsy.github.io/data/drivingmusicwithin.csv](https://uoepsy.github.io/data/drivingmusicwithin.csv).  
+:::
+
+The design here is a 'repeated measures' design. The idea behind "repeated measures" is that the same variable is measured on the same set of subjects over two or more time periods or under different conditions. You might easily think of a question and design in which the 3 music conditions are instead 3 time points (e.g. age 60, 70, and 80). 
+
+
+::: {.callout-note collapse="true"}
+#### How we simulated the data
+
+This is a very simple way to simulate repeated measures data structure (with long data). There are a good number of other approaches, but this will do for now as you may well be familiar with all the functions involved: 
+```{r}
+set.seed(347)
+library(tidyverse)
+simRPT <- tibble(
+  pid = factor(rep(paste("ID", 1:50, sep=""),each=3)),
+  ppt_int = rep(rnorm(50,0,5),each=3), # some participant-level random intercepts
+  speed = rnorm(150,c(29,34,30),sd=4) + ppt_int,
+  music = factor(rep(c("rap", "classical", "speech"), each=1, 50))
+) %>% select(-ppt_int)
+```
+
+:::rtip
+If you are unclear about any section of the code above, why not try running small bits of it in your console to see what it is doing?   
+For instance, try running:
+
+- `paste("ID", 1:50, sep="")`  
+- `rep(paste("ID", 1:50, sep=""),each=3)`  
+- `factor(rep(paste("ID", 1:50, sep=""),each=3))`  
+
+:::
+
+:::
+
+
+# Data Wrangling
+
+Because we simulated our data, it is already nice and tidy. Each observation is a row, and we have variable indicating participant id (`pid`).  
+```{r}
+head(simRPT)
+```
+
+# Descriptives
+Let' see our summaries per time-point:
+
+```{r}
+sumRPT <- 
+  simRPT %>%
+  group_by(music) %>%
+  summarise(
+    n = n_distinct(pid),
+    mean.speed = round(mean(speed, na.rm=T),2),
+    sd.speed = round(sd(speed, na.rm=T),2)
+    )
+sumRPT
+```
+We can make this a little prettier:
+```{r}
+library(knitr)
+library(kableExtra)
+kable(sumRPT) %>%
+  kable_styling("striped")
+```
+
+Well...we knew what the answer was going to be (because we simulated it), but there we have it - the speeds are highest for classical music, and lowest for rap.  
+
+# Visualizations
+We can construct some simple plots showing distribution of the outcome variable (speed) at each level of the independent variable (music): 
+
+```{r}
+simRPT %>% 
+  ggplot(aes(x = music, y = speed)) + 
+  geom_violin() + 
+  geom_jitter(alpha=.5,width=.1,height=0) + 
+  labs(x="Audio", y = "Speed (mph)", 
+       title="Speeds while listening to different audio", 
+       subtitle = "Violin Plots with (jittered) Observations")+
+  theme_minimal()
+```
+
+So what does this show? Essentially we are plotting all speeds in each condition. The points are `jittered` so that they are not all overlaid on one another. The areas marked at each condition are mirrored density plots (i.e. they show the distribution of the speeds in each condition). 
+
+If you want to get an intuitive sense of these plotted areas, look at them against the mean's and sd's per condition calculated above.
+
+We can also show each participants' specific changes between conditions, by using the `group` aesthetic mapping.  
+```{r}
+simRPT %>%
+  ggplot(aes(x = music, y = speed)) +
+  geom_point(size=3, alpha=.4)+
+  geom_line(aes(group=pid), alpha = .2) +
+  theme_minimal()
+```
+
+
+
+# Analysis
+
+## Equations
+We're going to fit the model below, and examine the change in speed associated with moving from speech (our reference level) to both classical, and rap conditions.   
+Recall that because `music` is categorical with 3 levels, we're going to be estimating 2 ($3-1$) coefficients.  
+
+
+\begin{aligned}
+&\text{for trial }j \text{ from participant } i \\
+  \operatorname{speed}_{i[j]} =& \beta_{0i} + \beta_1(\operatorname{music}_{\operatorname{classical}_j}) + \beta_2(\operatorname{music}_{\operatorname{rap}_j}) + \varepsilon_{i[j]} \\
+    \beta_{0i} =& \gamma_{00} + \zeta_{0i} \\ 
+\end{aligned}
+
+
+
+## Fitting the models
+
+```{r}
+library(lme4)
+```
+
+Here we run an empty model so that we have something to compare our model which includes our independent variable. Other than to give us a reference model, we do not have a huge amount of interest in this. It includes no predictors, but a random intercept by participant (`pid`) to take account of the fact we have three measurements per person. 
+
+
+```{r}
+m0 <- lmer(speed ~ 1 + (1 | pid), data = simRPT)
+```
+
+Next, add a fixed effect of our predictor (music condition, `music`). 
+First though, we'll want to re-level it so that "speech" is the reference level (because that's what we said we wanted). 
+
+```{r}
+simRPT <-
+  simRPT %>%
+  mutate(
+    music = fct_relevel(factor(music), "speech")
+  )
+
+m1 <- lmer(speed ~ 1 + music + (1 | pid), data = simRPT)
+summary(m1)
+```
+
+And we can compare our models. A Kenward-Rogers F ratio suggests that we appear to have a significant differences in speeds between conditions. 
+
+```{r}
+library(pbkrtest)
+KRmodcomp(m1, m0)
+```
+
+
+
+<!-- ::: {.callout-note collapse="true"} -->
+<!-- #### Comparison to `aov()` -->
+
+<!-- Using `anova()` to compare multilevel models will not give you a typical ANOVA output.   -->
+<!-- For piece of mind, it can be useful to compare how we might do this in `aov()` -->
+
+<!-- ```{r} -->
+<!-- m2 <- aov(speed ~ music + Error(pid), data = simRPT) -->
+<!-- ``` -->
+
+<!-- Here the term `Error(pid)` is specifying the within person error, or residual. This is what we are doing with our random effect `(1 | pid)` in `lmer()` -->
+
+<!-- And we can compare the model sums of squares from both approaches to see the equivalence: -->
+
+<!-- ```{r} -->
+<!-- summary(m2) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- anova(m1) -->
+<!-- ``` -->
+<!-- ::: -->
+
+
+## Check model
+
+The residuals look reasonably normally distributed, and there seems to be fairly constant variance across the linear predictor. We might be a little concerned about the potential tails of the plot below, at which residuals don't appear to have a mean of zero
+```{r}
+plot(m1, type = c("p","smooth"))
+library(lattice)
+qqmath(m1)
+```
+Random effects are (roughly) normally distributed:
+```{r}
+rans <- as.data.frame(ranef(m1)$pid)
+ggplot(rans, aes(sample = `(Intercept)`)) + 
+  stat_qq() + stat_qq_line() +
+  labs(title="random intercept")
+```
+
+# Visualise Model
+
+```{r}
+library(sjPlot)
+plot_model(m1, type="pred")
+dotplot.ranef.mer(ranef(m1)) # an alternative: plot_model(m1, type="re")
+```
+
+# Interpret model
+
+```{r}
+library(parameters)
+model_parameters(m1, ci_method = "kr")
+```
+
+
+```{r}
+#| echo: false
+res1 = KRmodcomp(m1,m0)$stats
+res2 = as.data.frame(model_parameters(m1, ci_method = "kr"))
+res2[,2:8] = apply(res2[,2:8],2,round,2)
+res2$p = format.pval(res2$p,digits=3,eps=.05)
+res2$p = ifelse(grepl("<",res2$p),res2$p,paste0("= ",res2$p))
+```
+
+A very quick (bare-bones) write-up:  
+
+:::int
+
+Average driving speeds (mph) across audio conditions was modeled using a linear mixed effects model, with a fixed effect of condition (speech/rap/classical, treatment coded with 'speech' as the reference level) and a by-participant random intercepts. The model was fitted using in Rv`r paste0(version$major,".",version$minor)` using the lme4 package with the default optimiser. Confidence intervals and p-values were obtained using the Kenward-Rogers approximation for denominator degrees of freedom. 
+
+Results show a significant difference in driving speeds between audio conditions ($F(`r res1$ndf`,`r res1$ddf`)=`r res1$Fstat`, p`r format.pval(res1$p.value, eps=.05)`$). Specifically, relative to the speech condition (in which the estimated driving speed was `r res2[1,2]`mph), listening to classical music was associated with increased driving speeds of `r res2[2,2]`mph ($\beta=`r res2[2,2]`,SE=`r res2[2,3]`,t(`r round(res2[2,8])`)=`r res2[2,7]`,p`r res2[2,9]`$). There was no significant difference between speech and rap ($\beta=`r res2[3,2]`,SE=`r res2[3,3]`,p`r res2[3,9]`$). Participant-level variation in driving speeds was estimated to have a standard deviation of `r res2[4,2]`mph. The pattern of results are shown in @fig-finplot
+
+```{r}
+#| echo: false
+#| label: fig-finplot
+#| fig-cap: "Driving speeds across different audio-conditions. Grey indicates raw data (grouped by participant), and red points show model estimated speed for each condition with 95% confidence intervals"  
+plotdat <- as.data.frame(plot_model(m1,type="eff")[[1]]$data) %>%
+  mutate(
+    music = c("speech","classical","rap")
+  )
+
+simRPT %>%
+  ggplot(aes(x = music, y = speed)) +
+  geom_point(size=3, alpha=.1)+
+  geom_line(aes(group=pid), alpha = .1) + 
+  geom_pointrange(data=plotdat, 
+                  aes(y=predicted,ymin=conf.low,ymax=conf.high),col="tomato1",
+                  position=position_nudge(x=.05))+
+  theme_minimal()
+
+```
+
+
+
+
+:::
+
