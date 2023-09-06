@@ -1,0 +1,111 @@
+---
+title: "Analysis Example 7: Logistic Model"
+link-citations: yes
+code-fold: true
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+# Overview
+Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way. First the data is introduced. For the purpose of these tutorials, I will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. Second, the structure of the data is discussed so that we can more easily see what data structure the design creates, and how this aligns to the variables in the data. Third, we translate the research questions into formal equations, and then `lmer()` code. Finally, we will follow those through for our example data.
+
+## Data structure
+This study is one conducted by a former member of faculty, and one she used to use in teaching this class. The full model from the paper is relatively complex, but can be found here https://jov.arvojournals.org/article.aspx?articleid=2485414 . The short version...
+
+...the dat come from an "object-in-scene" search experiment. The stimulus materials were 80 pictures of real world scenes. Participants (n=32) had a simple instruction to locate scissors within the images. The primary outcome of interest was search time, but here as we are looking at GLMM, we can also look at whether or not participants were able to locate the object. 
+
+Two factors were manipulated, search cue (word vs picture), and scence colour (full colour, peripheral coloured, peripheral gray, full gray). This resulted in a 2x4 design.
+
+The study used a set-matching procedure (see Nuthmann & Malcolm, 2016, for details) combined with counterbalancing of items across conditions
+
+- 80 scene items were assigned to eight lists of 10 scenes each 
+- Scene lists were rotated over participants, such that a given participant was exposed to a list for only one of the eight experimental conditions created by the 4 ? 2 design
+- Eight groups of four participants, and each group of participants was exposed to unique combinations of list and experimental condition
+
+# Analysis
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(kableExtra)
+```
+
+## Tidy data
+Let's open up the data:
+
+```{r warning=FALSE, message=FALSE}
+tab <- read.table("C:/Multi/Antje/CDEGS_LMMteaching.txt", header = T, sep="\t", stringsAsFactors = F)
+head(tab)
+```
+
+The data is coded as follows:
+
+- SUBJECT: subject number  
+- SCENE: scene number  
+- Scene: scene labels  
+- COLOR: scene colour (4-level factor)  
+- CUE: search cue (2-level factor: 1 = word, 2 = picture  
+- RT: reaction (search) time in ms (continuous variable)  
+- SEARCH_INIT: search initiation time (first part of search time)  
+- HIT_GLMM: search success (binary variable: 1 = hit, 0 = miss)  
+
+We need to make sure our conditions are appropriately coded as factors:
+
+```{r}
+df <- as_tibble(tab)
+df <- 
+  df %>%
+  mutate(
+    COLOR = as.factor(COLOR), 
+    CUE = as.factor(CUE)
+  )
+
+df
+```
+
+Intercept only model:
+
+```{r}
+m0 <- glmer(HIT_GLMM ~ 1 + 
+              (1 | SUBJECT) + (1 | SCENE), 
+            family = "binomial",
+            data = df)
+summary(m0)
+```
+
+Intercept here is the expected log-odds on the task across all participants and scenes. Essentially a grand mean. In log-odds scale this is not much use to use. But, it might be interesting to convert this to probability of success (given this is a success-fail task).
+
+```{r}
+exp(3.1978)/(1+exp(3.1978))
+```
+
+OK, so the overall probability of success on the task was 96%. In other words, pretty much everyone, in every trial was able to locate the scissors. 
+
+This likely means we are not going to have much success when it comes to predicting success. Why? Well we are at ceiling. A vast majority of people are successful (hence why the actual study was concerned with the speed at which people found the scissors, not whether or not they actually found them!)
+
+Let's have a look at our model With predictors anyway:
+
+```{r}
+full <- glmer(HIT_GLMM ~ 1 + COLOR + CUE +
+                (1 | SUBJECT) + (1 | SCENE), 
+              family = "binomial",
+              data = df)
+summary(full)
+```
+
+```{r}
+anova(m0, full)
+```
+
+Remember our coefficients here are in log-odd scale. This is pretty hard to interpret. Above we calculated a probability estimate, but the norm would be to look at the odds-ratio.
+
+```{r}
+# Approximate 95% confidence interval from variance-covariance
+se <- sqrt(diag(vcov(full)))
+ORCI <- cbind(Est = fixef(full), LL = fixef(full) - 1.96 * se, UL = fixef(full) + 1.96 *
+    se)
+exp(ORCI)
+```
+
+With predictors, our intercept is now the log-odds for the condition `COLOR1-CUE1` or full color with a word prime. We can see that the odds of a correct answer marginally decrease across colour conditions (such that full gray scale `COLOR4` is most difficult), and that the task is easier with a visual rather than word cue. However, our confidence intervals all include 0, and given the predictors dont add to our model, we likely do not want to interpret these much more.

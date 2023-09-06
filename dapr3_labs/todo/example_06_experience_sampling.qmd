@@ -1,0 +1,203 @@
+---
+title: "Analysis Example 6: Experience Sampling"
+link-citations: yes
+code-fold: true
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+```{r setup, include=F}
+knitr::opts_chunk$set(message = F, warning = F, fig.align = 'center')
+```
+
+:::frame
+
+Each of these pages provides an analysis run through for a different type of design. Each document is structured in the same way:  
+
+  - First the data is introduced. For the purpose of these tutorials, I will only use examples where the data can be shared - either because it is from an open access publication, or because it is unpublished or simulated. 
+  - Second, the structure of the data is discussed so that we can more easily see what data structure the design creates, and how this aligns to the variables in the data.
+  - Third, we translate the research questions into formal equations, and then `lmer()` code. 
+  - Finally, we will follow those through for our example data.
+
+:::
+
+## The example
+This example comes from a study by Dr. Jessie Sun and colleagues. The full original article is available here[https://osf.io/yn3ac/]. For the purpose of this introductory example, we will use a subset of this data (from Study 3) that Dr. Sun shared via twitter, and that she uses for her teaching. 
+
+## Data structure
+The data comes from an experience sampling study. The subset we are going to use has measures of positive affect (PA) and extraversion (E) measured on multiple occasions. Our interes is on the within person association between PA and E.
+
+# Model specification
+
+## Equations
+In this particular model 
+
+# Analysis
+
+## Tidy data
+OK, as a first step, we read the data in. Here we are reading a .csv file direct from the web:
+
+```{r message=FALSE}
+library(tidyverse)
+dat <- read_csv('https://osf.io/hwsxa/download')
+```
+
+This data set is the full data set for the study. If you want to try and recreate more of the analyses from the paper, you will want to skip this step, as here we are cutting down to just the four variables of interest.
+
+```{r}
+# subset to fewer variables
+dat2 <- 
+  dat %>% 
+  select(id, obs, e, pa)
+```
+
+## Centering
+Now, this is the step that is of specific interest given our discussions in lecture 4. For experience sampling data, it is often desirable to partition the variance in an individual's scores into what might be best considered their "trait" and "state" responses. Typically we operationalise trait as a persons mean score across all prompts, and their state score as mean centered responses. That is, state scores assess how someone differs from their own personal average.
+
+```{r}
+# Center the predictor variable (state extraversion)
+# around each person's mean
+
+dat2 <- 
+  dat2 %>%
+  group_by(id) %>%
+  mutate(
+    e.m = mean(e, na.rm = TRUE),
+    e.c = e - mean(e, na.rm = TRUE)
+  )
+```
+
+## Describe
+Now we can take a look at our key variables of interest. First numerically
+```{r}
+descriptive <- 
+  dat2 %>%
+  group_by(id) %>%
+  summarise(
+    mean.e = mean(e, na.rm = TRUE),
+    sd.e = sd(e, na.rm = TRUE),
+    mean.pa = mean(e, na.rm = TRUE),
+    sd.pa = sd(e, na.rm = TRUE)
+  )
+```
+
+```{r}
+library(kableExtra)
+kable(round(descriptive,2)) %>%
+  kable_styling("striped")
+```
+
+This is quite a big table, and pretty hard to process, so we had better...
+
+## Visualize
+
+
+```{r}
+# panel plot: one plot per person
+ggplot(data = dat2, aes(x = e, y = pa)) + 
+  geom_point(size=1,colour='darkgrey') + 
+  geom_smooth(fill=NA,method='lm',colour='black') +
+  xlab("State extraversion") +  # x-axis label
+  ylab("State positive affect") +  # y-axis label
+  theme(legend.position="none",
+        axis.text.x = element_text(size=10),
+        axis.text.y = element_text(size=10),
+        axis.title.x = element_text(face="bold",size=12),
+        axis.title.y = element_text(face="bold",size=12)) +
+  scale_y_continuous(limits=c(-0.5,10.5),breaks=seq(0,10,5),expand=c(0,0)) +
+  scale_x_continuous(limits=c(-0.5,10.5),breaks=seq(0,10,5),expand=c(0,0)) +
+  facet_wrap(~id)  # make panel
+```
+
+Now this is better. Here we can see that by and large, we have positive associations across participants. How varied the slopes and intercepts are is often clearer on a sinle plot...
+
+```{r}
+# illustrating random slopes with a spaghetti plot
+ggplot(data = dat2, aes(x = e, y = pa)) +
+  geom_point(aes(x = e, y = pa), colour='darkgrey',size=1,alpha=.5) +
+  geom_smooth(aes(colour = as.factor(id)),
+              fill=NA,method="lm",size=.5) +  # linear trend for each participant
+  theme(legend.position="none",
+        axis.text.x = element_text(size=10),
+        axis.text.y = element_text(size=10),
+        axis.title.x = element_text(face="bold",size=12),
+        axis.title.y = element_text(face="bold",size=12)) +
+  theme(plot.margin=unit(c(.5,.5,.5,.5),"cm")) +
+  xlab("State extraversion") +  # x-axis label
+  ylab("State positive affect") +  # y-axis label
+  scale_y_continuous(limits=c(0,10.5),breaks=seq(0,10,1),expand=c(0,0)) +
+  scale_x_continuous(limits=c(0,10.5),breaks=seq(0,10,1),expand=c(0,0))
+```
+
+So although we have generally positive slopes, this looks like we may have call to try a model with random intercept and slopes by person.
+
+## Run models
+
+First we can run our baseline model:
+
+```{r}
+library(lme4)
+#### Models ####
+# Null model for positive affect
+m0 <- lmer(pa ~ (1 | id), 
+                    data = dat2)
+summary(m0) 
+```
+
+We can use the info here to calculate the ICC:
+
+```{r}
+ICC <- as.data.frame(VarCorr(m0))
+(ICC[1,4]/sum(ICC[,4]))*100
+```
+
+So in this data, roughly 35% of the variance is at the between person level.
+
+The key effect we are going to test in our reduced example is the relation between state extraversion and positive affect. So, for the next model, we will add the fixed effect of interest, retaining the randon intercept:
+
+```{r}
+# Random intercepts model
+m1 <- lmer(pa ~ e.c +  # fixed effect 
+                         (1 | id),  # random intercept
+                       data = dat2) 
+summary(m1)
+```
+
+The t-value for e.c is huge. Even though we would not use this to calculate a p-value, it looks like we may well have a significant effect here. We can check this using model comparisons.
+
+```{r}
+anova(m0, m1)
+```
+
+Note the warning - our default estimator in `lmer` is REML. But by all our metrics here (smaller AIC and BIC, significant $\chi^2$ test), extraversion state is a significant predictor of PA.
+
+Our plots also suggested random slopes: 
+
+```{r}
+# Random slopes model
+m2 <- lmer(pa ~ e.c +  # fixed effects 
+                (1 + e.c | id),  # random intercept & slope
+              data = dat2) 
+summary(m2)
+```
+
+And compare the models:
+
+```{r}
+anova(m1,m2)
+```
+
+So again, by all metrics, the random slopes have improved our model.
+
+## Interpret Models
+The information above gives us enough to go on, but let's get ourselves some confidence intervals to complete the picture. 
+
+```{r}
+# Get boot-strapped confidence intervals
+confint(m2,method='boot')
+```
+
+In this output, `.sig01` to `.sig03` refer to the three elements in the random effect correlation matrix. `sigma` relates to the residual variance, and the last two CI's are for the fixed effects.
+
+The intercept in `m2` is the grand mean, and equals 5.00. The fixed effect for e.c says that on average, a unit change in `e.c` results in a 0.44 unit increase in `PA`. We have seen we have significant variances (or, that our model improves allowing them to vary), indicating there is a large degree of variation with respect to the level of `PA` across individuals, and the nature of the relationship between `PA` and `e.c` across people. The negative correlation in these random effects (*r* = -.17), suggests that for those who start higher in `PA`, the positive association with `e.c` is weaker (flatter slopes).
+
