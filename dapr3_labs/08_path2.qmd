@@ -40,9 +40,9 @@ options(digits=3, scipen = 3)
 
 Let's imagine we are interested in peoples' intention to get vaccinated, and we observe the following variables: 
 
-- Intention to vaccinate (scored on a range of 0-100)  
+- Intention to vaccinate (scored on a range of 0-100) 
 - Health Locus of Control (HLC) score (average score on a set of items relating to perceived control over ones own health)  
-- Religiosity (average score on a set of items relating to an individual's religiosity). 
+- Religiosity of upbringing (average score on a set of items relating to the religiosity of an individual's childhood). 
 
 <!-- We are assuming here that we do not have the individual items, but only the scale scores (if we had the individual items we might be inclined to model religiosity and HLC as latent variables!).    -->
 If we draw out our variables, and think about this in the form of a standard regression model with "Intention to vaccinate" as our outcome variable, then all the lines are filled in for us (see @fig-mregpath). 
@@ -94,7 +94,7 @@ __Data: VaxDat.csv__
 
 - Intention to vaccinate (scored on a range of 0-100)  
 - Health Locus of Control (HLC) score (average on a set of 5 items - each scoring 0 to 6 - relating to perceived control over ones own health)  
-- Religiosity (average on a set of 5 items - each scoring 0 to 6 - relating to an individual's religiosity). 
+- Religiosity of upbringing (average score on a set of items relating to the religiosity of an individual's childhood). 
 
 The data is available at https://uoepsy.github.io/data/vaxdat.csv  
 
@@ -236,6 +236,7 @@ In this case, path $c'$ is the __direct effect__.
 
 :::
 
+<div class="divider div-transparent div-dot"></div>
 
 
 # Exercises: Conduct Problems
@@ -376,6 +377,7 @@ summary(model1.est, ci=T)
 ```
 `r solend()`
 
+<div class="divider div-transparent div-dot"></div>
 
 
 # Exercises: More Conduct Problems
@@ -451,29 +453,43 @@ knitr::include_graphics("images/path/pathanaly.png")
 
 `r solend()`
 
+<div class="divider div-transparent div-dot"></div>
+
+
 ::: {.callout-note collapse="true"}
 ## Optional: Mediation using separate models
 
 Following [Baron & Kenny 1986](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.917.2326&rep=rep1&type=pdf), we can conduct mediation analysis by using three separate regression models.  
 
-1. $m \sim x$
-2. $y \sim x + m$
+1. $y \sim x$
+2. $m \sim x$
+3. $y \sim x + m$
 
-The __mediation__ package is a very nice approach that allows us to conduct mediation this way, and it also extends to allow us to have categorical variables (we can use a logistic regression as one of our models), or to have multilevel data (our models can be fitted using __lme4__).  
+Step 1. Assess the total effect of the predictor on the outcome `y ~ x`. This step establishes that there *is* an effect that may be mediated.    
+```{r}
+mod1 <- lm(intention ~ religiosity, data = vax)
+summary(mod1)$coefficients
+```
 
-Step 1. Estimate the effect of the predictor on the mediator `m ~ x`:
+Step 2. Estimate the effect of the predictor on the mediator `m ~ x`:
 ```{r}
 mod2 <- lm(hlc ~ religiosity, data = vax)
 summary(mod2)$coefficients
 ```
 
-Step 2. Estimate the effects of the predictor and mediator on the outcome `y ~ x + m`:  
+Step 3. Estimate the effects of the predictor and mediator on the outcome `y ~ x + m`. We need to show that the mediator affects the outcome variable. 
 ```{r}
 mod3 <- lm(intention ~ religiosity + hlc, data = vax)
 summary(mod3)$coefficients
 ```
 
-Step 3. Estimate the mediation effects  
+Step 4. If Steps 1-3 all show effects of `y~x`, `m~x` and `y~m|x`^[read `y~m|x` as `y~m` controlling for `x`] respectively, then we can assess mediation. We need to look at the effect of the predictor on the outcome after controlling for the mediator. This is from the same third model above. If the effect of the predictor is now zero, then we have complete mediation. If it is non-zero, then we have _partial_ mediation. 
+
+::: {.callout-caution collapse="true"}
+#### Optional - packages for estimating mediation effects
+
+The __mediation__ package is a very nice approach that allows us to conduct mediation this way, and it also extends to allow us to have categorical variables (we can use a logistic regression as one of our models), or to have multilevel data (our models can be fitted using __lme4__).  
+
 ```{r}
 library(mediation)
 mymediation <- mediate(model.m = mod2, 
@@ -495,6 +511,9 @@ summary(mymediation)
 #| fig-cap: "Mediation Model. The indirect effect is the product of paths a and b. c' is the direct effect of x on y."
 knitr::include_graphics("images/path/MED2.png")
 ```
+
+:::
+
 
 :::
 

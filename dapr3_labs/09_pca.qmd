@@ -32,21 +32,21 @@ options(digits=3, scipen = 3)
 
 ::: 
 
+
+
+::: {.callout-note collapse="true"}
+#### The goal of PCA  
+
 :::statbox
-**Thinking about measurement**  
+The goal of principal component analysis (PCA) is to find a _smaller_ number of uncorrelated variables which are linear combinations of the original ( _many_ ) variables and explain most of the variation in the data.
+:::
 
 Take a moment to think about the various constructs that you are often interested in as a researcher. This might be anything from personality traits, to language proficiency, social identity, anxiety etc. 
 How we measure such constructs is a very important consideration for research. The things we're interested in are very rarely the things we are *directly* measuring. 
 
-Consider how we might assess levels of anxiety or depression. Can we ever directly measure anxiety? ^[Even if we cut open someone's brain, it's unclear what we would be looking for in order to 'measure' it. It is unclear whether anxiety even exists as a physical thing, or rather if it is simply the overarching concept we apply to a set of behaviours and feelings]. More often than not, we measure these things using questionnaire based methods, to capture the multiple dimensions of the thing we are trying to assess. Twenty questions all measuring different aspects of anxiety are (we hope) going to correlate with one another if they are capturing some commonality (the construct of "anxiety"). But they introduce a problem for us, which is how to deal with 20 variables that represent (in broad terms) the same thing. How can we assess "effects on anxiety", rather than "effects on anxiety q1", "effects on anxiety q2", ..., etc.  
+Consider how we might assess levels of anxiety or depression. Can we ever directly measure anxiety? ^[Even if we cut open someone's brain, it's unclear what we would be looking for in order to 'measure' it. It is unclear whether anxiety even exists as a physical thing, or rather if it is simply the overarching concept we apply to a set of behaviours and feelings]. More often than not, we measure these things using questionnaire based methods, to capture the multiple dimensions of the thing we are trying to assess. Twenty questions all measuring different aspects of anxiety are (we hope) going to correlate with one another if they are capturing some commonality (the construct of "anxiety"). But they introduce a problem for us, which is how to deal with 20 variables that represent (in broad terms) the same thing. How can we assess "effects on anxiety", rather than "effects on anxiety q1 + effects on anxiety q2 + ...", etc.  
 
 This leads us to the idea of *reducing the dimensionality of our data*. Can we capture a reasonable amount of the information from our 20 questions in a smaller number of variables? 
-
-:::lo
-
-The goal of principal component analysis (PCA) is to find a _smaller_ number of uncorrelated variables which are linear combinations of the original ( _many_ ) variables and explain most of the variation in the data.
-
-:::
 
 :::
 
@@ -70,7 +70,7 @@ job$arrest_rate <- job$arrest_rate / (max(job$arrest_rate)+2)
 
 
 :::frame
-__Data: Police Performance__  
+__Data: police_performance.csv__  
 
 The file [police_performance.csv](https://uoepsy.github.io/data/police_performance.csv) (available at https://uoepsy.github.io/data/police_performance.csv) contains data on fifty police officers who were rated in six different categories as part of an HR procedure. The rated skills were:
 
@@ -89,15 +89,10 @@ We are interested in if the skills ratings by HR are a good set of predictors of
 
 ## 1. Explore  
 
-:::lo
-
 First things first, we should always plot and describe our data. This is always a sensible thing to do - while many of the datasets we give you are nice and clean and organised, the data you get out of questionnaire tools, experiment software etc, are almost always quite a bit messier. It is also very useful to just eyeball the patterns of relationships between variables.  
 
-:::
 
-
-
-`r qbegin("A1")`
+`r qbegin(1)`
 Load the job performance data into R and call it `job`. 
 Check whether or not the data were read correctly into R - do the dimensions correspond to the description of the data above?
 `r qend()`
@@ -119,7 +114,7 @@ head(job)
 ```
 `r solend()`
 
-`r qbegin("A2")`
+`r qbegin(2)`
 Provide descriptive statistics for each variable in the dataset.
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -155,7 +150,9 @@ job %>%
 
 ## 2. Is PCA needed?
 
-:::lo 
+
+::: {.callout-note collapse="true"}
+#### When might we want to reduce dimensionality?  
 
 There are many reasons we might want to reduce the dimensionality of data:  
 
@@ -186,7 +183,7 @@ On the other side, if the correlation between the variables under study are weak
 
 :::
 
-`r qbegin("A3")`
+`r qbegin(3)`
 Working with _only_ the skills ratings (not the arrest rate - we'll come back to that right at the end), investigate whether or not the variables are highly correlated and explain whether or not you PCA might be useful in this case.  
 
 **Hint:** We only have 6 variables here, but if we had many, how might you visualise `cor(job)`?
@@ -219,9 +216,10 @@ This suggests that PCA might be useful in this problem to reduce the dimensional
 
 ## 3. Cov vs Cor?
 
-:::lo
-**Should we perform PCA on the covariance or the correlation matrix?**  
-  
+
+::: {.callout-note collapse="true"}
+#### Should we perform PCA on the covariance or the correlation matrix?
+
 This depends on the variances of the variables in the dataset. If the variables have large differences in their variances, then the variables with the largest variances will tend to dominate the first few principal components.  
 A solution to this is to standardise the variables prior to computing the covariance matrix - i.e., compute the correlation matrix!  
 
@@ -229,9 +227,10 @@ A solution to this is to standardise the variables prior to computing the covari
 # show that the correlation matrix and the covariance matrix of the standardized variables are identical
 all.equal(cor(job_skills), cov(scale(job_skills)))
 ```
+
 :::
 
-`r qbegin("A4")`
+`r qbegin(4)`
 Look at the variance of the skills ratings in the data set. Do you think that PCA should be carried on the covariance matrix or the correlation matrix?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -246,11 +245,10 @@ As the standard deviations appear to be fairly similar (and so will the variance
 
 ## 4. Perform PCA
 
-`r qbegin("A5")`
+`r qbegin(5)`
 Using the `principal()` function from the `psych` package, we can perform a PCA of the job performance data, Call the output `job_pca`.
 ```
 job_pca <- principal(job_skills, nfactors = ncol(job_skills), covar = ..., rotate = 'none')
-job_pca$loadings
 ```
 Depending on your answer to the previous question, either set `covar = TRUE` or `covar = FALSE` within the `principal()` function.
 
@@ -264,8 +262,8 @@ job_pca <- principal(job_skills, nfactors = ncol(job_skills), covar = TRUE, rota
 ```
 `r solend()`
 
-:::statbox
-__PCA OUTPUT__  
+::: {.callout-note collapse="true"}
+#### PCA OUTPUT  
 
 We can print the output by just typing the name of our PCA: 
 
@@ -279,7 +277,7 @@ First, it shows the *loading matrix*. In each column of the loading matrix we fi
 
 The second part of the output displays the contribution of each component to the total variance: 
 
-- SS loadings: The sum of the squared loadings. The eigenvalues (see [Lecture](https://uoepsy.github.io/dapr3/2223/lectures/week3_pca.html#20){target="_blank"}).  
+- SS loadings: The sum of the squared loadings. The eigenvalues (see [Lecture](https://uoepsy.github.io/dapr3/2324/lectures/week3_pca.html#20){target="_blank"}).  
 - Proportion Var: how much of the overall variance the component accounts for out of all the variables. 
 - Cumulative Var: cumulative sum of Proportion Var.
 - Proportion Explained: relative amount of variance explained ($\frac{\text{Proportion Var}}{\text{sum(Proportion Var)}}$.
@@ -299,7 +297,8 @@ From the third component onwards, we do not see such a sharp increase in the pro
 
 :::
 
-`r optbegin("Optional: (some of) the math behind it", olabel=FALSE, toggle=params$TOGGLE)`
+::: {.callout-caution collapse="true"}
+#### Optional: (some of) the math behind it  
 
 Doing data reduction can feel a bit like magic, and in part that's just because it's quite complicated. 
 
@@ -460,12 +459,9 @@ And likewise the 1 minus these is the unexplained variance:
 pc1$uniquenesses
 ```
 
-
-`r optend()`
+:::
 
 ## 5. How many components to keep?
-
-:::lo
 
 There is no single best method to select the optimal number of components to keep, while discarding the remaining ones (which are then considered as noise components).
 
@@ -477,18 +473,16 @@ The following three heuristic rules are commonly used in the literature:
 - Velicer's Minimum Average Partial method
 - Parallel analysis
 
-In the next sections we will analyse each of them in turn.
+In the next sections we will look at each of them in turn.
 
-:::
-
-:::statbox
-**The cumulative proportion of explained variance criterion**
+::: {.callout-note collapse="true"}
+#### The cumulative proportion of explained variance criterion
 
 The rule suggests to *keep as many principal components as needed in order to explain approximately 80-90% of the total variance.*
 
 :::
 
-`r qbegin("A6")`
+`r qbegin(6)`
 Looking again at the PCA output, how many principal components would you keep if you were following the cumulative proportion of explained variance criterion?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -506,8 +500,8 @@ Cumulative Var 0.673 0.883 0.988 0.994 0.997 1.000
 According to this criterion, we should keep 2 principal components.
 `r solend()`
 
-:::statbox
-**Kaiser's rule**  
+::: {.callout-note collapse="true"}
+#### Kaiser's rule
   
 According to Kaiser's rule, we should **keep the principal components having variance larger than 1**. Standardized variables have a variance equal 1. Because we have 6 variables in the data set, and the total variance is 6, the value 1 represents the average variance in the data:
 $$
@@ -524,7 +518,7 @@ mean(job_pca$values)
 ```
 :::
 
-`r qbegin("A7")`
+`r qbegin(7)`
 Looking again at the PCA output, how many principal components would you keep if you were following Kaiser's criterion?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -540,8 +534,8 @@ SS loadings    4.035 1.261 0.631 0.035 0.022 0.016
 From the result we see that only the first two principal components have variance greater than 1, so this rule suggests to keep 2 PCs only.
 `r solend()`
 
-:::statbox
-**The scree plot**
+::: {.callout-note collapse="true"}
+#### The scree plot
 
 The scree plot is a graphical criterion which involves plotting the variance for each principal component.
 This can be easily done by calling `plot` on the variances, which are stored in `job_pca$values`
@@ -554,8 +548,7 @@ plot(x = 1:length(job_pca$values), y = job_pca$values,
 
 where the argument `type = 'b'` tells R that the plot should have _both_ points and lines.
 
-A typical scree plot features higher variances for the initial components and quickly drops to small variances where the curve is almost flat.
-The flat part of the curve represents the noise components, which are not able to capture the main sources of variability in the system. 
+A typical scree plot features higher variances for the initial components and quickly drops to small variances where the curve is almost flat. The flat part of the curve represents the noise components, which are not able to capture the main sources of variability in the system. 
 
 According to the scree plot criterion, we should **keep as many principal components as where the "elbow" in the plot occurs.** By elbow we mean the variance before the curve looks almost flat.
 
@@ -566,18 +559,22 @@ scree(job_skills, factors = FALSE)
 ```
 
 This also draws a horizontal line at y = 1. So, if you are making a decision about how many PCs to keep by looking at where the plot falls below the y = 1 line, you are basically following Kaiser's rule. In fact, Kaiser's criterion tells you to keep as many PCs as are those with a variance (= eigenvalue) greater than 1.
+  
+  
+__NOTE: Scree plots are subjective and may have multiple or no obvious kinks/elbows, making them hard to interpret__  
+
 
 :::
 
-`r qbegin("A8")`
+`r qbegin(8)`
 According to the scree plot, how many principal components would you retain?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 This criterion then suggests to keep three principal components.
 `r solend()`
 
-:::statbox
-**Velicer’s Minimum Average Partial method**
+::: {.callout-note collapse="true"}
+#### Velicer’s Minimum Average Partial (MAP) method
 
 The Minimum Average Partial (MAP) test computes the partial correlation matrix (removing and adjusting for a component from the correlation matrix), sequentially partialling out each component. At each step, the partial correlations are squared and their average is computed.  
 At first, the components which are removed will be those that are most representative of the shared variance between 2+ variables, meaning that the "average squared partial correlation" will decrease. At some point in the process, the components being removed will begin represent variance that is specific to individual variables, meaning that the average squared partial correlation will increase.  
@@ -590,13 +587,20 @@ VSS(data, plot = FALSE, method="pc", n = ncol(data))
 ```
 (be aware there is a lot of other information in this output too! For now just focus on the map column)
 
+__NOTE: The MAP method will sometimes tend to under-extract (suggest too few components)__  
+
 :::
 
-`r qbegin("A9")`
+`r qbegin(9)`
 How many components should we keep according to the MAP method?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
+VSS(job_skills, plot=FALSE, method="pc", n = ncol(job_skills))
+```
+
+```{r}
+#| include: false
 job_map <- VSS(job_skills, plot=FALSE, method="pc", n = ncol(job_skills))$map
 paste("MAP is lowest for", which.min(job_map), "components")
 ```
@@ -605,8 +609,8 @@ According to the MAP criterion we should keep 2 principal components.
 `r solend()`
 
 
-:::statbox
-**Parallel analysis**
+::: {.callout-note collapse="true"}
+#### Parallel analysis
 
 Parallel analysis involves simulating lots of datasets of the same dimension but in which the variables are uncorrelated. For each of these simulations, a PCA is conducted on its correlation matrix, and the eigenvalues are extracted. We can then compare our eigenvalues from the PCA on our *actual* data to the average eigenvalues across these simulations. 
 In theory, for uncorrelated variables, no components should explain more variance than any others, and eigenvalues should be equal to 1. In reality, variables are rarely truly uncorrelated, and so there will be slight variation in the magnitude of eigenvalues simply due to chance. 
@@ -615,30 +619,57 @@ The parallel analysis method suggests keeping those components for which the eig
 It can be conducted in R using:
 ```{r}
 #| eval: false
-fa.parallel(job_skills, fa="pc", quant=.95)
+fa.parallel(job_skills, fa="pc", n.iter = 500)
 ```
+
+__NOTE: Parallel analysis will sometimes tend to over-extract (suggest too many components)__  
 
 :::
 
 
-`r qbegin("A10")`
+`r qbegin(10)`
 How many components should we keep according to parallel analysis?
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-fa.parallel(job_skills, fa="pc", quant=.95)
+fa.parallel(job_skills, fa="pc", n.iter = 500)
 ```
 
 Parallel analysis suggests to keep 1 principal component only as there is only one PC with an eigenvalue higher than the simulated random ones in red.
 
 `r solend()`
 
+## 6. Retaining N Components  
+
+`r qbegin(11)`
+Based on the set of criteria above, make a decision on how many components you will keep.  
+
+Sometimes, there may also be pragmatic reasons for keeping a certain number (e.g. if you want specifically 1 dimension, you may be willing to accept a lower proportion of explained variance).  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+It's a common thing to see disagreement between the methods to determine how many components we keep, and ultimately this is a decision that we as researchers have to make and explain.
 
 
-:::frame
-__Interpretation__  
+| method                    | recommendation                  | 
+| ------------------------- | ------------------------------- |
+| explaining >80\% variance | keep 2 components               |
+| kaiser's rule             | keep 2 components               |
+| scree plot                | keep 3 components? (subjective) |
+| MAP                       | keep 2 components               |
+| parallel analysis         | keep 1 component                |
 
-Because three out of the five selection criteria introduced above suggest to keep 2 principal components, in the following we will work with the first two PCs only.
+
+Because three out of the five selection criteria above suggest to keep 2 principal components, here we will keep 2 components. This solution explains a reasonable proportion of the variance (88%), and it would be perfectly defensible to instead go for 3, explaining 98%
+
+`r solend()`
+
+
+
+
+::: {.callout-tip collapse="true"}
+#### Examining loadings  
+
 
 Let's have a look at the selected principal components:
 ```{r}
@@ -665,8 +696,12 @@ print(job_pca$loadings, cutoff = 0.3)
 ```
 
 :::
-<br>
-`r optbegin('Optional: How well are the units represented in the reduced space?', FALSE, show = TRUE, toggle = params$TOGGLE)`
+
+:::
+
+
+::: {.callout-caution collapse="true"}
+#### Optional: How well are the units represented in the reduced space?  
 
 We now focus our attention on the following question: Are all the statistical units (police officers) well represented in the 2D plot?
 
@@ -702,35 +737,48 @@ boxplot(sum_sq)
 ```
 
 There seem to be only five outliers, and they are not too high compared to the rest of the scores. For this reason, we will consider the 2D representation of the data to be satisfactory.
-`r optend()`
-
 
 :::
 
 
-## 6. Using PCA scores
+## 7. Using PCA scores
 
-Supposing that we decide to reduce our six variables down to two principal components:
+::: {.callout-note collapse="true"}
+#### PCA scores
+
+Now that we have decided to reduce our six variables down to two principal components, we can, for each of our observations, get their _scores_ on each of our components.  
+
 ```{r}
 job_pca2 <- principal(job_skills, nfactors = 2, covar = TRUE, rotate = 'none')
-```
-
-:::rtip
-We can, for each of our observations, get their _scores_ on each of our components.  
-```{r}
 head(job_pca2$scores)
 ```
+
+PCA scores are essentially weighted combinations of an individuals responses to the items.  
+$$
+\text{score}_{\text{component j}} = w_{1j}x_1 + w_{2j}x_2 + w_{3j}x_3 +\, ... \, + w_{pj}x_p
+$$
+Where $w$ are the weights, $x$ the variable scores. 
+
+::: {.callout-caution collapse="true"}
+#### Optional: How are weights calculated?  
+
+The weights are calculated from the eigenvectors as 
+$$
+w_{ij} = \frac{a_{ij}}{\sqrt(\lambda_j)}
+$$
+where $w_{ij}$ is the weight for a given variable $i$ on component $j$ , $a_{ij}$ is the value from the eigenvector for item $i$ on component $j$ and $\lambda_{j}$ is the eigenvalue for that component.
+
 :::
 
-In the literature, some authors also suggest to look at the correlation between each principal component and the measured variables:
+In the literature, some authors also suggest to look at the correlation between the principal component scores and the measured variables:
 
 ```{r}
 # First PC
 cor(job_pca2$scores[,1], job_skills)
 ```
 
-The first PC is strongly correlated with all the measured variables except `probl_solv` and `logical`.
-As we mentioned above, all variables seem to contributed to the first PC.
+The first PC is strongly correlated with all the measured variables except `probl_solv` and `logical`. 
+As mentioned when looking at loadings, all these variables seem to contributed to the first PC.
 
 ```{r}
 # Second PC
@@ -739,10 +787,30 @@ cor(job_pca2$scores[,2], job_skills)
 
 The second PC is strongly correlated with `probl_solv` and `logical`, and slightly negatively correlated with the remaining variables. This separates police officers with clear logical and problem solving skills and a low rating on other skills.
 
-`r qbegin("A11")`
+We can also visualise our observations (the police officers) in the reduced space given by the retained principal component scores.
+
+```{r}
+#| fig-width: 5
+#| fig-align: 'center'
+tibble(pc1 = job_pca2$scores[, 1],
+       pc2 = job_pca2$scores[, 2]) %>%
+  ggplot(.,aes(x=pc1,y=pc2))+
+  geom_point()
+```
+
+:::
+
+
+:::
+
+`r qbegin(12)`
 We have reduced our six variables down to two principal components, and we are now able to use the scores on each component in a subsequent analysis! 
 
-Join the two PC scores to the original dataset with the arrest rates in. Then fit a linear model to look at how the arrest rate of police officers is predicted by the two components representing different composites of the skills ratings by HR.   
+Join the principal component scores for your retained components to the original dataset which has the arrest rates in.  
+
+Then fit a linear model to look at how the arrest rate of police officers is predicted by the two components representing different composites of the skills ratings by HR.   
+
+Check for multicollinearity between your predictors.  
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -759,25 +827,12 @@ mod <- lm(arrest_rate ~ pc1 + pc2, data = job)
 # multicollinearity isn't a problem, because the components are orthogonal!! 
 library(car)
 vif(mod)
+
 summary(mod)
 ```
 `r solend()`
 
-:::frame
-__Plotting PCA scores__  
 
-We can also visualise the statistical units (police officers) in the reduced space given by the retained principal component scores.
-
-```{r}
-#| fig-width: 5
-#| fig-align: 'center'
-tibble(pc1 = job_pca2$scores[, 1],
-       pc2 = job_pca2$scores[, 2]) %>%
-  ggplot(.,aes(x=pc1,y=pc2))+
-  geom_point()
-```
-
-:::
 
 
 <div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

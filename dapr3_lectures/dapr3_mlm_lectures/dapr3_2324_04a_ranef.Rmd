@@ -1,0 +1,555 @@
+---
+title: "<b>Random Effect Structures</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    self-contained: true
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+params: 
+    show_extra: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+library(lme4)
+
+xaringanExtra::use_share_again()
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+knitr::opts_chunk$set(
+  dev = "svg",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  fig.asp = .8
+)
+
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+
+theme_set(
+    theme_minimal() + 
+    theme(text = element_text(size=20))
+)
+
+source("jk_source/jk_presfuncs.R")
+
+library(xaringanthemer)
+
+style_mono_accent(
+  base_color = "#88B04B", # DAPR3 
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+???
+Now that we've taken a bit of time to look at assumptions and diagnostic in multilevel models, we're going to move on to thinking about random effect structures in a bit more detail. 
+
+---
+# Grouping Structure: what have we seen so far?
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+???
+when i talk about random effect structures, i mean the hierarchical structure we specify in our model. 
+we've already seen a few instances of 2 levels.
+In each of these cases we had levels of "nesting". and this is probably the easiest structure to get our heads around initially. 
+so, take the exampel of surveying differnet children from various schools. 
+consider a random child in our dataset. 
+does she attend multiple schools, or just the one?
+
+---
+# Nested Structures
+
+- the level $j$ observations in a level $i$ group belong __only__ to that level $i$ group. 
+
+```{r out.width="450px", echo=FALSE, fig.align="center"}
+knitr::include_graphics("https://media.gettyimages.com/photos/albatross-chick-between-parents-feet-falkland-islands-picture-id642348358?s=2048x2048")
+```
+
+???
+the idea of a nested structure here is that each observation belongs to only one higher up level. 
+so each chick is in a nest, and they don't go into other nests.  
+each nest is in a tree, and the nests don't move to other trees. 
+
+
+---
+count:false
+# Nested Structures
+
+- the level $j$ observations in a level $i$ group belong __only__ to that level $i$ group.  
+
+- __`(1 | school/class)`__ or __`(1 | school) + (1 | class:school)`__
+
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/structure_id.png")
+```
+
+???
+we can have multiple levels of nesting. for instance, children in classes in schools. 
+in this case, we need to specify the nesting in our model. 
+so we use a forward slash, or a longer format which is more explicitly fitting a random intercept for each school, and a random intercept for each class within each school.
+
+---
+count:false
+# Nested Structures
+
+- the level $j$ observations in a level $i$ group belong __only__ to that level $i$ group.  
+
+- If labels are unique, __`(1 | school) + (1 | class)`__ is the same as __`(1 | school/class)`__  
+
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/structure_nested.png")
+```
+
+???
+one thing to note is that if our grouping labels are unique. for instance, all the classes from school A are called "Class A"-something, then we can also write it like this. 
+in this case we don't have to specify the nesting of classes within schools explicitly because the labels of the classes are unique to each school. 
+rather than the previous slide where there was a "class 1" label in all 3 schools, but these were actually DIFFERENT classes. 
+
+
+---
+count:false
+# Nested Structures
+
+One study site recruits 20 participants.  
+Each participant has 10 datapoints.  
+
+.pull-left[
+```{r}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+head(d3)
+```
+
+```{r eval=FALSE}
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)
+```
+
+]
+.pull-right[
+```{r echo=FALSE}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)+
+  facet_wrap(~sitename)+
+  theme(legend.position = "bottom")
+```
+]
+
+---
+count:false
+# Nested Structures
+
+14 study sites each recruit between 15-30 participants.  
+Each participant has 10 datapoints.  
+
+
+.pull-left[
+```{r eval=FALSE}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)+
+  theme(legend.position = "bottom")
+```
+]
+
+
+
+---
+# Crossed Structures
+
+- "crossed" = not nested!
+
+???
+crossed random effects are simply anything which is not nested. 
+
+--
+
+- __`(1 | subject) + (1 | task)`__  
+
+```{r echo=FALSE, fig.align="center", out.height="450px"}
+knitr::include_graphics("jk_img_sandbox/structure_crossed.png")
+```
+
+???
+a typical example is where each participant completes the same set of tasks, or sees the same set of stimuli. 
+if you want to carry on the schools, children example, you could consider subjects maths, english, history etc are not nested within schools, but history is taught in every school, and each school teaches every subject. 
+
+
+---
+# random effects
+
+(1 + x | g)
+
+random intercept
+
+wording is awkward
+random effects of x for g
+random effects of x by g
+by-g random effects of x
+allow effect of x to vary by g
+
+sometimes people will say "include a random effect for g" and they mean (1|g).  
+
+---
+# when should grouping g be fixed vs random
+
+.pull-left[
+
+| Criterion: | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed effects  | <center>Same levels would be used</center>     |    <center>The levels used </center>                                   |
+| Random effects | <center>Different levels would be used</center>   | <center>A population from which the levels used<br> are just a (random) sample</center> |
+
+]
+
+.pull-right[
+
+- If only small number of clusters, estimating variance components may be unstable.  
+
+- Partialling out cluster-differences as fixed effects *may* be preferable. 
+
+]
+
+???
+in discussing random effect structures, it's worth reiterating our distinction between fixed and random effects. sometimes it may be preferable to fit grouping as a fixed effect, if, for instance, we have a small number of clusters. 
+
+---
+# when to include random slopes of x
+
+i have  y ~ 1 + x + (1 | g)
+should i include by-g random effect of x?  
+
+
+
+if x can vary by g, then including x|g will give a better estimate of the uncertainty in the fixed effect of x.  
+TODO look up barr et al.  
+
+e.g.
+we're interested in estimating how cognition changes over time.
+ACE ~ visit.  
+
+1. ACE ~ visit + (1 + visit | ppt)
+2. ACE ~ visit + (1 | ppt)
+
+1 is preferable to 2, especially because we're interested in estimating the effect of visit.  
+
+1. ACE ~ visit + covariate + (1 + visit + covariate | ppt)
+2. ACE ~ visit + covariate + (1 + visit | ppt)
+
+1 is slightly preferable to 2 because it more accurately represents the world (people vary in how cov influences cognition).  
+but we're not interested in assessing significance of covariate, we're just controlling for it, so it is less crucial to include it here.  
+
+
+
+---
+# slope of x varies by g
+
+consider: 
+
+```{r echo=FALSE}
+d3 <- read_csv("../../../data/dapr3_mindfuldecline.csv")
+```
+
+> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
+
+```{r}
+ggplot(d3, aes(x=visit,y=ACE))+
+  geom_point()+
+  facet_wrap(~ppt)
+```
+
+```{r}
+ggplot(d3, aes(x=condition,y=ACE))+
+  geom_point()+
+  facet_wrap(~ppt)
+```
+
+in this case, 
+(visit | ppt) makes theoretical sense
+(condition | ppt) does not
+
+
+
+---
+# trade-off
+
+- accurately representing the world
+  - everything that can varies does vary
+
+- being able to fit the model  
+  - in our sample, some things will not vary _enough_ to fit x|g
+    - due to not enough groups in g
+    - due to not enough variance in y~x between our groups
+    - predictors on different scales
+      - compared to ??|??, variance in ??(units)|?? will be tiny.
+      - can be fixed by scaling predictors before hand. 
+
+
+
+
+---
+# Maximal Structures
+
+- "maximal" = the most complex random effect structure that you can fit to the data
+
+  - everything that _can_ be modelled as a random effect, is done so
+
+???
+one thing we need to introduce is the notion of a maximal random effect structure. this is typically something we can work out from the study design, and is essentially the most complete specification of the grouping structure. 
+
+--
+
+- requires sufficient variance at all levels (for both intercepts and slopes where relevant). Which is often not the case.  
+
+???
+fitting the maximal structure requires sufficient variance though, and may not always be possible. 
+
+--
+
+```{r warning=T}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+maxmodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
+
+```
+
+
+
+???
+in our school example where there is are just two levels, the maximal model involves fitting a random intercept by-schools, and random effects of all level-1 predictors. 
+we can't fit a random effect of the intervention here, because each school is either a control or a treatment. there's no "effect of intervention in school X". 
+
+what you might notice here, is that we're getting some warnings. and this because both our models are too complex to fit on our available data. 
+
+---
+# Model Convergence
+
+- Don't report results from a model that doesn't converge. You will probably not be able to trust the estimates. 
+
+???
+recall last week we spoke about model estimation, being achieved by an iterative process like max likelihood, or restricted max likelihood. 
+model convergence is when our process finds a suitable answer. if our model doesn't converge, that means we shouldn't really trust our estimates. 
+
+--
+
+- Try a different optimiser, adjust the max iterations, or the stopping tolerances
+
+```{r echo=FALSE, fig.asp=.3}
+knitr::include_graphics("jk_img_sandbox/tolerance.png")
+```
+
+???
+the optimiser is the algorithm that tries to find the maximum likelihood estimates, and does so by wandering around (in a logical way) a multidimensional likelihood surface corresponding to different values of our estimates. optimisers converge when they stop searching because they think they've got a maximum. we can control the stopping tolerances, such as the minimum distance moved x, or likelihood gained y, or how much change in gradient. 
+we can also try different optimisers, which may be better, but more time consuming. 
+
+
+---
+count:false
+# Model Convergence
+
+- Don't report results from a model that doesn't converge. You will probably not be able to trust the estimates. 
+
+- Try a different optimiser, adjust the max iterations, or the stopping tolerances
+
+<br><br>
+
+- Remove random effects with least variance until model converges (see Barr et al., 2013)
+
+- Use a criterion for model selection (e.g. AIC, BIC) to choose a random effect structure that is supported by the data (see Matsuchek et al., 2017)
+
+???
+there are various suggestions as to choosing an appropriate random effect strucutre. 
+perhaps the most simple, and most used in psychology, is to start with the maximal and then remove parameters with the least variance until the model converges. 
+
+--
+
+- __No right answer__
+
+???
+however, important to note that there's no obvious right approach to this. the maximal model will often have lower power, and others suggest a model selection criteria is preferable. 
+
+---
+count:false
+# correlations between random effects
+
+.pull-left[
+__perfect correlations__
+
+```{r echo=FALSE}
+data <- read_csv('https://uoepsy.github.io/data/MathsAchievement.csv')
+data$clusterid <- as.factor(data$childid)
+data$x1<-data$year
+data$y <- data$math
+df<-data
+```
+```{r}
+m1 <- lmer(y ~ 1 + x1 + 
+             (1 + x1 | clusterid), data = df)
+VarCorr(m1)
+```
+```{r echo=FALSE, fig.asp=.5}
+dotplot.ranef.mer(ranef(m1))
+```
+]
+
+???
+because we have been discussing random effect structures and maximal models, we need to talk about the correlations between random effects, which are also estimated in our model. 
+our model is not just estimating the variances (and so standard deviations) of our random intercepts and random effects, but is actually estimating a variance-covariance matrix, which means we are estimating the correlation between different random effects. 
+
+
+to understand these, we can take it to the extreme and consider a correlation of 1 between a random intercept and random effect. so these are perfectly correlated. 
+what does that look like?
+
+--
+
+.pull-right[
+```{r echo=FALSE}
+set.seed(33)
+tibble(
+  g = 1:10,
+  i = rnorm(10,1,1),
+  x = i+rnorm(10,0,.1)
+) %>% mutate(
+  pre = list(1:10)
+) %>% unnest() %>% mutate(
+  y = i+x*pre
+) %>%
+  ggplot()+
+  geom_line(aes(x=pre,y=y,group=g))+
+  labs(x="x1",y=".fitted")
+```
+]
+
+???
+well, the higher the intercept, the greater the slope. the model is saying that groups with higher intercepts have more positive effects of x1. 
+
+obtaining a random effect correlation estimate of +1 or -1 means that out optimiser has hit a sort of "boundary".
+correlations cannot exceed 1 or -1, and even if you don't get an explicit error or warning, these potentially indicate some problems with convergence. 
+Why? because we don't expect true correlations to lie on the boundary. This often means that there are not enough data to estimate all the parameters reliably
+
+---
+count:false
+# correlations between random effects
+
+.pull-left[
+__perfect correlations__
+
+```{r echo=FALSE}
+data <- read_csv('https://uoepsy.github.io/data/MathsAchievement.csv')
+data$clusterid <- as.factor(data$childid)
+data$x1<-data$year
+data$y <- data$math
+df<-data
+```
+```{r}
+m1 <- lmer(y ~ 1 + x1 + 
+             (1 + x1 | clusterid), data = df)
+VarCorr(m1)
+```
+```{r echo=FALSE, fig.asp=.5}
+dotplot.ranef.mer(ranef(m1))
+```
+]
+
+.pull-right[
+__zero correlations__
+
+```{r}
+zcpmodel <- lmer(y ~ 1 + x1 + 
+                   (1 + x1 || clusterid), data = df)
+VarCorr(zcpmodel)
+```
+```{r echo=FALSE, fig.asp=.5}
+dotplot.ranef.mer(ranef(zcpmodel))
+```
+]
+
+???
+we can, if we choose, remove the estimation of the correlation in order to simplify our model. 
+However, it is important to note that this is like fixing that correlation to be exactly zero. So we are putting a constraint on our model that the correlation between intercepts and slopes is 0. 
+
+---
+# correlations between random effects
+
+When should we remove them?
+
+???
+so when does it make sense to fix the correlation to 0? well
+
+--
+ 
+__When it makes theoretical sense to do so.__
+
+
+???
+in certain designs, you might consider there to be no theoretical justification for there to be a correlation between random effects.  
+however, you have to be careful and this should only be done if your predictor is on a ratio scale - so if it has a meaningful zero. 
+this is for the slghtly complicated reason that the zero correlation model is sensitive to shifts in the predictor. so our estimates from a model with a zero correlation parameter will change slightly as we shift our predictor. 
+
+---
+# Summary
+
+- random effect structures can get complicated quite quickly
+    - we can have multiple levels of nesting
+    - we can have crossed random effects 
+
+- the maximal random effect structure is the most complex structure we can fit to the data. 
+    - it often leads to problems with model convergence
+    
+- building MLMs is a balancing act between accounting for different sources of variance and attempting to fit a model that is too complex for our data.  
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
