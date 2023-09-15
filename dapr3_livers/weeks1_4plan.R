@@ -1,4 +1,5 @@
-
+library(tidyverse)
+library(lme4)
 # obs data ----
 eff_seed <- sample(1:2^15, 1)
 print(sprintf("Seed for session: %s", eff_seed))
@@ -23,7 +24,7 @@ df = data.frame(x=round(xd+xg), g = factor(g), a,bw, y, y_bin)
 print(sprintf("Seed for session: %s", eff_seed))
 df = df |> transmute(
   ncoffees = pmax(0,x),
-  caff = x*212,
+  caff = x*80,
   pid = map_chr(g,~paste0("person",LETTERS[.])),
   age = a,
   milk = factor(bw),
@@ -75,7 +76,7 @@ pidnames = c("Holly","Tom","Bérengère","Umberto","Hannah","Josiah","Zachary","
 
 df = df |> transmute(
   ncoffees = x,
-  caff = x*212,
+  caff = x*80,
   pid = map_chr(g,~pidnames[.]),
   age = a,
   milk = factor(bw),
@@ -91,7 +92,7 @@ quickdf <- df |> group_by(pid) |>
   #   milk = first(milk)
   # ) |> mutate(ncoffees = round(RT*-.01 + rnorm(n(),0,2)), 
   #             ncoffees = ncoffees + abs(min(ncoffees)),
-  #             caff = ncoffees*212
+  #             caff = ncoffees*80
   # )
 
 df = df |> select(pid,age,ncoffees,caff,milk,RT)
@@ -120,7 +121,7 @@ simg2 = function(dd){
   df |> transmute(
     dept = dd,
     ncoffees = x,
-    caff = x*212,
+    caff = x*80,
     g = map_chr(g,~paste0(dd,"_",.)),
     age = a,
     milk = factor(bw),
@@ -210,8 +211,12 @@ xyplot(RT~ncoffees|pid,data=df, type=c("p","r"))
 
 # warning. it needs thought.. 
 # you shouldn't be able to fit this model, but you can.
-lmer(RT~ 1 + milk + (1 + milk | pid), data = df) |> summary()
+mm = lmer(RT~ 1 + (1 + milk | pid), data = df)
+summary(mm)
 # the estimates in the variance components are not what you think
+
+
+
 
 
 # week 3 ----
