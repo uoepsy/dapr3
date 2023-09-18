@@ -34,7 +34,10 @@ First, we just get our participants, and record their reaction times. We also as
 psychRT_quick
 
 # plot:
-
+ggplot(psychRT_quick, aes(x=ncoffees, y=RT))+
+  geom_point() +
+  geom_smooth(method=lm,se=F)+
+  geom_label(aes(label=pid),hjust=0,position=position_nudge(x=.1))
 
 # fit a model:
 
@@ -56,13 +59,20 @@ We end up with some highly caffeinated participants, but we observe them at vari
 psychRT
 
 # plot
+ggplot(psychRT, aes(x=ncoffees, y=RT))+
+  geom_point() +
+  geom_smooth(method=lm,se=F) +
+  geom_label(data=filter(psychRT,pid=="Josiah"),
+             aes(label=pid),hjust=0,
+             position=position_nudge(x=.1))
 
 
 # fit an lm
+summary(lm(RT~ncoffees,psychRT))
 
-
+mm = lm(RT~ncoffees,psychRT)
 # residuals are NOT independent
-
+plot(mm)
 
 ```
 Variation in RT is partly attributable to differences between people.  
@@ -72,7 +82,8 @@ Variation in RT is partly attributable to differences between people.
 
 ```{r}
 # ICC
-
+library(ICC)
+ICCbare(x=pid, y=RT,data=psychRT)
 
 ## plot
 
@@ -83,6 +94,13 @@ Variation in RT is partly attributable to differences between people.
 Let's pivot (if we have time)
 
 ```{r}
+psychRT
+
+psychRT %>% 
+  select(-caff) %>%
+  pivot_wider(names_from=ncoffees, values_from=RT) %>%
+  pivot_longer(`0`:`6`, names_to="howmanycoffees", values_to="reaction")
+
 
 ```
 
