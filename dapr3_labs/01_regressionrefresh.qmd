@@ -89,7 +89,7 @@ __Data: Wellbeing Across Scotland__
 
 In DAPR2, one of the examples we used in [learning about linear regression](https://uoepsy.github.io/dapr2/2122/labs/1_04_mlr.html) was in examining the relationship between time spent outdoors and mental wellbeing. In that example researchers had collected data from 32 residents of Edinburgh & Lothians.  
 
-Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.  
+Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.  
 
 Twenty of the Local Authority Areas provided data. It is available at [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv), and you can read it into your R environment using the code below: 
 ```{r}
@@ -200,7 +200,7 @@ __No Pooling__
 Information from each cluster contributes **only** to an estimate for that specific cluster.  
 ```{r}
 #| eval: false
-lm(wellbeing ~ outdoor_time * LAA, data = scotmw)
+lm(wellbeing ~ outdoor_time * laa, data = scotmw)
 ```
 Take the people from each LAA and estimate `wellbeing ~ outdoortime` for each LAA. Treat the LAAs as completely independent, and estimate LAA-specific differences in wellbeing, and LAA-specific differences in the effect of outdoor_time on wellbeing. Get _loads_ of coefficients that aren't really of interest.   
 
@@ -216,7 +216,7 @@ What would be great is if we could _somehow_ use the information from the other 
 ```{r}
 #| echo: false
 #| label: fig-borrowstrength
-#| fig-cap: "Blue lines show the estimated fitted values from the no-pooling approach lm(grade ~ motiv * schoolid). School X's estimate is based on just the 3 datapoints from that school, and does not take into account any of the other schools in anyway."
+#| fig-cap: "Blue lines show the estimated fitted values from the no-pooling approach lm(grade ~ motiv * schoolid). School X's estimate is based on just the 2 datapoints from that school, and does not take into account any of the other schools in anyway."
 set.seed(123)
 bind_rows(
   scotmw |> filter(laa %in% sort(unique(scotmw$laa))[c(1:4)]),
@@ -549,7 +549,7 @@ We have two datasets for this study. We're interested in how the type of audio (
 
 We're going to need to join these together!   
 
-We can just stick them side by side, because they're in different orders:
+We can't just stick them side by side, because they're in different orders:
   
 :::: {.columns}
 
@@ -614,19 +614,23 @@ What varies *between* these clusters? __whether they listen via headphones or sp
 `r qbegin("9")`
 Calculate the ICC, using the `ICCbare()` function from the **ICC** package.  
 
-What does it show?  
+What amount of variation in SDMT is explained by the participants clustering?  
 
 :::{.callout-tip collapse="true"}
 ### Hint  
 
-Remember, you can look up the help for a function by typing a `?` followed by the function name in the console.  
+Remember, you can look up the help for a function by typing a `?` followed by the function name in the console. The usage of the `ICCbare()` function is as follows:
+
+```
+ICCbare(x = <cluster>, y = <outcome>, data = <data>)
+```
 
 :::
   
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-47% of the variance in SDMT scores is explained by the participant groupings.  
+48% of the variance in SDMT scores is explained by the participant groupings.  
 ```{r}
 library(ICC)
 ICCbare(x = PID, y = SDMT, data = efdata)
@@ -653,7 +657,7 @@ You can also think of the ICC as the correlation between two randomly drawn obse
 :::
 
 
-`r qbegin("10")`
+`r qbegin(label = "Question 10 - Optional (Advanced)")`
 We have two variables of interest here: 
 
 - `audio` (type of audio listened to in a trial)
