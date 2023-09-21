@@ -32,11 +32,14 @@ xaringanExtra::use_extra_styles(
   mute_unhighlighted_code = FALSE
 )
 xaringanExtra::use_share_again()
+
 library(knitr)
 library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 library(patchwork)
+library(lavaan)
+
 knitr::opts_chunk$set(
   dev = "png",
   warning = FALSE,
@@ -150,7 +153,11 @@ magick::image_read("figs/basic_mediation.png")
   - We are modelling correlations.
   - When we only have cross-sectional data, we have multiple **indistinguishable** models
   - So there is **nothing** to demonstrate one model is better than another.
-  
+
+
+---
+# Cautions: Indistinguishable models
+
 ```{r, echo=FALSE}
 magick::image_read("figs/med versus confounding.png")
 ```
@@ -242,6 +249,9 @@ magick::image_read("figs/path_label.png")
 1. Evaluating the significance of the indirect, direct and total effects
 2. Considering the proportion of the total effect which is due to the indirect path
 
+
+$$ProportionMediated = \frac{indirect}{total}$$ 
+
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 
@@ -271,39 +281,87 @@ class: inverse, center, middle
 
 ---
 # Example
-.pull-left[
-- Does peer rejection mediate the association between aggression and depression?
 
-```{r peer rejection example simulate data, include=F}
-library(lavaan)
-agg.PR.dep<-'Dep~0.3*PR
-             Dep~0.2*Agg
-             PR~0.5*Agg'
++ Researchers are interested in looking at self-reported subjective well-being in the workplace.
 
-agg.data2<-simulateData(model=agg.PR.dep, standardized = T, model.type='sem')
-write.csv(agg.data2, "data/agg-data.csv")
++ They believe that abusive leadership behaviours will result in more interpersonal aggression at work, and subsequently reduced well-being.
+
++ Key question: Does interpersonal aggression mediate the effect of abusive leadership behaviour on psychological well-being, over and above the effects of sleep and exercise?
+
++ They want to control for well known health variables which impact subjective well-being, so also measure hours of exercise, and hours of sleep.
+
+
+```{r, echo=FALSE}
+# parameters
+n <- 550
+b1 <- 0.4
+b2 <- 0.38
+b3 <- 0.01
+b4 <- 0.22
+b5 <- 0.18
+var1 <- 1
+var2 <- 1
+var3 <- 1
+res1 <- 0.16
+res2 <- 0.225
+
+# Sim data
+set.seed(7284)
+
+leader <- rnorm(n, mean=0, sd = sqrt(var1))
+sleep <- rnorm(n, mean=0, sd = sqrt(var2))
+exercise <- rnorm(n, mean=0, sd = sqrt(var3))
+aggression <- b1*leader + rnorm(n, sd = sqrt(res1))
+swb <- b3*leader + b2*aggression + b4*exercise + b5*sleep + rnorm(n, sd = sqrt(res2))
+
+# Create data set
+leader_dat <- tibble(
+  ID = paste("participant", 1:550, sep = ""),
+  leader = round(leader,2),
+  sleep = sleep,
+  exercise = exercise,
+  aggression = round(aggression,2),
+  swb = round(swb,2)
+) %>%
+  mutate(
+    sleep = round(sleep+abs(min(sleep)), 1) +1.5,
+    exercise = round(exercise + abs(min(exercise)))
+    
+  )
 ```
-]
 
-- Three variables:
-  - Depression (Y)
-  - Peer rejection (M)
-  - Aggression (X)
+---
+# Example model
+
+```{r, echo=FALSE}
+magick::image_read("figs/example_l7.png")
+```
+
+---
+# Data
+
+```{r}
+slice(leader_dat, 1:10)
+```
+
 
 ---
 # Basic model code
-- Does peer rejection mediate the association between aggression and depression?
++ Does interpersonal aggression mediate the effect of abusive leadership behaviour on psychological well-being, over and above the effects of sleep and exercise?
 
 ```{r}
-model1<-'Dep ~ PR      # Depression (Y) predicted by peer rejection (M)
-         Dep ~ Agg     # Depression (Y) predicted by aggression (X): direct effect
-         PR ~ Agg      # Peer rejection predicted by aggression
+model1<-'aggression ~ leader  # aggression (M) predicted by leader abusive behaviour (X)
+         swb ~ aggression     # well-being (Y) predicted by aggression (M)
+         swb ~ leader         # well-being (Y) predicted by leader abusive behaviour (X): direct effect
+         swb ~ exercise + sleep # covariates
 '     
 ```
 
++ Note we could combine all the predictors of `swb` into a single line.
+  + It is split here for ease of reading
+  
 ---
 # Coding Indirect and Total Effects
-.pull-left[
 - To calculate the indirect effect of X on Y in path mediation, we need to create some new parameters
 
 - First we label those from the simple model:
@@ -312,51 +370,25 @@ model1<-'Dep ~ PR      # Depression (Y) predicted by peer rejection (M)
   - $c$ = the regression coefficient for M~X
 
 - We then use := operator to create a new parameter
-  - Name appears on the left (here `ind`), and the calculation on the right
-]
+  - Name appears on the left (here `ind` and `tot`), and the calculation on the right
 
-.pull-right[
-```{r indirect effects}
-model1 <-'Dep~b*PR          # label M -> Y b
-          Dep~c*Agg         # label X -> Y c    
-          PR~a*Agg          # label X -> M a
-          ind:=a*b          # create the product
-          '
+```{r}
+model1<-'aggression ~ a*leader  # aggression (M) predicted by leader abusive behaviour (X)
+         swb ~ b*aggression     # well-being (Y) predicted by aggression (M)
+         swb ~ c*leader         # well-being (Y) predicted by leader abusive behaviour (X): direct effect
+         swb ~ exercise + sleep # covariates
+         
+ind := a*b
+tot := (a*b)+c
+'     
 ```
-]
-
----
-# Calculating indirect effects in lavaan
-
-.pull-left[
-- We can use this same process to add the total effect to the model.
-
-- Remember:
-
-$$Total = Indirect + Direct$$
-
-$$Total = a*b + c$$
-
-]
-
-.pull-right[
-```{r total effects}
-model1 <-'Dep~b*PR          # label M -> Y b
-          Dep~c*Agg         # label X -> Y c    
-          PR~a*Agg          # label X -> M a
-          ind:=a*b          # create the product
-          total:=a*b+c      # add the total
-          '
-```
-]
-
 
 
 ---
 # Estimating the model
 
 ```{r}
-model1.est<-sem(model1, data=agg.data2)
+model1.est<-sem(model1, data=leader_dat)
 ```
 
 - This is very straight-forward
@@ -390,15 +422,18 @@ summary(model1.est)
 ]
 
 ---
-# Things to note from the model output
+# Things to note from the model output (1)
++ All effects other than the direct effect of abusive leadership on well-being are significant.
 
-- All three regressions paths are statistically significant
++ We have positive degrees of freedom so we can assess model fit.
 
-- The model is **just-identified**
-  - The degrees of freedom are equal to 0
-  - The model fit cannot be tested
-  - The model fit statistics (TLI, CFI, RMSEA, SRMR) all suggest perfect fit but this is meaningless
 
+.scroll-output[
+```{r}
+summary(model1.est, 
+        fit.measures = T)
+```
+]
 
 ---
 # Statistical significance of the indirect effects
@@ -417,7 +452,7 @@ summary(model1.est)
 - Run the model:
 
 ```{r}
-model1.est<-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se='bootstrap'
+model1.est<-sem(model1, data=leader_dat, se='bootstrap') #we add the argument se='bootstrap'
 ```
 
 - View the output with CI's
@@ -458,8 +493,19 @@ summary(model1.est, ci=T, std=T)
 
 
 ---
-# what if my model doesn't fit?
+# What if my model doesn't fit?
++ In this case our model fits well. But what if it doesn't?
 
++ First, we should not draw substantive conclusion if fit is poor. And we could stop here.
+
++ If we want to understand why the fit is poor, we can look at modification indices.
+
+.scroll-output[
+```{r}
+modindices(model1.est)
+```
+
+]
 
 ---
 # Making model modifications
@@ -508,20 +554,18 @@ class: inverse, center, middle
 ---
 # Reporting path mediation models - example of SEM diagram with results
 
-.pull-left[
 - Include the key parameter estimates
 
 - Indicate statistically significant paths (e.g. with an '*')
 
 - Include a figure note that explains how statistically significant paths (and at what level) are signified 
 
-]
+---
+# Example Diagram
 
-.pull-right[
-
-[ADD IMAGE FOR THE FINAL MODEL EXAMPLE DEPENDENT]
-
-]
+```{r, echo=FALSE}
+magick::image_read("figs/example_l7_param.png")
+```
 
 ---
 # Visualising the model 
@@ -538,10 +582,11 @@ class: inverse, center, middle
 # Reporting path mediation models - the indirect effects
 
 - Results
- - The coefficient for the indirect effect and the bootstrapped 95% confidence intervals
- - Common to also report **proportion mediation**:
-  
-$$\frac{indirect}{total}$$ 
+ - The coefficient for the indirect effect and the bootstrapped 95% confidence intervals.
+ 
+> The indirect effect of abusive leadership on well-being via workplace aggression was significant ( $\beta$ = 0.16, bootstrap 95% CI [0.12, 0.20])
+ 
+ - Common to also report **proportion mediation**
   
 - However, important to be aware of limitations:
   - Big proportion mediation possible when total effect is small - makes effect seem more impressive
@@ -549,39 +594,6 @@ $$\frac{indirect}{total}$$
   - Should be interpreted in context of total effect
 
 - Tricky interpretation if there are a mix of negative and positive effects involved
-
-
----
-# Extensions of path mediation models
-- We can extend our path mediation model in various ways:
-  - Several mediators in sequence or parallel
-  - Multiple outcomes
-  - Multiple predictors
-  - Multiple groups (e.g., comparing direct and indirect effects across males and females)
-  - Add covariates to adjust for potential confounders
-
-
----
-# Example: Multiple mediation model
-.pull-left[
-```{r mult med}
-model2<-'Dep~b2*Aca  
-         Aca~a2*Agg
-         Dep~b1*PR
-         PR~a1*Agg
-         Dep~c*Agg  
-
-        ind1:=a1*b1
-        ind2:=a2*b2
-        
-        total=a1*b1+a2*b2+c
-'
-```
-]
-
-.pull-right[
-
-]
 
 ---
 ## Other path analysis models
