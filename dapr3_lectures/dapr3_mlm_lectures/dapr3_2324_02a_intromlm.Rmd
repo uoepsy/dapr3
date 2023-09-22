@@ -425,13 +425,13 @@ Multi-level models can be used to answer multi-level questions!
 Do phenomena at Level X influence __effects__ at Level Y?  
 
 __example:__  
-$n$ children's grades are recorded every year throughout school
+$n$ children's grades are recorded every year throughout school  
 Q: Does being mono/bi-lingual influence childrens' grades over the duration of their schooling?  
 
 $$
 \begin{align}
 \textrm{for child }i\textrm{, in year }j \\
-\textrm{grade}_{ij} &= \beta_{0} + \beta_{1i}\textrm{school year}_j + \varepsilon_{ij} \\  
+\textrm{grade}_{ij} &= \beta_{0} + \beta_{1i}\textrm{school year}_{ij} + \varepsilon_{ij} \\  
 \beta_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i
 \end{align}
 $$
@@ -440,7 +440,7 @@ $$
 Single equation:   
 $$
 \begin{equation}
-\textrm{grade}_{ij} = \beta_{0} + (\gamma_{10} + \zeta_{1i})\cdot\textrm{year}_j + \gamma_{11}\textrm{bilingual}_i\cdot\textrm{school year}_j + \varepsilon_{ij}
+\textrm{grade}_{ij} = \beta_{0} + (\gamma_{10} + \zeta_{1i})\cdot\textrm{school year}_{ij} + \gamma_{11}\textrm{bilingual}_i\cdot\textrm{school year}_{ij} + \varepsilon_{ij}
 \end{equation}
 $$
 
@@ -459,13 +459,13 @@ Multi-level models can be used to answer multi-level questions!
 Do random variances covary?  
 
 __example:__  
-$n$ participants' cognitive ability is measured across time. 
+$n$ participants' cognitive ability is measured across time.  
 Q: Do people who have higher cognitive scores at start of study show less decline over the study period than those who have lower scores?  
 
 $$
 \begin{align}
 \textrm{for person }i\textrm{, at time }j \\
-\textrm{cognition}_{ij} &= \beta_{0i} + \beta_{1i}\textrm{time}_j + \varepsilon_{ij} \\
+\textrm{cognition}_{ij} &= \beta_{0i} + \beta_{1i}\textrm{time}_{ij} + \varepsilon_{ij} \\
 \beta_{0i} &= \gamma_{00} + \zeta_{0i}\\
 \beta_{1i} &= \gamma_{10} + \zeta_{1i}\\
 \end{align}
@@ -727,7 +727,7 @@ pptplots +
 - [ORANGE] = random slope
 
 ---
-# eg1: Partial Pooling vs No Pooling
+# No Pooling?
 
 .pull-left[
 Why not fit a fixed effect adjustment to the slope of x for each group?  
@@ -750,19 +750,22 @@ pptplots +
 
 
 ---
-# eg1: Partial Pooling vs No Pooling
+# No Pooling vs Partial Pooling
 
 .pull-left[
-- We talked last week about how this results in a lot of output. With 20 clusters, we get: intercept at reference cluster, adjustment for every other cluster, the effect of x at reference cluster, adjustment to effect of x for every other cluster. 
+- Remember - in the no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to differences from reference cluster to cluster $i$, but nothing else.  
+Information in cluster 1 to 19 doesn't influence what the model thinks about cluster-20).  
+
+- also, lots of output!  
     ```{r}
     length(coef(fe_mod))
     ```
-- information is not combined in anyway (data from cluster $i$ contributes to differences from reference cluster to cluster $i$, but nothing else. Information in cluster 1 to 19 doesn't influence what the model thinks about cluster-20).  
 
 ]
 
 ???
 - Coefficients from the no-pooling are the adjustments for intercept and slope for each school 
+
 
 
 --
@@ -792,77 +795,9 @@ d3 %>%
 - in the multilevel modelling approach, each school gets its own intercept and slope, but these 'borrow strength' from the others.   
 - The borrowing of strength is more apparent for the (what would be) more extreme clusters, as well as those that have fewer datapoints. What happens to these cluster estimates is that they are shrunk towards the population average. 
 - [PLOT]
-
----
-# eg1: ICC from lmer
-
-.pull-left[
-Fit an intercept-only model:  
-```{r highlight.output=c(13,14)}
-null_mod <- lmer(ACE ~ 1 + (1 | ppt), data = d3) 
-summary(null_mod)
-```
-]
-.pull-right[
-```{r}
-2.22 / (2.22 + 2.54)
-```
-
-Note: ICC is conditional on random intercepts only (inclusion of random slopes will affect your random intercept).  
-
-]
-
-???
-- recall that ICC is the proportion of variance between groups to the total variance.  
-- we can get this from our lmer output!  
-we're back to our childhood emotional dysregulation data here, and we can see that we have an estimated variance between schools, and the residual variance. between those, we can calculate the ratio of this to the total.  
-
-
-Once we introduce random slopes/coefficients, things get more complicated. the ICC will be a function of the variable(s) for which random slopes are specified. 
-
----
-# eg1: Explained Variance 
-
-.pull-left[
-__ $R^2$ __  
-
-- Recall $R^2$ is proportion of variance explained
-
-- In MLM, multiple variance components (not just $\varepsilon$). Do random effects "explain" variance?  
-    - "marginal $R^2$" = variance explained due to fixed effects
-    - "conditional $R^2$" = variance explained due to fixed + random
-
-```{r warning=F, message=F}
-library(performance)
-rs_mod <- lmer(ACE ~ 1 + visit + 
-                 (1 + visit | ppt), 
-               data = d3)
-r2(rs_mod)
-```
-
-
-]
-
-???
-- no R squared given by default
-- you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
-
---
-
-.pull-right[
-__Proportional Reduction in Variance (PRV)__  
-
-- $PRV = \frac{\text{var}_{m0} - \text{var}_{m1}}{\text{var}_{m0}}$
-
-- where $\text{var}_{m0}$ and $\text{var}_{m1}$ are variance components from models with and without a parameter.  
-
-
-]
-
-???
-Another metric we have is the proportional reduction in variance. We can consider how the inclusion of a variable in a model reduces a variance component, for instance the residual variance. 
-
-
+- $\frac{\sigma^2_{b} }{\sigma^2_b + \frac{\sigma^2_e }{n_i}}$
+- what determines shrinkage?
+  - smaller n_i, more bvar/evar
 
 ---
 # lmer output
@@ -1020,6 +955,78 @@ coef = fixef + ranef
 
 ???
 - fixef, ranef and coef.  
+
+
+---
+# ICC from lmer
+
+.pull-left[
+Fit an intercept-only model:  
+```{r highlight.output=c(13,14)}
+null_mod <- lmer(ACE ~ 1 + (1 | ppt), data = d3) 
+summary(null_mod)
+```
+]
+.pull-right[
+```{r}
+2.22 / (2.22 + 2.54)
+```
+
+Note: ICC is conditional on random intercepts only (inclusion of random slopes will affect your random intercept).  
+
+]
+
+???
+- recall that ICC is the proportion of variance between groups to the total variance.  
+- we can get this from our lmer output!  
+we're back to our childhood emotional dysregulation data here, and we can see that we have an estimated variance between schools, and the residual variance. between those, we can calculate the ratio of this to the total.  
+
+
+Once we introduce random slopes/coefficients, things get more complicated. the ICC will be a function of the variable(s) for which random slopes are specified. 
+
+---
+# Explained Variance 
+
+.pull-left[
+__ $R^2$ __  
+
+- Recall $R^2$ is proportion of variance explained
+
+- In MLM, multiple variance components (not just $\varepsilon$). Do random effects "explain" variance?  
+    - "marginal $R^2$" = variance explained due to fixed effects
+    - "conditional $R^2$" = variance explained due to fixed + random
+
+```{r warning=F, message=F}
+library(performance)
+rs_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), 
+               data = d3)
+r2(rs_mod)
+```
+
+
+]
+
+???
+- no R squared given by default
+- you will likely remember r squared from standard linear regression. in multilevel models, our r squared becomes a little more difficult - we have two metrics, the marginal (variance explained by fixed effects only), and the conditional (that explained by fixed and random)
+
+--
+
+.pull-right[
+__Optional: Proportional Reduction in Variance (PRV)__  
+
+- $PRV = \frac{\text{var}_{m0} - \text{var}_{m1}}{\text{var}_{m0}}$
+
+- where $\text{var}_{m0}$ and $\text{var}_{m1}$ are variance components from models with and without a parameter.  
+
+
+]
+
+???
+Another metric we have is the proportional reduction in variance. We can consider how the inclusion of a variable in a model reduces a variance component, for instance the residual variance. 
+
+
 
 
 ---
@@ -1291,7 +1298,7 @@ plot_model(EDSmodel, type="eff", show.data=TRUE)
 .pull-right[
 ```{r echo=FALSE, fig.asp=.7}
 library(sjPlot)
-plot_model(EDSmodel, term="CRQ", type="eff", show.data=T) + ylim(3,5)
+plot_model(EDSmodel, term="CRQ", type="eff", show.data=T) + ylim(3,6)
 ```
 ]
 
@@ -1333,7 +1340,7 @@ as.data.frame(effect("CRQ",EDSmodel)) %>%
 #   geom_ribbon(aes(ymin=lower,ymax=upper),col="darkgreen", fill="darkgreen", lty = "dashed", alpha=.4)
 # save(p,file = "effplot.Rdata")
 load("effplot.Rdata")
-p
+p+ylim(3,6)
 ```
 ]
 
@@ -1368,7 +1375,7 @@ library(broom.mixed)
 ggplot(augment(EDSmodel), 
        aes(x=CRQ, y=.fitted,
            group=schoolid))+
-  geom_line() + ylim(3,5)
+  geom_line() + ylim(3,6)
 ```
 ]
 
@@ -1399,7 +1406,7 @@ ggplot(augment(EDSmodel),
 library(broom.mixed)
 p + geom_line(data=augment(EDSmodel), 
        aes(x=CRQ, y=.fitted,
-           group=schoolid), alpha=.2) + ylim(3,5)
+           group=schoolid), alpha=.2) + ylim(3,6)
 ```
 ]
 
