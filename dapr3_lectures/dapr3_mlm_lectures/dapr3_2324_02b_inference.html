@@ -46,6 +46,12 @@ class: inverse, center, middle
 &lt;h1 style="text-align: left;"&gt;This Lecture:&lt;/h1&gt;
 &lt;h3 style="text-align: left;"&gt;1. Inferential methods with `lmer`&lt;/h3&gt;
 
+???
+okay, let's talk about inference in multilevel models. 
+this is a thorny issue, and there are a lot papers on the topic.
+what we're aiming for is to have a broad overview of why it's a tricky issue, cover some of the options we have, and make a recommendation on which approach might be the most reliable to use.
+
+
 ---
 # &lt;p&gt;&lt;/p&gt;
 
@@ -99,10 +105,19 @@ summary(cogtime_model)
 
 ]
 
+???
+you will have probably noticed when we were discussing the output of an lmer() object, that we don't get any p-values. 
+in lm, we're used to seeing an extra column here, with those little stars that people love to see. 
+
 --
 
 &lt;br&gt;&lt;br&gt;&lt;br&gt;
 &lt;center&gt;&lt;b&gt;Extensive debate about how best to test parameters from MLMs.&lt;/b&gt;&lt;/center&gt;  
+
+???
+there is a lot of debate on how we should be conducting inferential tests from multilevel models. 
+
+
 
 ---
 # p-values in `lm()`
@@ -123,6 +138,11 @@ F \qquad &amp; = \qquad \frac{MS_{model}}{MS_{residual}} \qquad &amp;= \qquad \f
 &amp; &amp; df_{residual} = n-k-1 \\
 \end{align}`
 $$
+???
+when we learned about standard linear model in DAPR2, tests were conducted on the reduction in sums of squared residuals, which follow an F distribution with k and n-k-1 degrees of freedom  
+
+the t-statistics of the coefficients were tested against t distributions with n-k-1 degrees of freedom accordingly. 
+
 ---
 count: false
 exclude: true
@@ -146,6 +166,9 @@ $$
 
 
 
+???
+
+
 ---
 # p-values in `lmer()`?  
 
@@ -161,6 +184,14 @@ $$
   - unclear how to calculate denominator `\(df\)`
   - unclear whether the test statistics even follow an `\(F\)` distribution
   
+???
+In all but the most controlled experimental designs, it is unclear how to calculate the denominator degrees of freedom in order to perform the relevant test. 
+  
+In MLM, the distribution of a test statistic when the null hypothesis is true is **unknown.**
+
+???
+in multilevel models, the distribution of our test statistics is often unknown. remember that we cannot solve our equations here and find the parameter estimates algebraically to minimise residual sums of squares, but instead we find the best estimates via max likelihood. 
+
 ---
 # Options for inference
 
@@ -224,6 +255,10 @@ $$
 &lt;/ol&gt;
   
 &lt;p style="opacity:.4"&gt;(there are others...)&lt;/p&gt;  
+???
+There are three main approaches to drawing inferences from multilevel models. 
+
+
 ---
 # Kenward-Rogers 
 
@@ -333,6 +368,9 @@ anova(restricted_model, full_model)
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ```
 
+???
+- remember "likelihood" = a function that associates to a parameter the probability (or probability density) of observing the given sample data.
+
 ---
 # Likelihood-based CIs
 
@@ -361,6 +399,9 @@ confint(cogtime_model, method="profile")
 ```
 
 
+???
+if curvature of likelihood function is very sharp at the ML estimates, then changes to the parameter estimates in any direction greatly reduce the likelihood, indicating that there is more certainty that the ML estimates represent the best solution. 
+
 ---
 # Summary
 
@@ -380,6 +421,12 @@ confint(cogtime_model, method="profile")
 
 
 - check your sample size! but if in doubt, go for KR.  
+
+
+???
+In summary then, making statistical inferences from multilevel models is a difficult, and slightly contentious issue. 
+There are various approaches that we can use, many of which have certain drawbacks, such as requiring perfectly balanced designs, or being less reliable with small sample sizes. 
+ultimately, the decision is yours to make - you may find conducting standard likelihood ratio tests, using the anova function, are more convenient as they do not take much time to compute, but we would recommend a bootstrapping approach as being worth the extra little bit of time. 
 
 
 ---
@@ -402,6 +449,12 @@ class: inverse, center, middle
 &lt;li style="opacity: .6"&gt;Case-based Bootstrap&lt;br&gt;minimal assumptions - we just need to ensure that we correctly specify the hierarchical dependency of data.&lt;br&gt;requires decision of at which levels to resample.&lt;br&gt;(discussed more next week)&lt;/li&gt;
 &lt;/ul&gt;
 
+
+???
+
+What we are going to focus on here is bootstrapping multilevel models.  
+There are various different ways we can bootstrap, which vary in the assumptions they make about our model and about the process that generates our data.  
+Today we'll focus on parametric bootstrapping. This assumes that our model is correct, for instance, in that our residuals and our random effect terms are normally distributed. 
 
 ---
 # Parametric Bootstrap
