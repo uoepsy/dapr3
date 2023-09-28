@@ -211,7 +211,7 @@ xyplot(RT~ncoffees|pid,data=df, type=c("p","r"))
 
 # warning. it needs thought.. 
 # you shouldn't be able to fit this model, but you can.
-mm = lmer(RT~ 1 + (1 + milk | pid), data = df)
+mm = lmer(RT~ 1 + milk + (0 + milk | pid), data = df)
 summary(mm)
 # the estimates in the variance components are not what you think
 

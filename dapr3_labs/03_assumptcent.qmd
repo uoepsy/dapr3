@@ -15,89 +15,6 @@ library(kableExtra)
 ```
 
 
-
-::: {.callout-note collapse="true"}
-## Centering & Scaling in LM
-
-We have some data from a study investigating how perceived persuasiveness of a speaker is influenced by the rate at which they speak.  
-```{r}
-dap2 <- read_csv("https://uoepsy.github.io/data/dapr2_2122_report1.csv")
-```
-
-We can fit a simple linear regression (one predictor) to evaluate how speech rate (variable `sp_rate` in the dataset) influences perceived persuasiveness (variable `persuasive` in the dataset). There are various ways in which we can transform the predictor variable `sp_rate`, which in turn can alter the interpretation of some of our estimates:  
-
-:::panelset
-:::panel
-#### Raw X
-```{r}
-m1 <- lm(persuasive ~ sp_rate, data = dap2)
-summary(m1)$coefficients
-```
-
-The intercept and the coefficient for neuroticism are interpreted as:  
-
-- `(Intercept)`: A audio clip of someone speaking at zero phones per second is estimated as having an average persuasive rating of `r coefficients(m1)[1] %>% round(.,2)`.  
-- `sp_rate`: For every increase of one phone per second, perceived persuasiveness is estimated to decrease by `r coefficients(m1)[2] %>% round(.,2)`.  
-
-:::
-:::panel
-#### Mean-Centered X
-
-We can mean center our predictor and fit the model again: 
-```{r}
-dap2 <- dap2 %>% mutate(sp_rate_mc = sp_rate - mean(sp_rate))
-m2 <- lm(persuasive ~ sp_rate_mc, data = dap2)
-summary(m2)$coefficients
-```
-- `(Intercept)`: A audio clip of someone speaking at the __mean__ phones per second is estimated as having an average persuasive rating of `r coefficients(m2)[1] %>% round(.,2)`.  
-- `sp_rate_mc`: For every increase of one phone per second, perceived persuasiveness is estimated to decrease by `r coefficients(m2)[2] %>% round(.,2)`.  
-
-:::
-:::panel
-#### Standardised X
-
-We can _standardise_ our predictor and fit the model yet again: 
-
-```{r}
-dap2 <- dap2 %>% mutate(sp_rate_z = scale(sp_rate))
-m3 <- lm(persuasive ~ sp_rate_z, data = dap2)
-summary(m3)$coefficients
-```
-- `(Intercept)`: A audio clip of someone speaking at the __mean__ phones per second is estimated as having an average persuasive rating of `r coefficients(m3)[1] %>% round(.,2)`.  
-- `sp_rate_z`: For every increase of one __standard deviation__ in phones per second, perceived persuasiveness is estimated to decrease by `r coefficients(m3)[2] %>% round(.,2)`. 
-
-Remember that the `scale(sp_rate)` is subtracting the mean from each value, then dividing those by the standard deviation. 
-The standard deviation of `dap2$sp_rate` is:
-```{r}
-sd(dap2$sp_rate)
-```
-so in our variable `dap2$sp_rate_z`, a change of `r sd(dap2$sp_rate) %>% round(.,2)` gets scaled to be a change of 1 (because we are dividing by `sd(dap2$sp_rate)`).  
-```{r}
-coef(m1)[2] * sd(dap2$sp_rate)
-coef(m3)[2]
-```
-
-:::
-:::
-
-Note that these models are identical. When we conduct a model comparison between the 3 models, the residual sums of squares is identical for all models: 
-```{r}
-anova(m1,m2,m3)
-```
-
-What changes when you center or scale a predictor in a standard regression model (one fitted with `lm()`)?  
-
-- The variance explained by the predictor remains exactly the same
-- The intercept will change to be the estimated mean outcome where that predictor is "0". Scaling and centering changes what "0" represents, thereby changing this estimate (the significance test will therefore also change because the intercept now has a different meaning)
-- The slope of the predictor will change according to any scaling (e.g. if you divide your predictor by 10, the slope will multiply by 10). 
-- The **test** of the slope of the predictor remains exactly the same.  
-
-:::
-<br>
-<div class="divider div-transparent div-dot"></div>
-
-
-
 # Exercises: Assumptions & Diagnostics
 
 :::frame
@@ -269,6 +186,85 @@ coef(rs_model)$laa["City of Edinburgh",]
 
 
 # Exercises: Centering in the MLM
+
+
+::: {.callout-note collapse="true"}
+## Centering & Scaling in LM
+
+We have some data from a study investigating how perceived persuasiveness of a speaker is influenced by the rate at which they speak.  
+```{r}
+dap2 <- read_csv("https://uoepsy.github.io/data/dapr2_2122_report1.csv")
+```
+
+We can fit a simple linear regression (one predictor) to evaluate how speech rate (variable `sp_rate` in the dataset) influences perceived persuasiveness (variable `persuasive` in the dataset). There are various ways in which we can transform the predictor variable `sp_rate`, which in turn can alter the interpretation of some of our estimates:  
+
+:::panelset
+:::panel
+#### Raw X
+```{r}
+m1 <- lm(persuasive ~ sp_rate, data = dap2)
+summary(m1)$coefficients
+```
+
+The intercept and the coefficient for neuroticism are interpreted as:  
+
+- `(Intercept)`: A audio clip of someone speaking at zero phones per second is estimated as having an average persuasive rating of `r coefficients(m1)[1] %>% round(.,2)`.  
+- `sp_rate`: For every increase of one phone per second, perceived persuasiveness is estimated to decrease by `r coefficients(m1)[2] %>% round(.,2)`.  
+
+:::
+:::panel
+#### Mean-Centered X
+
+We can mean center our predictor and fit the model again: 
+```{r}
+dap2 <- dap2 %>% mutate(sp_rate_mc = sp_rate - mean(sp_rate))
+m2 <- lm(persuasive ~ sp_rate_mc, data = dap2)
+summary(m2)$coefficients
+```
+- `(Intercept)`: A audio clip of someone speaking at the __mean__ phones per second is estimated as having an average persuasive rating of `r coefficients(m2)[1] %>% round(.,2)`.  
+- `sp_rate_mc`: For every increase of one phone per second, perceived persuasiveness is estimated to decrease by `r coefficients(m2)[2] %>% round(.,2)`.  
+
+:::
+:::panel
+#### Standardised X
+
+We can _standardise_ our predictor and fit the model yet again: 
+
+```{r}
+dap2 <- dap2 %>% mutate(sp_rate_z = scale(sp_rate))
+m3 <- lm(persuasive ~ sp_rate_z, data = dap2)
+summary(m3)$coefficients
+```
+- `(Intercept)`: A audio clip of someone speaking at the __mean__ phones per second is estimated as having an average persuasive rating of `r coefficients(m3)[1] %>% round(.,2)`.  
+- `sp_rate_z`: For every increase of one __standard deviation__ in phones per second, perceived persuasiveness is estimated to decrease by `r coefficients(m3)[2] %>% round(.,2)`. 
+
+Remember that the `scale(sp_rate)` is subtracting the mean from each value, then dividing those by the standard deviation. 
+The standard deviation of `dap2$sp_rate` is:
+```{r}
+sd(dap2$sp_rate)
+```
+so in our variable `dap2$sp_rate_z`, a change of `r sd(dap2$sp_rate) %>% round(.,2)` gets scaled to be a change of 1 (because we are dividing by `sd(dap2$sp_rate)`).  
+```{r}
+coef(m1)[2] * sd(dap2$sp_rate)
+coef(m3)[2]
+```
+
+:::
+:::
+
+Note that these models are identical. When we conduct a model comparison between the 3 models, the residual sums of squares is identical for all models: 
+```{r}
+anova(m1,m2,m3)
+```
+
+What changes when you center or scale a predictor in a standard regression model (one fitted with `lm()`)?  
+
+- The variance explained by the predictor remains exactly the same
+- The intercept will change to be the estimated mean outcome where that predictor is "0". Scaling and centering changes what "0" represents, thereby changing this estimate (the significance test will therefore also change because the intercept now has a different meaning)
+- The slope of the predictor will change according to any scaling (e.g. if you divide your predictor by 10, the slope will multiply by 10). 
+- The **test** of the slope of the predictor remains exactly the same.  
+
+:::
 
 :::frame
 __Data: Hangry__

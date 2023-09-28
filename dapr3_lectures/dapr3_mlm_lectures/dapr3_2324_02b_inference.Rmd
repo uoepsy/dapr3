@@ -79,9 +79,9 @@ class: inverse, center, middle
 <h3 style="text-align: left;">1. Inferential methods with `lmer`</h3>
 
 ???
-okay, let's talk about inference in multilevel models. 
-this is a thorny issue, and there are a lot papers on the topic.
-what we're aiming for is to have a broad overview of why it's a tricky issue, cover some of the options we have, and make a recommendation on which approach might be the most reliable to use.
+- let's talk about inference
+- difficult topic
+- we're not going to go into too much depth here, but just focus on a couple of different options, and some considerations we need to make  
 
 
 ---
@@ -112,8 +112,10 @@ summary(cogtime_model)
 ]
 
 ???
-you will have probably noticed when we were discussing the output of an lmer() object, that we don't get any p-values. 
-in lm, we're used to seeing an extra column here, with those little stars that people love to see. 
+- first things first
+- anybody notice lack of p values?
+- in LM, there was an extra column
+  - little stars
 
 --
 
@@ -121,7 +123,7 @@ in lm, we're used to seeing an extra column here, with those little stars that p
 <center><b>Extensive debate about how best to test parameters from MLMs.</b></center>  
 
 ???
-there is a lot of debate on how we should be conducting inferential tests from multilevel models. 
+- lots and lots of debate  
 
 
 
@@ -145,9 +147,13 @@ F \qquad & = \qquad \frac{MS_{model}}{MS_{residual}} \qquad &= \qquad \frac{SS_{
 \end{align}
 $$
 ???
-when we learned about standard linear model in DAPR2, tests were conducted on the reduction in sums of squared residuals, which follow an F distribution with k and n-k-1 degrees of freedom  
-
-the t-statistics of the coefficients were tested against t distributions with n-k-1 degrees of freedom accordingly. 
+- in simple regression
+- sums squared residuals
+- followed F 
+- degrees of freedom 
+  - how many things are we testing?  
+  - how many things are left over free to move around?  
+- t tests for coefficients follow same logic. 
 
 ---
 count: false
@@ -191,12 +197,17 @@ $$
   - unclear whether the test statistics even follow an $F$ distribution
   
 ???
-In all but the most controlled experimental designs, it is unclear how to calculate the denominator degrees of freedom in order to perform the relevant test. 
-  
-In MLM, the distribution of a test statistic when the null hypothesis is true is **unknown.**
 
-???
-in multilevel models, the distribution of our test statistics is often unknown. remember that we cannot solve our equations here and find the parameter estimates algebraically to minimise residual sums of squares, but instead we find the best estimates via max likelihood. 
+- in very specific situations. if we have a perfectly balanced study with the same number of observations in each condition, and same number of obs per cluster etc. 
+- we can then calculate the degrees of freedom
+
+
+- but, even then, the distribution of a test statistic when the null hypothesis is true is **unknown.**
+- remember idea of NHST
+
+- in LM, we can solve our equations to find out B. 
+- in MLM, we don't. we let computer go brrr. 
+
 
 ---
 # Options for inference
@@ -230,6 +241,11 @@ in multilevel models, the distribution of our test statistics is often unknown. 
   
 <p>(there are others...)</p>  
 
+???
+- all this means: LOADS OF OPTIONS
+- all of these are ways of getting either a p-value or a confidence interval
+- all will be _slightly_ different from one another  
+
 ---
 # Options for inference
 
@@ -261,8 +277,10 @@ in multilevel models, the distribution of our test statistics is often unknown. 
 </ol>
   
 <p style="opacity:.4">(there are others...)</p>  
+
 ???
-There are three main approaches to drawing inferences from multilevel models. 
+- DON'T WORRY
+- we're only going to look at a couple
 
 
 ---
@@ -279,6 +297,17 @@ library(parameters)
 model_parameters(cogtime_model, ci_method = "kr") # %>% print_html()
 ```
 
+???
+- kenward rogers is a good option for when we have small samples 
+- it uses a complicated method of approximating the degrees of freedom
+  - so it's still framed as F and t
+- adjusts our standard errors to correct for bias from smaller samples
+- useful = REML! 
+
+- 'small samples' = ? 
+- mainly talking level 2 to be honest
+
+- SLIDE
 
 ---
 # Kenward-Rogers 
@@ -298,7 +327,9 @@ library(pbkrtest)
 KRmodcomp(full_model, restricted_model)
 ```
 
-
+???
+- can also do an F test
+- remember JOINT TEST can be useful
 
 ---
 # Likelihood ratio tests
@@ -334,6 +365,14 @@ anova(restricted_model, full_model)
 
 ???
 - remember "likelihood" = a function that associates to a parameter the probability (or probability density) of observing the given sample data.
+- LRT = two models
+  - under which model are we more likely to observe our data?  
+- question of how much "more likely under m1" is enough.  
+- as N -> inf, then comparing likelihoods follows a chi square  
+
+- but with small N, no! so not a great option for small samples.  
+- however, v easy. SLIDE
+- DRAW
 
 ---
 # Likelihood-based CIs
@@ -353,6 +392,7 @@ confint(cogtime_model, method="profile")
 
 
 ???
+- DRAW
 if curvature of likelihood function is very sharp at the ML estimates, then changes to the parameter estimates in any direction greatly reduce the likelihood, indicating that there is more certainty that the ML estimates represent the best solution. 
 
 ---
@@ -377,9 +417,13 @@ if curvature of likelihood function is very sharp at the ML estimates, then chan
 
 
 ???
-In summary then, making statistical inferences from multilevel models is a difficult, and slightly contentious issue. 
-There are various approaches that we can use, many of which have certain drawbacks, such as requiring perfectly balanced designs, or being less reliable with small sample sizes. 
-ultimately, the decision is yours to make - you may find conducting standard likelihood ratio tests, using the anova function, are more convenient as they do not take much time to compute, but we would recommend a bootstrapping approach as being worth the extra little bit of time. 
+- to summarise
+- it's DIFFICULT
+
+- lots of options, with different strengths
+
+- often in practice, use anova for things quickly
+- then writing up switch to more robust method if necessary
 
 
 ---
