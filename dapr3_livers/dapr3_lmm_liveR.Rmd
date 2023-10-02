@@ -3,6 +3,8 @@ title: "dapr3 Live Rs"
 author: "josiah king"
 date: ""
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -102,7 +104,7 @@ psychRT %>%
   pivot_longer(`0`:`6`, names_to="howmanycoffees", values_to="reaction")
 ```
 
-# Week 2
+# Week 3a
 
 > after accounting for differences due to age, is the influence of caffeine consumption on reaction times dependent upon whether it coffee is taken with or without milk?  
 
@@ -112,37 +114,157 @@ We recruited people from the psychology department, and measured their reaction 
 
 How many people? How many observations?  
 ```{r}
+head(psychRT, 10L)
 
+nrow(psychRT)
+
+psychRT %>% count(pid) %>% nrow()
 ```
 
 
 Plotting the data:
 ```{r}
-
+ggplot(psychRT, aes(x=ncoffees, y=RT, col=milk))+
+  geom_point() +
+  geom_smooth(method=lm,se=F) +
+  facet_wrap(~pid)
 
 ```
 
 Fitting a model:
 ```{r}
-
-
+mod = lmer(RT~ 1 + age + ncoffees * milk + 
+             (1 + ncoffees | pid), data = psychRT) 
+summary(mod)
 ```
 
 Plotting the model:  
 ```{r}
-
-
+library(sjPlot)
+plot_model(mod, type="int")
 ```
 
 Why can't we have age|pid or milk|pid?  
 ```{r}
+lmer(RT~ 1 + age + ncoffees * milk + 
+       (1 + age| pid), data = psychRT)
 
+lmer(RT~ 1 + age + ncoffees * milk + 
+       (1 + milk | pid), data = psychRT)
 
+library(lattice)
+xyplot(RT~milk|pid,data=psychRT)
+xyplot(RT~age|pid,data=psychRT)
+#compare with:
+xyplot(RT~ncoffees|pid,data=psychRT)
+xyplot(RT~ncoffees|pid,data=psychRT, type=c("p","r"))
 ```
 
-We need to actually _think_, not just wait for errors!  
+
 ```{r}
-mm = lmer(RT~ 1 + milk + (1 + milk | pid), data = psychRT)
-summary(mm)
+lmer(RT~ 1 + milk + (1 + milk | pid), data = psychRT) %>%
+  summary()
 ```
+We need to actually _think_, not just wait for errors!  
+
+# Week 3b
+
+Suppose instead of doing our experiment where we forced people to drink all this coffee, we instead simply _observed_ them over several days, over various amounts of coffee consumption.  
+
+```{r}
+library(patchwork)
+ggplot(psychRT,aes(x=ncoffees,y=RT,group=pid,col=milk))+
+  geom_point()+
+  geom_smooth(method=lm,se=F) + 
+  labs(title="study 1") +
+ggplot(psych_OBS,aes(x=ncoffees,y=RT,group=pid,col=milk))+
+  geom_point()+
+  geom_smooth(method=lm,se=F) + labs(title="study 2")
+
+library(lattice)
+xyplot(RT~ncoffees|pid, psych_OBS, type=c("p","r"))
+```
+
+we could split this into two questions:
+
+- do people who drink more coffee than other people, have faster/slower RTs?
+- if a person drinks more coffee than they usually do, do their RTs increase/decrease?  
+
+
+first, though, i'd like to talk briefly about scale and fitting models.  
+```{r}
+head(psychRT)
+# this works
+m1 = lmer(RT~ 1 + age + ncoffees * milk + 
+            (1 + ncoffees | pid), data = psych_OBS)
+# this doesn't work:  
+m2 = lmer(RT~ 1 + age + caff * milk + 
+            (1 + caff | pid), data = psych_OBS)
+# why? because slope of caff is tiny compared to slope of coffees. because it's "1 increase in mg of caffeine". 
+# can cause issues because the estimate variance in slopes is v small.  
+VarCorr(m1)
+VarCorr(m2)
+```
+
+Centering can also affect fitting
+```{r}
+# remember that intercepts are "when predictor is zero"
+# consider the lecture data:
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+library(patchwork)
+ggplot(d3, aes(x=visit, y=ACE, group=ppt)) + 
+  geom_point()+
+  geom_line() +
+ggplot(d3, aes(x=age, y=ACE, group=ppt)) + 
+  geom_point()+
+  geom_line()
+
+m1 = lmer(ACE ~ 1 + visit + (1 + visit | ppt), data = d3)
+m2 = lmer(ACE ~ 1 + age + (1 + age | ppt), data = d3)
+VarCorr(m1)
+VarCorr(m2)
+
+#this is model 2, the ppt level fits plotted:  
+plot_m2 <- 
+  broom.mixed::augment(m2) %>%
+  ggplot(data=_,aes(x=age,y=.fitted,group=ppt))+
+  geom_point()+
+  geom_line()
+
+plot_m2
+
+#this is where 1|ppt is estimated at
+plot_m2 +
+  stat_smooth(geom="line",method=lm,se=F,fullrange=T,lty="longdash")+
+  xlim(0,78)
+
+# contrasts with model 1
+broom.mixed::augment(m1) %>%
+  ggplot(data=_,aes(x=visit,y=.fitted,group=ppt))+
+  geom_point()+
+  geom_line()+
+  stat_smooth(geom="line",method=lm,se=F,fullrange=T,lty="longdash")+
+  xlim(0,10)
+
+```
+
+
+separating within between coffee effects
+
+```{r}
+psych_OBS <- 
+  psych_OBS %>%
+  group_by(pid) %>%
+  mutate(
+    avg_coff = mean(ncoffees),
+    dev_coff = ncoffees - avg_coff
+  ) %>%
+  ungroup
+
+m1 = lmer(RT~ 1 + age + (avg_coff + dev_coff) * milk + 
+            (1 + dev_coff | pid), data = psych_OBS)
+summary(m1)
+plot_model(m1, type="int")
+```
+
 

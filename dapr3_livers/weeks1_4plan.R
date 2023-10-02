@@ -310,6 +310,7 @@ psychRT = df
 psychRT_quick = quickdf
 uoeRT = df_nest
 psychRT_tasks = df_cross
+psych_OBS = obsdf
 
-save(psychRT, psychRT_quick, uoeRT, psychRT_tasks, file="dapr3_liveRs.RData")
+save(psychRT, psychRT_quick, uoeRT, psych_OBS, psychRT_tasks, file="dapr3_liveRs.RData")
 
