@@ -39,7 +39,7 @@ scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
 rs_model <- lmer(wellbeing ~ 1 + outdoor_time + (1 + outdoor_time | laa), data = scotmw)
 ```
 
-1. Plot the residuals vs fitted model, and assess the extend to which the assumption holds that the residuals are zero mean.
+1. Plot the residuals vs fitted values, and assess the extend to which the assumption holds that the residuals are zero mean.
 2. Construct a scale-location plot. This is where the square-root of the absolute value of the standardised residuals is plotted against the fitted values, and allows you to more easily assess the assumption of constant variance. 
   - Optional: can you create the same plot using ggplot, starting with the `augment()` function from the __broom.mixed__ package?  
   
@@ -54,6 +54,13 @@ rs_model <- lmer(wellbeing ~ 1 + outdoor_time + (1 + outdoor_time | laa), data =
 plot(rs_model, type=c("p","smooth"))
 ```
 As we can see, the mean value of the residuals is quite close to zero, right the way across the fitted values. This is good. 
+
+::: {.callout-note}
+To change labels for the x and y axes, add the following arguments to the plot() function:
+
+- `xlab = "Fitted values"`
+- `ylab = "Residuals"`
+:::
 
 ```{r}
 plot(rs_model,
@@ -73,6 +80,12 @@ augment(rs_model) %>%
   geom_point() +
   geom_smooth()
 ```
+
+::: {.callout-note}
+To remove the confidence bands (in grey) from the smoothed line, you can change the last command to:
+
+`geom_smooth(se = FALSE)`
+:::
 
 `r solend()`
 
@@ -98,6 +111,41 @@ hist(resid(rs_model))
 qqnorm(resid(rs_model))
 qqline(resid(rs_model))
 ```
+
+
+::: {.callout-tip collapse="true"}
+
+__Indexing random effects__  
+
+The output of `ranef()` is a type of data container called "list". The list includes different named slots and you can find the names as follows: 
+
+```{r}
+names(ranef(rs_model))
+```
+
+You have a named slot for each group in your lmer specification. In this case, we only specified `laa` as grouping. To access the random effects for the specific group, type `ranef(model)` followed by `$groupname`
+
+```{r}
+ranef(rs_model)$laa
+```
+
+You will have multiple columns, one for each random effect.
+
+You can get the random intercepts by laa, by selecting the first column as follows:
+
+```{r}
+ranef(rs_model)$laa[, 1]
+```
+
+Respectively, for the random slopes by laa, you select the second column as follows:
+
+```{r}
+ranef(rs_model)$laa[, 2]
+```
+
+:::
+
+
 __Level 2__  
 ```{r}
 qqnorm(ranef(rs_model)$laa[, 1], main = "Random intercept")
@@ -163,7 +211,7 @@ hlm_augment(rs_model, level="laa") %>% arrange(desc(cooksd))
 
 `r qbegin("4")`
 
-1. Looking at the random effects, which LAA shows the least improvement in wellbeing as outdoor time increases, and which shows the greatest improvement?  
+1. Looking at the random effects, which LAA shows the least benefit to wellbeing as outdoor time increases, and which shows the greatest benefit?  
 2. What is the estimated wellbeing for people from City of Edinburgh with zero hours of outdoor time per week, and what is their associated increases in wellbeing for every hour per week increase in outdoor time?  
 
 `r qend()`
@@ -206,7 +254,7 @@ m1 <- lm(persuasive ~ sp_rate, data = dap2)
 summary(m1)$coefficients
 ```
 
-The intercept and the coefficient for neuroticism are interpreted as:  
+The intercept and the coefficient for speech rate are interpreted as:  
 
 - `(Intercept)`: A audio clip of someone speaking at zero phones per second is estimated as having an average persuasive rating of `r coefficients(m1)[1] %>% round(.,2)`.  
 - `sp_rate`: For every increase of one phone per second, perceived persuasiveness is estimated to decrease by `r coefficients(m1)[2] %>% round(.,2)`.  
@@ -438,12 +486,20 @@ ggplot(hangry,aes(x=avg_hunger,y=q_irritability))+
 There appears to be a slight positive relationship between a persons' average hunger and their irritability scores. 
 
 It is harder to tell what the relationship is between participant-centered hunger and irritability, because there are a lot of different lines (one for each participant). To make it easier to get an idea of what's happening, we'll make the plot fit a simple lm() (a straight line) for each participants' data:  
-```{r}
-ggplot(hangry,aes(x=hunger_gc,y=q_irritability, group=ppt))+
-  geom_point(alpha = .2) + 
-  geom_smooth(method=lm, se=FALSE, lwd=.2)
-  
+
+```{r include=FALSE}
+# ggplot(hangry,aes(x=hunger_gc,y=q_irritability, group=ppt))+
+#   geom_point(alpha = .2) + 
+#   geom_smooth(method=lm, se=FALSE, lwd=.2)
 ```
+
+```{r}
+ggplot(hangry,aes(x=hunger_gc,y=q_irritability, color=ppt)) +
+  geom_point(alpha = .2) + 
+  geom_smooth(method=lm, se=FALSE, lwd=.2) +
+  theme(legend.position = 'none')
+```
+
 I think there might be a positive trend in here, in that participants tend to be higher irritability when they are higher (for them) on the hunger score. 
 `r solend()`
 
