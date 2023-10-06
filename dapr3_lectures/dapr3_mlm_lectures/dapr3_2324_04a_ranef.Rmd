@@ -74,7 +74,9 @@ style_mono_accent(
 Now that we've taken a bit of time to look at assumptions and diagnostic in multilevel models, we're going to move on to thinking about random effect structures in a bit more detail. 
 
 ---
-# Grouping Structure: what have we seen so far?
+# Grouping structures so far... 
+
+.pull-left[
 
 - children within schools
 
@@ -88,18 +90,112 @@ Now that we've taken a bit of time to look at assumptions and diagnostic in mult
 
 - and probably some others...
 
+]
+.pull-right[
+
+]
 ???
-when i talk about random effect structures, i mean the hierarchical structure we specify in our model. 
-we've already seen a few instances of 2 levels.
-In each of these cases we had levels of "nesting". and this is probably the easiest structure to get our heads around initially. 
-so, take the exampel of surveying differnet children from various schools. 
-consider a random child in our dataset. 
-does she attend multiple schools, or just the one?
+
+---
+# Look at your data! Read the study design!  
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+]
+.pull-right[
+```{r echo=FALSE}
+data.frame(
+  g = c(1,1,1,"...","...","i","i","..."),
+  x = c(1,7,3,"...","...",5,1,"..."),
+  y = c(34,32,37,"...","...",25,29,"...")
+) |> print(row.names=FALSE)
+```
+]
+
+---
+count: false
+# Look at your data! Read the study design!  
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- **observations within clusters**  
+
+]
+.pull-right[
+```{r echo=FALSE}
+data.frame(
+  g = c(1,1,1,"...","...","i","i","..."),
+  x = c(1,7,3,"...","...",5,1,"..."),
+  y = c(34,32,37,"...","...",25,29,"...")
+) |> print(row.names=FALSE)
+```
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g`
+]
+
+---
+# Adding more levels!  
+
+.pull-left[
+
+- children within schools *within districts*
+
+- people within areas *within countries*
+
+- trials within participants *within pairs*
+
+- timepoint within participants *within families*
+
+- nurses within hospitals *within health boards*
+
+- **observations within clusters _within higher clusters_**  
+
+]
+.pull-right[
+
+```{r echo=FALSE}
+data.frame(
+  g1 = c("A","A","A","...","...","A","A","...","  ","B","B","B","...","...","B"),
+  g2 = c(1,1,1,"...","...","i","i","...","  ",101,102,103,"...","...","..."),
+  x = c(1,7,3,"...","...",5,1,"...","  ",4,6,2,"...","...","..."),
+  y = c(34,32,37,"...","...",25,29,"...","  ",31,25,27,"...","...","...")
+) |> print(row.names=FALSE)
+```
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g2`, which are in turn grouped by values of higher-level group identifier `g1`
+
+]
 
 ---
 # Nested Structures
 
-- the level $j$ observations in a level $i$ group belong __only__ to that level $i$ group. 
+- the things in a cluster belong __only__ to that cluster.  
 
 ```{r out.width="450px", echo=FALSE, fig.align="center"}
 knitr::include_graphics("https://media.gettyimages.com/photos/albatross-chick-between-parents-feet-falkland-islands-picture-id642348358?s=2048x2048")
@@ -115,12 +211,12 @@ each nest is in a tree, and the nests don't move to other trees.
 count:false
 # Nested Structures
 
-- the level $j$ observations in a level $i$ group belong __only__ to that level $i$ group.  
+- the things in a cluster belong __only__ to that cluster.  
 
-- __`(1 | school/class)`__ or __`(1 | school) + (1 | class:school)`__
+- **`(1 | school/class)`** or **`(1 | school) + (1 | class:school)`**
 
 ```{r echo=FALSE, fig.align="center"}
-knitr::include_graphics("jk_img_sandbox/structure_id.png")
+knitr::include_graphics("jk_img_sandbox/structure_nestednew.png")
 ```
 
 ???
@@ -129,15 +225,14 @@ in this case, we need to specify the nesting in our model.
 so we use a forward slash, or a longer format which is more explicitly fitting a random intercept for each school, and a random intercept for each class within each school.
 
 ---
-count:false
-# Nested Structures
+# Nested Structures - labels!  
 
-- the level $j$ observations in a level $i$ group belong __only__ to that level $i$ group.  
+- the things in a cluster belong __only__ to that cluster.  
 
-- If labels are unique, __`(1 | school) + (1 | class)`__ is the same as __`(1 | school/class)`__  
+- If labels are unique, **`(1 | school) + (1 | class)`** is the same as **`(1 | school/class)`**  
 
 ```{r echo=FALSE, fig.align="center"}
-knitr::include_graphics("jk_img_sandbox/structure_nested.png")
+knitr::include_graphics("jk_img_sandbox/structure_nestedlabnew.png")
 ```
 
 ???
@@ -148,17 +243,22 @@ rather than the previous slide where there was a "class 1" label in all 3 school
 
 ---
 count:false
-# Nested Structures
+# Example
 
+.pull-left[
 One study site recruits 20 participants.  
 Each participant has 10 datapoints.  
 
-.pull-left[
 ```{r}
 d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
-head(d3)
 ```
-
+```{r echo=FALSE}
+rbind(
+  d3[1:4,],
+  "...",
+d3[d3$condition=="mindfulness",][1:4,]) |> as.data.frame() |>
+  print(row.names=FALSE)
+```
 ```{r eval=FALSE}
 ggplot(d3, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7)
@@ -166,36 +266,50 @@ ggplot(d3, aes(x=visit, y=ACE))+
 
 ]
 .pull-right[
+```{r eval=FALSE}
+... + (1 + ... | ppt)
+```
+
 ```{r echo=FALSE}
 d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
 ggplot(d3, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7)+
-  facet_wrap(~sitename)+
   theme(legend.position = "bottom")
 ```
 ]
 
 ---
-count:false
-# Nested Structures
+# Nested Example
 
+.pull-left[
 14 study sites each recruit between 15-30 participants.  
 Each participant has 10 datapoints.  
 
-
-.pull-left[
-```{r eval=FALSE}
+```{r}
 d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
-
+```
+```{r echo=FALSE}
+rbind(
+  d3full[338:343,],
+  "...",
+  "...",
+  d3full[956:959,],
+  "..."
+) |> as.data.frame() |> print(row.names=FALSE)
+```
+```{r eval=FALSE}
 ggplot(d3full, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7) +
   facet_wrap(~sitename)
 ```
+
 ]
 .pull-right[
-```{r echo=FALSE}
-d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+```{r eval=FALSE}
+... + (1 + ... | sitename / ppt)
+```
 
+```{r echo=FALSE}
 ggplot(d3full, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7) +
   facet_wrap(~sitename)+
@@ -215,10 +329,11 @@ crossed random effects are simply anything which is not nested.
 
 --
 
-- __`(1 | subject) + (1 | task)`__  
+- **`(1 | subject) + (1 | task)`**  
+- the things in a cluster can also belong to other clusters
 
-```{r echo=FALSE, fig.align="center", out.height="450px"}
-knitr::include_graphics("jk_img_sandbox/structure_crossed.png")
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/structure_crossednew.png")
 ```
 
 ???
@@ -228,38 +343,56 @@ if you want to carry on the schools, children example, you could consider subjec
 
 ---
 # Random Effects Revisited
-TODO
-(1 + x | g)
 
-random intercept
+**What do we mean by "random effects"?**  
 
-wording is awkward
-random effects of x for g
-random effects of x by g
-by-g random effects of x
-allow effect of x to vary by g
+$$
+\text{... + }\underbrace{\text{(random intercept + random slopes | grouping structure)}}_{\text{random effects}}
+$$
+.pull-left[
 
-sometimes people will say "include a random effect for g" and they mean (1|g).  
+People use different phrasings...   
+
+- when referring to random slopes:
+  - "random effects of x for g"  
+  - "random effects of x by g"  
+  - "by-g random effects of x"  
+- when referring to random intercept:
+  - "random effect for g"
+  
+common definition: "allow ___ to vary by g"
+]
+.pull-right[
+
+__Nested__  
+```
+... + (1 + ... | g1 / g2)
+... + (1 + ... | g1 ) + (1 + ... | g1:g2)
+```
+
+__Crossed__  
+```
+... + (1 + ... | g1 ) + (1 + ... | g2)
+```
+]
+
+
 
 ---
 # Random Effects Revisited (2)
 
-.pull-left[
+**Should variable `g` be fixed or random?**  
 
 | Criterion: | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ |
 |----------------|--------------------------------------------------|----------------------------------------------------|
-| Fixed effects  | <center>Same levels would be used</center>     |    <center>The levels used </center>                                   |
-| Random effects | <center>Different levels would be used</center>   | <center>A population from which the levels used<br> are just a (random) sample</center> |
+| Fixed<br>**y ~ ... + g**  | <center>Same groups would be used</center>     |    <center>The groups used</center>                                   |
+| Random<br>**y ~ ... + (...&#124;g)** | <center>Different groups would be used</center>   | <center>A population from which the groups used<br> are just a (random) sample</center> |
 
-]
 
-.pull-right[
+- If only small number of groups, estimating variance components may be unstable.  
 
-- If only small number of clusters, estimating variance components may be unstable.  
+- Partialling out group-differences as fixed effects *may* be preferable. 
 
-- Partialling out cluster-differences as fixed effects *may* be preferable. 
-
-]
 
 ???
 in discussing random effect structures, it's worth reiterating our distinction between fixed and random effects. sometimes it may be preferable to fit grouping as a fixed effect, if, for instance, we have a small number of clusters. 
@@ -267,57 +400,145 @@ in discussing random effect structures, it's worth reiterating our distinction b
 ---
 # Random Effects Revisited (3)
 
-i have  y ~ 1 + x + (1 | g)
-should i include by-g random effect of x?  
+**I have  `y ~ 1 + x + (1 | g)` should I include by-g random slope of x?**  
 
+If the effect of x can vary by g, then including `x | g` will give a better estimate of the uncertainty in the fixed effect of x.  
 
-
-if x can vary by g, then including x|g will give a better estimate of the uncertainty in the fixed effect of x.  
-TODO look up barr et al.  
-
-e.g.
-we're interested in estimating how cognition changes over time.
-ACE ~ visit.  
-
+<br><br>
+```
 1. ACE ~ visit + (1 + visit | ppt)
 2. ACE ~ visit + (1 | ppt)
+```
 
-1 is preferable to 2, especially because we're interested in estimating the effect of visit.  
+1 is preferable to 2, especially because we're interested in estimating and testing the effect of visit.  
 
-1. ACE ~ visit + covariate + (1 + visit + covariate | ppt)
-2. ACE ~ visit + covariate + (1 + visit | ppt)
+```
+3. ACE ~ visit + covariate + (1 + visit + covariate | ppt)
+4. ACE ~ visit + covariate + (1 + visit | ppt)
+```
 
-1 is slightly preferable to 2 because it more accurately represents the world (people vary in how cov influences cognition).  
-but we're not interested in assessing significance of covariate, we're just controlling for it, so it is less crucial to include it here.  
-
-
+3 is preferable to 4 because it more accurately represents the world (people vary in how the covariate influences cognition). But it's less crucial here - we're not interested in assessing significance of covariate, we're just controlling for it.  
 
 ---
 # Random Effects Revisited (4)
 
-consider: 
+.pull-left[
+```{r}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+ggplot(d3, aes(x=visit,y=ACE,col=condition))+
+  geom_point()+
+  facet_wrap(~ppt)
+```
+]
+.pull-right[
+
+- multiple observations from each participant  
+`(1 | ppt)` theoretically makes sense  
+(participants may vary in their average cognition)
+{{content}}
+
+]
+
+--
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design.  
+therefore, this *could* be different for different ppts!  
+`(visit | ppt)` makes theoretical sense.
+{{content}}
+  
+--
+  
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design (each ppt is either one condition or the other).  
+~~`(condition | ppt)`~~ makes no sense
+  
+
+---
+# Random Effects Extended
+
+.pull-left[
+```{r}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+]
+.pull-right[
+
+- multiple observations from each participant:  
+`(1 | ppt)`
+{{content}}
+
+]
+
+--
+
+- multiple participants nested within study sites:  
+`(1 | sitename/ppt)`
+{{content}}
+
+--
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | ppt)`
+- for a single study site, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | sitename)`
+{{content}}
+
+--
+
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design:  
+~~`(condition | ppt)`~~
+- for a single study site, the slope of `ACE ~ condition` exists in our study design:  
+`(condition | sitename)`
+
+---
+# Random Effects Extended (2)
+
+.pull-left[
+```{r}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+]
+.pull-right[
+
+`1 | ppt`  
+`1 | sitename/ppt`  
+`visit | ppt`  
+`visit | sitename`  
+~~`condition | ppt`~~  
+`condition | sitename`  
+
+```
+... + (1 + visit + condition | sitename / ppt)
+```
+```
+... + (1 + visit + condition | sitename ) + 
+      (1 + visit | ppt:sitename)
+```
+{{content}}
+]
+
+--
+
+**ONLY IF** ppts labels are unique to each study site:
+```
+... + (1 + visit + condition | sitename ) + 
+      (1 + visit | ppt)
+```
 
 ```{r echo=FALSE}
-d3 <- read_csv("../../../data/dapr3_mindfuldecline.csv")
+data.frame(
+  sitename = c("Savdz", "Sbfxt", "..."),
+  ppt = c("ppt_1","ppt_1","..."),
+  ACE = rep("...",3),
+  visit = rep("...",3),
+  condition = rep("...",3)
+) |> print(row.names=FALSE)
 ```
-
-> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
-
-```{r}
-ggplot(d3, aes(x=visit,y=ACE))+
-  geom_point()+
-  facet_wrap(~ppt)
-```
-
-```{r}
-ggplot(d3, aes(x=condition,y=ACE))+
-  geom_point()+
-  facet_wrap(~ppt)
-```
-
-in this case, 
-(visit | ppt) makes theoretical sense
-(condition | ppt) does not
 
 
 ---
@@ -325,228 +546,35 @@ in this case,
 
 It's a trade-off...  
 
-- accurately representing the world
-  - everything that can varies does vary
-
-- being able to fit the model  
-  - in our sample, some things will not vary _enough_ to fit x|g
-    - due to not enough groups in g
-    - due to not enough variance in y~x between our groups
-    - predictors on different scales
-      - compared to ??|??, variance in ??(units)|?? will be tiny.
-      - can be fixed by scaling predictors before hand. 
-
-
----
-# Maximal Structure
-
-- "maximal" = the most complex random effect structure that you can fit to the data
-
-  - everything that _can_ be modelled as a random effect, is done so
-
-???
-one thing we need to introduce is the notion of a maximal random effect structure. this is typically something we can work out from the study design, and is essentially the most complete specification of the grouping structure. 
-
---
-
-- requires sufficient variance at all levels (for both intercepts and slopes where relevant). Which is often not the case.  
-
-???
-fitting the maximal structure requires sufficient variance though, and may not always be possible. 
-
---
-
-```{r warning=T}
-d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
-maxmodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
-
-```
-
-
-
-???
-in our school example where there is are just two levels, the maximal model involves fitting a random intercept by-schools, and random effects of all level-1 predictors. 
-we can't fit a random effect of the intervention here, because each school is either a control or a treatment. there's no "effect of intervention in school X". 
-
-what you might notice here, is that we're getting some warnings. and this because both our models are too complex to fit on our available data. 
-
----
-# Model Convergence
-
-- Don't report results from a model that doesn't converge. You will probably not be able to trust the estimates. 
-
-???
-recall last week we spoke about model estimation, being achieved by an iterative process like max likelihood, or restricted max likelihood. 
-model convergence is when our process finds a suitable answer. if our model doesn't converge, that means we shouldn't really trust our estimates. 
-
---
-
-- Try a different optimiser, adjust the max iterations, or the stopping tolerances
-
-```{r echo=FALSE, fig.asp=.3}
-knitr::include_graphics("jk_img_sandbox/tolerance.png")
-```
-
-???
-the optimiser is the algorithm that tries to find the maximum likelihood estimates, and does so by wandering around (in a logical way) a multidimensional likelihood surface corresponding to different values of our estimates. optimisers converge when they stop searching because they think they've got a maximum. we can control the stopping tolerances, such as the minimum distance moved x, or likelihood gained y, or how much change in gradient. 
-we can also try different optimisers, which may be better, but more time consuming. 
-
-
----
-count:false
-# Model Convergence
-
-- Don't report results from a model that doesn't converge. You will probably not be able to trust the estimates. 
-
-- Try a different optimiser, adjust the max iterations, or the stopping tolerances
-
-<br><br>
-
-- Remove random effects with least variance until model converges (see Barr et al., 2013)
-
-- Use a criterion for model selection (e.g. AIC, BIC) to choose a random effect structure that is supported by the data (see Matsuchek et al., 2017)
-
-???
-there are various suggestions as to choosing an appropriate random effect strucutre. 
-perhaps the most simple, and most used in psychology, is to start with the maximal and then remove parameters with the least variance until the model converges. 
-
---
-
-- __No right answer__
-
-???
-however, important to note that there's no obvious right approach to this. the maximal model will often have lower power, and others suggest a model selection criteria is preferable. 
-
----
-count:false
-# correlations between random effects
-
 .pull-left[
-__perfect correlations__
 
-```{r echo=FALSE}
-data <- read_csv('https://uoepsy.github.io/data/MathsAchievement.csv')
-data$clusterid <- as.factor(data$childid)
-data$x1<-data$year
-data$y <- data$math
-df<-data
-```
-```{r}
-m1 <- lmer(y ~ 1 + x1 + 
-             (1 + x1 | clusterid), data = df)
-VarCorr(m1)
-```
-```{r echo=FALSE, fig.asp=.5}
-dotplot.ranef.mer(ranef(m1))
-```
+**Accurately representing the world**  
+
+everything that can vary is modelled as varying
+
 ]
-
-???
-because we have been discussing random effect structures and maximal models, we need to talk about the correlations between random effects, which are also estimated in our model. 
-our model is not just estimating the variances (and so standard deviations) of our random intercepts and random effects, but is actually estimating a variance-covariance matrix, which means we are estimating the correlation between different random effects. 
-
-
-to understand these, we can take it to the extreme and consider a correlation of 1 between a random intercept and random effect. so these are perfectly correlated. 
-what does that look like?
 
 --
 
 .pull-right[
-```{r echo=FALSE}
-set.seed(33)
-tibble(
-  g = 1:10,
-  i = rnorm(10,1,1),
-  x = i+rnorm(10,0,.1)
-) %>% mutate(
-  pre = list(1:10)
-) %>% unnest() %>% mutate(
-  y = i+x*pre
-) %>%
-  ggplot()+
-  geom_line(aes(x=pre,y=y,group=g))+
-  labs(x="x1",y=".fitted")
-```
+
+**Being able to fit the model**  
+
+in our sample, some things will not vary _enough_ to fit `x|g`  
+{{content}}
+
 ]
-
-???
-well, the higher the intercept, the greater the slope. the model is saying that groups with higher intercepts have more positive effects of x1. 
-
-obtaining a random effect correlation estimate of +1 or -1 means that out optimiser has hit a sort of "boundary".
-correlations cannot exceed 1 or -1, and even if you don't get an explicit error or warning, these potentially indicate some problems with convergence. 
-Why? because we don't expect true correlations to lie on the boundary. This often means that there are not enough data to estimate all the parameters reliably
-
----
-count:false
-# correlations between random effects
-
-.pull-left[
-__perfect correlations__
-
-```{r echo=FALSE}
-data <- read_csv('https://uoepsy.github.io/data/MathsAchievement.csv')
-data$clusterid <- as.factor(data$childid)
-data$x1<-data$year
-data$y <- data$math
-df<-data
-```
-```{r}
-m1 <- lmer(y ~ 1 + x1 + 
-             (1 + x1 | clusterid), data = df)
-VarCorr(m1)
-```
-```{r echo=FALSE, fig.asp=.5}
-dotplot.ranef.mer(ranef(m1))
-```
-]
-
-.pull-right[
-__zero correlations__
-
-```{r}
-zcpmodel <- lmer(y ~ 1 + x1 + 
-                   (1 + x1 || clusterid), data = df)
-VarCorr(zcpmodel)
-```
-```{r echo=FALSE, fig.asp=.5}
-dotplot.ranef.mer(ranef(zcpmodel))
-```
-]
-
-???
-we can, if we choose, remove the estimation of the correlation in order to simplify our model. 
-However, it is important to note that this is like fixing that correlation to be exactly zero. So we are putting a constraint on our model that the correlation between intercepts and slopes is 0. 
-
----
-# correlations between random effects
-
-When should we remove them?
-
-???
-so when does it make sense to fix the correlation to 0? well
 
 --
- 
-__When it makes theoretical sense to do so.__
 
+- not enough groups in `g`
+  - fit `+g` instead of `(1|g)`
+- predictors on different scales
+  - `mm|g` vs `km|g`
+      - can be fixed with scaling  
+- not enough variance in `y~x` between groups
 
-???
-in certain designs, you might consider there to be no theoretical justification for there to be a correlation between random effects.  
-however, you have to be careful and this should only be done if your predictor is on a ratio scale - so if it has a meaningful zero. 
-this is for the slghtly complicated reason that the zero correlation model is sensitive to shifts in the predictor. so our estimates from a model with a zero correlation parameter will change slightly as we shift our predictor. 
-
----
-# Summary
-
-- random effect structures can get complicated quite quickly
-    - we can have multiple levels of nesting
-    - we can have crossed random effects 
-
-- the maximal random effect structure is the most complex structure we can fit to the data. 
-    - it often leads to problems with model convergence
-    
-- building MLMs is a balancing act between accounting for different sources of variance and attempting to fit a model that is too complex for our data.  
-
+  
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
 

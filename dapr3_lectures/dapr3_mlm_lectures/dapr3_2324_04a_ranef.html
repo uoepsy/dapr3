@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Random Effect Structures</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Josiah King" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <b>Random Effect Structures</b>
+]
+.subtitle[
+## Data Analysis for Psychology in R 3
+]
+.author[
+### Josiah King
+]
+.institute[
+### Department of Psychology<br/>The University of Edinburgh
+]
+
+---
+
+
+
+
+
+---
+# Grouping structures so far... 
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+]
+.pull-right[
+
+]
+---
+# Look at your data! Read the study design!  
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+]
+.pull-right[
+
+```
+##    g   x   y
+##    1   1  34
+##    1   7  32
+##    1   3  37
+##  ... ... ...
+##  ... ... ...
+##    i   5  25
+##    i   1  29
+##  ... ... ...
+```
+]
+
+---
+count: false
+# Look at your data! Read the study design!  
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- **observations within clusters**  
+
+]
+.pull-right[
+
+```
+##    g   x   y
+##    1   1  34
+##    1   7  32
+##    1   3  37
+##  ... ... ...
+##  ... ... ...
+##    i   5  25
+##    i   1  29
+##  ... ... ...
+```
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g`
+]
+
+---
+# Adding more levels!  
+
+.pull-left[
+
+- children within schools *within districts*
+
+- people within areas *within countries*
+
+- trials within participants *within pairs*
+
+- timepoint within participants *within families*
+
+- nurses within hospitals *within health boards*
+
+- **observations within clusters _within higher clusters_**  
+
+]
+.pull-right[
+
+
+```
+##   g1  g2   x   y
+##    A   1   1  34
+##    A   1   7  32
+##    A   1   3  37
+##  ... ... ... ...
+##  ... ... ... ...
+##    A   i   5  25
+##    A   i   1  29
+##  ... ... ... ...
+##                 
+##    B 101   4  31
+##    B 102   6  25
+##    B 103   2  27
+##  ... ... ... ...
+##  ... ... ... ...
+##    B ... ... ...
+```
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g2`, which are in turn grouped by values of higher-level group identifier `g1`
+
+]
+
+---
+# Nested Structures
+
+- the things in a cluster belong __only__ to that cluster.  
+
+&lt;img src="https://media.gettyimages.com/photos/albatross-chick-between-parents-feet-falkland-islands-picture-id642348358?s=2048x2048" width="450px" style="display: block; margin: auto;" /&gt;
+
+---
+count:false
+# Nested Structures
+
+- the things in a cluster belong __only__ to that cluster.  
+
+- **`(1 | school/class)`** or **`(1 | school) + (1 | class:school)`**
+
+&lt;img src="jk_img_sandbox/structure_nestednew.png" width="1575" style="display: block; margin: auto;" /&gt;
+
+---
+# Nested Structures - labels!  
+
+- the things in a cluster belong __only__ to that cluster.  
+
+- If labels are unique, **`(1 | school) + (1 | class)`** is the same as **`(1 | school/class)`**  
+
+&lt;img src="jk_img_sandbox/structure_nestedlabnew.png" width="1575" style="display: block; margin: auto;" /&gt;
+
+---
+count:false
+# Example
+
+.pull-left[
+One study site recruits 20 participants.  
+Each participant has 10 datapoints.  
+
+
+```r
+d3 &lt;- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+```
+
+```
+##  sitename    ppt   condition visit age  ACE   imp
+##     Sncbk  PPT_1     control     1  60 84.5 unimp
+##     Sncbk  PPT_1     control     2  62 85.6   imp
+##     Sncbk  PPT_1     control     3  64 84.5   imp
+##     Sncbk  PPT_1     control     4  66 83.1   imp
+##       ...    ...         ...   ... ...  ...   ...
+##     Sncbk PPT_11 mindfulness     1  60 85.6   imp
+##     Sncbk PPT_11 mindfulness     2  62 84.5 unimp
+##     Sncbk PPT_11 mindfulness     3  64 85.7   imp
+##     Sncbk PPT_11 mindfulness     4  66 84.8 unimp
+```
+
+```r
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)
+```
+
+]
+.pull-right[
+
+```r
+... + (1 + ... | ppt)
+```
+
+![](dapr3_2324_04a_ranef_files/figure-html/unnamed-chunk-11-1.svg)&lt;!-- --&gt;
+]
+
+---
+# Nested Example
+
+.pull-left[
+14 study sites each recruit between 15-30 participants.  
+Each participant has 10 datapoints.  
+
+
+```r
+d3full &lt;- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+```
+
+```
+##  sitename   ppt   condition visit age  ACE imp
+##     Savdz PPT_1     control     1  60 84.8 imp
+##     Savdz PPT_1     control     2  62   85 imp
+##     Savdz PPT_1     control     3  64 83.9 imp
+##     Savdz PPT_1     control     4  66   83 imp
+##     Savdz PPT_1     control     5  68 82.2 imp
+##     Savdz PPT_1     control     6  70 81.9 imp
+##       ...   ...         ...   ... ...  ... ...
+##       ...   ...         ...   ... ...  ... ...
+##     Slonb PPT_8     control     9  76 82.1 imp
+##     Slonb PPT_8     control    10  78 81.6 imp
+##     Slonb PPT_9 mindfulness     1  60   85 imp
+##     Slonb PPT_9 mindfulness     2  62 85.1 imp
+##       ...   ...         ...   ... ...  ... ...
+```
+
+```r
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+
+]
+.pull-right[
+
+```r
+... + (1 + ... | sitename / ppt)
+```
+
+![](dapr3_2324_04a_ranef_files/figure-html/unnamed-chunk-16-1.svg)&lt;!-- --&gt;
+]
+
+
+
+---
+# Crossed Structures
+
+- "crossed" = not nested!
+
+--
+
+- **`(1 | subject) + (1 | task)`**  
+- the things in a cluster can also belong to other clusters
+
+&lt;img src="jk_img_sandbox/structure_crossednew.png" width="1571" style="display: block; margin: auto;" /&gt;
+
+---
+# Random Effects Revisited
+
+**What do we mean by "random effects"?**  
+
+$$
+\text{... + }\underbrace{\text{(random intercept + random slopes | grouping structure)}}_{\text{random effects}}
+$$
+.pull-left[
+
+People use different phrasings...   
+
+- when referring to random slopes:
+  - "random effects of x for g"  
+  - "random effects of x by g"  
+  - "by-g random effects of x"  
+- when referring to random intercept:
+  - "random effect for g"
+  
+common definition: "allow ___ to vary by g"
+]
+.pull-right[
+
+__Nested__  
+```
+... + (1 + ... | g1 / g2)
+... + (1 + ... | g1 ) + (1 + ... | g1:g2)
+```
+
+__Crossed__  
+```
+... + (1 + ... | g1 ) + (1 + ... | g2)
+```
+]
+
+
+
+---
+# Random Effects Revisited (2)
+
+**Should variable `g` be fixed or random?**  
+
+| Criterion: | Repetition: &lt;br&gt; _If the experiment were repeated:_ | Desired inference: &lt;br&gt; _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed&lt;br&gt;**y ~ ... + g**  | &lt;center&gt;Same groups would be used&lt;/center&gt;     |    &lt;center&gt;The groups used&lt;/center&gt;                                   |
+| Random&lt;br&gt;**y ~ ... + (...&amp;#124;g)** | &lt;center&gt;Different groups would be used&lt;/center&gt;   | &lt;center&gt;A population from which the groups used&lt;br&gt; are just a (random) sample&lt;/center&gt; |
+
+
+- If only small number of groups, estimating variance components may be unstable.  
+
+- Partialling out group-differences as fixed effects *may* be preferable. 
+
+
+---
+# Random Effects Revisited (3)
+
+**I have  `y ~ 1 + x + (1 | g)` should I include by-g random slope of x?**  
+
+If the effect of x can vary by g, then including `x | g` will give a better estimate of the uncertainty in the fixed effect of x.  
+
+&lt;br&gt;&lt;br&gt;
+```
+1. ACE ~ visit + (1 + visit | ppt)
+2. ACE ~ visit + (1 | ppt)
+```
+
+1 is preferable to 2, especially because we're interested in estimating and testing the effect of visit.  
+
+```
+3. ACE ~ visit + covariate + (1 + visit + covariate | ppt)
+4. ACE ~ visit + covariate + (1 + visit | ppt)
+```
+
+3 is preferable to 4 because it more accurately represents the world (people vary in how the covariate influences cognition). But it's less crucial here - we're not interested in assessing significance of covariate, we're just controlling for it.  
+
+---
+# Random Effects Revisited (4)
+
+.pull-left[
+
+```r
+d3 &lt;- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+ggplot(d3, aes(x=visit,y=ACE,col=condition))+
+  geom_point()+
+  facet_wrap(~ppt)
+```
+
+![](dapr3_2324_04a_ranef_files/figure-html/unnamed-chunk-18-1.svg)&lt;!-- --&gt;
+]
+.pull-right[
+
+- multiple observations from each participant  
+`(1 | ppt)` theoretically makes sense  
+(participants may vary in their average cognition)
+{{content}}
+
+]
+
+--
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design.  
+therefore, this *could* be different for different ppts!  
+`(visit | ppt)` makes theoretical sense.
+{{content}}
+  
+--
+  
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design (each ppt is either one condition or the other).  
+~~`(condition | ppt)`~~ makes no sense
+  
+
+---
+# Random Effects Extended
+
+.pull-left[
+
+```r
+d3full &lt;- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+
+![](dapr3_2324_04a_ranef_files/figure-html/unnamed-chunk-19-1.svg)&lt;!-- --&gt;
+]
+.pull-right[
+
+- multiple observations from each participant:  
+`(1 | ppt)`
+{{content}}
+
+]
+
+--
+
+- multiple participants nested within study sites:  
+`(1 | sitename/ppt)`
+{{content}}
+
+--
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | ppt)`
+- for a single study site, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | sitename)`
+{{content}}
+
+--
+
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design:  
+~~`(condition | ppt)`~~
+- for a single study site, the slope of `ACE ~ condition` exists in our study design:  
+`(condition | sitename)`
+
+---
+# Random Effects Extended (2)
+
+.pull-left[
+
+```r
+d3full &lt;- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+
+![](dapr3_2324_04a_ranef_files/figure-html/unnamed-chunk-20-1.svg)&lt;!-- --&gt;
+]
+.pull-right[
+
+`1 | ppt`  
+`1 | sitename/ppt`  
+`visit | ppt`  
+`visit | sitename`  
+~~`condition | ppt`~~  
+`condition | sitename`  
+
+```
+... + (1 + visit + condition | sitename / ppt)
+```
+```
+... + (1 + visit + condition | sitename ) + 
+      (1 + visit | ppt:sitename)
+```
+{{content}}
+]
+
+--
+
+**ONLY IF** ppts labels are unique to each study site:
+```
+... + (1 + visit + condition | sitename ) + 
+      (1 + visit | ppt)
+```
+
+
+```
+##  sitename   ppt ACE visit condition
+##     Savdz ppt_1 ...   ...       ...
+##     Sbfxt ppt_1 ...   ...       ...
+##       ...   ... ...   ...       ...
+```
+
+
+---
+# The poke in the eye  
+
+It's a trade-off...  
+
+.pull-left[
+
+**Accurately representing the world**  
+
+everything that can vary is modelled as varying
+
+]
+
+--
+
+.pull-right[
+
+**Being able to fit the model**  
+
+in our sample, some things will not vary _enough_ to fit `x|g`  
+{{content}}
+
+]
+
+--
+
+- not enough groups in `g`
+  - fit `+g` instead of `(1|g)`
+- predictors on different scales
+  - `mm|g` vs `km|g`
+      - can be fixed with scaling  
+- not enough variance in `y~x` between groups
+
+  
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
