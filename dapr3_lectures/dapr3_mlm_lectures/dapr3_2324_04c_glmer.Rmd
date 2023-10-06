@@ -1,5 +1,5 @@
 ---
-title: "<b>GLMM</b>"
+title: "<b>Bonus Content: GLMM</b><br>(OPTIONAL)"
 subtitle: "Data Analysis for Psychology in R 3"
 author: "Josiah King"
 institute: "Department of Psychology<br/>The University of Edinburgh"
@@ -30,6 +30,7 @@ library(tidyverse)
 library(ggplot2)
 library(kableExtra)
 library(patchwork)
+library(lme4)
 
 xaringanExtra::use_share_again()
 xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
@@ -328,29 +329,29 @@ now this is all covered in dapr2, so it's maybe worth going back to some of thes
 .pull-left[
 
 ```{r echo=FALSE,fig.asp=.8}
-crq <- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
-linmod <- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), crq)
-crq %>% mutate(
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv") |> mutate(isImp = ifelse(imp=="imp",1,0))
+linmod <- lmer(ACE ~ visit + (1 + visit | ppt), d3)
+d3 %>% mutate(
   fit = predict(linmod)
 ) %>% 
-  ggplot(.,aes(x=crq, y=fit))+
-  geom_point(aes(y=emot_dysreg))+
-  geom_smooth(method="lm",se=F,aes(group=schoolid))+
-  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nEmotion Dysregulation Score (EDS)")
+  ggplot(.,aes(x=visit, y=fit))+
+  geom_point(aes(y=ACE))+
+  geom_smooth(method="lm",se=F,aes(group=ppt))+
+  labs(x="Study Visit",y="Model estimated\nACE Scores")
 ```
 
 ] 
 .pull-right[
 
 ```{r echo=FALSE,fig.asp=.8}
-logmod <- glmer(detention ~ crq + (1 + crq | schoolid), crq, family=binomial)
-crq %>% mutate(
+logmod <- glmer(isImp ~ visit + (1 + visit | ppt), d3, family=binomial)
+d3 %>% mutate(
   fit = predict(logmod, type="response")
 ) %>% 
-  ggplot(.,aes(x=crq, y=fit))+
-  geom_point(aes(y=detention))+
-  geom_smooth(method="glm", method.args=list(family=binomial),aes(group=schoolid), se=F)+
-  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nProbability of receiving detention")
+  ggplot(.,aes(x=visit, y=fit))+
+  geom_point(aes(y=isImp))+
+  geom_smooth(method="glm",  method.args=list(family=binomial),aes(group=ppt), se=F)+
+  labs(x="Study Visit",y="Model estimated\nProbability of Impairment")
 ```
 
 ]
@@ -366,15 +367,15 @@ count:false
 
 .pull-left[
 ```{r echo=FALSE,fig.asp=.8}
-crq <- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
-linmod <- lmer(emot_dysreg ~ crq + (1 + crq | schoolid), crq)
-crq %>% mutate(
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv") |> mutate(isImp = ifelse(imp=="imp",1,0))
+linmod <- lmer(ACE ~ visit + (1 + visit | ppt), d3)
+d3 %>% mutate(
   fit = predict(linmod)
 ) %>% 
-  ggplot(.,aes(x=crq, y=fit))+
-  geom_point(aes(y=emot_dysreg))+
-  geom_smooth(method="lm",se=F,aes(group=schoolid))+
-  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nEmotion Dysregulation Score (EDS)")
+  ggplot(.,aes(x=visit, y=fit))+
+  geom_point(aes(y=ACE))+
+  geom_smooth(method="lm",se=F,aes(group=ppt))+
+  labs(x="Study Visit",y="Model estimated\nACE Scores")
 ```
 
 ] 
@@ -382,14 +383,14 @@ crq %>% mutate(
 
 
 ```{r echo=FALSE,fig.asp=.8}
-logmod <- glmer(detention ~ crq + (1 + crq | schoolid), crq, family=binomial)
-crq %>% mutate(
+logmod <- glmer(isImp ~ visit + (1 + visit | ppt), d3, family=binomial)
+d3 %>% mutate(
   fit = predict(logmod, type="link")
 ) %>% 
-  ggplot(.,aes(x=crq, y=fit))+
-  geom_point(aes(y=log(detention/(1-detention))))+
-  geom_smooth(method="lm",aes(group=schoolid), se=F)+
-  labs(x="Childhood Routines Questionnaire (CRQ)",y="Model estimated\nLog-Odds of receiving detention")
+  ggplot(.,aes(x=visit, y=fit))+
+  geom_point(aes(y=log(isImp/(1-isImp))))+
+  geom_smooth(method="lm",aes(group=ppt), se=F)+
+  labs(x="Study Visit",y="Model estimated\nLog-Odds of Impairment")
 ```
 
 ]
@@ -401,21 +402,24 @@ but really this is the same idea underneath, when we see the fit on the log-odds
 
 .pull-left[
 
-> Researchers are interested in whether the level of routine a child has in daily life influences their probability of receiving a detention at school. 200 pupils from 20 schools completed a survey containing the Child Routines Questionnaire (CRQ), and a binary variable indicating whether or not they had received detention in the past school year. 
+> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78. 
+Researchers are interested in whether the **probability of being classified as cognitively impaired** changes over age. 
 
 ]
 .pull-right[
 ```{r}
-crq <- read_csv("https://uoepsy.github.io/data/crqdetentiondata.csv")
-crq %>% 
-  select(schoolid, crq, detention) %>%
+d3 <- 
+  read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv") %>% 
+  mutate(isImp = ifelse(imp=="imp",1,0))
+d3 %>% 
+  select(ppt, visit, isImp) %>%
   head()
 ```
 ]
 
 ```{r}
-detentionmod <- glmer(detention ~ crq + (1 + crq | schoolid),
-      data = crq, 
+impmod <- glmer(isImp ~ 1 + visit + (1 + visit | ppt),
+      data = d3, 
       family="binomial",
       control = glmerControl(optimizer = "bobyqa"))
 ```
@@ -434,12 +438,12 @@ lmerControl >> glmerControl
 
 .pull-left[
 ```{r}
-summary(detentionmod)
+summary(impmod)
 ```
 ]
 .pull-right[
 ```{r}
-exp(fixef(detentionmod))
+exp(fixef(impmod))
 ```
 ]
 
@@ -593,7 +597,7 @@ Hence, the interpretation of $e^{\beta_1}$ is not the odds ratio for the effect 
 
 - Differences between linear and logistic multi-level models are analogous to the differences between single-level linear and logistic regression models.  
 
-- Fixed effects in logistic multilevel models are "conditional upon" holding the cluster constant. 
+- Odds Ratios from fixed effects in logistic multilevel models are "conditional upon" holding the cluster constant. 
 
 ???
 okay, that's a bit of a tangent. the key thing here is the similarity between lm and glm and lmer and glmer.  
