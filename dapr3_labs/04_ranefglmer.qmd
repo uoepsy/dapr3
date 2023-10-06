@@ -106,63 +106,6 @@ Below are a selection of different formulas for specifying different random effe
 
 :::
 
-
-::: {.callout-note collapse="true"}
-### Model Building
-
-Random effect structures can get pretty complicated quite quickly. Very often it is not the random effects part that is of specific interest to us, but we wish to estimate random effects in order to more accurately partition up the variance in our outcome variable and provide better estimates of fixed effects.  
-
-It is a fine balance between fitting the most sophisticated model structure that we possibly can, and fitting a model that converges without too much simplification. Typically for many research designs, the following steps will keep you mostly on track to finding the maximal model:  
-
-`lmer(outcome ~ fixed effects + (random effects | grouping structure))`  
-
-1. Specify the `outcome ~ fixed effects` bit first. 
-    - The outcome variable should be clear: it is the variable we are wishing to explain/predict. 
-    - The fixed effects are the things we want to use to explain/predict variation in the outcome variable. These will often be the things that are of specific inferential interest, and other covariates. Just like the simple linear model.  
-    
-2. If there is a grouping structure to your data, and those groups (preferably n>7 or 8) are perceived as a random sample of a wider population (the specific groups aren't interesting to you), then consider including random intercepts (and possibly random slopes of predictors) for those groups `(1 | grouping)`.  
-
-3. If there are multiple different grouping structures, is one nested within another? (If so, we can specify this as `(1 | high_level_grouping / low_level_grouping)`.  If the grouping structures are not nested, we specify them as crossed: `(1 | grouping1) + (1 | grouping2)`.  
-
-
-4. If any of the things in the fixed effects vary within the groups, it might be possible to also include them as random effects.  
-    - as a general rule, don't specify random effects that are not also specified as fixed effects (an exception could be specifically for model comparison, to isolate the contribution of the fixed effect).  
-    - For things that do not vary within the groups, it rarely makes sense to include them as random effects. For instance if we had a model with `lmer(score ~ genetic_status + (1 + genetic_status | patient))` then we would be trying to model a process where "the effect of genetic_status on scores is different for each patient". But if you consider an individual patient, their genetic status never changes. For patient $i$, what is "the effect of genetic status on score"? It's undefined. This is because genetic status only varies _between_ patients.
-    - Sometimes, things will vary within one grouping, but not within another. E.g. with patients nested within hospitals `(1 | hospital/patient)`, genetic_status varies _between_ patients, but _within_ hospitals. Therefore we could theoretically fit a random effect of `genetic_status | hospital`, but __not__ one for `genetic_status | patient`.  
-    We can include these while preserving the nested structure of the data by separating out the groupings: `(1 + genetic_status | hospital) + (1 | patient:hospital)`.  
-
-5. A common approach to fitting multilevel models is to fit the most complex model _that the study design allows_. This means including random effects for everything that makes _theoretical_ sense to be included. Because this "maximal model" will often not converge, we then simplify our random effect structure to obtain a convergent model.  
-Candidate random effect terms for removal are:
-  - overly complex terms (e.g. `(1 + x1 * x2 | group)` could be simplified to `(1 + x1 + x2 | group)`).  
-  - those with little variance
-  - those with near perfect correlation (we can alternatively remove just the correlation)
-
-6. Obtain final model, and proceed to checking assumptions, checking influence, plotting, and eventually writing up.  
-
-<!-- `r optbegin("An example", olabel=F)` -->
-<!-- Suppose we were also interested in the association between population density and wellbeing. Our data contains information on the population density for each LAA. Note that for all people in our data that are from the same LAA, they will have the same value in the `density` variable, because this is measured at the LAA level, not the person-level:   -->
-<!-- ```{r} -->
-<!-- scotmw %>%  -->
-<!--   select(laa, density) -->
-<!-- ``` -->
-
-<!-- It doesn't really make sense to have random effects of density by LAA (the `density | laa` bit), because the association `wellbeing ~ density` is the same for _every_ person in that LAA. To say that "each LAA has a different effect of population density on wellbeing" is tricky, because we "effect of density on wellbeing" isn't really defined for an individual LAA.  -->
-<!-- ```{r} -->
-<!-- #| error: true -->
-<!-- #| message: true -->
-<!-- model_dens <- lmer(wellbeing ~ 1 + outdoor_time + density + -->
-<!--                    (1 + outdoor_time + density | laa), data = scotmw) -->
-<!-- ``` -->
-<!-- The resulting model gives a singular fit, and we can see how this impacts the model estimates in the random effects. The random effect of `density | laa` is much smaller (explaining less variance), and is very highly correlated to the random intercept `1 | laa`, because it doesn't really contain a great deal more information (if you think about the `laa` and `density` columns of the dataset, there is a one-to-one mapping between them). Including the `density | laa` random effect here is not supported by the data.   -->
-<!-- ```{r} -->
-<!-- VarCorr(model_dens) -->
-<!-- ``` -->
-<!-- `r optend()` -->
-
-:::
-
-
-
 ::: {.callout-note collapse="true"}
 ### Singular fits
 
@@ -218,6 +161,63 @@ knitr::include_graphics("images/tolerance.png")
 
 :::
 <br>
+
+
+
+::: {.callout-note collapse="true"}
+### Model Building
+
+Random effect structures can get pretty complicated quite quickly. Very often it is not the random effects part that is of specific interest to us, but we wish to estimate random effects in order to more accurately partition up the variance in our outcome variable and provide better estimates of fixed effects.  
+
+It is a fine balance between fitting the most sophisticated model structure that we possibly can, and fitting a model that converges without too much simplification. Typically for many research designs, the following steps will keep you mostly on track to finding the maximal model:  
+
+`lmer(outcome ~ fixed effects + (random effects | grouping structure))`  
+
+1. Specify the `outcome ~ fixed effects` bit first. 
+    - The outcome variable should be clear: it is the variable we are wishing to explain/predict. 
+    - The fixed effects are the things we want to use to explain/predict variation in the outcome variable. These will often be the things that are of specific inferential interest, and other covariates. Just like the simple linear model.  
+    
+2. If there is a grouping structure to your data, and those groups (preferably n>7 or 8) are perceived as a random sample of a wider population (the specific groups aren't interesting to you), then consider including random intercepts (and possibly random slopes of predictors) for those groups `(1 | grouping)`.  
+
+3. If there are multiple different grouping structures, is one nested within another? (If so, we can specify this as `(1 | high_level_grouping / low_level_grouping)`.  If the grouping structures are not nested, we specify them as crossed: `(1 | grouping1) + (1 | grouping2)`.  
+
+
+4. If any of the things in the fixed effects vary within the groups, it might be possible to also include them as random effects.  
+    - as a general rule, don't specify random effects that are not also specified as fixed effects (an exception could be specifically for model comparison, to isolate the contribution of the fixed effect).  
+    - For things that do not vary within the groups, it rarely makes sense to include them as random effects. For instance if we had a model with `lmer(score ~ genetic_status + (1 + genetic_status | patient))` then we would be trying to model a process where "the effect of genetic_status on scores is different for each patient". But if you consider an individual patient, their genetic status never changes. For patient $i$, what is "the effect of genetic status on score"? It's undefined. This is because genetic status only varies _between_ patients.
+    - Sometimes, things will vary within one grouping, but not within another. E.g. with patients nested within hospitals `(1 | hospital/patient)`, genetic_status varies _between_ patients, but _within_ hospitals. Therefore we could theoretically fit a random effect of `genetic_status | hospital`, but __not__ one for `genetic_status | patient`.  
+    We can include these while preserving the nested structure of the data by separating out the groupings: `(1 + genetic_status | hospital) + (1 | patient:hospital)`.  
+
+5. A common approach to fitting multilevel models is to fit the most complex model _that the study design allows_. This means including random effects for everything that makes _theoretical_ sense to be included. Because this "maximal model" will often not converge, we then simplify our random effect structure to obtain a convergent model.  
+Candidate random effect terms for removal are:
+  - overly complex terms (e.g. `(1 + x1 * x2 | group)` could be simplified to `(1 + x1 + x2 | group)`).  
+  - those with little variance
+  - those with near perfect correlation (we can alternatively remove just the correlation)
+
+6. Obtain final model, and proceed to checking assumptions, checking influence, plotting, and eventually writing up.  
+
+<!-- `r optbegin("An example", olabel=F)` -->
+<!-- Suppose we were also interested in the association between population density and wellbeing. Our data contains information on the population density for each LAA. Note that for all people in our data that are from the same LAA, they will have the same value in the `density` variable, because this is measured at the LAA level, not the person-level:   -->
+<!-- ```{r} -->
+<!-- scotmw %>%  -->
+<!--   select(laa, density) -->
+<!-- ``` -->
+
+<!-- It doesn't really make sense to have random effects of density by LAA (the `density | laa` bit), because the association `wellbeing ~ density` is the same for _every_ person in that LAA. To say that "each LAA has a different effect of population density on wellbeing" is tricky, because we "effect of density on wellbeing" isn't really defined for an individual LAA.  -->
+<!-- ```{r} -->
+<!-- #| error: true -->
+<!-- #| message: true -->
+<!-- model_dens <- lmer(wellbeing ~ 1 + outdoor_time + density + -->
+<!--                    (1 + outdoor_time + density | laa), data = scotmw) -->
+<!-- ``` -->
+<!-- The resulting model gives a singular fit, and we can see how this impacts the model estimates in the random effects. The random effect of `density | laa` is much smaller (explaining less variance), and is very highly correlated to the random intercept `1 | laa`, because it doesn't really contain a great deal more information (if you think about the `laa` and `density` columns of the dataset, there is a one-to-one mapping between them). Including the `density | laa` random effect here is not supported by the data.   -->
+<!-- ```{r} -->
+<!-- VarCorr(model_dens) -->
+<!-- ``` -->
+<!-- `r optend()` -->
+
+:::
+<br>
 <div class="divider div-transparent div-dot"></div>
 
 
@@ -255,13 +255,14 @@ For this week, we'll use Reaction Time as our proxy for the test performance, so
 
 Does it look like the effect was replicated?
 
-
 ::: {.callout-tip collapse="true"}
 #### Hints
 
 Our outcome variable is reaction time, so we'll want to plot that on the y axis.  
-Then we want to show the reaction times for each group, at each test (`min` or `week` delay).  
-Do we want to show _all_ the datapoints, or maybe just the average for each group at each test (in which case, does `stat_summary()` help?).  
+
+As described in the data summary, this is a replication, and the prediction is that the `StudyTest` group will retain the material better (have lower reaction times) on the 1-week follow-up test compared to the `StudyStudy` group.  
+
+So we want to show the reaction times for each group, at each test (`min` or `week` delay). Do we want to show _all_ the datapoints, or maybe just the average for each group at each test (in which case, does `stat_summary()` help?).  
 
 :::
 
