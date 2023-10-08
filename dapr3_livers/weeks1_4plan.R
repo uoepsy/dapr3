@@ -311,6 +311,14 @@ psychRT_quick = quickdf
 uoeRT = df_nest
 psychRT_tasks = df_cross
 psych_OBS = obsdf
+uoeRT = uoeRT |> mutate(
+  pid = case_when(
+    dept=="LEL" & pid == "David" & age == 27 ~ "Davide",
+    dept=="Phil" & pid=="Matthew" & age==31 ~ "Matt",
+    dept=="Sociology" & pid=="Aaron" & age==36 ~ "Aarron",
+    TRUE ~ pid
+  )
+)
 
 save(psychRT, psychRT_quick, uoeRT, psych_OBS, psychRT_tasks, file="dapr3_liveRs.RData")
 

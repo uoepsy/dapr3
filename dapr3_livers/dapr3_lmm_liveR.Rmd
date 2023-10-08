@@ -280,6 +280,81 @@ plot_model(m1, type="int")
 
 
 
+# Week 4
+
+> after accounting for differences due to age, is the influence of caffeine consumption on reaction times dependent  upon whether it coffee is taken with or without milk?  
+
+Nested example:
+
+As above, with people in psychology department, but we have lots of people from other departments too:  
+
+```{r}
+uoeRT %>%
+  count(dept)
+
+uoeRT %>%
+  count(dept, pid)
+
+nrow(uoeRT)
+
+uoeRT %>%
+  count(pid)
+```
+
+
+```{r}
+mnest = lmer(RT ~ 1+age+ncoffees*milk + (1+ncoffees|dept/pid),data=uoeRT)
+
+mnest = lmer(RT ~ 1+age+ncoffees*milk + 
+             (1+ncoffees|dept:pid)+
+             (1+ncoffees+milk|dept),
+             data=uoeRT)
+summary(allFit(mnest))
+
+mnest = lmer(RT ~ 1+age+ncoffees*milk + 
+             (1+ncoffees|dept:pid)+
+             (1|dept),
+             data=uoeRT)
+
+xyplot(RT~milk|dept,df_nest, type=c("p","r"))
+VarCorr(mnest)
+dotplot.ranef.mer(ranef(mnest))
+```
+
+Crossed example:  
+
+As initial example, but we have lots of different types of task for RT time.  
+
+```{r}
+psychRT_tasks %>%
+  count(pid)
+
+psychRT_tasks %>%
+  count(task)
+
+psychRT_tasks %>%
+  count(pid, task)
+```
+
+```{r}
+mcross = lmer(RT ~ 1+age+ncoffees*milk +
+                (1+ncoffees | pid) + 
+                (1+ncoffees + milk|task),
+              control=lmerControl(optimizer="bobyqa"),
+              data=psychRT_tasks)
+
+mcross = lmer(RT ~ 1+age+ncoffees*milk +
+                (1+ncoffees | pid) + 
+                (1+ncoffees |task),
+              control=lmerControl(optimizer="bobyqa"),
+              data=psychRT_tasks)
+
+summary(mcross)
+dotplot.ranef.mer(ranef(mcross))
+```
+
+
+
 
 
 
