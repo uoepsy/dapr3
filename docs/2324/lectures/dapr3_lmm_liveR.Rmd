@@ -280,6 +280,132 @@ plot_model(m1, type="int")
 
 
 
+# Week 4
+
+
+> after accounting for differences due to age, is the influence of caffeine consumption on reaction times dependent  upon whether it coffee is taken with or without milk?  
+
+
+PREVIOUSLY:  
+
+__design__  
+We recruited 20 people from the psychology department, and measured their reaction times (RT). We then gave them a coffee, waited an hour, and measured their RT again. We then gave them _another_ coffee before measuring their RT again. and again. and again. Up to 6 coffees were consumed by each participant. Participants had coffee either with or without milk.  
+**NOT A REAL STUDY**  
+```{r}
+# lmer(RT ~ 1 + age + ncoffee * milk + (1 + ncoffee | pid))
+```
+
+
+Nested example:
+
+As above, with people in psychology department, but we have lots of people from other departments too:  
+
+```{r}
+nrow(uoeRT)
+
+uoeRT %>%
+  count(dept)
+
+uoeRT %>%
+  count(dept, pid)
+
+uoeRT %>%
+  count(pid)
+
+uoeRT <- uoeRT %>%
+  mutate(
+    uPID = paste(dept,pid,sep="_")
+  )
+```
+
+
+```{r}
+mpsych = lmer(RT ~ 1+age+ncoffees*milk + (1+ncoffees|pid),data=psychRT)
+
+
+mnest = lmer(RT ~ 1+age+ncoffees*milk +
+                (1 + ncoffees | uPID) +  
+                (1 + age + ncoffees * milk| dept), 
+              data=uoeRT)
+
+
+VarCorr(mnest)
+summary(mnest)
+
+
+summary(allFit(mnest))
+
+xyplot(RT~milk|dept,df_nest, type=c("p","r"))
+VarCorr(mnest)
+dotplot.ranef.mer(ranef(mnest))
+```
+
+Crossed example:  
+
+As initial example, but we have lots of different types of task for RT time.  
+
+```{r}
+psychRT_tasks %>%
+  count(pid)
+
+psychRT_tasks %>%
+  count(task)
+
+psychRT_tasks %>%
+  count(pid, task)
+```
+
+```{r}
+mcross = lmer(RT ~ 1+age+ncoffees*milk +
+                (1+ncoffees | pid) + 
+                (1+ncoffees |task),
+              control=lmerControl(optimizer="bobyqa"),
+              data=psychRT_tasks)
+VarCorr(mcross)
+summary(mcross)
+```
+
+ways to plot group-specific random effects:
+```{r}
+dotplot.ranef.mer(ranef(mcross))
+plot(ranef(mcross)$pid)
+
+```
+
+stat summary!! 
+
+take our data, plot the mean at each level of ncoffees!  
+```{r}
+ggplot(psychRT, aes(x=ncoffees, y=RT))+
+  stat_summary(geom="pointrange")
+
+# add these on top of individual participants: 
+
+ggplot(psychRT, aes(x=ncoffees, y=RT))+
+  geom_line(aes(group=pid),alpha=.3)+
+  stat_summary(geom="pointrange")
+```
+
+because if we split our model estimated values by task, we still have different participants showing, we can summarise those up to the mean fitted for each task: 
+```{r}
+library(broom.mixed)
+augment(mcross) %>%
+  ggplot(aes(x=ncoffees, y=.fitted, group=task)) +
+  stat_summary(geom="line", fun=mean) +
+  stat_summary(data=augment(mcross) %>% filter(ncoffees==6), 
+               geom="text",aes(label=task))
+
+augment(mcross) %>%
+  ggplot(aes(x=ncoffees, y=.fitted, group=pid)) +
+  stat_summary(geom="line") +
+  stat_summary(data=augment(mcross) %>% filter(ncoffees==6), 
+               geom="text",aes(label=pid))
+
+```
+
+
+
+
 
 
 

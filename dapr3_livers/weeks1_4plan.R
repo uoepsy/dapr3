@@ -129,7 +129,7 @@ simg2 = function(dd){
     anx = y_bin
   )
 }
-set.seed(228)
+set.seed(042)
 df_nest <- map_dfr(c("LEL","Phil","Math","Sociology","Health & Social Science"),~simg2(.))
 
 df_nest <- df_nest |> group_by(g) |>
@@ -137,12 +137,37 @@ df_nest <- df_nest |> group_by(g) |>
                                         ethnicity=sample(1:6, 1, prob=c(.01,.1,.1,.1,.59,.1))))
 
 df_nest <- bind_rows(
-  df |> mutate(dept="Psych"),
-  ungroup(df_nest) |> select(-g,-anx)
+  df |> mutate(dept="Psych", g=pid),
+  ungroup(df_nest) #|> select(-g,-anx)
 )
 
+tochange = df_nest |> group_by(dept, pid) |> summarise(n=n(),age=first(age)) |>
+  filter(n>7) |> ungroup() |> 
+  mutate(
+    newnames = randomNames::randomNames(n(), which.names="first",
+                                        ethnicity=sample(1:6, 1, prob=c(.01,.1,.1,.1,.59,.1)))
+  )
+df_nest <- left_join(
+  df_nest,
+  tochange |> select(-n)
+) |>
+  mutate(
+    pid = case_when(
+      !is.na(newnames) ~ newnames,
+      TRUE ~ pid
+    )
+  ) |> select(-g,-anx,-newnames)
 
+df_nest |> count(dept, pid) |> filter(n>7)  
 
+mnest = lmer(RT ~ 1+age+ncoffees*milk + 
+               (1+ncoffees|dept:pid)+
+               (1+ncoffees+milk|dept),
+             data=df_nest)
+
+VarCorr(mnest)
+# save(df_nest, file="dfnest.Rdata")
+load("dfnest.Rdata")
 # crossed data ---- 
 simcross = function(t,b,bb){
 df |>
@@ -311,14 +336,7 @@ psychRT_quick = quickdf
 uoeRT = df_nest
 psychRT_tasks = df_cross
 psych_OBS = obsdf
-uoeRT = uoeRT |> mutate(
-  pid = case_when(
-    dept=="LEL" & pid == "David" & age == 27 ~ "Davide",
-    dept=="Phil" & pid=="Matthew" & age==31 ~ "Matt",
-    dept=="Sociology" & pid=="Aaron" & age==36 ~ "Aarron",
-    TRUE ~ pid
-  )
-)
+
 
 save(psychRT, psychRT_quick, uoeRT, psych_OBS, psychRT_tasks, file="dapr3_liveRs.RData")
-
+s
