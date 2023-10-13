@@ -166,6 +166,40 @@ plot_rs <-
   NULL
 
 
+library(ggdist)
+
+
+varcomp = sqrt(diag(VarCorr(mod3)[[1]]))
+
+pltints <- as_tibble(ranef(mod3)$subject) |>
+  mutate(subject = row.names(ranef(mod3)$subject)) |>
+  ggplot(aes(x=`(Intercept)`,col=subject))+
+  stat_function(fun=dnorm, col="black",n=101,args=list(mean=0,sd=varcomp[1])) +
+  geom_rug(lwd=1) +
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "none")+
+  scale_y_continuous(NULL,breaks=NULL) +
+  scale_x_continuous("group deviations\nfrom fixed intercept", 
+                     limits = c(-3,3)*varcomp[1],
+                     breaks=-2:2*varcomp[1],
+                     labels=c(paste0(c(-2,-1),"SD"),"0",paste0(c(1,2),"SD"))) 
+
+pltslops <- as_tibble(ranef(mod3)$subject) |>
+  mutate(subject = row.names(ranef(mod3)$subject)) |>
+  ggplot(aes(x=x1,col=subject))+
+  stat_function(fun=dnorm, col="black",n=101,args=list(mean=0,sd=varcomp[2])) +
+  geom_rug(lwd=1) +
+  theme_classic()+
+  theme(plot.title = element_text(hjust = 0.5),legend.position = "none")+
+  scale_y_continuous(NULL,breaks=NULL) +
+  scale_x_continuous("group deviations\nfrom fixed slope", 
+                     limits = c(-3,3)*varcomp[2],
+                     breaks=-2:2*varcomp[2],
+                     labels=c(paste0(c(-2,-1),"SD"),"0",paste0(c(1,2),"SD"))) 
+  
+
+
+
 # require(patchwork)
 # plot_data
 # plot_lm
