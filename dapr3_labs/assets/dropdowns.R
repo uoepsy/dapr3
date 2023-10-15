@@ -42,7 +42,7 @@ solbegin<-function(label=NULL,slabel=TRUE,show=TRUE,toggle=TRUE){
       id1 <- paste0("sol-start-", id)
       id2 <- paste0("sol-body-", id)
       part1 <- paste0("<div class=\"solution-begin\">",
-                      ifelse(toggle, sprintf("<button id='%s' class=\"fa-solid fa-circle-right solution-icon clickable\" onclick=\"toggle_visibility('%s', '%s')\">  %s</button>",id1, id2, id1, slab),""),
+                      ifelse(toggle, sprintf("<button id='%s' class=\"jk-circle-right solution-icon clickable\" onclick=\"toggle_visibility('%s', '%s')\">  %s</button>",id1, id2, id1, slab),""),
                       "</div>",
                       ifelse(toggle, paste0("<div class=\"solution-body\" id = \"",id2, "\" style=\"display: none;\">"), "<div class=\"solution-body\">")
       )
@@ -121,7 +121,7 @@ optbegin<-function(label=NULL,olabel=TRUE,show=TRUE, toggle=TRUE){
       id1 <- paste0("opt-start-", id)
       id2 <- paste0("opt-body-", id)
       part1 <- paste0("<div class=\"optional-begin\">",
-                      ifelse(toggle, sprintf("<button id='%s' class=\"fa-solid fa-circle-right optional-icon clickable\" onclick=\"toggle_visibility('%s', '%s')\"> %s </button>",id1, id2, id1, olab),""),
+                      ifelse(toggle, sprintf("<button id='%s' class=\"jk-circle-right optional-icon clickable\" onclick=\"toggle_visibility('%s', '%s')\"> %s </button>",id1, id2, id1, olab),""),
                       "</div>",
                       ifelse(toggle, paste0("<div class=\"optional-body\" id = \"",id2, "\" style=\"display: none;\">"), "<div class=\"optional-body\">")
       )

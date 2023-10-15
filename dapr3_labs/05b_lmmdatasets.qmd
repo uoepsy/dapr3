@@ -1,0 +1,579 @@
+---
+title: "LMM Datasets"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+library(effects)
+library(knitr)
+library(kableExtra)
+library(xaringanExtra)
+xaringanExtra::use_panelset()
+```
+
+**Disclaimer**  
+None of these data are real! Where possible, we have tried to make the values plausible (e.g. by presenting established measures). The patterns present in this data are simply a wild concoction straight from the whimsical brains of the stats teaching crew.
+
+
+::: {.callout-note collapse="true"}
+#### Cognitive Aging
+
+A study is interested in examining **how cognition changes as people age**. They recruit a sample of 20 participants at age 60, and administer the Addenbrooke's Cognitive Examination (ACE) every 2 years (until participants were aged 78). 
+
+**DATASET:** [https://uoepsy.github.io/data/dapr3_decline.csv](https://uoepsy.github.io/data/dapr3_decline.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_decline.csv")
+tibble(
+  variable=names(d3),
+  description=c("Participant Identifier",
+                "Visit number (1 - 10)",
+                "Age (years) at visit",
+                "Addenbrooke's Cognitive Examination Score. Scores can range from 0 to 100",
+                "Clinical diagnosis of cognitive impairment ('imp' = impaired, 'unimp' = unimpaired)")
+) |> gt::gt()
+
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Routine and Emotions in Children
+
+**Are children with more day-to-day routine better at regulating their emotions?** A study of 200 children from 20 schools (9 private schools and 11 state schools) completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). 
+
+**DATASET:** [https://uoepsy.github.io/data/crqeds.csv](https://uoepsy.github.io/data/crqeds.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
+tibble(
+  variable=names(d3),
+  description=c("School Identifier",
+                "Emotion Dysregulation Score (range 1-6, higher values indicate more *dys*regulation of emotions)",
+                "Childhood Routine Questionnaire Score (range 0-7, higher values indicate more day-to-day routine)",
+                "School type (private / state)")
+) |> gt::gt()
+
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Mannequins and clothing purchases
+
+**Does clothing seem more attractive to shoppers when it is viewed on a model, and is this dependent on item price?** 30 participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it. Each participant saw 20 items, ranging in price from £5 to £100. 15 participants saw these items worn by a model, while the other 15 saw the items against a white background.  
+
+**DATASET:** [https://uoepsy.github.io/data/dapr3_mannequin.csv](https://uoepsy.github.io/data/dapr3_mannequin.csv)
+
+```{r}
+#| eval: false
+#| echo: false
+set.seed(15)
+N = 600
+n_groups = 30
+g = rep(1:n_groups, e = N/n_groups)      # the group identifier
+x = rep(seq(5,100,len=20),n_groups)
+b = rep(0:1,e=15)[g]
+re0 = rnorm(n_groups, sd = 1)  # random intercepts
+re  = re0[g]
+rex = rnorm(n_groups, sd = .4)  # random effects
+re_x  = rex[g]
+lp = (0 + re) + (1 + re_x)*scale(x) + (.5 * b) + (.5*scale(x)*b)
+y = rnorm(N, mean = lp, sd = 2) # create a continuous target variable
+df = data.frame(x, g=factor(g), b=b, y)
+
+clothesdf <- df |> transmute(
+  purch_rating = round(56.4+scale(y)[,1]*16.2),
+  price = round(x),
+  ppt = factor(paste0("ppt_",g)),
+  condition = ifelse(b==0,"item_only","model")
+)
+write_csv(clothesdf, "../../data/dapr3_mannequin.csv")
+```
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+tibble(
+  variable=names(d3),
+  description=c("Purchase Rating (sliding scale 0 to 100, with higher ratings indicating greater perceived likelihood of purchase)",
+                "Price presented with item (range £5 to £100)",
+                "Participant Identifier",
+                "Whether items are seen on a model or on a white background")
+) |> gt::gt()
+
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Big Fish Little Fish
+
+**Do bigger fish (relative to those fish around them) have more self-esteem?**  
+
+**DATASET:** [https://uoepsy.github.io/data/bflp.csv](https://uoepsy.github.io/data/bflp.csv)
+
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/bflp.csv")
+tibble(
+  variable=names(d3)[c(1,3,4)],
+  description=c("Pond identifier (which pond was each fish surveyed from?)",
+                "Self Esteem of Little Fish (SELF) scale (range 1-5, with higher values indicating more self-esteem)",
+                "Weight (kg)")
+) |> gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Anxiety and Alcohol Use
+
+A research study is investigating **how greater levels of anxiety might lead to changes in drinking habits, and whether this is different depending on whether people identify as 'social drinkers'**. Data was collected from 50 participants across 5 different centers, on c10 different occasions. On each occasion, researchers administered the generalised anxiety disorder (GAD-7) questionnaire to measure levels of anxiety over the past week, and collected information on the units of alcohol participants had consumed within the week. 
+
+**DATASET:** [https://uoepsy.github.io/data/alcgad.csv](https://uoepsy.github.io/data/alcgad.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/alcgad.csv")
+tibble(
+  variable=names(d3),
+  description=c(
+    "Alcohol units consumed within the past week",
+    "Generalised Anxiety Disorder scale (range 0-21, with higher values indicating greater levels of generalised anxiety)",
+    "Research center from which participant was recruited",
+    "Participant identifier",
+    "Whether the participant identifies as a 'social drinker' or not (0 = not a social drinker, 1 = social drinker)",
+    "Whether participant lives in an urban or rural location (0 = urban, 1 = rural)"
+  )
+) |> gt::gt()
+```
+
+
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Physiotherapy and physical functioning
+
+```{r}
+#| eval: false
+#| echo: false
+library(lme4)
+set.seed(86)
+doit<-1
+while(doit){
+  Ngroup2s = 10
+  dd2<-MASS::mvrnorm(n=Ngroup2s, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  cor(dd2)
+  i = 2
+  df<-as.data.frame(c())
+  for(i in 1:Ngroup2s){
+    Ngroups = round(rnorm(1,10,0))
+    Nxgroups = 2
+    
+    #NperGroup = rep(Nxgroups*nrep,Ngroups)
+    NperGroup = rdunif(Ngroups, 5, 10)*Nxgroups
+    N = sum(NperGroup)
+    
+    dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddb<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddx<-MASS::mvrnorm(n=Nxgroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    
+    igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+    xgs = map(1:Ngroups, ~rep(1:Nxgroups,NperGroup[.]/Nxgroups)) %>% unlist
+    #x = map(1:Ngroups, ~rep(1:NperGroup[.],Nxgroups)) %>% unlist
+    xxm = rnorm(Ngroups,50,10)
+    xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+    xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+    #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+    xx = xxm+xgc 
+    
+    l2p = sample(1:4, Ngroups, replace=T, prob = c(.2,.5,.3,.1))
+    l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+    
+    l3p = i %% 2
+    e = rnorm(N, sd = 15)
+    
+    y = 0 +
+      dd[igs,1]+
+      dd2[i,1]+
+      #ddx[xgs, 1] + 
+      -5*xxm+
+      #-.05*(xx2 %in% c(1,2,4))*xgc+
+      -6*xgc + 
+      dd[igs,2]*xgc +
+      #ddb[igs,2]*xxm + 
+      1*dd2[i,2]*xxm +
+      -3*l2p + 
+      2*l3p +
+      e
+    d = data.frame(y,xxm,xgc,igs,xgs,i, l2p,l3p)
+    #ggplot(d,aes(x=x,y=y,group=factor(igs)))+facet_wrap(~xgs)+geom_path()
+    d$ng2 = i
+    df<-rbind(df,d)
+  }
+  df %>% filter(xgs == 1) %>%
+  lmer(y ~ xxm + xgc + l2p + l3p + (1+xgc | ng2/igs), data =.,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  t3 = attributes(VarCorr(m)[[2]])$stddev
+  t4 = attributes(VarCorr(m)[[2]])$correlation
+  
+  if(!isSingular(m) & all(t1 != 0) & !(t2[lower.tri(t2)] %in% c(0,1,-1)) & all(t3 != 0) & !(t4[lower.tri(t4)] %in% c(0,1,-1)) ){
+    doit <- 0
+  }
+}
+
+df %>% filter(xgs==1) %>% transmute(
+  tgu = 8+(scale(y)[,1]*4),
+  phys = round(xxm + xgc),
+  hospital = ng2,
+  patient = igs,
+  prioritylevel = l2p,
+  private = l3p
+) %>% filter(hospital%in%c(5,6)) %>% 
+  mutate(hospital=paste0("Hospital_",hospital),
+patient = paste0(hospital,patient))-> tgudat
+
+write_csv(tgudat, "../../data/dapr3_tgu.csv")
+```
+
+A researcher is interested in the efficacy of physiotherapy in helping people to regain normal physical functioning. They are curious **whether doing more physiotherapy leads to better outcomes, or if it is possibly that the patients who tend to do more of their exercises tend to have better outcomes**. 20 in-patients from 2 different hospitals (1 private, 1 govt funded) were monitored over the course of their recovery following knee-surgery. Every day, the time each patient spent doing their physiotherapy exercises was recorded. At the end of each day, participants completed the "Time get up and go" task, a measure of physical functioning.  
+
+**DATASET:** [https://uoepsy.github.io/data/dapr3_tgu.csv](https://uoepsy.github.io/data/dapr3_tgu.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_tgu.csv")
+tibble(
+  variable=names(d3),
+  description=c(
+    "Time Get up and Go Task - measure of physical functioning. Scored in minutes, with lower scores indicating better physical functioning",
+    "Minutes of physiotherapy exercises completed that day",
+    "Hospital ID",
+    "Patient ID",
+    "Priority level of patients' surgery (rank 1-4, with 1 being most urgent surgey, and 4 being least urgent)",
+    "0 = government funded hospital, 1 = private hospital"
+  )
+) |> gt::gt()
+```
+
+:::
+
+
+
+
+::: {.callout-note collapse="true"}
+#### Mindful Cognitive Aging
+
+A study is interested in examining **whether engaging in mindfulness can prevent cognitive decline in older adults**. They recruit a sample of 20 participants at age 60, and administer the Addenbrooke's Cognitive Examination (ACE) every 2 years (until participants were aged 78). Half of the participants undertake to complete daily mindfulness sessions, while the remaining participants did not.   
+
+**DATASET:** [https://uoepsy.github.io/data/dapr3_mindfuldecline.csv](https://uoepsy.github.io/data/dapr3_mindfuldecline.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+tibble(
+  variable=names(d3),
+  description=c("Site Identifier",
+                "Participant Identifier",
+                "Whether the participant engages in mindfulness or not (control/mindfulness)",
+                "Visit number (1 - 10)",
+                "Age (years) at visit",
+                "Addenbrooke's Cognitive Examination Score. Scores can range from 0 to 100",
+                "Clinical diagnosis of cognitive impairment ('imp' = impaired, 'unimp' = unimpaired)")
+) |> gt::gt()
+
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Multi-center Mindful Cognitive Aging
+
+A large study involving 14 different research centers is interested in examining **whether engaging in mindfulness can prevent cognitive decline in older adults**. Each site recruits between 15 and 30 participants at age 60, and administer the Addenbrooke's Cognitive Examination (ACE) every 2 years (until participants were aged 78). For each center, roughly half of the participants engaged with daily mindfulness sessions, while the remaining participants did not.     
+
+**DATASET:** [https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv](https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+tibble(
+  variable=names(d3),
+  description=c("Site Identifier",
+                "Participant Identifier",
+                "Whether the participant engages in mindfulness or not (control/mindfulness)",
+                "Visit number (1 - 10)",
+                "Age (years) at visit",
+                "Addenbrooke's Cognitive Examination Score. Scores can range from 0 to 100",
+                "Clinical diagnosis of cognitive impairment ('imp' = impaired, 'unimp' = unimpaired)")
+) |> gt::gt()
+
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Wellbeing Across Scotland  
+
+Researchers want to study the **relationship between time spent outdoors and mental wellbeing**, across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week. Twenty of the Local Authority Areas provided data. 
+
+**DATASET:** [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+tibble(
+  variable=names(d3),
+  description=c("Participant Identifier",
+                "Participant Name",
+                "Local Authority Area",
+                "Number of hours spent outdoors per week",
+                "Wellbeing score (Warwick Edinburgh Mental Wellbeing Scale). Range 15 - 75, with higher scores indicating better mental wellbeing",
+                "Population density of local authority area (number of people per square km)")
+) |> gt::gt()
+
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Audio interference in executive functioning
+
+**How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used?** 30 healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a maximum of 15 times. During the tests, participants listened to either no audio (max 5 tests), white noise (max 5 tests) or classical music (max 5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room. 
+
+**DATASET:** [https://uoepsy.github.io/data/ef_replication.csv](https://uoepsy.github.io/data/ef_replication.csv)  
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/ef_replication.csv")
+tibble(variable=names(d3),
+       description = c(
+         "Participant ID",
+         "Trial Number (1-15)",
+         "Audio heard during the test ('no_audio', 'white_noise','music')",
+         "Whether the participant listened via speakers in the room or via noise cancelling headphones",
+         "Symbol Digit Modalities Test (SDMT) score")
+) %>% gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Wellbeing in work  
+
+The "Wellbeing in Work" dataset contains information on employee wellbeing, assessed at baseline (start of study), 12 months post, 24 months post, and 36 months post.  over the course of 36 months. 
+Participants were randomly assigned to one of three employment conditions:
+
+- control: No change to employment. Employees continue at 5 days a week, with standard allocated annual leave quota.    
+- unlimited_leave : Employees were given no limit to their annual leave, but were still expected to meet required targets as specified in their job description. 
+- fourday_week: Employees worked a 4 day week for no decrease in pay, and were still expected to meet required targets as specified in their job description.
+
+The researchers have two main questions: **Overall, did the participants' wellbeing stay the same or did it change? Did the employment condition groups differ in the how wellbeing changed over the assessment period?**     
+
+**DATASET:** [https://uoepsy.github.io/data/wellbeingwork3.rda](https://uoepsy.github.io/data/wellbeingwork3.rda)
+
+```{r}
+load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
+d3 <- wellbeingwork3
+tibble(variable=names(d3),
+       description = c(
+         "Participant ID",
+         "Timepoint (0 = baseline, 1 = 12 months, 2 = 24 months, 3 = 36 months)",
+         "Employment Condition ('control' = 5 day week, 28 days of leave. 'unlimited_leave' = 5 days a week, unlimited leave. 'fourday_week' = 4 day week, 28 days of leave)",
+         "Wellbeing score (Warwick Edinburgh Mental Wellbeing Scale). Range 15 - 75, with higher scores indicating better mental wellbeing")
+) %>% gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Hangry
+
+The study is interested in evaluating **whether hunger influences peoples' levels of irritability** (i.e., "the hangry hypothesis"), and whether this is different for people following a diet that includes fasting. 81 participants were recruited into the study. Once a week for 5 consecutive weeks, participants were asked to complete two questionnaires, one assessing their level of hunger, and one assessing their level of irritability. The time and day at which participants were assessed was at a randomly chosen hour between 7am and 7pm each week. 46 of the participants were following a five-two diet (five days of normal eating, 2 days of fasting), and the remaining 35 were following no specific diet.  
+
+**DATASET:** [https://uoepsy.github.io/data/hangry.csv](https://uoepsy.github.io/data/hangry.csv)  
+
+```{r}
+#| echo: false
+hangry<-read_csv("https://uoepsy.github.io/data/hangry.csv") %>% mutate(fivetwo=factor(fivetwo))
+tibble(
+    variable = names(hangry),
+    description = c("Score on irritability questionnaire (0:100)",
+                    "Score on hunger questionnaire (0:100)",
+                    "Participant Identifier",
+                    "Whether the participant follows the five-two diet")
+) %>% gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Test-enhanced learning  
+
+An experiment was run to conceptually replicate "test-enhanced learning" (Roediger & Karpicke, 2006): two groups of 25 participants were presented with material to learn. One group studied the material twice (`StudyStudy`), the other group studied the material once then did a test (`StudyTest`). Recall was tested immediately (one minute) after the learning session and one week later. The recall tests were composed of 175 items identified by a keyword (`Test_word`). 
+
+The researchers are interested in how test-enhanced learning influences time-to-recall. The critical (replication) prediction is that the `StudyTest` group will retain the material better (lower reaction times) on the 1-week follow-up test compared to the `StudyStudy` group.  
+
+**DATASET:** [https://uoepsy.github.io/data/RTtestlearning.RData](https://uoepsy.github.io/data/RTtestlearning.RData)
+
+```{r}
+#| echo: false
+load(url("https://uoepsy.github.io/data/RTtestlearning.RData"))
+tibble(
+  variable=names(telrt),
+  description=c("Unique Participant Identifier", "Group denoting whether the participant studied the material twice (StudyStudy), or studied it once then did a test (StudyTest)","Time of recall test ('min' = Immediate, 'week' = One week later)","Word being recalled (175 different test words)","Time to respond (milliseconds)")
+) %>% gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Mono/bilingual differences in vocabulary development
+
+74 children from 10 schools were administered the full Boston Naming Test (BNT-60) on a yearly basis for 5 years to examine development of word retrieval. Five of the schools taught lessons in a bilingual setting with English as one of the languages, and the remaining five schools taught in monolingual English.  
+
+**DATASET:** [https://uoepsy.github.io/data/bntmono.csv](https://uoepsy.github.io/data/bntmono.csv)  
+
+```{r}
+#| echo: false
+bnt <- read_csv("https://uoepsy.github.io/data/bntmono.csv")
+tibble(variable = names(bnt),
+       description = c("unique child identifier","unique school identifier","score on the Boston Naming Test-60. Scores range from 0 to 60","Year of school","Mono/Bi-lingual School. 0 = Bilingual, 1 = Monolingual")
+) %>% gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+### Aggressive Behaviours Intervention  
+
+In 2010 A US state's commissioner for education was faced with growing community concern about rising levels of adolescent antisocial behaviours. 
+
+After a series of focus groups, the commissioner approved the trialing of an intervention in which yearly Parent Management Training (PMT) group sessions were offered to the parents of a cohort of students entering 10 different high schools. Every year, the parents were asked to fill out an informant-based version of the Aggressive Behaviour Scale (ABS), measuring verbal and physical abuse, socially inappropriate behavior, and resisting care. Where possible, the same parents were followed up throughout the child's progression through high school. Alongside this, parents from a cohort of students entering 10 further high schools in the state were recruited to also complete the same informant-based ABS, but were not offered the PMT group sessions.  
+The commissioner has two main questions: **Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?**  
+
+**DATASET:** [https://uoepsy.github.io/data/abs_intervention.csv](https://uoepsy.github.io/data/abs_intervention.csv) 
+
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/abs_intervention.csv")
+tibble(variable=names(d3),
+       description = c(
+         "School Name",
+         "Participant Identifier",
+         "Age (years)",
+         "Whether or not parents attended Parent Management Training (PMT) group sessions (0 = No, 1 = Yes)",
+         "Aggressive Behaviours Scale. Measures verbal and physical abuse, socially inappropriate behavior, and resisting care. Scores range from 0 to 100, with higher scores indicating more aggressive behaviours.")
+) %>% gt::gt()
+```
+
+
+:::
+
+
+
+::: {.callout-note collapse="true"}
+#### Practice 1: Music and Driving 
+
+These data are simulated to represent data from a fake experiment, in which participants were asked to drive around a route in a 30mph zone. Each participant completed the route 3 times (i.e. "repeated measures"), but each time they were listening to different audio (either speech, classical music or rap music). Their average speed across the route was recorded. 
+This is a fairly simple design, that we might use to ask **"how is the type of audio being listened to associated with driving speeds?"** 
+
+The data are available at [https://uoepsy.github.io/data/drivingmusicwithin.csv](https://uoepsy.github.io/data/drivingmusicwithin.csv).  
+
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/drivingmusicwithin.csv")),
+  description = c("Participant Identifier","Avg Speed Driven on Route (mph)","Music listened to while driving (classical music / rap music / spoken word)")
+) |> gt::gt()
+```
+
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Practice 2: CBT and Stress
+
+These data are simulated to represent data from 50 participants, each measured at 3 different time-points (pre, during, and post) on a measure of stress. Participants were randomly allocated such that half received some cognitive behavioural therapy (CBT) treatment, and half did not. This study is interested in assessing **whether the two groups (control vs treatment) differ in how stress changes across the 3 time points**. 
+
+The data are available at [https://uoepsy.github.io/data/stressint.csv](https://uoepsy.github.io/data/stressint.csv).  
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/stressint.csv")),
+  description = c("Participant Identifier","Stress (range 0 to 100)","Time (pre/post/during)",
+                  "Whether participant is in the CBT group or control group")
+) |> gt::gt()
+```
+
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Practice 3: Erm.. I don't believe you
+
+These data are simulated to represent data from 30 participants who took part in an experiment designed to investigate **whether fluency of speech influences how believable an utterance is perceived to be**.  
+
+Each participant listened to the same 20 statements, with 10 being presented in fluent speech, and 10 being presented with a disfluency (an "erm, ..."). Fluency of the statements was counterbalanced such that 15 participants heard statements 1 to 10 as fluent and 11 to 20 as disfluent, and the remaining 15 participants heard statements 1 to 10 as disfluent, and 11 to 20 as fluent. The order of the statements presented to each participant was random. Participants rated each statement on how believable it is on a scale of 0 to 100.  
+
+The data are available at [https://uoepsy.github.io/data/erm_belief.csv](https://uoepsy.github.io/data/erm_belief.csv). 
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/erm_belief.csv")),
+  description = c("Participant Identifier","Trial number", "Statement identifier", "Condition (fluent v disfluent)", "belief rating (0-100)", "Statement")
+) |> gt::gt()
+```
+
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Practice 4: Cognitive Aging
+
+These data are simulated to represent a large scale international study of cognitive aging, for which data from 17 research centers has been combined. The study team are interested in **whether different cognitive domains have different trajectories as people age**. Do all cognitive domains decline at the same rate? Do some decline more steeply, and some less? The literature suggests that scores on cognitive ability are predicted by educational attainment, so they would like to control for this.  
+
+Each of the 17 research centers recruited a minimum of 14 participants (Median = 21, Range 14-29) at age 45, and recorded their level of education (in years). Participants were then tested on 5 cognitive domains: processing speed, spatial visualisation, memory, reasoning, and vocabulary. Participants were contacted for follow-up on a further 9 occasions (resulting in 10 datapoints for each participant), and at every follow-up they were tested on the same 5 cognitive domains. Follow-ups were on average 3 years apart (Mean = 3, SD = 0.8). 
+
+The data are available at [https://uoepsy.github.io/data/cogdecline.csv](https://uoepsy.github.io/data/cogdecline.csv). 
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/cogdecline.csv")),
+  description = c("Center ID","Participant Identifier","Educational attainment (years of education)","Age at visit (years)",
+                  "Score on Processing Speed domain task",
+                  "Score on Spatial Visualisation domain task",
+                  "Score on Memory domain task",
+                  "Score on Reasoning domain task",
+                  "Score on Vocabulary domain task"
+                  )
+) |> gt::gt()
+```
+
+:::
+
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
