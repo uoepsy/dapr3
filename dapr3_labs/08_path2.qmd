@@ -265,23 +265,25 @@ tibble(
 ```
 
 
-
-The data is available at https://uoepsy.github.io/data/cp_teachacad.csv     
+The data is available at https://uoepsy.github.io/data/cprobteach.csv     
 :::
 
 
 `r qbegin(qcounter())`
-First, read in the dataset from https://uoepsy.github.io/data/cp_teachacad.csv     
+First, read in the dataset from https://uoepsy.github.io/data/cprobteach.csv     
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
 #| message: false
-cp_teach<-read_csv("https://uoepsy.github.io/data/cp_teachacad.csv")
+cp_teach <- read_csv("https://uoepsy.github.io/data/cprobteach.csv")
+
 summary(cp_teach)
 ```
 `r solend()`
 
 `r qbegin(qcounter())`
+Just to initially get a sense of the total effects of different types of conduct problem on academic performance, we'll fit a simple regression model.  
+
 Use the `sem()` function in lavaan to specify and estimate a straightforward linear regression model to test whether aggressive and non-aggressive conduct problems significantly predict academic performance.  
 
 How do your results compare to those you obtain using the `lm()` function?
@@ -302,11 +304,20 @@ sr_lm<-lm(Acad~Non_agg+Agg, data=cp_teach)
 summary(sr_lm)
 ```
 
-We can see that both non-aggressive and aggressive conduct problems significantly predict academic perfofmance. We can also see that we get the same results when we use the `sem()` function as we do when we use the `lm()` function. Lavaan will give essentially the same results as `lm()` for simple  and multiple regression problems. However, if we have multiple outcome variables in our model it is advantageous to do this using path mediation model with lavaan. This allows us to include all the regressions in a single model.
+We can see that both non-aggressive and aggressive conduct problems significantly predict academic perfofmance. Having more aggressive or non-aggressive conduct problems is associated with poorer academic performance.   
+
+We can also see that we get the same results when we use the `sem()` function as we do when we use the `lm()` function. Lavaan will give essentially the same results as `lm()` for simple  and multiple regression problems. However, if we have multiple outcome variables in our model it is advantageous to do this using path mediation model with lavaan. This allows us to include all the regressions in a single model. 
 `r solend()`
 
 `r qbegin(qcounter())`
-Now specify a model in which non-aggressive conduct problems have both a direct and indirect effect (via teacher relationships) on academic performance
+Forget about aggressive conduct problems for the time-being.  
+
+Specify a model in which non-aggressive conduct problems have both:  
+
+- a direct on academic performance
+- an indirect effect via teacher relationships on academic performance  
+
+
 `r qend()` 
 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -336,8 +347,10 @@ Fit the model and examine the 95% CI.
 #model specification
 model1<-'
     Acad~Non_agg
+    
     #we label the two parameters that comprise the indirect effect b and c
     Acad~b*Teach_r    
+    
     Teach_r~c*Non_agg  
     
     # the indirect effect is the product of b and c. We create a new parameter (ind) to estimate the indirect effect
@@ -351,7 +364,9 @@ model1.est<-sem(model1, data=cp_teach, se='bootstrap')
 summary(model1.est, ci=T)
 ```
 
-We can see that the 95% bootstrapped confidence interval for the indirect effect of non-aggressive conduct problems on academic performance ('ind') does not include zero. We can conclude that the indirect effect is significant at $p <.05$. The direct effect is also statistically significant at $p < .05$.
+We can see that the 95% bootstrapped confidence interval for the indirect effect of non-aggressive conduct problems on academic performance ('ind') does not include zero. We can conclude that the indirect effect is significant at $p <.05$. The direct effect is also statistically significant at $p < .05$.  
+
+
 `r solend()`
 
 `r qbegin(qcounter())`
@@ -383,6 +398,16 @@ model1.est<-sem(model1, data=cp_teach,se='bootstrap')
 # we request bootstrapped standard errors to assess the signifance of the indirect effect
 summary(model1.est, ci=T)
 ```
+
+Now that we have the total effect too, we can start to build up a picture of what is happening.  
+
+- Non-aggressive conduct problems are associated with poorer academic performance (total effect)  
+- This is partially mediated by teacher relationships (children with more conduct problems tend to have worse teacher relationships, and quality of teacher relationships influences academic performance).   
+  - 61% ($\frac{\text{indirect}}{\text{total}}$) of the effect of non-aggressive conduct problems on academic performance is mediated by the quality of teacher relationships.  
+  
+- Non-aggressive conduct problems continue to have a direct effect on academic performance (direct effect) 
+
+
 `r solend()`
 
 <div class="divider div-transparent div-dot"></div>
@@ -391,18 +416,31 @@ summary(model1.est, ci=T)
 # Exercises: More Conduct Problems
 
 `r qbegin(qcounter())`
-Now specify a model in which __both__ aggressive and non-aggressive conduct problems have both direct and indirect effects (via teacher relationships) on academic performance. Include the parameters for the indirect effects.
+Now specify a model in which __both__ aggressive and non-aggressive conduct problems have both direct and indirect effects (via teacher relationships) on academic performance. Include the parameters for the indirect effects.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We've got __two__ predictors, and __one__ mediator.  
+So two indirect effects. make sure to give unique labels to the paths!  
+
+:::
+
 `r qend()` 
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 We now have two predictors, one mediator and one outcome (and two indirect effects, one for each predictor). We can represent this in two lines: one where we specify academic performance as the outcome variable and one where we specify teacher relationships (the mediator) as the outcome variable. 
 
 ```{r two predictors}
 model2<-
-   'Acad~Agg+Non_agg+b*Teach_r
-    Teach_r~c1*Agg+c2*Non_agg
+   'Acad ~ a1*Agg + a2*Non_agg + b*Teach_r
+    Teach_r ~ c1*Agg + c2*Non_agg
    
     ind1:=b*c1 #indirect effect for aggressive conduct problems
     ind2:=b*c2 #indirect effect for non-aggressive conduct problems
+    
+    tot1:=(b*c1)+a1 # total effect aggressive
+    tot2:=(b*c2)+a2 # total effect non-aggressive
 '
 ```
 
@@ -433,7 +471,7 @@ Open powerpoint, or google drawings, or microsoft paint (!), and create a diagra
 #| echo: false
 #| out-width: "1200px"
 #| fig-cap: "Effect of conduct problems on academic performance mediated by quality of teacher relationship."
-knitr::include_graphics("images/path/pathanaly.png")
+knitr::include_graphics("images/path/pathanaly1.png")
 ```
 
 `r solend()`
@@ -448,14 +486,14 @@ Write a brief paragraph reporting on the results of the model estimates in Quest
 
 A path mediation model was used to test the direct and indirect effects (via teacher relationship quality) of aggressive and non-aggressive conduct problems on academic performance. In the model, academic performance was regressed on teacher relationship quality, non-aggressive conduct problems and aggressive conduct problems while teacher relationship quality (the mediator) was regressed on aggressive and non-aggressive conduct problems. The indirect effects were tested using the product of the coefficient for the regression of outcome on mediator and the coefficient for the regression of mediator on predictor. The statistical significance of the indirect effects were evaluated using boostrapped 95% confidence intervals with 1000 draws.
 
-Unstandardised parameter estimates are provided in @fig-pathcp. Solid lines indicate that a parameter is significant at $p <. 05$, while dashed lines represent non-significant paths.The indirect effects of both non-aggressive  ($b = 0.09$, 95% CI=0.05-0.14) and aggressive ($b = 0.15$, 95% CI=0.08-0.22) conduct problems on academic performance were statistically significant. 
+Unstandardised parameter estimates are provided in @fig-pathcp. Solid lines indicate that a parameter is significant at $p <. 05$, while dashed lines represent non-significant paths.The indirect effects of both non-aggressive  ($b = -0.09$, 95% CI=[-0.14, -0.05]) and aggressive ($b = -0.15$, 95% CI=[-0.21, -.08]) conduct problems on academic performance were statistically significant. 
 
 ```{r}
 #| label: fig-pathcp
 #| echo: false
 #| out-width: "1200px"
 #| fig-cap: "Effect of conduct problems on academic performance mediated by quality of teacher relationship."
-knitr::include_graphics("images/path/pathanaly.png")
+knitr::include_graphics("images/path/pathanaly1.png")
 ```
 :::
 
