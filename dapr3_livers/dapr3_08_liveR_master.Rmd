@@ -1,0 +1,119 @@
+---
+title: "dapR3_liveR_week8 - Path Mediation"
+author: "John Martindale"
+date: "30/10/2023"
+output: html_document
+date: "2023-10-26"
+editor_options: 
+  chunk_output_type: console
+---
+
+# DAPR3 - Week 8 - Path Mediation - Live R
+
+## Recap of last week programming
+
+The goal for today is to specify, fit and evaluate a path model with mediation. First, let's load our packages:
+
+```{r Setup, message=FALSE, warning=FALSE}
+# Load tidyverse and lavaan packages
+
+library(tidyverse)
+library(lavaan)
+```
+
+Let's load in the data:
+
+```{r Data import, }
+# Load the data
+
+leader <- read_csv("C:/Users/jmart/OneDrive/Documents/GitHub/dapr3/dapr3_livers/leader.csv")
+
+# Preview the data
+leader
+```
+
+1. Variable key
+- ID = Partiicpant ID
+- Leader = Abusive leadership behaviour
+- Sleep = Sleep
+- Exercise = Exercise
+- Aggression = Interpersonal aggression at work
+- swb = Sujective well-being
+
+Let's specify a model:
+
+```{r Model specification}
+# Define the model
+path1 = '
+aggression ~ leader
+swb ~ aggression
+swb ~ leader
+swb ~ exercise + sleep
+'
+```
+
+- Draw the model on the board here
+
+What are we saying here? What are the relationships?
+
+1. Motivation predicts performance
+2. Size of organisation predicts motivation
+
+Now let's estimate and view:
+
+```{r}
+# Fit the model
+path1_out <- sem(path1, data = leader)
+
+# Print the model
+summary(path1_out, # Model
+        fit.measures = T, # Fit indices
+        std = T
+        )
+```
+
+## Week 8 - Mediation
+
+Now let's add the mediation effects:
+
+```{r}
+path1 = '
+# Direct effects
+aggression ~ a*leader # aggression (M) predicted by abusive leader behaviour (X)
+swb ~ b*aggression # well-being (Y) predicted by aggression (M)
+swb ~ c*leader # well-being (Y) predicted by leader abusive behaviour (X): direct effect
+swb ~ exercise + sleep # covariates
+
+# Mediation effects
+indirect := a*b
+total := (a*b)+c
+'
+```
+
+Estimate the model:
+
+```{r}
+# Estimate the model
+model1.est <- sem(path1, data = leader)
+
+# Report the model
+summary(model1.est,
+        fit.measures = T, 
+        std = T,
+        modindices = T)
+```
+
+Now we want to compute some confidence intervals for the indirect effects:
+
+```{r}
+# Estimate the model
+model2.est <- sem(path1, data = leader, se = 'bootstrap')
+
+# Report the model
+summary(model1.est,
+        fit.measures = T,
+        ci = T,
+        std = T,
+        modindices = T)
+```
+

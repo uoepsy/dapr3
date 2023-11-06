@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>WEEK 2 Path Mediation</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="dapR3 Team" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <b>WEEK 2<br>Path Mediation</b>
+]
+.subtitle[
+## Data Analysis for Psychology in R 3
+]
+.author[
+### dapR3 Team
+]
+.institute[
+### Department of Psychology<br/>The University of Edinburgh
+]
+
+---
+
+
+
+
+
+
+# Learning Objectives
+1. Understand the purpose of mediation models and the conceptual challenges
+2. Be able to describe direct, indirect and total effects in a mediation model.
+3. Estimate and interpret a mediation model using `lavaan`
+
+---
+class: inverse, center, middle
+
+&lt;h2&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Reporting&lt;/h2&gt;
+
+---
+# Mediation
+
+- Is when a predictor X, has an effect on an outcome Y, via a mediating variable M
+
+- The mediator **transmits** the effect of X  to Y 
+
+- Examples of mediation hypotheses:
+    - Conscientiousness (X) affects health (Y) via health behaviors (M)
+    - Conduct problems (X) increase the risk of depression (Y) via peer problems (M)
+    - Attitudes to smoking (X) predict intentions to smoke (M) which in turn predicts smoking behavior (Y) 
+    - An intervention (X) to reduce youth crime (Y) works by increasing youth self-control (M)
+
+
+---
+# Traditional approaches
+- Traditional approaches to mediation fit a series of linear models, and interpretations were based comparing across models.
+  - A classic you may see in papers will refer to Baron and Kenny
+
+- These approaches suffer from:
+  - Low power
+  - Very cumbersome for multiple mediators, predictors, or outcomes
+  - You don't get significance tests for many of the things we are interested in when we have mediation questions
+
+- Much better way: **path mediation model**
+
+ 
+---
+# Visualising a mediation model
+
+.pull-left[
+- (Right) Diagram of a simple mediation models
+
+- Conscientiousness (X) affects health (Y) via health behaviors (M)
+
+]
+
+.pull-right[
+&lt;img src="dapr3_07_pathmediation_files/figure-html/unnamed-chunk-1-1.png" width="1235" /&gt;
+]
+
+
+---
+# Cautions regarding path mediation
+- We are going to talk about path mediation models, but these should only really be used with longitudinal data.
+
+- Consider our example:
+  - Conscientiousness (X) affects health (Y) via health behaviors (M)
+
+- This only really makes sense if we say:
+  - We believe people have varying levels of Conscientiousness
+    - This will lead them to behave in specific health related ways
+      - And these behaviors will subsequently have a health impact
+
+- This happens over time. So to test it, we need longitudinal data.
+  - X time 1
+  - M time 2
+  - Y time 3
+
+---
+# Cautions: Indistinguishable models
+
+- Of course it is possible to do on cross-sectional data, but there is a big conceptual problem.
+  - We are modelling correlations.
+  - When we only have cross-sectional data, we have multiple **indistinguishable** models
+  - So there is **nothing** to demonstrate one model is better than another.
+
+
+---
+# Cautions: Indistinguishable models
+
+&lt;img src="dapr3_07_pathmediation_files/figure-html/unnamed-chunk-2-1.png" width="17777" /&gt;
+
+---
+# Mediation...not to be confused with moderation
+- Mediation is commonly confused with **moderation** 
+
+- Moderation is when a moderator z modifies the effect of X on Y
+  - e.g., the effect of X on Y is stronger at higher levels of Z
+  - Also known as an **interaction** between X and Z
+
+- Examples of moderation could be:
+    - An intervention (X) works better to reduce bullying (Y) at older ages (Z) of school pupil
+    - The relation between stress (X) and depression (Y) is lower for those scoring higher on spirituality (Z) 
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Reporting&lt;/h2&gt;  
+
+
+
+---
+# Total, direct and indirect effects in path mediation
+
+- The overall effect of a predictor on an outcome is known as the **total**
+
+- The total effect comprises two sources of influence of X on Y, namely the **indirect effects** and **direct effects**
+
+
+`$$Total = Indirect + Direct$$`
+- The indirect effects of X on Y are those transmitted via the mediator
+
+- The direct effect of X on Y is the remaining effect of X on Y
+
+
+
+---
+# Visualing direct and indirect effects in mediation
+
+&lt;img src="dapr3_07_pathmediation_files/figure-html/unnamed-chunk-3-1.png" width="1263" /&gt;
+
+---
+# Estimating an indirect effect
+
+.pull-left[
+- To actually calculate the value of an indirect effect, we multiply together the paths x-&gt;M and M-&gt;Y
+
+- We can show this more clearly if we label the paths in our diagram
+
+`$$Total = a*b + c$$`
+
+]
+
+
+.pull-right[
+&lt;img src="dapr3_07_pathmediation_files/figure-html/unnamed-chunk-4-1.png" width="1293" /&gt;
+]
+
+
+---
+# Interpreting the total, direct, and indirect effect coefficients
+- The total effect can be interpreted as the **unit increase in Y expected to occur when X increases by one unit**
+
+- The indirect effect can be interpreted as the **unit increase in Y expected to occur via M when X increases by one unit**
+
+- The direct effect can be interpreted as the **unit increase in Y expected to occur with a unit increase in X over and above the increase transmitted by M**
+
+- **Note**: 'direct' effect may not actually be direct - it may be acting via other mediators not included in our model
+
+
+---
+# Testing mediation
+- Demonstrating mediation will usually rely on a number of things:
+
+1. Evaluating the significance of the indirect, direct and total effects
+2. Considering the proportion of the total effect which is due to the indirect path
+
+
+`$$ProportionMediated = \frac{indirect}{total}$$` 
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Reporting&lt;/h2&gt;
+
+---
+# Testing a path mediation model in lavaan
+
+- Specification
+  - Create a lavaan syntax object
+
+- Estimation
+  - Estimate the model using e.g., maximum likelihood estimation
+
+- Evaluation/interpretation
+  - Inspect the model to judge how good it is
+  - Interpret the parameter estimates
+
+
+---
+# Example
+
++ Researchers are interested in looking at self-reported subjective well-being in the workplace.
+
++ They believe that abusive leadership behaviours will result in more interpersonal aggression at work, and subsequently reduced well-being.
+
++ Key question: Does interpersonal aggression mediate the effect of abusive leadership behaviour on psychological well-being, over and above the effects of sleep and exercise?
+
++ They want to control for well known health variables which impact subjective well-being, so also measure hours of exercise, and hours of sleep.
+
+
+
+
+---
+# Example model
+
+&lt;img src="dapr3_07_pathmediation_files/figure-html/unnamed-chunk-6-1.png" width="1384" /&gt;
+
+---
+# Data
+
+
+```r
+slice(leader_dat, 1:10)
+```
+
+```
+## # A tibble: 10 × 6
+##    ID            leader sleep exercise aggression   swb
+##    &lt;chr&gt;          &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;      &lt;dbl&gt; &lt;dbl&gt;
+##  1 participant1    0.9    4.7        5       0.36  0.47
+##  2 participant2   -0.13   4          2       0.5  -0.2 
+##  3 participant3   -0.9    6          4      -0.61  0.3 
+##  4 participant4    0.15   5          3       0.02  0.58
+##  5 participant5    1.18   4.1        4       0.4   0.28
+##  6 participant6    0.69   4.1        3      -0.47  0.25
+##  7 participant7    0.78   5.8        3       1.26  0.51
+##  8 participant8   -1.69   3.7        4      -1.05 -0.17
+##  9 participant9    0.23   2.8        3       0.39 -0.28
+## 10 participant10   0.27   6.1        4      -0.39 -0.24
+```
+
+
+---
+# Basic model code
++ Does interpersonal aggression mediate the effect of abusive leadership behaviour on psychological well-being, over and above the effects of sleep and exercise?
+
+
+```r
+model1&lt;-'aggression ~ leader  # aggression (M) predicted by leader abusive behaviour (X)
+         swb ~ aggression     # well-being (Y) predicted by aggression (M)
+         swb ~ leader         # well-being (Y) predicted by leader abusive behaviour (X): direct effect
+         swb ~ exercise + sleep # covariates
+'     
+```
+
++ Note we could combine all the predictors of `swb` into a single line.
+  + It is split here for ease of reading
+  
+---
+# Coding Indirect and Total Effects
+- To calculate the indirect effect of X on Y in path mediation, we need to create some new parameters
+
+- First we label those from the simple model:
+  - `\(a\)` = the regression coefficient for M~X
+  - `\(b\)` = the regression coefficient for Y~M
+  - `\(c\)` = the regression coefficient for M~X
+
+- We then use := operator to create a new parameter
+  - Name appears on the left (here `ind` and `tot`), and the calculation on the right
+
+
+```r
+model1&lt;-'aggression ~ a*leader  # aggression (M) predicted by leader abusive behaviour (X)
+         swb ~ b*aggression     # well-being (Y) predicted by aggression (M)
+         swb ~ c*leader         # well-being (Y) predicted by leader abusive behaviour (X): direct effect
+         swb ~ exercise + sleep # covariates
+         
+ind := a*b
+tot := (a*b)+c
+'     
+```
+
+
+---
+# Estimating the model
+
+
+```r
+model1.est&lt;-sem(model1, data=leader_dat)
+```
+
+- This is very straight-forward
+  - As we have noted we can generally rely on the defaults for basic path models
+
+---
+# Model Evaluation
+
++ Typically we want to see:
+  + Model estimates
+  + Model fit
+  + Standardized solutions
+  + Possibly modification indices
+  
++ We get those by:
+
+
+```r
+summary(model1.est, 
+        fit.measures = T, 
+        std=T, 
+        modindices = T)
+```
+
+---
+# Model Output
+
+.scroll-output[
+
+```r
+summary(model1.est)
+```
+
+```
+## lavaan 0.6.15 ended normally after 2 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         7
+## 
+##   Number of observations                           550
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 3.152
+##   Degrees of freedom                                 2
+##   P-value (Chi-square)                           0.207
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                             Standard
+##   Information                                 Expected
+##   Information saturated (h1) model          Structured
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##   aggression ~                                        
+##     leader     (a)    0.380    0.018   21.134    0.000
+##   swb ~                                               
+##     aggression (b)    0.416    0.047    8.772    0.000
+##     leader     (c)   -0.028    0.027   -1.053    0.293
+##     exercise          0.182    0.018    9.912    0.000
+##     sleep             0.200    0.019   10.472    0.000
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##    .aggression        0.165    0.010   16.583    0.000
+##    .swb               0.204    0.012   16.583    0.000
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##     ind               0.158    0.020    8.102    0.000
+##     tot               0.130    0.021    6.072    0.000
+```
+]
+
+---
+# Things to note from the model output (1)
++ All effects other than the direct effect of abusive leadership on well-being are significant.
+
++ We have positive degrees of freedom so we can assess model fit.
+
+
+.scroll-output[
+
+```r
+summary(model1.est, 
+        fit.measures = T)
+```
+
+```
+## lavaan 0.6.15 ended normally after 2 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         7
+## 
+##   Number of observations                           550
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 3.152
+##   Degrees of freedom                                 2
+##   P-value (Chi-square)                           0.207
+## 
+## Model Test Baseline Model:
+## 
+##   Test statistic                               574.763
+##   Degrees of freedom                                 7
+##   P-value                                        0.000
+## 
+## User Model versus Baseline Model:
+## 
+##   Comparative Fit Index (CFI)                    0.998
+##   Tucker-Lewis Index (TLI)                       0.993
+## 
+## Loglikelihood and Information Criteria:
+## 
+##   Loglikelihood user model (H0)               -629.036
+##   Loglikelihood unrestricted model (H1)       -627.460
+##                                                       
+##   Akaike (AIC)                                1272.073
+##   Bayesian (BIC)                              1302.242
+##   Sample-size adjusted Bayesian (SABIC)       1280.021
+## 
+## Root Mean Square Error of Approximation:
+## 
+##   RMSEA                                          0.032
+##   90 Percent confidence interval - lower         0.000
+##   90 Percent confidence interval - upper         0.097
+##   P-value H_0: RMSEA &lt;= 0.050                    0.578
+##   P-value H_0: RMSEA &gt;= 0.080                    0.132
+## 
+## Standardized Root Mean Square Residual:
+## 
+##   SRMR                                           0.017
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                             Standard
+##   Information                                 Expected
+##   Information saturated (h1) model          Structured
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##   aggression ~                                        
+##     leader     (a)    0.380    0.018   21.134    0.000
+##   swb ~                                               
+##     aggression (b)    0.416    0.047    8.772    0.000
+##     leader     (c)   -0.028    0.027   -1.053    0.293
+##     exercise          0.182    0.018    9.912    0.000
+##     sleep             0.200    0.019   10.472    0.000
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##    .aggression        0.165    0.010   16.583    0.000
+##    .swb               0.204    0.012   16.583    0.000
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##     ind               0.158    0.020    8.102    0.000
+##     tot               0.130    0.021    6.072    0.000
+```
+]
+
+---
+# Statistical significance of the indirect effects
+- Default method of assessing the statistical significance of indirect effects assume normal sampling distribution
+
+- May not hold for indirect effects which are the product of regression coefficients
+
+- Instead we can use **bootstrapping**
+  - Allows 95% confidence intervals (CIs) to be computed
+  - If 95% CI includes 0, the indirect effect is not significant at alpha=.05
+    
+---
+# Bootstapped CIs for indirect effect in lavaan
+
+
+- Run the model:
+
+
+```r
+model1.est&lt;-sem(model1, data=leader_dat, se='bootstrap') #we add the argument se='bootstrap'
+```
+
+- View the output with CI's
+
+.scroll-output[
+
+```r
+summary(model1.est, ci=T) # we add the argument ci=T to see the confidence intervals in the output
+```
+]
+
+---
+# Bootstrap CI output
+
+.scroll-output[
+
+```r
+summary(model1.est, ci=T) # we add the argument ci=T to see the confidence intervals in the output
+```
+
+```
+## lavaan 0.6.15 ended normally after 2 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         7
+## 
+##   Number of observations                           550
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 3.152
+##   Degrees of freedom                                 2
+##   P-value (Chi-square)                           0.207
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                            Bootstrap
+##   Number of requested bootstrap draws             1000
+##   Number of successful bootstrap draws            1000
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##   aggression ~                                                          
+##     leader     (a)    0.380    0.018   21.200    0.000    0.344    0.414
+##   swb ~                                                                 
+##     aggression (b)    0.416    0.044    9.441    0.000    0.329    0.501
+##     leader     (c)   -0.028    0.025   -1.132    0.258   -0.077    0.022
+##     exercise          0.182    0.018    9.972    0.000    0.147    0.218
+##     sleep             0.200    0.019   10.555    0.000    0.162    0.236
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##    .aggression        0.165    0.010   17.096    0.000    0.147    0.184
+##    .swb               0.204    0.013   16.014    0.000    0.179    0.229
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##     ind               0.158    0.018    8.575    0.000    0.124    0.196
+##     tot               0.130    0.019    6.822    0.000    0.090    0.167
+```
+]
+
+
+---
+# Standardised parameters
+- As with other statistical analyses, if our units of measurement do not have easy interpretations, it may be beneficial to standardized results. 
+
+- Standardized parameters can be obtained using:
+
+
+```r
+summary(model1.est, ci=T, std=T)
+```
+
+---
+# Standardised parameters
+.scroll-output[
+
+```
+## lavaan 0.6.15 ended normally after 2 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         7
+## 
+##   Number of observations                           550
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 3.152
+##   Degrees of freedom                                 2
+##   P-value (Chi-square)                           0.207
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                            Bootstrap
+##   Number of requested bootstrap draws             1000
+##   Number of successful bootstrap draws            1000
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##   aggression ~                                                          
+##     leader     (a)    0.380    0.018   21.200    0.000    0.344    0.414
+##   swb ~                                                                 
+##     aggression (b)    0.416    0.044    9.441    0.000    0.329    0.501
+##     leader     (c)   -0.028    0.025   -1.132    0.258   -0.077    0.022
+##     exercise          0.182    0.018    9.972    0.000    0.147    0.218
+##     sleep             0.200    0.019   10.555    0.000    0.162    0.236
+##    Std.lv  Std.all
+##                   
+##     0.380    0.669
+##                   
+##     0.416    0.401
+##    -0.028   -0.048
+##     0.182    0.337
+##     0.200    0.356
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##    .aggression        0.165    0.010   17.096    0.000    0.147    0.184
+##    .swb               0.204    0.013   16.014    0.000    0.179    0.229
+##    Std.lv  Std.all
+##     0.165    0.552
+##     0.204    0.633
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##     ind               0.158    0.018    8.575    0.000    0.124    0.196
+##     tot               0.130    0.019    6.822    0.000    0.090    0.167
+##    Std.lv  Std.all
+##     0.158    0.268
+##     0.130    0.220
+```
+]
+
+
+---
+# What if my model doesn't fit?
++ In this case our model fits well. But what if it doesn't?
+
++ First, we should not draw substantive conclusion if fit is poor. And we could stop here.
+
++ If we want to understand why the fit is poor, we can look at modification indices.
+
+.scroll-output[
+
+```r
+modindices(model1.est)
+```
+
+```
+##           lhs op        rhs    mi    epc sepc.lv sepc.all sepc.nox
+## 8      leader ~~     leader 0.000  0.000   0.000    0.000    0.000
+## 9      leader ~~   exercise 0.000  0.000   0.000       NA    0.000
+## 10     leader ~~      sleep 0.000  0.000   0.000       NA    0.000
+## 16 aggression  ~        swb 1.075 -0.066  -0.066   -0.069   -0.069
+## 17 aggression  ~   exercise 0.145  0.006   0.006    0.012    0.012
+## 18 aggression  ~      sleep 3.061 -0.030  -0.030   -0.055   -0.055
+## 19     leader  ~ aggression 0.898  1.313   1.313    0.745    0.745
+## 20     leader  ~        swb 0.002  0.008   0.008    0.005    0.005
+## 21     leader  ~   exercise 0.000  0.000   0.000    0.000    0.000
+## 22     leader  ~      sleep 0.000  0.000   0.000    0.000    0.000
+## 23   exercise  ~ aggression 0.025  0.010   0.010    0.005    0.005
+## 24   exercise  ~        swb 0.029  0.027   0.027    0.014    0.014
+## 25   exercise  ~     leader 0.000  0.000   0.000    0.000    0.000
+## 26   exercise  ~      sleep 0.000  0.000   0.000    0.000    0.000
+## 27      sleep  ~ aggression 0.913 -0.056  -0.056   -0.030   -0.030
+## 28      sleep  ~        swb 1.052 -0.155  -0.155   -0.087   -0.087
+## 29      sleep  ~     leader 0.000  0.000   0.000    0.000    0.000
+## 30      sleep  ~   exercise 0.000  0.000   0.000    0.000    0.000
+```
+
+]
+
+---
+# Making model modifications
+- You **may** want to make some modifications to your initially hypothesized model 
+  - non-significant paths that you want to trim
+  - include some additional paths not initially included
+
+- As soon as we make a modification, we are no longer testing a model in a confirmatory way.
+  - Our analysis switches to being led by the data, not the theory. 
+  - This is why it is generally not preferred.
+
+- If we do:
+  - Model modifications should be substantively as well as statistically justifiable
+  - You must be aware of the possibility that you are capitalizing on chance
+  - You should aim to replicate the modifications in independent data
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2&gt;Part 4: Reporting&lt;/h2&gt;
+
+---
+# Reporting path mediation models 
+
+- Methods/ Analysis Strategy
+  - The model being tested
+  - e.g. 'Y was regressed on both X and M and M was regressed on X'
+  - The estimator used (e.g., maximum likelihood estimation)
+  - The method used to test the significance of indirect effects ('bootstrapped 95% confidence intervals')
+
+- Results
+  - Model fit (for over-identified models)
+  - The parameter estimates for the path mediation  and their statistical significance
+  - Can be useful to present these in a SEM diagram
+  - The diagrams from R not considered 'publication quality' draw in powerpoint or similar
+
+
+---
+# Reporting path mediation models - example of SEM diagram with results
+
+- Include the key parameter estimates
+
+- Indicate statistically significant paths (e.g. with an '*')
+
+- Include a figure note that explains how statistically significant paths (and at what level) are signified 
+
+---
+# Example Diagram
+
+&lt;img src="dapr3_07_pathmediation_files/figure-html/unnamed-chunk-18-1.png" width="1407" /&gt;
+
+---
+# Visualising the model 
+- There are a number of packages in R that will produce path diagrams.
+
+- The default presentation of these diagrams is often not clear.
+  - And it can take some time to master refining them
+
+- All diagrams in this presentation were made in powerpoint and saved as image files
+  - I would strongly advocate this approach.
+  
+
+---
+# Reporting path mediation models - the indirect effects
+
+- Results
+ - The coefficient for the indirect effect and the bootstrapped 95% confidence intervals.
+ 
+&gt; The indirect effect of abusive leadership on well-being via workplace aggression was significant ( `\(\beta\)` = 0.16, bootstrap 95% CI [0.12, 0.20])
+ 
+ - Common to also report **proportion mediation**
+  
+- However, important to be aware of limitations:
+  - Big proportion mediation possible when total effect is small - makes effect seem more impressive
+  - Small proportion mediation even when total effect is big - can underplay importance of effect
+  - Should be interpreted in context of total effect
+
+- Tricky interpretation if there are a mix of negative and positive effects involved
+
+---
+## Other path analysis models
+- Path mediation models are a common application of path models
+  - But they are just one example
+
+- Anything that can be expressed in terms of regressions between observed variables can be tested as a path model
+  - Can include ordinal or binary variables
+  - Can include moderation
+
+- Other common path analysis models include:
+    - Auto-regressive models for longitudinal data
+    - Cross-lagged panel models for longitudinal data
+
+
+---
+# Path analysis summary
+- Path analysis can be used to fit sets of regression models
+  - Common path analysis model is the path mediation model
+  - But very flexible huge range of models that can be tested
+
+- In R, path analysis can be done using the `sem()` function in `lavaan`
+
+- Need to be aware that we aren't *testing* causality but assuming it
+
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"navigation": {
+"scroll": false
+},
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
