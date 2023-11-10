@@ -205,8 +205,8 @@ class: inverse, center, middle
 
 <h2>Part 1: Introduction to data reduction</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 2: Purpose of PCA</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Eigenvectors </h2>
-<h2 style="text-align: left;opacity:0.3;">Part 4: Running & Interpreting PCA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Variance  </h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Eigenvectors, loadings & Interpreting PCA</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 5: PCA scores</h2>
 
 ---
@@ -228,26 +228,23 @@ class: inverse, center, middle
   + Multidimensional scaling
 
 ---
-# When might you use data reduction?
-+ You work with observational data and many variables
-  + Psychology (differential, industrial/organizational)
-  + Genetics
-  + Epidemiology
-
----
 # Uses of dimension reduction techniques
 - Theory testing
   - What are the number and nature of dimensions that best describe a theoretical construct?
+  - e.g. debates in intelligence and personality 
 
 - Test construction
   - How should I group my items into sub-scales?
   - Which items are the best measures of my  constructs?
+  - e.g. anywhere where we construct a test (differential, social, developmental)
 
 - Pragmatic
   - I have multicollinearity issues/too many variables, how can I defensibly combine my variables?
+  - e.g. Genetics (GWAS), big data, predictive modelling
     
 ---
 # Questions to ask before you start
+.pull-left[
 + Why are your variables correlated?
   + Agnostic/don't care
   + Believe there *are* underlying "causes" of these correlations
@@ -256,9 +253,21 @@ class: inverse, center, middle
   + Just reduce the number of variables
   + Reduce your variables and learn about/model their underlying
   (latent) causes
+]
+
+.pull-right[
+
+```{r, echo=FALSE}
+magick::image_read("figs/pca_factor.png")
+```
+
+]
 
 ---
 # Questions to ask before you start
+
+.pull-left[
+
 + Why are your variables correlated?
   + **Agnostic/don't care**
   + Believe there *are* underlying "causes" of these correlations
@@ -268,83 +277,15 @@ class: inverse, center, middle
   + Reduce your variables and learn about/model their underlying
   (latent) causes
 
----
-# Dimension Reduction
-- Summarise a set of variables in terms of a smaller number of dimensions
-    - e.g., can 10 aggression items summarised in terms of 'physical' and 'verbal' aggression dimensions?
-    
-1. I hit someone
-2. I kicked someone 
-3. I shoved someone 
-4. I battered someone 
-5. I physically hurt someone on purpose 
-6. I deliberately insulted someone
-7. I swore at someone
-8. I threatened to hurt someone
-9. I called someone a nasty name to their face
-10. I shouted mean things at someone
+]
 
-    
----
-# Our running example
+.pull-right[
 
-- A researcher has collected n=1000 responses to our 10 aggression items
-- We'll use this data to illustrate dimension reduction techniques
-
-```{r simulate_data, include=FALSE}
-nF=2 #number of factors
-nV=10 #number of variables
-
-Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
-            data=c(1.00,0.00,
-                   0.00,1.00),byrow=T)
-
-
-Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
-                      #F1    F2
-               data=c(0.70, 0.10, # item1
-                      0.80, 0.08, # item2
-                      0.70, 0.06, # item3
-                      0.65, 0.10, # item4
-                      0.84, 0.04, # item5
-                      0.01, 0.65, # item6
-                      0.10, 0.88, # item7
-                      0.03, 0.90, #item8
-                      0.10, 0.67,  #item9
-                      0.02, 0.70), #item10
-                byrow=T)
-
-
-Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
-            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
-      data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item1
-             0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
-             0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
-             0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
-             0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
-             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, #item6
-             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, #item7
-             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, #item8
-             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, #item9
-             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2), #item10
-      byrow=T) 
-
-
-#compute correlation matrix from Psi, Lambda and Theta
-
-Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
-#simulate data
-library(MASS)
-agg.items<-as.data.frame(mvrnorm(n=1000, mu=rep(0,10), Sigma=Sigma))
-names(agg.items)<-c('item1','item2','item3','item4','item5','item6','item7','item8','item9','item10')
+```{r, echo=FALSE}
+magick::image_read("figs/pca_factor.png")
 ```
 
-```{r descriptives for aggression items}
-library(psych)
-describe(agg.items)
-```
-
-
+]
 
 
 ---
@@ -357,8 +298,8 @@ class: inverse, center, middle
 
 <h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to data reduction</h2>
 <h2>Part 2: Purpose of PCA</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Eigenvectors </h2>
-<h2 style="text-align: left;opacity:0.3;">Part 4: Running & Interpreting PCA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Variance </h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Eigenvectors, loadings & Interpreting PCA</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 5: PCA scores</h2>
 
 
@@ -371,12 +312,81 @@ class: inverse, center, middle
 
 
 ---
+# An example
+- In our path analysis example, we included two health covariates. 
+
+- Suppose instead we measured many more health variables, and we wanted to create a composite score where higher scores represent better health. 
+
+- We measure:
+
+1. Average hours of sleep per night (2 week average)
+2. Average minutes of exercise per day (2 week average)
+3. Average calorific intake per day (2 week average)    
+4. Steps per day outside of exercise (2 week average)
+5. Count of physical health conditions (high blood pressure, diabetes, cardiovascular disease etc. max score 10)
+6. BMI
+
+- We collect this data on 750 participants.
+    
+```{r simulate_data, include=FALSE}
+nF=1 #number of factors
+nV=6 #number of variables
+
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00),byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2
+               data=c(0.70, # item1
+                      0.95, # item2
+                      0.65, # item3
+                      0.45, # item4
+                      0.30, # item5
+                      0.25, # item6
+                byrow=T)
+)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+      data=c(1-0.70^2, 0.00, 0.00, 0.00, 0.00, 0.00,  #item1
+             0.00, 1-0.95^2, 0.00, 0.00, 0.00, 0.00,  #item2
+             0.00, 0.00, 1-0.65^2, 0.00, 0.00, 0.00,  #item3
+             0.00, 0.00, 0.00, 1-0.45^2, 0.00, 0.00,  #item4
+             0.00, 0.00, 0.00, 0.00, 1-0.30^2, 0.00,  #item5
+             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.25^2,  #item6
+      byrow=T)
+)
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+
+#simulate data
+library(MASS)
+health <-as.data.frame(mvrnorm(n=750, mu=c(5, 20, 1700, 5000, 1, 18), Sigma=Sigma))
+names(health) <- c('sleep','exercise','calories','steps','conditions','BMI')
+```
+
+
+---
 # PCA
 - Starts with a correlation matrix
 
 ``` {r Correlation matrix for aggression items}
 #compute the correlation matrix for the aggression items
-round(cor(agg.items),2)
+round(cor(health),2)
+```
+
+
+---
+# PCA
+- And turns this into an output which represents the degree to which each item contributes to a composite
+
+```{r, echo=FALSE}
+library(psych)
+principal(health, nfactors=1) 
 ```
 
 
@@ -423,9 +433,7 @@ plot(g2val2)
 # Eigendecomposition
 - Components are formed using an **eigen-decomposition** of the correlation matrix
 
-- Eigen-decomposition is a transformation of the correlation matrix to re-express it in terms of  **eigenvalues** and **eigenvectors**
-
-- There is one eigenvector and one eigenvalue for each component
+- Eigen-decomposition is a transformation of the correlation matrix to re-express it in terms of **eigenvalues**: and **eigenvectors**
 
 - Eigenvalues are a measure of the size of the variance packaged into a component
     - Larger eigenvalues mean that the component accounts for a large proportion of the variance.
@@ -434,20 +442,7 @@ plot(g2val2)
 - Eigenvectors provide information on the relationship of each variable to each component.
   - Visually, eigenvectors provide the direction of the line.
 
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End of Part 2
-
----
-class: inverse, center, middle
-
-<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to data reduction</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 2: Purpose of PCA</h2>
-<h2> Part 3: Eigenvalues & Eigenvectors </h2>
-<h2 style="text-align: left;opacity:0.3;">Part 4: Running & Interpreting PCA</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 5: PCA scores</h2>
+- There is one eigenvector and one eigenvalue for each component
 
 
 ---
@@ -474,22 +469,39 @@ e.vectors
   - e.g., if we had 5 variables each eigenvector would contain 5 weights
   - Larger weights mean  a variable makes a bigger contribution to the component
 
+
 ---
-# Eigen-decomposition of aggression item correlation matrix
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to data reduction</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Purpose of PCA</h2>
+<h2> Part 3: Eigenvalues & Variance </h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Eigenvectors, loadings & Interpreting PCA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 5: PCA scores</h2>
+
+
+
+---
+# Eigen-decomposition of health items
   
-- We can use the eigen() function to conduct an eigen-decomposition for our 10 aggression items
+- We can use the eigen() function to conduct an eigen-decomposition for our health items
 
 ```{r eigendecomposition of aggression correlation matrix, eval=FALSE}
-eigen(cor(agg.items))
+eigen(cor(health))
 ```
 
 ---
-# Eigen-decomposition of aggression item correlation matrix
+# Eigen-decomposition of health items
 
 - Eigenvalues:
 
 ```{r eigendecomposition of aggression correlation matrix2, echo=FALSE}
-eigen_res <- eigen(cor(agg.items))
+eigen_res <- eigen(cor(health))
 round(eigen_res$values,3)
 ```
 
@@ -507,7 +519,7 @@ round(eigen_res$vectors, 3)
   - The covariance of an item with itself is 1 (think the diagonal in a correlation matrix)
   - Adding these up = total variance.
   - A full eigendecomposition accounts for all variance distributed across eigenvalues.
-  - So the sum of the eigenvalues must = 10 for our example.
+  - So the sum of the eigenvalues must = 6 for our example.
   
 ```{r}
 sum(eigen_res$values)
@@ -540,52 +552,15 @@ $$\frac{eigenvalue}{p}$$
 sum((eigen_res$values/sum(eigen_res$values))*100)
 ```
 
----
-# Eigenvectors & PCA Loadings
-- Whereas we use eigenvalues to think about variance, we use eigenvectors to think about the nature of components.
-
-- To do so, we convert eigenvectors to PCA loadings.
-  - A PCA loading gives the strength of the relationship between the item and the component.
-  - Range from -1 to 1
-  - The higher the absolute value, the stronger the relationship.
-  
-- The sum of the squared loadings for any variable on all components will equal 1.
-  - That is all the variance in the item is explained by the full decomposition.
-  
----
-# Eigenvectors & PCA Loadings
-- We get the loadings by:
-
-$$a_{ij}^* = a_{ij}\sqrt{\lambda_j}$$
-- where
-  - $a_{ij}^*$ = the component loading for item $i$ on component $j$
-  - $a_{ij}$ = the associated eigenvector value
-  - $\lambda_j$ is the eigenvalue for component $j$
-
-- Essentially we are scaling the eigenvectors by the eigenvalues such that the components with the largest eigenvalues have the largest loadings.
-
-
----
-class: inverse, center, middle, animated, rotateInDownLeft
-
-# End of Part 3
-
----
-class: inverse, center, middle
-
-<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to data reduction</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 2: Purpose of PCA</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Eigenvectors </h2>
-<h2>Part 4: Running & Interpreting PCA</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 5: PCA scores</h2>
 
 ---
 # How many components to keep?
+- The relation of eigenvalues to variance is useful to us in order to understand how many components we should retain in our analysis 
+
 - Eigen-decomposition repackages the variance but does not reduce our dimensions
 
 - Dimension reduction comes from keeping only the largest components
-
-- Assume the others can be dropped with little loss of information
+    - Assume the others can be dropped with little loss of information
 
 - Our decisions on how many components to keep can be guided by several methods
     - Set a amount of variance you wish to account for
@@ -635,7 +610,7 @@ axis(1, at = 1:10, labels = 1:10)
 .pull-right[
 
 ```{r Scree plot example2, echo=FALSE}
-eigenvalues<-eigen(cor(agg.items))$values
+eigenvalues<-eigen(cor(health))$values
 plot(eigenvalues, type = 'b', pch = 16, 
      main = "Scree Plot", xlab="", ylab="Eigenvalues")
 axis(1, at = 1:10, labels = 1:10)
@@ -703,14 +678,14 @@ axis(1, at = 1:10, labels = 1:10)
 
 ```{r, message=FALSE, warning=FALSE, eval=FALSE}
 library(psych)
-vss(agg.items)
+vss(health)
 ```
 ]
 
 .pull-right[
 ```{r, message=FALSE, warning=FALSE, echo=FALSE}
 library(psych)
-vss(agg.items)$map
+vss(health)$map
 ```
 
 ]
@@ -733,13 +708,13 @@ vss(agg.items)$map
 
 .pull-left[
 ```{r, eval=FALSE}
-fa.parallel(agg.items, n.iter=500)
+fa.parallel(health, n.iter=500)
 ```
 ]
 
 .pull-right[
 ```{r, echo=FALSE}
-fa.parallel(agg.items, n.iter=500)
+fa.parallel(health, n.iter=500)
 ```
 ]
 
@@ -758,6 +733,54 @@ fa.parallel(agg.items, n.iter=500)
   - Do components make practical sense given purpose?
   - Do components make substantive sense?
 
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to data reduction</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Purpose of PCA</h2>
+<h2 style="text-align: left;opacity:0.3;"> Part 3: Eigenvalues & Variance </h2>
+<h2>Part 4: Eigenvectors, loadings & Interpreting PCA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 5: PCA scores</h2>
+
+---
+# Eigenvectors & PCA Loadings
+- Whereas we use eigenvalues to think about variance, we use eigenvectors to think about the nature of components.
+
+- To do so, we convert eigenvectors to PCA loadings.
+  - A PCA loading gives the strength of the relationship between the item and the component.
+  - Range from -1 to 1
+  - The higher the absolute value, the stronger the relationship.
+  
+- The sum of the squared loadings for any variable on all components will equal 1.
+  - That is all the variance in the item is explained by the full decomposition.
+  
+---
+# Eigenvectors & PCA Loadings
+- We get the loadings by:
+
+$$a_{ij}^* = a_{ij}\sqrt{\lambda_j}$$
+- where
+  - $a_{ij}^*$ = the component loading for item $i$ on component $j$
+  - $a_{ij}$ = the associated eigenvector value
+  - $\lambda_j$ is the eigenvalue for component $j$
+
+- Essentially we are scaling the eigenvectors by the eigenvalues such that the components with the largest eigenvalues have the largest loadings.
+
+---
+# Looking again at the loadings
+```{r, echo=FALSE}
+principal(health, nfactors = 1)
+```
+
+
+
 ---
 # Running a PCA with a reduced number of components
 - We can run a PCA keeping just a selected number of components 
@@ -772,10 +795,8 @@ fa.parallel(agg.items, n.iter=500)
     - Allows us to check which solutions make most sense based on substantive/practical considerations
 
 ```{r principal()}
-
-PC2<-principal(agg.items, nfactors=2) 
-PC3<-principal(agg.items, nfactors=3) 
-
+PC1<-principal(health, nfactors=1) 
+PC2<-principal(health, nfactors=2) 
 ```
 
 
@@ -794,25 +815,18 @@ PC3<-principal(agg.items, nfactors=3)
 .pull-left[
 - Component loading matrix
 
-- RC1 and RC2 columns show the component loadings
-
-  1. I hit someone
-  2. I kicked someone 
-  3. I shoved someone 
-  4. I battered someone 
-  5. I physically hurt someone on purpose 
-  6. I deliberately insulted someone
-  7. I swore at someone
-  8. I threatened to hurt someone
-  9. I called someone a nasty name to their face
-  10. I shouted mean things at someone
+1. Average hours of sleep per night (2 week average)
+2. Average minutes of exercise per day (2 week average)
+3. Average calorific intake per day (2 week average)    
+4. Steps per day outside of exercise (2 week average)
+5. Count of physical health conditions (high blood pressure, diabetes, cardiovascular disease etc. max score 10)
+6. BMI
   
 ]
 
 .pull-right[
 ```{r PCA loadings for solution with 2 components}
-PC2<-principal(r=agg.items, nfactors=2)
-PC2$loadings
+PC1$loadings
 ```
 ]
 
@@ -824,7 +838,7 @@ PC2$loadings
 
 .scroll-output[
 ```{r PCA loadings for unrotated solution with oblimin for var explained, echo=FALSE}
-principal(r=agg.items, nfactors=2)
+PC1$loadings
 ```
 ]
 
@@ -840,8 +854,8 @@ class: inverse, center, middle
 
 <h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to data reduction</h2>
 <h2 style="text-align: left;opacity:0.3;">Part 2: Purpose of PCA</h2>
-<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Eigenvectors </h2>
-<h2 style="text-align: left;opacity:0.3;">Part 4: Running & Interpreting PCA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Eigenvalues & Variance </h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Eigenvectors, loadings & Interpreting PCA</h2>
 <h2 >Part 5: PCA scores</h2>
 
 
@@ -861,8 +875,7 @@ class: inverse, center, middle
 # Computing component scores in R
 
 ```{r scores}
-PC<-principal(r=agg.items, nfactors=2)
-scores<-PC$scores
+scores <- PC1$scores
 head(scores)
 
 ```
