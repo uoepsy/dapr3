@@ -1,0 +1,102 @@
+---
+title: "dapR3_liveR_week9 - Principal Components Analysis"
+author: "John Martindale"
+date: "13/11/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+The goal for today is to calculate a PCA model. First, let's load our packages:
+
+```{r Setup, message=FALSE, warning=FALSE}
+# Load tidyverse and lavaan packages
+
+library(tidyverse)
+library(psych)
+```
+
+Let's load in some data:
+
+```{r Data simulation}
+health <- read_csv(file = "health.csv")
+head(health)
+```
+
+Now let's view a sample correlation matrix (i.e., our input matrix):
+
+```{r}
+cormat <- round(cor(health),2)
+cormat
+```
+
+View the eigenvectors and eigenvalues:
+
+```{r}
+eigenmatrix <- (eigen(cor(health)))
+eigenmatrix
+
+round(eigenmatrix$values,3)
+eigenmatrix$vectors
+
+# Check the sum of the eigenvalues
+sum(eigenmatrix$values)
+
+round(eigenmatrix$vectors,2)
+
+# Calculate the proportion of variance explained by each component
+(eigenmatrix$values/sum(eigenmatrix$values))*100
+```
+
+Let's check the number of eigenvalues:
+
+```{r}
+eigen_res <- eigen(cor(health))
+round(eigen_res$values,3)
+```
+
+## Determining the number of components to retain
+
+```{r}
+# Scree plot
+plot(eigenmatrix$values, # Vector of eigenvalues
+     type = 'b', # Display points and lines
+     pch = 16, # 
+     main = "Scree plot", 
+     ylab = "Eigenvalues")
+
+# Minimum average partial
+vssmodel <- vss(health)
+
+# Parallel analysis
+fa.parallel(health, n.iter = 500)
+```
+
+Running PCA and comparing two solutions:
+
+```{r}
+PC1 <- principal(health, nfactors = 1, rotate = "none")
+PC2 <- principal(health, nfactors = 2, rotate = "none")
+
+PC1
+PC2
+```
+
+Evaluating our solution:
+
+```{r}
+PC1$loadings
+PC2$loadings
+
+PC2$values
+round(PC2$values/sum(PC2$values),3)
+```
+
+Saving the scores:
+
+```{r}
+scores <- PC2$scores
+head(scores, 10)
+
+head(health)
+```
