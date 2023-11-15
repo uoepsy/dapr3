@@ -146,7 +146,83 @@ starting at trying to determine how many factors you should extract
 If one or more factors don't make sense, then either your items are
 bad, your theory is bad, your analysis is bad, or all three are bad!
 
+---
+# Last weeks example
+```{r simulate_data, include=FALSE}
+nF=2 #number of factors
+nV=10 #number of variables
 
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00,0.00,
+                   0.00,1.00),byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2
+               data=c(0.70, 0.10, # item1
+                      0.80, 0.08, # item2
+                      0.70, 0.06, # item3
+                      0.65, 0.10, # item4
+                      0.84, 0.04, # item5
+                      0.01, 0.65, # item6
+                      0.10, 0.88, # item7
+                      0.03, 0.90, #item8
+                      0.10, 0.67,  #item9
+                      0.02, 0.70), #item10
+                byrow=T)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+      data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item1
+             0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
+             0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
+             0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
+             0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
+             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, #item6
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, #item7
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, #item8
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, #item9
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2), #item10
+      byrow=T) 
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+#simulate data
+library(MASS)
+agg.items<-as.data.frame(mvrnorm(n=1000, mu=rep(0,10), Sigma=Sigma))
+names(agg.items)<-c('item1','item2','item3','item4','item5','item6','item7','item8','item9','item10')
+
+agg.items <- agg.items %>%
+  mutate(
+    item1 = as.numeric(cut(agg.items$item1, breaks = 6, labels = c(1:6))), 
+    item2 = as.numeric(cut(agg.items$item2, breaks = 6, labels = c(1:6))), 
+    item3 = as.numeric(cut(agg.items$item3, breaks = 6, labels = c(1:6))), 
+    item4 = as.numeric(cut(agg.items$item4, breaks = 6, labels = c(1:6))), 
+    item5 = as.numeric(cut(agg.items$item5, breaks = 6, labels = c(1:6))), 
+    item6 = as.numeric(cut(agg.items$item6, breaks = 6, labels = c(1:6))), 
+    item7 = as.numeric(cut(agg.items$item7, breaks = 6, labels = c(1:6))), 
+    item8 = as.numeric(cut(agg.items$item8, breaks = 6, labels = c(1:6))), 
+    item9 = as.numeric(cut(agg.items$item9, breaks = 6, labels = c(1:6))), 
+    item10 = as.numeric(cut(agg.items$item10, breaks = 6, labels = c(1:6))), 
+  )
+```
+
+```{r}
+library(psych)
+agg_res <- fa(agg.items, nfactors = 2, fm = "ml", rotate = "oblimin")
+agg_res
+```
+
+---
+# If we make it bad
+```{r}
+library(psych)
+agg_res2 <- fa(agg.items, nfactors = 4, fm = "ml", rotate = "oblimin")
+agg_res2
+```
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -235,63 +311,10 @@ fa.congruence(res1, res2) # test the congruence
   + These loadings, as you have seen, are purely data driven
   + However, if we have idea about which items should group, we may want to test this explicitly
 
-
 + In CFA, we specify a model and test how well it fits the data
-  + We specify a model by indicating what loadings we believe will be zero
-  + We then try to reject this model
+  + We explicitly state which items relate to which factor
+  + We can test if the loadings are the same in different samples, groups, across time etc.
 
-
-+ CFA is powerful and can be used for other purposes.
-  + Test whether people 'use' a test in the same way across samples
-  + Control for measurement error
-  + Separate our method and trait variance
-  
----
-.pull-left[
-<center>
-# Exploratory
-</center>
-\begin{bmatrix}
-\lambda_{11} & \lambda_{12} \\
-\lambda_{21} & \lambda_{22} \\
-\lambda_{31} & \lambda_{32} \\
-\lambda_{41} & \lambda_{42} \\
-\lambda_{51} & \lambda_{52} \\
-\lambda_{61} & \lambda_{62} \\
-\lambda_{71} & \lambda_{72} \\
-\lambda_{81} & \lambda_{82}
-\end{bmatrix}
-]
-
-.pull-right[
-<center>
-# Confirmatory
-</center>
-\begin{bmatrix}
-0 & \lambda_{12} \\
-0 & \lambda_{22} \\
-0 & \lambda_{32} \\
-0 & \lambda_{42} \\
-\lambda_{51} & 0 \\
-\lambda_{61} & 0 \\
-\lambda_{71} & 0 \\
-\lambda_{81} & 0
-\end{bmatrix}
-]
-
-+ If the correlations derived from the CFA don't match the correlations from your data, it *probably* means that parameters set to zero should not have been set to zero
-
----
-
-# Confirmatory factor analysis
-+ Requires strong theory
-
-+ Requires that the constructs you're studying exhibit simple structure, i.e., *not* personality
-  
-+ Never conduct a CFA on the same data you used for your EFA
-  + Inflates the Type I error rate (as other statistical methods)
-
-+ If you have an interest in CFA, feel free to email me.
 
 ---
 class: inverse, center, middle, animated, rotateInDownLeft
@@ -316,44 +339,31 @@ class: inverse, center, middle
 + However, you usually want to "do something" with your factors
   + Test whether your construct is related to other constructs in ways that you would predict
   + Test whether your construct is related systematically to other variables, including those that you manipulate
- 
-+ This pursuit was key to the resurgence of trait theory
 
-+ To do these things, you need variables that represent what you've measured
++ To do these things, you need variables that represent what you've measured.
 
 ---
-# Factor scores
-+ Unit-weighting
+# Types of scores
++ The simplest approach is **sum scoring** (or unit weighting)
   + Sum raw scores on the observed variables which have primary loadings on each factor
   + Which items to sum is a matter of defining what loadings are salient
   + Need to reverse score items with negative loadings
 
-+ Regression-based methods
-  + Thurstone or Thompson method
-	  + Ordinary least squares approach
-	  + Computes scores from observed item correlations and loadings
-   + Bartlett method focuses on minimizing sums of squares for unique factors
-   
-+ How do they fare?
-  + Simple, produce estimates that are highly correlated with more exact techniques (especially true for unit-weighting)
-  + Negative consequence of unit-weighting or regression method is they can produce correlated scores for orthogonal factors
++ **Factor scores** use different pieces of information from the factor solution to compute a weighted score.
+  + These scores are a combination of a participants responses to the question, the factor loadings, and factor correlations (Method dependent)
+  + The scores produced then represent both the responses, and the information on how much each item contributes to a given factor.
+  
++ There are lots of methods for this (Thurstone, Thompson, Bartlett, Anderson-Rubin, Ten Berge)
+
 
 ---
-
-# Factor scores
-+ Anderson-Rubin and Ten Berge methods
-  + Negative consequence of unit-weighting or regression method is they can produce correlated scores for orthogonal factors
-  + The Anderson-Rubin method preserves orthogonality of factors
-  + The Ten Berge method generalizes the Anderson-Rubin method to preserve correlations (or lack thereof) between factors
-
----
-
 # Choosing factor scores
 + Simple sum scores (unit-weighting) require strict properties in the data, but these are rarely tested, and do not often hold
+  + However, this is perhaps the most common approach you will see.
+  
++ Of the methods for computing factor scores, Ten Berge scores are preferable, as these focus on producing scores with correlations that match to the factor correlations. 
 
-+ If the goal is to try to find higher-order factors, the correlations between the scores are important, and so ten Berge scores are preferable
-  + Not doing this can lead to really biased results
-  + An alternative is to factor the Phi matrix
++ In many instances, all methods will produces scores which are closely related. 
 
 + Alternative is to use structural equations modeling, which includes a measurement component (a CFA) and a structural component (regression)
   + Doesn't require you to compute factor scores
@@ -361,7 +371,6 @@ class: inverse, center, middle
   + If your constructs don't approximate simple structure, you may have to turn to other alternatives
   
 ---
-
 # Sample size
 + In the past, rules of thumb have guided sample size decisions for factor analysis (reviewed by MacCallum et al., 1999)
   + Rules based on minimum number of participants: 100, 200, 250, 500

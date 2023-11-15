@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>WEEK 4 Exploratory Factor Analysis 1</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="dapR3 Team" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <b>WEEK 4<br>Exploratory Factor Analysis 1</b>
+]
+.subtitle[
+## Data Analysis for Psychology in R 3
+]
+.author[
+### dapR3 Team
+]
+.institute[
+### Department of Psychology<br/>The University of Edinburgh
+]
+
+---
+
+
+
+
+
+
+# Learning Objectives
+1. Understand the conceptual difference between PCA and EFA
+2. Understand the strengths and weaknesses of different methods to estimate the optimal number of factors
+3. Understand the purpose of factor rotation and the difference between orthogonal and oblique rotation.
+4. Run and interpret EFA analyses in R.
+
+---
+class: inverse, center, middle
+
+&lt;h2&gt;Part 1: Introduction to EFA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: EFA vs PCA &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation &amp; Number of factors problem&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Factor rotation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: Example and interpretation&lt;/h2&gt;
+
+---
+# Real friends don't let friends do PCA.
+
+## W. Revelle, 25 October 2020
+
+---
+# Questions to ask before you start
+.pull-left[
++ Why are your variables correlated?
+  + Agnostic/don't care
+  + Believe there *are* underlying "causes" of these correlations
+
++ What are your goals?
+  + Just reduce the number of variables
+  + Reduce your variables and learn about/model their underlying
+  (latent) causes
+]
+
+.pull-right[
+
+&lt;img src="dapr3_09_efa1_files/figure-html/unnamed-chunk-1-1.png" width="705" /&gt;
+
+]
+
+---
+# Questions to ask before you start
+
+.pull-left[
+
++ Why are your variables correlated?
+  + Agnostic/don't care
+  + **Believe there *are* underlying "causes" of these correlations**
+
++ What are your goals?
+  + Just reduce the number of variables**
+  + **Reduce your variables and learn about/model their underlying(latent) causes**
+
+]
+
+.pull-right[
+
+&lt;img src="dapr3_09_efa1_files/figure-html/unnamed-chunk-2-1.png" width="705" /&gt;
+
+]
+
+
+
+---
+
+# Latent variables
+.pull-left[
++ One of many features that distinguish factor analysis and principal components analysis
+
++ Key concept of psychometrics (factor analysis is a part)
+
++ Theorized common cause (e.g., cognitive ability) of responses to a set of variables
+  + Explain correlations between measured variables
+  + Held to be true
+  + No direct test of this theory
+]
+
+.pull-right[
+
+&lt;img src="dapr3_09_efa1_files/figure-html/unnamed-chunk-3-1.png" width="705" /&gt;
+
+]
+
+
+---
+# An example
+- Suppose we conduct a survey, and we ask 1000 people to respond to the following 10 questions which measure different aspects aggression.
+    
+1. I hit someone
+2. I kicked someone 
+3. I shoved someone 
+4. I battered someone 
+5. I physically hurt someone on purpose 
+6. I deliberately insulted someone
+7. I swore at someone
+8. I threatened to hurt someone
+9. I called someone a nasty name to their face
+10. I shouted mean things at someone
+
+- Read the items, how do you think they might group?
+    
+---
+# Our running example
+
+
+
+- What do you see if you look at the item correlations?
+
+
+```r
+round(cor(agg.items),2)
+```
+
+```
+##        item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+## item1   1.00  0.54  0.47  0.46  0.54  0.12  0.15  0.12  0.11   0.05
+## item2   0.54  1.00  0.52  0.48  0.62  0.04  0.12  0.08  0.07   0.04
+## item3   0.47  0.52  1.00  0.40  0.56  0.05  0.09  0.06  0.11   0.03
+## item4   0.46  0.48  0.40  1.00  0.50  0.08  0.12  0.09  0.11   0.07
+## item5   0.54  0.62  0.56  0.50  1.00  0.04  0.07  0.03  0.07   0.00
+## item6   0.12  0.04  0.05  0.08  0.04  1.00  0.54  0.54  0.41   0.43
+## item7   0.15  0.12  0.09  0.12  0.07  0.54  1.00  0.71  0.52   0.55
+## item8   0.12  0.08  0.06  0.09  0.03  0.54  0.71  1.00  0.52   0.57
+## item9   0.11  0.07  0.11  0.11  0.07  0.41  0.52  0.52  1.00   0.38
+## item10  0.05  0.04  0.03  0.07  0.00  0.43  0.55  0.57  0.38   1.00
+```
+
+---
+# Practical Steps
+- So how do we move from data and correlations to a factor analysis?
+  - We will be working through these steps in the next 2 weeks.
+
+1. Check the appropriateness of the data and decide of the appropriate estimator.
+2. Decide which methods to use to select a number of factors.
+3. Decide conceptually whether to apply rotation and how to do so.
+4. Decide on the criteria to assess and modify your solution.
+5. Run the analysis.
+6. Evaluate the solution (apply 4)
+7. Select a final solution and interpret the model, labeling the factors. 
+8. Report your results.
+
+---
+# What does an EFA look like?
+
+```r
+library(psych)
+agg_res &lt;- fa(agg.items, nfactors = 2, fm = "ml", rotate = "oblimin")
+agg_res
+```
+
+```
+## Factor Analysis using method =  ml
+## Call: fa(r = agg.items, nfactors = 2, rotate = "oblimin", fm = "ml")
+## Standardized loadings (pattern matrix) based upon correlation matrix
+##         ML1   ML2   h2   u2 com
+## item1  0.40  0.57 0.49 0.51 1.8
+## item2  0.39  0.67 0.60 0.40 1.6
+## item3  0.34  0.58 0.45 0.55 1.6
+## item4  0.35  0.52 0.39 0.61 1.8
+## item5  0.36  0.72 0.65 0.35 1.5
+## item6  0.59 -0.25 0.41 0.59 1.3
+## item7  0.79 -0.30 0.71 0.29 1.3
+## item8  0.78 -0.34 0.72 0.28 1.4
+## item9  0.58 -0.20 0.38 0.62 1.2
+## item10 0.59 -0.29 0.44 0.56 1.5
+## 
+##                        ML1  ML2
+## SS loadings           2.94 2.30
+## Proportion Var        0.29 0.23
+## Cumulative Var        0.29 0.52
+## Proportion Explained  0.56 0.44
+## Cumulative Proportion 0.56 1.00
+## 
+## Mean item complexity =  1.5
+## Test of the hypothesis that 2 factors are sufficient.
+## 
+## df null model =  45  with the objective function =  3.86 with Chi Square =  3838
+## df of  the model are 26  and the objective function was  0.02 
+## 
+## The root mean square of the residuals (RMSR) is  0.01 
+## The df corrected root mean square of the residuals is  0.02 
+## 
+## The harmonic n.obs is  1000 with the empirical chi square  12.21  with prob &lt;  0.99 
+## The total n.obs was  1000  with Likelihood Chi Square =  23.03  with prob &lt;  0.63 
+## 
+## Tucker Lewis Index of factoring reliability =  1.001
+## RMSEA index =  0  and the 90 % confidence intervals are  0 0.021
+## BIC =  -156.6
+## Fit based upon off diagonal values = 1
+## Measures of factor score adequacy             
+##                                                    ML1  ML2
+## Correlation of (regression) scores with factors   0.94 0.92
+## Multiple R square of scores with factors          0.88 0.84
+## Minimum correlation of possible factor scores     0.77 0.69
+```
+
+---
+# Key parts of the output
++ **Factor loading's**, like PCA loading's, show the relationship of each measured variable to each factor.
+  + They range between -1.00 and 1.00
+  + Larger absolute values = stronger relationship between measured variable and factor
+
++ We interpret our factor models by the pattern and size of these loading's.
+  + **Primary loading's**: refer to the factor on which a measured variable has it's highest loading
+  + **Cross-loading's**: refer to all other factor loading's for a given measured variable
+
++ Square of the factor loading's tells us how much item variance is explained ( `h2` ), and how much isn't ( `u2`)
+
++ **Factor correlations** : When estimated, tell us how closely factors relate (see rotation)
+
++ `SS Loading` and proportion of variance information is interpreted as we discussed for PCA.
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to EFA&lt;/h2&gt;
+&lt;h2&gt;Part 2: EFA vs PCA &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation &amp; Number of factors problem&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Factor rotation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: Example and interpretation&lt;/h2&gt;
+
+---
+# PCA versus EFA: How are they different?
++ PCA
+  + The observed measures `\((x_{1}, x_{2}, x_{3})\)` are independent variables
+  + The component `\((\mathbf{z})\)` is the dependent variable
+  + Explains as much variance in the measures `\((x_{1}, x_{2}, x_{3})\)` as possible
+  + Components are determinate
+
++ EFA
+  + The observed measures `\((y_{1}, y_{2}, y_{3})\)` are dependent variables
+  + The factor `\((\xi)\)`, is the independent variable
+  + Models the relationships between variables `\((r_{y_{1},y_{2}},r_{y_{1},y_{3}}, r_{y_{2},y_{3}})\)`
+  + Factors are *in*determinate	
+
+
+---
+# Modeling the data
++ What does it mean to model the data?
+
++ EFA tries to explain these patterns of correlations
+	+ If, for a set of items (here 3), the model (factor or `\(\xi\)`) is good, it will explain their interrelationships
+	+ Read the dots `\((\cdot)\)` as "given" or "controlling for"
+
+`\begin{equation}
+\rho(y_{1},y_{2}\cdot\xi)=corr(e_{1},e_{2})=0 \\
+\rho(y_{1},y_{3}\cdot\xi)=corr(e_{1},e_{3})=0 \\
+\rho(y_{2},y_{3}\cdot\xi)=corr(e_{2},e_{3})=0 \\
+\end{equation}`
+
+---
+# Modeling the data
++ In order to model these correlations, EFA looks to distinguish between the true and unique item variance
+
+`\begin{equation}
+var(total) = var(common) + var(specific) + var(error)
+\end{equation}`
+
++ True variance
+  + Variance common to an item and at least one other item
+  + Variance specific to an item that is not shared with any other items
++ Unique variance
+  + Variance specific to an item that is not shared with any other items
+  + Error variance
+
+---
+# The general factor model equation
+
+`$$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$`
+
+`\(\mathbf{\Sigma}\)`: A `\(p \times p\)` observed covariance matrix (from data)
+
+`\(\mathbf{\Lambda}\)`: A `\(p \times m\)` matrix of factor loading's (relates
+the `\(m\)` factors to the `\(p\)` items)
+
+`\(\mathbf{\Phi}\)`: An `\(m \times m\)` matrix of correlations between
+factors ("goes away" with orthogonal factors)
+
+`\(\mathbf{\Psi}\)`: A diagonal matrix with `\(p\)` elements indicating unique
+(error) variance for each item
+
+---
+# Assumptions
++ As EFA is a model, just like linear models and other statistical tools, it has some assumptions:
+
+  1. The residuals/error terms `\((e)\)` should be uncorrelated (it's a diagonal matrix, remember!)
+  2. The residuals/errors should not correlate with  factor
+  3. Relationships between items and factors should be linear, although there are models that can account for nonlinear relationships
+
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to EFA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: EFA vs PCA &lt;/h2&gt;
+&lt;h2&gt;Part 3: Suitability of data, Estimation &amp; Number of factors problem&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Factor rotation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: Example and interpretation&lt;/h2&gt;
+
+
+---
+# Data suitability
++ This boils down to is the data correlated.
+  + So the initial check is to look to see if there are moderate correlations (roughly &gt; .20)
+
++ We can take this a step further and calculate the squared multiple correlation (SMC).
+  + SMC are multiple correlations of each item regressed on all `\(p-1\)` other variables
+  + this metric tells us how much shared variation there is between an item and all other items
+  + This is one way to estimate a communalities (see later)
+
++ There are also some statistical test (e.g. Bartlett's test)
+  + However, these tests are generally not that informative.
+
+---
+# Estimation
++ For PCA, we discussed the use of the eigen-decomposition.
+  + This is not an estimation method, it is simply a calculation
+
++ As we have a model for the data in factor analysis, we need to estimate the model parameters
+  + primarily here the factor loading's.
+  
+---
+# Estimation &amp; Communalities
++ The most efficient way to factor analyze data is to start by estimating communalities
+  + Communalities are estimates of how much true variance any variable has
+  + Indicate how much variance in an item is explained by other variables, or factors
+
++ If we consider that EFA is trying to explain true common variance, then communalitie estimates are more useful to us than total variance.
+
++ Estimating communalities is difficult because population communalities are unknown
+  + Range from 0 (no shared variance) to 1 (all variance is shared)
+  + Occasionally estimates will be `\(\ge 1\)` (called a 'Heywood Case')
+  + Methods often are iterative and "mechanical" as a result
+
+---
+# Principal axis factoring
++ This approach to EFA uses squared multiple correlation (SMC)
+
+1. Compute initial communalities from SMCs
+
+2. Once we have these reasonable lower bounds, we substitute the 1s in the diagonal of our correlation matrix with the SMCs derived in step 1
+
+3. Obtain the factor loading matrix using the eigenvalues and eigenvectors of the matrix obtained in the step 2
+
++ Some versions of principal axis factor use an iterative approach in which they replace the diagonal with the communalities obtained in step 3, and then repeat step 3, and so on, a set number of times
+
+---
+
+# Method of minimum residuals
++ This is an iterative approach and the default of the `fa` procedure
+
+1. Starts with some other solution, e.g., PCA or principal axes, extracting a set number of factors
+
+2. Adjusts loading's of all factors on each variable so as to minimize the residual correlations for that variable
+
++ MINRES doesn't "try" to estimate communalities
+
++ If you apply principal axis factoring to the original correlation matrix with a diagonal of communalities derived from step 2, you get the same factors as in the method of minimum residuals
+
+---
+
+# Maximum likelihood estimation
++ Uses a general iterative procedure for estimating parameters that we have previously discussed.
+    + The procedure works to find values for these parameters that maximize the likelihood of obtaining the covariance matrix
+
++ Method offers the advantage of providing numerous "fit" statistics that you can use to evaluate how good your model is compared to alternative models
+  + Recall we can compare the model implied to the actual covariances to get fit.
+
++ Assume a distribution for your data, e.g., a normal distribution
+
+---
+# ML con's
++ The issue is that for big analyses, sometimes it is not possible to find values for factor loadings that = MLE estimates.
+  + Referred to as non-convergence (you may see warnings)
+
++ Also may produce solutions with impossible values
+  + Factor loadings &gt; 1.00 (Heywood cases), thus negative residuals.
+  + Factor correlations &gt; 1.00
+
+---
+# Non-continuous data
++ Sometimes the construct we are interested in is not continuous, e.g. number of crimes committed.
+
++ Sometimes we assume the construct is, but we measure it with a discrete scale.
+
++ Most constructs we seek to measure by questionnaire fall into the latter category.
+  + It's thus *usually* okay to treat the data as if they are, too
+  + The exception is for maximum likelihood factor analysis
+  + Or if the observed distribution is very skewed
+
+---
+# Non-continuous data
+
+&lt;img src="dapr3_09_efa1_files/figure-html/unnamed-chunk-5-1.png" width="893" /&gt;
+
+
+---
+# Non-continuous data 
++ If we are concerned and the construct is normally distributed, we can conduct our analysis on a matrix of polychoric correlations
+  
++ If the construct is not normally distributed, you can conduct a factor analysis that allows for these kinds of variables
+
+---
+# Choosing an estimator
++ The best option, as with many statistical models, is ML.
+
++ If ML solutions fail to converge, principal axis is a simple approach which typically yields reliable results.
+
++ If concerns over the distribution of variables, use PAF on the polychoric correlations.
+
+---
+# Number of factors
++ We have discussed the methods for deciding on the number of factors in the context of PCA.
+
++ Recall we have 4 tools:
+  + Variance explained
+  + Scree plots
+  + MAP
+  + Parallel Analysis (FA or PCA)
+  
++ For FA, we generally want a slightly more nuanced approach than pure variance:
+  + Use them all to provide a range of plausible number of factors
+  + Treat MAP as a minimum
+  + PA as a maximum
+  + Explore all solutions in this range and select the one that yields the best numerically and theoretically.
+
++ We will go through this process in later video.
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to EFA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: EFA vs PCA &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation &amp; Number of factors problem&lt;/h2&gt;
+&lt;h2&gt;Part 4: Factor rotation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: Example and interpretation&lt;/h2&gt;
+
+---
+# Factor rotation: what and why?
++ Factor solutions can sometimes be complex to interpret.
+  + the pattern of the factor loading's is not clear.
+  + The difference between the primary and cross-loading's is small
+
++ Why is this the case?
+  + **Rotational indeterminacy** means that there are an infinite number of pairs of factor loading's and factor score matrices which will fit the data **equally well**, and are thus **indistinguishable** by any numeric criteria
+  
++ In other words, there is no **unique solution** to the factor problem
+
++ And this is also in part why the theoretical coherence of the models plays a much bigger role in FA than PCA.
+
+---
+# Analytic rotation
++ Factor rotation is an approach to clarifying the relationships between items and factors.
+  + Rotation aims to maximize the relationship of a measured item with a factor.
+  + That is, make the primary loading big and cross-loading's small.
+
++ Thus although we can not numerically tell rotated solutions apart, we can select the one with the most coherent solution.
+
++ There are many different ways this can be achieved.
+  + One framework for this is referred to as **simple structure**
+
+
+---
+
+# Simple structure
++ Adapted from Sass and Schmitt (2011):
+
+1. Each variable (row) should have at least one zero loading 
+
+2. Each factor (column) should have same number of zero’s as there are factors
+   
+3. Every pair of factors (columns) should have several variables which load on one factor, but not the other 
+   
+4. Whenever more than four factors are extracted, each pair of factors (columns) should have a large proportion of variables which do not load on either factor
+   
+5. Every pair of factors should have few variables which load on both factors
+
+---
+# Orthogonal vs Oblique Rotation
++ All factor rotation methods seek to optimize one or more aspects of simple structure.
+  + But there are two broad groupings
+
++ Orthogonal
+	  + Includes varimax and quartimax rotations
+	  + Axes at right angles; correlations between factors are zero
+
++ Oblique
+	 + Includes promax and oblimin rotations
+	 + Axes are not at right angles; correlations between factors are not zero
+
+
+---
+# The impact of rotation
+
+.pull-left[
+**Original correlations** 
+
+![](dapr3_09_efa1_files/figure-html/unnamed-chunk-6-1.png)&lt;!-- --&gt;
+
+
+]
+
+
+.pull-right[
+**EFA with no rotation and 5 factors**
+![](dapr3_09_efa1_files/figure-html/unnamed-chunk-7-1.png)&lt;!-- --&gt;
+
+]
+
+
+---
+# The impact of rotation
+
+.pull-left[
+**EFA with no rotation and 5 factors**
+![](dapr3_09_efa1_files/figure-html/unnamed-chunk-8-1.png)&lt;!-- --&gt;
+
+
+]
+
+
+.pull-right[
+**EFA with orthogonal rotation and 5 factors**
+![](dapr3_09_efa1_files/figure-html/unnamed-chunk-9-1.png)&lt;!-- --&gt;
+
+]
+
+
+---
+# The impact of rotation
+
+.pull-left[
+**EFA with orthogonal rotation and 5 factors**
+![](dapr3_09_efa1_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+
+
+]
+
+
+.pull-right[
+**EFA with oblique rotation and 5 factors**
+![](dapr3_09_efa1_files/figure-html/unnamed-chunk-11-1.png)&lt;!-- --&gt;
+
+]
+
+
+---
+# How do I choose which rotation?
+
++ Easy, my recommendation is always to choose oblique.
+
++ Why?
+  + It is very unlikely factors have correlations of 0
+  + If they are close to zero, this is allowed within oblique rotation
+  + The whole approach is exploratory, and the constraint is unnecessary. 
+
++ However, there is a catch...
+
+---
+# Interpretation and obique rotation
++ When we have an obliquely rotated solution, we need to draw a distinction between the **pattern** and **structure** matrix.
+  + Pattern Matrix: matrix of regression weights (loading's) from factors to variables. 
+  + Structure Matrix: matrix of correlations between factors and variables.
+
++ When we use orthogonal rotation, the pattern and structure matrix are the same. 
+
++ When we use oblique rotation, the structure matrix is the pattern matrix multiplied by the factor correlations.
+
++ In most practical situations, this does not impact what we do, but it is important to highlight the distinction.
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 4
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to EFA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: EFA vs PCA &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimation &amp; Number of factors problem&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Factor rotation&lt;/h2&gt;
+&lt;h2&gt;Part 5: Example and interpretation&lt;/h2&gt;
+
+---
+# Worked Example
+
+- In this weeks LEARN folder there is a worked example of an EFA.
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
