@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="" xml:lang="">
   <head>
@@ -942,3 +943,949 @@ slideshow._releaseMath(document);
 </script>
   </body>
 </html>
+=======
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>WEEK 3 Principal Component Analysis</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="dapR3 Team" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <b>WEEK 3<br>Principal Component Analysis</b>
+]
+.subtitle[
+## Data Analysis for Psychology in R 3
+]
+.author[
+### dapR3 Team
+]
+.institute[
+### Department of Psychology<br/>The University of Edinburgh
+]
+
+---
+
+
+
+
+
+
+
+
+
+
+
+# Learning Objectives
+1. Understand the core principle of data reduction methods and their use in psychology
+2. Understand the core goals of principal components analysis (PCA)
+3. Run and interpret PCA analysis in R
+4. Extract PCA scores from analyses in R
+
+---
+class: inverse, center, middle
+
+&lt;h2&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Eigenvalues &amp; Variance  &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Eigenvectors, loadings &amp; Interpreting PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: PCA scores&lt;/h2&gt;
+
+---
+# What's data/dimension reduction?
++ Mathematical and statistical procedures
+  + Reduce large set of variables to a smaller set
+  + Several forms of data reduction
+	  
++ (Typically) Reduce sets of variables measured across
+	+ **Principal components analysis**
+	+ **Factor analysis**
+	+ Correspondence analysis (nominal categories)
+	  
++ (Typically) reduce sets of observations (individuals) into smaller groups
+  + K-means clustering
+  + Latent class analysis
+
++ (Typically) to position observations along an unmeasured dimensions
+  + Multidimensional scaling
+
+---
+# Uses of dimension reduction techniques
+- Theory testing
+  - What are the number and nature of dimensions that best describe a theoretical construct?
+  - e.g. debates in intelligence and personality 
+
+- Test construction
+  - How should I group my items into sub-scales?
+  - Which items are the best measures of my  constructs?
+  - e.g. anywhere where we construct a test (differential, social, developmental)
+
+- Pragmatic
+  - I have multicollinearity issues/too many variables, how can I defensibly combine my variables?
+  - e.g. Genetics (GWAS), big data, predictive modelling
+    
+---
+# Questions to ask before you start
+.pull-left[
++ Why are your variables correlated?
+  + Agnostic/don't care
+  + Believe there *are* underlying "causes" of these correlations
+
++ What are your goals?
+  + Just reduce the number of variables
+  + Reduce your variables and learn about/model their underlying
+  (latent) causes
+]
+
+.pull-right[
+
+&lt;img src="dapr3_08_pca_files/figure-html/unnamed-chunk-2-1.png" width="705" /&gt;
+
+]
+
+---
+# Questions to ask before you start
+
+.pull-left[
+
++ Why are your variables correlated?
+  + **Agnostic/don't care**
+  + Believe there *are* underlying "causes" of these correlations
+
++ What are your goals?
+  + **Just reduce the number of variables**
+  + Reduce your variables and learn about/model their underlying
+  (latent) causes
+
+]
+
+.pull-right[
+
+&lt;img src="dapr3_08_pca_files/figure-html/unnamed-chunk-3-1.png" width="705" /&gt;
+
+]
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
+&lt;h2&gt;Part 2: Purpose of PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Eigenvalues &amp; Variance &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Eigenvectors, loadings &amp; Interpreting PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: PCA scores&lt;/h2&gt;
+
+
+---
+# Principal components analysis
++ Goal is explaining as much of the total variance in a data set as possible
+  + Starts with original data
+  + Calculates covariances (correlations) between variables
+  + Applies procedure called **eigendecomposition** to calculate a set of linear composites of the original variables
+
+
+---
+# An example
+- In our path analysis example, we included two health covariates. 
+
+- Suppose instead we measured many more health variables, and we wanted to create a composite score where higher scores represent better health. 
+
+- We measure:
+
+1. Average hours of sleep per night (2 week average)
+2. Average minutes of exercise per day (2 week average)
+3. Average calorific intake per day (2 week average)    
+4. Steps per day outside of exercise (2 week average)
+5. Count of physical health conditions (high blood pressure, diabetes, cardiovascular disease etc. max score 10)
+6. BMI
+
+- We collect this data on 750 participants.
+    
+
+
+
+---
+# PCA
+- Starts with a correlation matrix
+
+
+```r
+#compute the correlation matrix for the aggression items
+round(cor(health),2)
+```
+
+```
+##            sleep exercise calories steps conditions  BMI
+## sleep       1.00     0.65     0.49  0.40       0.23 0.14
+## exercise    0.65     1.00     0.63  0.47       0.29 0.23
+## calories    0.49     0.63     1.00  0.33       0.17 0.17
+## steps       0.40     0.47     0.33  1.00       0.21 0.15
+## conditions  0.23     0.29     0.17  0.21       1.00 0.11
+## BMI         0.14     0.23     0.17  0.15       0.11 1.00
+```
+
+
+---
+# PCA
+- And turns this into an output which represents the degree to which each item contributes to a composite
+
+
+```
+## Principal Components Analysis
+## Call: principal(r = health, nfactors = 1, rotate = "none")
+## Standardized loadings (pattern matrix) based upon correlation matrix
+##             PC1   h2   u2 com
+## sleep      0.79 0.63 0.37   1
+## exercise   0.88 0.77 0.23   1
+## calories   0.76 0.57 0.43   1
+## steps      0.66 0.43 0.57   1
+## conditions 0.43 0.19 0.81   1
+## BMI        0.35 0.12 0.88   1
+## 
+##                 PC1
+## SS loadings    2.71
+## Proportion Var 0.45
+## 
+## Mean item complexity =  1
+## Test of the hypothesis that 1 component is sufficient.
+## 
+## The root mean square of the residuals (RMSR) is  0.1 
+##  with the empirical chi square  238.3  with prob &lt;  2.9e-46 
+## 
+## Fit based upon off diagonal values = 0.92
+```
+
+
+---
+# What PCA does do?
+- Repackages the variance from the correlation matrix into a set  of **components**
+
+- Components = orthogonal (i.e.,uncorrelated) linear combinations of the original variables
+  - 1st component is the linear combination that accounts for the most possible variance
+  - 2nd accounts for second-largest after the variance accounted for by the first is removed
+  - 3rd...etc...
+
+- Each component accounts for as much remaining variance as possible
+
+
+---
+# What PCA does do?
+- If variables are very closely related (large correlations), then we can represent them by fewer composites.
+
+- If variables are not very closely related (small correlations), then we will need more composites to adequately represent them.
+
+- In the extreme, if variables are entirely uncorrelated, we will need as many components as there were variables in original correlation matrix.
+
+---
+# Thinking about dimensions
+
+.pull-left[
+
+![](dapr3_08_pca_files/figure-html/unnamed-chunk-5-1.png)&lt;!-- --&gt;
+
+]
+
+.pull-right[
+
+![](dapr3_08_pca_files/figure-html/unnamed-chunk-6-1.png)&lt;!-- --&gt;
+
+]
+
+---
+# Eigendecomposition
+- Components are formed using an **eigen-decomposition** of the correlation matrix
+
+- Eigen-decomposition is a transformation of the correlation matrix to re-express it in terms of **eigenvalues**: and **eigenvectors**
+
+- Eigenvalues are a measure of the size of the variance packaged into a component
+    - Larger eigenvalues mean that the component accounts for a large proportion of the variance.
+    - Visually (previous slide) eigenvalues are the length of the line
+    
+- Eigenvectors provide information on the relationship of each variable to each component.
+  - Visually, eigenvectors provide the direction of the line.
+
+- There is one eigenvector and one eigenvalue for each component
+
+
+---
+# Eigenvalues and eigenvectors
+
+
+```
+## [1] "e1" "e2" "e3" "e4" "e5"
+```
+
+```
+##       component1 component2 component3 component4 component5
+## item1 "w11"      "w12"      "w13"      "w14"      "w15"     
+## item2 "w21"      "w22"      "w23"      "w24"      "w25"     
+## item3 "w31"      "w32"      "w33"      "w34"      "w35"     
+## item4 "w41"      "w42"      "w43"      "w44"      "w45"     
+## item5 "w51"      "w52"      "w53"      "w54"      "w55"
+```
+
+
+- Eigenvectors are sets of **weights** (one weight per variable in original correlation matrix)
+  - e.g., if we had 5 variables each eigenvector would contain 5 weights
+  - Larger weights mean  a variable makes a bigger contribution to the component
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
+&lt;h2&gt; Part 3: Eigenvalues &amp; Variance &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Eigenvectors, loadings &amp; Interpreting PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: PCA scores&lt;/h2&gt;
+
+
+
+---
+# Eigen-decomposition of health items
+  
+- We can use the eigen() function to conduct an eigen-decomposition for our health items
+
+
+```r
+eigen(cor(health))
+```
+
+---
+# Eigen-decomposition of health items
+
+- Eigenvalues:
+
+
+```
+## [1] 2.714 0.934 0.880 0.689 0.491 0.292
+```
+
+- Eigenvectors
+
+
+```
+##        [,1]   [,2]   [,3]   [,4]   [,5]   [,6]
+## [1,] -0.481  0.225  0.055  0.126  0.732 -0.404
+## [2,] -0.534  0.093  0.079  0.134  0.046  0.824
+## [3,] -0.459  0.173  0.246  0.386 -0.643 -0.367
+## [4,] -0.398  0.069 -0.042 -0.888 -0.186 -0.107
+## [5,] -0.264 -0.280 -0.901  0.167 -0.089 -0.075
+## [6,] -0.210 -0.910  0.342  0.000  0.076 -0.071
+```
+
+---
+# Eigenvalues and variance
+- It is important to understand some basic rules about eigenvalues and variance.
+
+- The sum of the eigenvalues will equal the number of variables in the data set.
+  - The covariance of an item with itself is 1 (think the diagonal in a correlation matrix)
+  - Adding these up = total variance.
+  - A full eigendecomposition accounts for all variance distributed across eigenvalues.
+  - So the sum of the eigenvalues must = 6 for our example.
+  
+
+```r
+sum(eigen_res$values)
+```
+
+```
+## [1] 6
+```
+
+  
+---
+# Eigenvalues and variance
+- Given this, if we want to know the variance accounted for my a given component:
+
+`$$\frac{eigenvalue}{totalvariance}$$`
+
+- or
+
+`$$\frac{eigenvalue}{p}$$`
+
+- where `\(p\)` = number of items.
+
+
+---
+# Eigenvalues and variance
+
+
+```r
+(eigen_res$values/sum(eigen_res$values))*100
+```
+
+```
+## [1] 45.227 15.564 14.670 11.484  8.190  4.865
+```
+
+- and if we sum this
+
+
+```r
+sum((eigen_res$values/sum(eigen_res$values))*100)
+```
+
+```
+## [1] 100
+```
+
+
+---
+# How many components to keep?
+- The relation of eigenvalues to variance is useful to us in order to understand how many components we should retain in our analysis 
+
+- Eigen-decomposition repackages the variance but does not reduce our dimensions
+
+- Dimension reduction comes from keeping only the largest components
+    - Assume the others can be dropped with little loss of information
+
+- Our decisions on how many components to keep can be guided by several methods
+    - Set a amount of variance you wish to account for
+    - Scree plot
+    - Minimum average partial test (MAP)
+    - Parallel analysis
+
+
+---
+# Variance accounted for
+- As has been noted, each component accounts for some proportion of the variance in our original data.
+
+- The simplest method we can use to select a number of components is simply to state a minimum variance we wish to account for.
+  - We then select the number of components above this value.
+
+
+---
+# Scree plot
+- Based on plotting the eigenvalues
+  - Remember our eigenvalues are representing variance.
+
+- Looking for a sudden change of slope
+
+- Assumed to potentially reflect point at which components become substantively unimportant
+  - As the slope flattens, each subsequent component is not explaining much additional variance.
+
+
+---
+# Constructing a scree plot
+
+.pull-left[
+
+```r
+eigenvalues&lt;-eigen(cor(agg.items))$values
+plot(eigenvalues, type = 'b', pch = 16, 
+     main = "Scree Plot", xlab="", 
+     ylab="Eigenvalues")
+axis(1, at = 1:10, labels = 1:10)
+```
+
+-  Eigenvalue plot
+    - x-axis is component number
+    - y-axis is eigenvalue for each component
+
+- Keep the components with eigenvalues above a kink in the plot
+]
+
+.pull-right[
+
+![](dapr3_08_pca_files/figure-html/Scree plot example2-1.png)&lt;!-- --&gt;
+]
+
+---
+# Further scree plot examples
+
+.pull-left[
+![](dapr3_08_pca_files/figure-html/Scree plot example 1-1.png)&lt;!-- --&gt;
+]
+
+.pull-right[
+
+- Scree plots vary in how easy it is to interpret them
+
+]
+---
+# Further scree plot examples
+
+![](dapr3_08_pca_files/figure-html/Scree plot example 2-1.png)&lt;!-- --&gt;
+
+---
+# Further scree plot examples
+
+![](dapr3_08_pca_files/figure-html/Scree plot example 3-1.png)&lt;!-- --&gt;
+
+
+---
+## Minimum average partial test (MAP)
+- Extracts components iteratively from the correlation matrix
+
+- Computes the average squared partial correlation after each extraction
+  - This is the MAP value.
+
+- At first this quantity goes down with each component extracted but then it starts to increase again
+
+- MAP keeps the components from point at which the average squared partial correlation is at its smallest
+
+---
+# MAP test for the aggression items
+
+.pull-left[
+- We can obtain the results of the MAP test via the `vss()` function from the psych package
+
+
+```r
+library(psych)
+vss(health)
+```
+]
+
+.pull-right[
+![](dapr3_08_pca_files/figure-html/unnamed-chunk-12-1.png)&lt;!-- --&gt;
+
+```
+## [1] 0.04466 0.11893 0.23084 0.46541 1.00000      NA
+```
+
+]
+
+---
+# Parallel analysis
+- Simulates datasets with same number of participants and variables but no correlations 
+
+- Computes an eigen-decomposition for the simulated datasets
+
+- Compares the average eigenvalue across the simulated datasets for each component
+
+- If a real eigenvalue exceeds the corresponding average eigenvalue from the simulated datasets it is retained
+
+- We can also use alternative methods to compare our real versus simulated eigenvalues
+    - e.g. 95% percentile of the simulated eigenvalue distributions
+
+---
+# Parallel analysis for the aggression items
+
+.pull-left[
+
+```r
+fa.parallel(health, n.iter=500)
+```
+]
+
+.pull-right[
+![](dapr3_08_pca_files/figure-html/unnamed-chunk-14-1.png)&lt;!-- --&gt;
+
+```
+## Parallel analysis suggests that the number of factors =  1  and the number of components =  1
+```
+]
+
+---
+# Limitations of scree, MAP, and parallel analysis
+- There is no one right answer about the number of components to retain
+
+- Scree plot, MAP and parallel analysis frequently disagree
+
+- Each method has weaknesses
+    - Scree plots are subjective and may have multiple or no obvious kinks
+    - Parallel analysis sometimes suggest too many components (over-extraction)
+    - MAP sometimes suggests too few components (under-extraction)
+
+- Examining the PCA solutions should also form part of the decision
+  - Do components make practical sense given purpose?
+  - Do components make substantive sense?
+
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt; Part 3: Eigenvalues &amp; Variance &lt;/h2&gt;
+&lt;h2&gt;Part 4: Eigenvectors, loadings &amp; Interpreting PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 5: PCA scores&lt;/h2&gt;
+
+---
+# Eigenvectors &amp; PCA Loadings
+- Whereas we use eigenvalues to think about variance, we use eigenvectors to think about the nature of components.
+
+- To do so, we convert eigenvectors to PCA loadings.
+  - A PCA loading gives the strength of the relationship between the item and the component.
+  - Range from -1 to 1
+  - The higher the absolute value, the stronger the relationship.
+  
+- The sum of the squared loadings for any variable on all components will equal 1.
+  - That is all the variance in the item is explained by the full decomposition.
+  
+---
+# Eigenvectors &amp; PCA Loadings
+- We get the loadings by:
+
+`$$a_{ij}^* = a_{ij}\sqrt{\lambda_j}$$`
+- where
+  - `\(a_{ij}^*\)` = the component loading for item `\(i\)` on component `\(j\)`
+  - `\(a_{ij}\)` = the associated eigenvector value
+  - `\(\lambda_j\)` is the eigenvalue for component `\(j\)`
+
+- Essentially we are scaling the eigenvectors by the eigenvalues such that the components with the largest eigenvalues have the largest loadings.
+
+---
+# Looking again at the loadings
+
+```
+## Principal Components Analysis
+## Call: principal(r = health, nfactors = 1, rotate = "none")
+## Standardized loadings (pattern matrix) based upon correlation matrix
+##             PC1   h2   u2 com
+## sleep      0.79 0.63 0.37   1
+## exercise   0.88 0.77 0.23   1
+## calories   0.76 0.57 0.43   1
+## steps      0.66 0.43 0.57   1
+## conditions 0.43 0.19 0.81   1
+## BMI        0.35 0.12 0.88   1
+## 
+##                 PC1
+## SS loadings    2.71
+## Proportion Var 0.45
+## 
+## Mean item complexity =  1
+## Test of the hypothesis that 1 component is sufficient.
+## 
+## The root mean square of the residuals (RMSR) is  0.1 
+##  with the empirical chi square  238.3  with prob &lt;  2.9e-46 
+## 
+## Fit based upon off diagonal values = 0.92
+```
+
+
+
+---
+# Running a PCA with a reduced number of components
+- We can run a PCA keeping just a selected number of components 
+
+- We do this using the `principal()` function from then psych package
+
+- We supply the dataframe or correlation matrix as the first argument
+
+- We specify the number of components to retain with the `nfactors=` argument
+
+- It can be useful to compare and contrast the solutions with different numbers of components
+    - Allows us to check which solutions make most sense based on substantive/practical considerations
+
+
+```r
+PC1&lt;-principal(health, nfactors=1, rotate="none") 
+PC2&lt;-principal(health, nfactors=2, rotate="none") 
+```
+
+
+---
+# Interpreting the components
+
+- Once we have decided how many components to keep (or to help us decide) we examine the PCA solution
+
+- We do this based on the component loadings
+    - Component loadings are calculated from the values in the eigenvectors
+    - They can be interpreted as the correlations between variables and components
+
+---
+# The component loadings
+
+.pull-left[
+- Component loading matrix
+
+1. Average hours of sleep per night (2 week average)
+2. Average minutes of exercise per day (2 week average)
+3. Average calorific intake per day (2 week average)    
+4. Steps per day outside of exercise (2 week average)
+5. Count of physical health conditions (high blood pressure, diabetes, cardiovascular disease etc. max score 10)
+6. BMI
+  
+]
+
+.pull-right[
+
+```r
+PC1$loadings
+```
+
+```
+## 
+## Loadings:
+##            PC1  
+## sleep      0.793
+## exercise   0.880
+## calories   0.757
+## steps      0.656
+## conditions 0.434
+## BMI        0.345
+## 
+##                  PC1
+## SS loadings    2.714
+## Proportion Var 0.452
+```
+]
+
+
+---
+# How good is my PCA solution?
+
+- A good PCA solution explains the variance of the original correlation matrix in as few components as possible
+
+.scroll-output[
+
+```
+## 
+## Loadings:
+##            PC1  
+## sleep      0.793
+## exercise   0.880
+## calories   0.757
+## steps      0.656
+## conditions 0.434
+## BMI        0.345
+## 
+##                  PC1
+## SS loadings    2.714
+## Proportion Var 0.452
+```
+]
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 4
+
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to data reduction&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Purpose of PCA&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Eigenvalues &amp; Variance &lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Eigenvectors, loadings &amp; Interpreting PCA&lt;/h2&gt;
+&lt;h2 &gt;Part 5: PCA scores&lt;/h2&gt;
+
+
+---
+# Computing scores for the components
+- After conducting a PCA you may want to create scores for the new dimensions
+    - e.g., to use in a regression
+
+- Simplest method is to sum the scores for all items that are deemed to "belong" to a component. 
+  - This idea is usually on the size of the component loadings
+  - A loading of &gt;|.3| is typically used. 
+
+- Better method is to compute them taking into account the weights
+  - i.e. based on the eigenvalues and vectors
+
+---
+# Computing component scores in R
+
+
+```r
+scores &lt;- PC1$scores
+head(scores)
+```
+
+```
+##           PC1
+## [1,]  0.06316
+## [2,]  0.05985
+## [3,]  1.21086
+## [4,] -1.39939
+## [5,] -1.02946
+## [6,]  0.36469
+```
+
+---
+# Reporting a PCA
+
+- Main principles: transparency and reproducibility
+- Method
+    - Methods used to decide on number of factors
+    - Rotation method
+  
+- Results
+    - Scree test (&amp; any other considerations in choice of number of components)
+    - How many components were retained
+    - The loading matrix for the chosen solution
+    - Variance explained by components
+    - Labelling and interpretation of the components
+    
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
+>>>>>>> a82e747e7d5678c802c8fd03da943670c6807a83
