@@ -1,5 +1,5 @@
 ---
-title: "11. Exploratory Factor Analysis (EFA): Part 2"
+title: "11. EFA 2"
 params: 
     SHOW_SOLS: TRUE
     TOGGLE: TRUE
@@ -22,6 +22,14 @@ library(lavaan)
 library(semPlot)
 # knitr::opts_chunk$set(cache = TRUE)
 options(digits=3, scipen = 3)
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
 ```
 
 
@@ -83,7 +91,7 @@ names(df) <- phqgad_items
 df <- janitor::clean_names(df)
 df$do_you_own_a_pet <- petowner
 df$ppt_id <- paste0("ppt",1:620)
-write.csv(df, "../../data/pgpets.csv",row.names=F)
+#write.csv(df, "../../data/pgpets.csv",row.names=F)
 
 ```
 
@@ -122,13 +130,20 @@ tibble(QuestionNumber = paste0("item",1:16),`Over the last 2 weeks, how much hav
 
 :::
 
-`r qbegin(1)`
+`r qbegin(qcounter())`
 Read the data into R.  
 Create a new object in R that contains a subset the data. It should include all variables except for the participant ID and the variable corresponding to whether or not they have a pet (we're going to come back to these later on).  
 In this new object, change the names of the columns to match the question number, rather than the question itself (see the data description above). This will be easier to work with.  
 
-__Hint:__  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
 Check the output of the code `paste0("item", 1:10)`. Consider this code in combination with another function: `names(data)`. How could you combine the two codes to assign the new names to the current variable names?  
+
+:::
+
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
@@ -157,8 +172,17 @@ head(df)
 
 `r solend()`
 
-`r qbegin(2)`
-Visualise the items (this might be the histograms of all marginal distributions, or a scatterplot matrix, or both). 
+`r qbegin(qcounter())`
+Visualise the items (this might be the histograms of all marginal distributions, or a scatterplot matrix, or both).  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+The function `multi.hist()` from the __psych__ package can be pretty useful if we're just wanting the distributions. Things like `pairs.panels()` can get pretty chaotic when we have lots of variables, so you might need to use that on subsets.  
+
+:::
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
@@ -175,8 +199,18 @@ pairs.panels(df[, 9:16])
 
 `r solend()`
 
-`r qbegin(3)`
-Compute the correlation matrix for the items, and assess the suitability for factor analysis, using the Bartlett test and the Kaiser-Meyer-Olkin factor adequacy. 
+`r qbegin(qcounter())`
+Compute the correlation matrix for the items, and assess the suitability for factor analysis, using the Bartlett test and the Kaiser-Meyer-Olkin factor adequacy.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Look back in last week's lab to see how Bartlett & KMO are conducted in R
+
+:::
+
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
@@ -202,8 +236,17 @@ The overall measure of sampling adequacy is 0.90, which suggests we have suitabl
 
 `r solend()`
 
-`r qbegin(4)`
-Determine how many factors you will extract. 
+`r qbegin(qcounter())`
+Determine how many factors you will extract.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+As always, there are lots of methods to help you decide, but the ultimate decision is yours.  
+
+:::
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 Using parallel analysis:
@@ -222,7 +265,7 @@ Both parallel analysis and Velicer’s Minimum Average Partial suggested retaini
 :::
 `r solend()`
 
-`r qbegin(5)`
+`r qbegin(qcounter())`
 Choosing an appropriate estimation method and rotation, perform a factor analysis to extract the desired number of factors (based on your answer to the previous question).  
 
 If you get an error, you may need to install the "GPArotation" package: `install.packages("GPArotation")`.
@@ -240,9 +283,10 @@ pgmod
 
 `r solend()`
 
+<br>
 
-:::statbox
-**DETAILS**
+::: {.callout-note collapse="true"}
+#### EFA output
 
 \newcommand{\item}[1]{ \text{Item}_{#1} }
 \newcommand{\fact}[1]{ \text{Factor}_{#1} }
@@ -252,19 +296,19 @@ pgmod
 If we think about a factor analysis being a set of regressions (convention in factor analysis is to use $\LL{}{}$ instead of $\beta$), then we can think of a given item being the manifestation of some latent factors, plus a bit of randomness (or 'stray causes'):
 
 \begin{aligned}
-\item{1}  &= \LL{1}{1} \cdot \fact{1} + \LL{2}{1} \cdot \fact{2} + \u{1} \\
-\item{2}  &= \LL{1}{2} \cdot \fact{1} + \LL{2}{2} \cdot \fact{2} + \u{2} \\
+\item{1}  &= \LL{1}{1} \cdot \fact{1} + \LL{2}{1} \cdot \fact{2} + u_{1} \\
+\item{2}  &= \LL{1}{2} \cdot \fact{1} + \LL{2}{2} \cdot \fact{2} + u_{2} \\
 &\vdots \\
-\item{16} &= \LL{1}{16} \cdot \fact{1} + \LL{2}{16} \cdot \fact{2} + \u{16}
+\item{16} &= \LL{1}{16} \cdot \fact{1} + \LL{2}{16} \cdot \fact{2} + u_{16}
 \end{aligned}
 
-As you can see from the above, the 16 different items all stem from the same two factors ($\fact{1}, \fact{2}$), plus some item-specific errors ($\u{1}, \dots, \u{16}$). The $\LL{}{}$ terms are called factor loadings, or loadings in short
+As you can see from the above, the 16 different items all stem from the same two factors ($\fact{1}, \fact{2}$), plus some item-specific errors ($u_{1}, \dots, u_{16}$). The $\LL{}{}$ terms are called factor loadings, or loadings in short
 
 __Communality__ is sum of the squared factor loadings for each item.  
 
 Intuitively, for each row, the two $\LL{}{}$s tell us how much each item depends on the two factors shared by the 16 items. The sum of the squared loadings tells us how much of one item's information is due to the shared factors.
 
-The communality is a bit like the $R^2$ (the proportion of variance of an item that is explained by the factor structure). And the standardised loadings are a bit like the $R^2$ for an item onto a specific factor (i.e. the proportion of variance of an item that is explained by factor X).  
+The communality is a bit like the $R^2$ (the proportion of variance of an item that is explained by the factor structure). And the standardised loadings are the proportion of variance in an item explained by each factor after accounting for other other factors.  
 
 
 The __Uniqueness__ of each item is simply $1 - \text{communality}$.  
@@ -285,7 +329,7 @@ In R, we will often see these estimats under specific columns:
 
 :::
 
-`r qbegin(6)`
+`r qbegin(qcounter())`
 Using `fa.sort()`, examine the loadings of each item onto the factors, along with communalities, uniqueness and complexity scores.  
 
 
@@ -307,31 +351,64 @@ fa.sort(pgmod)
 - There are no Heywood cases.
 - Item 3 loads quite highly on both factors (high complexity) 
 - The solution explains 38% of the variance.  
-- The coherence of the factor structure will require us to look back at the questions themselves. We'll not do this right now.  
+- The coherence of the factor structure will require us to look back at the questions themselves. We'll not do this right now, but do that later on.  
 
 `r solend()`
 
 
-`r qbegin(7)`
-If you think any items should be removed, do so now, and perform the factor analysis once more. 
+`r qbegin(qcounter())`
+If you think any items should be removed, do so now, and perform the factor analysis once more.  
+
+Really, this starts the whole process again, so we'll have to go through our steps to get to our new factor model on the reduced set of items.  
 `r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+`r solbegin("remove items", slabel=FALSE,show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 We're going to remove that problematic item 7 (which seems to be about "reading the newspaper and watching tv"), as well as item 3 (which seems to be about sleepiness, and relates to both factors quite highly).  
 ```{r}
 df2 <- df %>% 
     select(-item7,-item3)
+```
+`r solend()`
+`r solbegin("assess factorability", slabel=FALSE,show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+As before we removed items 3 and 7, these all look fine:  
+```{r}
 cortest.bartlett(cor(df2), n = nrow(df2))
 KMO(cor(df2))
+```
+
+`r solend()`
+`r solbegin("how many factors?", slabel=FALSE,show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Both parallel analysis and MAP suggest 2:
+
+```{r}
 fa.parallel(df2, fa = 'fa')
 VSS(df2)
+```
+
+`r solend()`
+`r solbegin("conduct and inspect EFA", slabel=FALSE,show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
 pgmod2 <- fa(df2, nfactors = 2, rotate = "oblimin", fm = "minres")
 pgmod2$loadings
 fa.sort(pgmod2)
 ```
 
+- Both factors load on 3+ items at a salient level. 
+- All items have a loading $>0.3$. 
+- There are no Heywood cases.
+- No items have high loadings on multiple factors (complexity is low for all items)
+- The solution explains 40% of the variance.  
+
+This looks much better!  
+
 `r solend()`
 
-# Reliability 
+<br>
+
+::: {.callout-note collapse="true"}
+#### Reliability 
 
 <!-- parallel tests -->
 
@@ -345,7 +422,6 @@ fa.sort(pgmod2)
 
 <!-- attenuation for measurement error -->
 
-:::statbox
 __Measurement Error & Reliability__  
 
 You will often find research that foregoes the measurement model by taking a scale score (i.e., the sum or mean of a set of likert-type questions). For instance, think back to our exercises on path mediation, where "Health Locus of Control" was measured as the "average score on a set of items relating to perceived control over ones own health". In doing so, we make the assumption that these variables provide measurements of the underlying latent construct **without error**.  
@@ -396,8 +472,6 @@ tibble(
 Another way to think about reliability is to consider the idea that more error means less reliability: 
 $$\text{observations = truth + error}$$  
 
-:::
-
 
 There are different types of reliability:  
 
@@ -408,16 +482,17 @@ There are different types of reliability:
 
 The form of reliability we are going to be most concerned with here is known as **Internal Consistency**. This is the extent to which items within a scale are correlated with one another. There are two main measures of this:
 
-:::statbox
-#### alpha and omega
+  
+
+__Alpha & Omega__  
 
 **Cronbach's $\alpha$** ranges from 0 to 1 (higher is better). You can get this using the `alpha()` function from the **psych** package. The formula is:
 
 $$
 \begin{aligned}
-\text{Cronbach's } \alpha = \frac{n \cdot \overline{cov(ij)}}{\overline{\sigma^2_i} + (n-1) \cdot \overline{cov(ij)}}  \\
+\text{Cronbach's } \alpha &= \frac{n \cdot \overline{cov(ij)}}{\overline{\sigma^2_i} + (n-1) \cdot \overline{cov(ij)}}  \\
 \\
-\text{where}:  \qquad
+\text{where}:  & \qquad
 & n = \text{number of items} \\
 & \overline{cov(ij)} = \text{average covariance between item-pairs}  \\
 & \overline{\sigma^2_i} = \text{average item variance}  \\
@@ -428,7 +503,7 @@ $$
 
 :::
 
-`r qbegin(8)`
+`r qbegin(qcounter())`
 Using the relevant function, obtain alpha for the set of items in each factor from your final factor analysis model of low mood. 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -455,10 +530,11 @@ Cronbach's $\alpha$ of 0.82 and 0.81 for the two factors and suggests high inter
 
 <!-- what can we __do__ with this knowledge?   -->
 <!-- attenuation due to measurement error -->
+<br>
 
 # Replicability 
 
-`r qbegin(9)`
+`r qbegin(qcounter())`
 Split the dataset in half, and assess the replicability of your factor structure of low mood by examining the factor congruence in scores on each subset of the data. 
 
 __Hint:__ see the lectures! 
@@ -479,25 +555,29 @@ fa.congruence(res1, res2)
 We can see there is a high level of factor congruence across the two subsets of data.  
 `r solend()`
 
+<br>
 
 # Factor Scores
 
-`r qbegin(10)`
+`r qbegin(qcounter())`
 Extract the factor scores for each factor of low-mood from your model, and attach them to original dataset (the one which has information on pet ownership).  
 Then, conduct a $t$-test to examine whether the pet-owners differ from non-pet-owners in their levels of each factor of low mood.  
 
-As a bonus, can you come up with some description of the two factors? (you will have to look back to the question numbers and questions right at the start). 
+As a bonus, can you come up with some description of the two factors? you will have to look back to what the items represent (i.e. the questions that each item is asking. 
+
+::: {.callout-note collapse="true"}
+#### reminder of questions
 
 ```{r}
 #| echo: false
 tibble(QuestionNumber = paste0("item",1:16),`Over the last 2 weeks, how much have you had/have you been...` = 
          c("Little interest or pleasure in doing things?",
 "Feeling down, depressed, or hopeless?",
-"Trouble falling or staying asleep, or sleeping too much?",
+"~~Trouble falling or staying asleep, or sleeping too much?~~",
 "Feeling tired or having little energy?",
 "Poor appetite or overeating?",
 "Feeling bad about yourself - or that you are a failure or have let yourself or your family down?",
-"Reading the newspaper or watching television?",
+"~~Reading the newspaper or watching television?~~",
 "Moving or speaking so slowly that other people could have noticed? Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual?",
 "A lack of motivation to do anything at all?",
 "Feeling nervous, anxious or on edge?",
@@ -506,14 +586,18 @@ tibble(QuestionNumber = paste0("item",1:16),`Over the last 2 weeks, how much hav
 "Trouble relaxing?",
 "Being so restless that it is hard to sit still?",
 "Becoming easily annoyed or irritable?",
-"Feeling afraid as if something awful might happen?")) %>% knitr::kable() %>% kableExtra::kable_styling(full_width = T)
-
+"Feeling afraid as if something awful might happen?")) %>%
+  gt::gt()
 ```
-
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+It looks like all the items 1-9 (excluding items 3 and 7, which aren't in our factor model in the end) are all about lower mood or lack of energy - i.e. 'depression'.  
+The latter items that load onto the second factor (items 10-16) all seem related to 'anxiety'.  
+
+So we can use the estimated factor scores as a representation of peoples' relative standings on those underlying latent variables of 'depression' and 'anxiety', and we can then look at whether people who own a pet significantly differ on those two constructs from those who don't own a pet!  
 
 ```{r}
 pgpets <- 
@@ -532,7 +616,6 @@ t.test(pgpets$anxiety~pgpets$pet)
 ggplot(pgpets, aes(x=pet, y=anxiety))+
   geom_boxplot()
 ```
-
 
 `r solend()`
 
