@@ -1,0 +1,110 @@
+---
+title: "dapR3_liveR_week9 - Principal Components Analysis"
+author: "John Martindale"
+date: "13/11/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+The goal for today is to calculate a PCA model. First, let's load our packages:
+
+```{r Setup, message=FALSE, warning=FALSE}
+
+# Load tidyverse and lavaan packages
+library(tidyverse)
+library(psych)
+library(GPArotation)
+```
+
+Let's load in some data:
+
+```{r Data}
+data <- read.csv("https://uoepsy.github.io/data/conduct_probs.csv")
+str(data)
+
+data <- data %>%
+  select(item1:item10)
+```
+
+Now let's view a sample correlation matrix (i.e., our input matrix):
+
+```{r}
+# Bartlett's test of sphericity
+cortest.bartlett(cor(data), n = nrow(data))
+# Significant, can press ahead!
+
+# KMO
+KMO(data)
+# .87 = Merotorious!
+
+cormat <- round(cor(data),2)
+cormat
+```
+
+View the eigenvectors and eigenvalues:
+
+```{r}
+eigenmatrix <- (eigen(cor(data)))
+
+eigenmatrix$values
+```
+
+## Determining the number of components to retain
+
+```{r}
+# Scree plot
+plot(eigenmatrix$values, # Vector of eigenvalues
+     type = 'b', # Display points and lines
+     pch = 16, # 
+     main = "Scree plot", 
+     ylab = "Eigenvalues")
+
+# Minimum average partial
+vss(data)
+
+# Parallel analysis
+fa.parallel(data, n.iter = 500)
+```
+
+Running Factor Analysis and comparing two solutions:
+
+```{r}
+# Estimate different types of models
+data_fa2_norotate <- fa(data, nfactors = 2, fm = "ml", rotate = "none")
+data_fa2_orthog <- fa(data, nfactors = 2, fml = "ml", rotate = "varimax")
+data_fa2_oblique <- fa(data, nfactors = 2, fm = "ml", rotate = "oblimin")
+
+# View solutions
+data_fa2_norotate
+data_fa2_orthog
+data_fa2_oblique
+
+# Pull out loadings
+data_fa2_norotate$loadings
+data_fa2_oblique$loadings
+data_fa2_orthog$loadings
+
+# Factor correlations
+data_fa2_orthog$Phi
+round(data_fa2_oblique$Phi, 2)
+
+# Evaluate fit
+data_fa2_oblique$TLI
+data_fa2_oblique$RMSEA
+```
+
+Now let's check the matrices to test our understanding and how it aligns with path analysis:
+
+```{r Matrices}
+# Original correlation matrix
+cormat
+
+# Model implied correlation matrix
+cormat_mi <- data_fa2_oblique$model
+cormat_mi
+
+# View residual matrix
+resid_mat <- data_fa2_oblique$residual
+resid_mat[, 1:5]
+```
