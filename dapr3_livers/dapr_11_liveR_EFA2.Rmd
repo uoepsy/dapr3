@@ -1,0 +1,104 @@
+---
+title: "dapR3_liveR_week10 - Exploratory Factor Analysis 2"
+author: "John Martindale"
+date: "13/11/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+The goal for today is to calculate a PCA model. First, let's load our packages:
+
+```{r Setup, message=FALSE, warning=FALSE}
+
+# Load tidyverse and lavaan packages
+library(tidyverse)
+library(psych)
+library(GPArotation)
+
+# CFA testing
+library(lavaan)
+```
+
+Let's load in some data:
+
+```{r Data}
+data <- read.csv("https://uoepsy.github.io/data/conduct_probs.csv")
+str(data)
+
+data <- data %>%
+  select(item1:item10)
+```
+
+Let's run a Tucker's congruence coefficient to see the difference between the two solutions:
+
+```{r}
+# Estimate different types of models
+fa_orthog <- fa(data, nfactors = 2, fml = "ml", rotate = "varimax")
+fa_oblique <- fa(data, nfactors = 2, fm = "ml", rotate = "oblimin")
+
+fa_oblique
+
+fa.congruence(fa_orthog, fa_oblique)
+```
+
+Reliability testing:
+
+```{r}
+# Cronbach's Alpha
+data %>% 
+  select(item1:item5) %>%
+  alpha()
+
+# McDonald's Omega
+data %>% 
+  select(item1:item5) %>%
+  omega()
+```
+
+Let's score them up:
+
+```{r}
+# Extract sum scores
+data <- data %>%
+  rowwise() %>%
+  mutate(score1 = mean(item1:item5),
+         score2 = mean(item6:item10))
+
+# Extract factor scores
+scores <- fa_oblique$scores
+
+# View the data
+head(data)
+```
+
+Construct validity / criterion validity:
+
+```{r}
+cor(data$score1,
+    data$score2)
+```
+
+## Optional
+
+Let's test a confirmatory factor analysis model:
+
+```{r}
+cfa_spec <- '
+# Factors
+f1 =~ item6 + item7 + item8 + item9 + item10
+f2 =~ item1 + item2 + item3 + item 4 + item5
+
+# Paths
+f1 ~ f2
+'
+
+cfa_mod <- cfa(model = cfa_spec, data = data)
+
+summary(cfa_mod,
+        fit.measures = T,
+        ci = T,
+        std = T,
+        modindices = T)
+```
+
