@@ -54,6 +54,11 @@ data %>%
 data %>% 
   select(item1:item5) %>%
   omega()
+
+# Split-half reliability
+data %>%
+  select(item1:item5) %>%
+  splitHalf()
 ```
 
 Let's score them up:
@@ -81,24 +86,37 @@ cor(data$score1,
 
 ## Optional
 
-Let's test a confirmatory factor analysis model:
+Let's add some outcome data:
 
 ```{r}
-cfa_spec <- '
-# Factors
-f1 =~ item6 + item7 + item8 + item9 + item10
-f2 =~ item1 + item2 + item3 + item 4 + item5
-
-# Paths
-f1 ~ f2
-'
-
-cfa_mod <- cfa(model = cfa_spec, data = data)
-
-summary(cfa_mod,
-        fit.measures = T,
-        ci = T,
-        std = T,
-        modindices = T)
+data <- data %>%
+  rowwise() %>%
+  mutate(
+    out1 = rnorm(n = 1),
+    out2 = rnorm(n = 1),
+    out3 = rnorm(n = 1),
+    out4 = rnorm(n = 1)
+  )
 ```
 
+And now fit a SEM model:
+
+```{r}
+sem_spec <- '
+# Factors
+predictor =~ item6 + item7 + item8 + item9 + item10
+mediator =~ item1 + item2 + item3 + item 4 + item5
+outcome =~ out1 + out2 + out3 + out4
+
+# Paths
+outcome ~ predictor + mediator
+'
+
+sem_model <- cfa(model = sem_spec, data = data)
+
+summary(sem_model,
+        fit.measures = T,
+        std = T
+        )
+
+```
