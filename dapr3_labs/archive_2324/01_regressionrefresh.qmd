@@ -1,0 +1,751 @@
+---
+title: "1. Regression Refresh | Clustered Data"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+```
+
+
+:::frame
+**Preliminaries**  
+ 
+1. Open Rstudio!  
+2. Create a new RMarkdown document or R script (whichever you like) for this week. 
+
+These are the main packages we're going to use in this block. It might make sense to install them now if you do not have them already.  
+<!-- (note, the rstudio.ppls.ed.ac.uk server already has `lme4` and `tidyverse` installed for you).   -->
+
++ __tidyverse__ : for organising data 
++ __patchwork__: for organising plots
++ __ICC__ : for quickly calculating intraclass correlation coefficient
++ __lme4__ : for fitting generalised linear mixed effects models
++ __parameters__ : inference!
++ __pbkrtest__  : more inference!
++ __HLMdiag__ : for examining case diagnostics at multiple levels
++ __lmeresampler__ : for bootstrapping!
++ __effects__ : for tables/plots
++ __sjPlot__ : for tables/plots
++ __broom.mixed__ : tidying methods for mixed models
+
+
+You can install all of these at once using:  
+```
+install.packages(c("tidyverse","ICC","lme4","parameters","pbkrtest",
+                   "effects","broom.mixed","sjPlot","HLMdiag"))
+# the lmeresampler package has had some recent updates. 
+# better to install the most recent version:
+install.packages("devtools")
+devtools::install_github("aloy/lmeresampler")
+```
+
+:::
+
+```{r include=FALSE}
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(effects)
+```
+
+
+# Exercises: Linear Models & Pooling
+
+:::{.callout-note collapse="true"}
+## Regression Refresh
+
+Recall that in the DAPR2 course last year we learned all about the linear regression model, which took the form:
+
+$$
+\begin{align}\\
+& \text{for observation }i \\
+& \color{red}{Y_i}\color{black} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} X_{1i} \ + \ ... \ + \ \beta_p \cdot{} X_{pi}}\color{black} + \varepsilon_i \\ 
+\end{align}
+$$
+
+And if we wanted to write this more simply, we can express $X_1$ to $X_p$ as an $n \times p$ matrix (samplesize $\times$ parameters), and $\beta_0$ to $\beta_p$ as a vector of coefficients:
+
+$$
+\begin{align}
+& \color{red}{\mathbf{y}}\color{black} = \color{blue}{\boldsymbol{X\beta}}\color{black} + \boldsymbol{\varepsilon} \\
+& \quad \\
+& \text{where} \\
+& \varepsilon \sim N(0, \sigma) \text{ independently} \\
+\end{align}
+$$
+In R, we fitted these models using:
+```{r eval=F}
+lm(y ~ x1 + x2 + .... xp, data = mydata)  
+```
+:::
+
+:::frame
+__Data: Wellbeing Across Scotland__  
+
+In DAPR2, one of the examples we used in [learning about linear regression](https://uoepsy.github.io/dapr2/2122/labs/1_04_mlr.html) was in examining the relationship between time spent outdoors and mental wellbeing. In that example researchers had collected data from 32 residents of Edinburgh & Lothians.  
+
+Researchers want to study this relationship across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week.  
+
+Twenty of the Local Authority Areas provided data. It is available at [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv), and you can read it into your R environment using the code below: 
+```{r}
+#| eval: false
+#| code-copy: true
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+```
+The dataset contains information on 132 participants. You can see the variables in the table below
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(gt)
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+tibble(variable=names(scotmw),
+       description=c("Participant ID","Participant Name","Local Authority Area","Self report estimated number of hours per week spent outdoors","Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being. The scale is scored by summing responses to each item, with items answered on a 1 to 5 Likert scale. The minimum scale score is 14 and the maximum is 70.","LAA Population Density (people per square km)")
+) %>% gt()
+
+```
+
+:::
+
+`r qbegin("1")`
+Read in the Local Authority data from [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv) and plot the bivariate relationship between wellbeing and time spent outdoors.   
+
+Then, using `lm()`, fit the simple linear model:  
+
+$$
+\text{Wellbeing}_i = \beta_0 + \beta_1 \cdot \text{Hours per week spent outdoors}_i + \varepsilon_i
+$$
+
+Think about the assumptions we make about the model:
+
+$$
+\text{where} \quad \varepsilon_i \sim N(0, \sigma) \text{ independently}
+$$
+Have we satisfied this assumption (specifically, the assumption of *independence* of errors)? 
+`r qend()`
+
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv") 
+
+ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
+  geom_point()+
+  geom_smooth(method = "lm")
+```
+
+```{r}
+simplemod <- lm(wellbeing ~ outdoor_time, data = scotmw)
+summary(simplemod)
+```
+
+Our model from the previous question will assume that the residuals for all participants are independent of one another. But is this a reasonable assumption that we can make? Might we not think that the residents of the highlands might have generally higher levels of wellbeing than those living in Glasgow? Additionally, the association between outdoor time and wellbeing might be different depending on where you live?  
+
+The natural grouping of the people into their respective geographic area introduces a level of *dependence* which we would be best to account for.  
+`r solend()`
+
+`r qbegin("2")`
+Try running the code below.  
+```{r eval=FALSE}
+ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+```
+Then try editing the code to include an aesthetic mapping from the LAA to the color in the plot.  
+
+How do your thoughts about the relationship between outdoor time and wellbeing change?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+From the second plot, we see a lot of the LAA appear to have a positive relationship (outdoor time is associated with higher wellbeing). There seem to be differences between LAAs in both the general wellbeing level (residents of Na h-Eileanan Siar  - the outer hebrides - have high wellbeing), and in how outdoor time is associated with wellbeing (for instance, outdoor time doesn't seem to help in Glasgow City).  
+
+
+```{r}
+p1 <- ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+
+p2 <- ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing, col = laa))+
+  geom_point()+
+  geom_smooth(method="lm",se=FALSE)
+
+library(patchwork)
+p1 + p2
+```
+
+`r solend()`
+
+:::{.callout-note collapse="true"}
+## Information, pooled?
+
+With our current toolset (linear regression), there are two avenues for us with respect to how we analyse clustered data. We can either ignore the clustering completely (and violate our assumptions), we can add the cluster-level differences in as another predictor. These reflect different ways in which we can "pool" information from across the different clusters.  
+
+:::sticky
+__Complete Pooling__  
+
+All information from different clusters is pooled together estimate the relevant association (make one big line).  
+
+```{r}
+#| eval: false
+lm(wellbeing ~ outdoor_time, data = scotmw)
+```
+Take all the people (individual observations), fit a regression line for `wellbeing ~ outdoor_time`.  
+
+:::
+
+:::sticky
+__No Pooling__  
+
+Information from each cluster contributes **only** to an estimate for that specific cluster.  
+```{r}
+#| eval: false
+lm(wellbeing ~ outdoor_time * laa, data = scotmw)
+```
+Take the people from each LAA and estimate `wellbeing ~ outdoortime` for each LAA. Treat the LAAs as completely independent, and estimate LAA-specific differences in wellbeing, and LAA-specific differences in the effect of outdoor_time on wellbeing. Get _loads_ of coefficients that aren't really of interest.   
+
+
+:::
+
+
+Estimating the LAA-specific differences in our model (the no-pooling approach) is clearly better than simply ignoring them, but it does mean that we are treating the LAAs as if they are completely _independent_ entities.  
+Suppose we had another LAA - "LAA X" - for which we had only _two_ people's data (@fig-borrowstrength). Intuitively, we don't want to trust the line for LAA X as much as we trust the others (where we have c8 people's data). In the no-pooling approach, it is only those two people from LAA X that contribute to the LAA X line.  Take this further, and imagine we have only one person's data from some LAA Y. In the no-pooling method, the model doesn't learn _anything_ from the other LAAs and cannot estimate a line for LAA Y.  
+
+What would be great is if we could _somehow_ use the information from the other LAAs to inform our estimation of what is going on in LAAs X and Y. This is what multi-level modelling achieves, _partially_ pooling information across the groups, and this is where we'll turn to next.    
+
+```{r}
+#| echo: false
+#| label: fig-borrowstrength
+#| fig-cap: "Blue lines show the estimated fitted values from the no-pooling approach lm(grade ~ motiv * schoolid). School X's estimate is based on just the 2 datapoints from that school, and does not take into account any of the other schools in anyway."
+set.seed(123)
+bind_rows(
+  scotmw |> filter(laa %in% sort(unique(scotmw$laa))[c(1:4)]),
+  tibble(
+    laa = "LAA X",
+    outdoor_time = c(15,18),
+    wellbeing = 150 + -6*outdoor_time + rnorm(2,0,10)
+  )
+) |> bind_rows(x=_, 
+               tibble(laa="LAA Y",outdoor_time = 10, wellbeing = 55)
+               ) -> tdf 
+
+tdf |> 
+  ggplot(aes(x=outdoor_time,y=wellbeing))+
+  geom_point()+
+  geom_line(data=broom::augment(lm(wellbeing~outdoor_time*laa,tdf)),aes(y=.fitted),
+            col="blue",lwd=.5)+
+  facet_wrap(~laa)
+ 
+```
+
+:::
+
+
+:::{.callout-note collapse="true"}
+## Complete Pooling
+
+We can consider the simple regression model (`lm(wellbeing ~ outdoor_time, data = scotmw)`) to "pool" the information from all observations together. In this 'Complete Pooling' approach, we simply ignore the natural clustering of the people into their local authority areas, as if we were unaware of it. The problem is that this assumes the same regression line for all local authority areas, which might not be that appropriate. Additionally, we violate the assumption that our residuals are independent, because all of the residuals from certain groups will be more like one another than they are to the others.  
+
+```{r echo=FALSE, out.width="350px", fig.align="center", fig.cap="Complete pooling can lead to bad fit for certain groups"}
+ggplot(data = scotmw, aes(x = outdoor_time, y = wellbeing))+
+  geom_point(size=3, alpha=.1)+
+  geom_abline(intercept = coef(simplemod)[1], slope = coef(simplemod)[2], lwd=2)+
+  geom_text(inherit.aes=F,x=4.5,y=8, label="Complete Pooling Line")+
+  theme(text=element_text(size=21))+
+  geom_point(data = filter(scotmw, str_detect(laa, "Eileanan|Glasgow")), size=3, aes(col=laa))
+```
+
+:::
+
+:::{.callout-note collapse="true"}
+## No Pooling  
+
+There are various ways we could attempt to deal with the problem that our data are in groups (or "clusters"). With the tools you have learned in DAPR2, you may be tempted to try including LAA in the model as another predictor, to account for all LAA-related variation in wellbeing:  
+```{r eval=FALSE}
+lm(wellbeing ~ outdoor_time + laa, data = scotmw)
+```
+
+This approach gets termed the "No Pooling" method, because the information from each cluster contributes *only* to an estimated parameter for that cluster, and there is no pooling of information across clusters. This is a good start, and is nice because it eliminates _all_ of the LAA-level variation when estimating the coefficient for `outdoor_time`. But it has some considerable drawbacks in that it a) involves estimating *a lot* of parameters, and b) doesn't allow for the effect of outdoor time on wellbeing to be different for each LAA. 
+Extending this to include an interaction term `outdoor_time * laa` results in even more parameters, and the loss of the effect of interest (the effect of outdoor_time on wellbeing, within a given LAA). Furthermore, we have high variance in the estimates at each LAA because data from each LAA contributes to _only_ that LAA's slope.  
+
+
+:::
+
+`r qbegin("3")`
+Fit the linear model below which accounts for the grouping of participants into their different local authorities, but holds the association between outdoor time and wellbeing as constant across LAAs:
+```{r}
+mod1 <- lm(wellbeing ~ outdoor_time + laa, data = scotmw)
+```
+
+Can you construct a plot of the **fitted** values from this model, coloured by LAA?  
+
+:::{.callout-tip collapse="true"}
+### Hint  
+you might want to use the `augment()` function from the **broom** package
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+library(broom)
+augment(mod1) %>%
+  ggplot(.,aes(x=outdoor_time, y=.fitted, col=laa))+
+  geom_line()
+```
+`r solend()`
+
+`r qbegin("4")`
+What happens (to the plot, and to your parameter estimates) when you include the interaction between `laa` and `outdoor_time`?  
+Does it improve the model fit?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+mod2 <- lm(wellbeing ~ outdoor_time * laa, data = scotmw)
+
+broom::augment(mod2) %>%
+  ggplot(.,aes(x=outdoor_time, y=.fitted, col=laa))+
+  geom_line()
+```
+We can see now that our model is fitting a different relationship between wellbeing and outdoor time for each LAA. This is good - we're going to get better estimates for different LAAs (e.g. wellbeing of residents of the Highlands increases with more outdoor time, and wellbeing of residents of Glasgow does not).  
+
+We can see that this model provides a better fit - it results in a significant reduction in the residual sums of squares:
+```{r}
+anova(mod1, mod2)
+```
+
+In order to account for the heterogeneity between LAAs in the `wellbeing~outdoor_time` relationship, this approach requires estimating a whole bunch of parameters (i.e. interaction terms between the `outdoor_time` slope and _every_ LAA). Additionally, these interaction terms will tend to have low statistical power because they are using fewer observations (only those within each cluster) to estimate parameters which only represent within-cluster effects.  
+`r solend()`  
+<br>
+
+<div class="divider div-transparent div-dot"></div>
+
+
+# Exercises: Advanced Data Wrangling
+
+With more complex data structures comes more in-depth data wrangling in order to get it ready for fitting and estimating our model. Typically, the data we get will not be neat and tidy, and will come in different formats. Often we simply get whatever our experiment/questionnaire software spits out, and we have to work from there. When you are designing a study, you can do work on the front end to minimise the data-wrangling. Try to design an experiment/questionnaire while keeping in mind what the data comes out looking like.  
+
+Below we have some data from a fake experiment. We've tried to make it a bit more difficult to work with - a bit more similar to what we would _actually_ get when doing real-life research.   
+
+:::frame
+__Data: Audio interference in executive functioning__  
+
+```{r}
+#| echo: false
+#| include: false
+# SDMT ~ audio*headph + (1 + audio | ppt)
+set.seed(24)
+n_groups = 24
+N = n_groups*3*5
+g = rep(1:n_groups, e = N/n_groups)
+
+w = rep(rep(letters[1:3],5),n_groups)
+w1 = model.matrix(lm(rnorm(N)~w))[,2]
+w2 = model.matrix(lm(rnorm(N)~w))[,3]
+
+b = rep(0:1, e = N/2)
+
+re0 = rnorm(n_groups, sd = 2)[g]
+re_w1  = rnorm(n_groups, sd = 1)[g]
+re_w2  = rnorm(n_groups, sd = 1)[g]
+
+lp = (0 + re0) + 
+  (2)*b + 
+  (0 + re_w1)*w1 +
+  (-2 + re_w2)*w2 + 
+  (1)*b*w1 +
+  (-2)*b*w2
+  
+y = rnorm(N, mean = lp, sd = 1.5) # create a continuous target variable
+
+df <- data.frame(w, g=factor(g),b, y)
+head(df)
+with(df,boxplot(y~interaction(w,b)))
+
+library(tidyverse)
+df %>% transmute(
+  PID = paste0("PPT_",formatC(g,width=2,flag=0)),
+  audio = fct_recode(factor(w),
+                     no_audio = "a",
+                     white_noise = "b",
+                     music = "c"),
+  headphones = fct_recode(factor(b),
+                          speakers = "0",
+                          anc_headphones = "1"),
+  SDMT = pmax(0,round(35 + scale(y)[,1]*12))
+) %>% arrange(PID,audio,headphones) -> ef_music
+
+
+ef_music <- ef_music %>% group_by(PID) %>%
+  mutate(trial_n = paste0("Trial_",formatC(sample(1:15),width=2,flag=0))) %>%
+  arrange(PID,trial_n) %>% ungroup()
+
+ef_sdmt <- ef_music %>% select(PID, trial_n, SDMT) %>%
+  pivot_wider(values_from=SDMT,names_from=trial_n)
+
+# for(i in 1:38){
+#   ef_sdmt[sample(1:24,1), sample(2:15,1)] <- NA
+# }
+
+ef_music <- ef_music %>% select(PID, trial_n, audio, headphones) %>%
+  arrange(PID,audio)
+
+# write_csv(ef_music,"../../data/ef_music.csv")
+# write_csv(ef_sdmt,"../../data/ef_sdmt.csv")
+
+# executive functioning
+
+# library(lme4)
+# m = lmer(SDMT ~ 1 + audio * headphones + (1 + audio | PID), ef_music)
+# summary(m)
+# interactions::cat_plot(m,pred="audio",modx="headphones")
+```
+
+This data is from a simulated study that aims to investigate the following research question: 
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+
+`r length(unique(ef_music$PID))` healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room.  
+
+The data is in stored in two separate files - the researcher administering the tests recorded the SDMT score in one spreadsheet, while details of the audio used in the experiment are held in a separate sheet.  
+
+:::{.callout-note collapse=true icon=false appearance="simple"}
+#### ef_music.csv  
+
+1. Information about the audio condition for each trial of each participant is stored in __.csv__ format at [https://uoepsy.github.io/data/ef_music.csv](https://uoepsy.github.io/data/ef_music.csv). The data is in long format (1 row per participant-trial).  
+```{r echo=FALSE}
+tibble(
+  variable = names(ef_music),
+  description = c("Participant ID",
+                  "Trial Number (1-15)",
+                  "Audio heard during the test ('no_audio', 'white_noise','music')","Whether the participant listened via speakers in the room or via noise cancelling headphones")
+  ) %>% knitr::kable()
+```
+:::
+:::{.callout-note collapse=true icon=false appearance="simple"}
+#### ef_sdmt.xlsx
+
+Information on participants' Symbol Digit Modalities Test (SDMT) for each trial is stored in **.xlsx** format at [https://uoepsy.github.io/data/ef_sdmt.xlsx](https://uoepsy.github.io/data/ef_sdmt.xlsx). The data is in wide format (1 row per participant, 1 column per trial).   
+```{r echo=FALSE}
+tibble(
+  variable = c(names(ef_sdmt)[c(1:4)],"...","...",names(ef_sdmt)[16]),
+  description = c("Participant ID",paste0("SDMT score in trial ",c(1,2,3,"...","...",15)))
+) %>% knitr::kable()
+```
+:::
+
+
+:::
+
+`r qbegin("5")`
+Get the data into your R session. 
+
+__Note:__ For one of the files, this is a bit different to how we have given you data in previous exercises. You may remember that for a __.csv__ file, you can read directly into R from the link using, `read_csv("https://uoepsy.......)`.  
+
+However, in reality you are likely to be confronted with data in all sorts of weird formats, such as __.xlsx__ files from MS Excel. Have a look around the internet to try and find any packages/functions/techniques for getting both the datasets in to R. 
+
+:::{.callout-tip collapse="true"}
+### Hint  
+For the __.xlsx__ data:
+
+- Step 1: download the data to your computer  
+- Step 2: load the __readxl__ package.  
+- Step 3: use the `read_xlsx()` function to read in the data, pointing it to the relevant place on your computer. 
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Reading in the data for each condition is easy, as it's just the same as we have been doing in DAPR previously: 
+
+```{r}
+#| eval: false
+ef_music <- read_csv("https://uoepsy.github.io/data/ef_music.csv")
+head(ef_music)
+```
+```{r}
+#| echo: false
+head(ef_music)
+```
+
+The other data is a bit more tricky, but we can actually do all these steps from within R. 
+
+
+```{r}
+#| eval: false
+# Step 1 - Download the data:  
+download.file(url = "https://uoepsy.github.io/data/ef_sdmt.xlsx", 
+              destfile = "ef_sdmt.xlsx", mode = "wb")
+# Step 2
+library(readxl)
+# Step 3
+ef_sdmt <- read_xlsx("ef_sdmt.xlsx")
+head(ef_sdmt)
+```
+```{r}
+#| echo: false
+head(ef_sdmt)
+```
+
+
+`r solend()`
+
+:::{.callout-note collapse="true"}
+## Pivoting dataframes  
+
+One of the more confusing things to get to grips with is the idea of reshaping a dataframe.  
+For different reasons, you might sometimes want to have data in wide, or in long format. 
+
+```{r echo=FALSE, fig.cap="Source: https://fromthebottomoftheheap.net/2019/10/25/pivoting-tidily/"}
+knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
+```
+
+When the data is wide, we can make it long using `pivot_longer()`. When we make data longer, we're essentially making lots of columns into 2 longer columns. Above, in the animation, the wide variable **x**, **y** and **z** go into a new longer column called **name** that specifies which (x/y/z) it came from, and the values get put into the **val** column.  
+
+The animation takes a shortcut in the code it displays above, but you could also use `pivot_longer(c(x,y,z), names_to = "name", values_to = "val")`. To reverse this, and put it back to being wide, we tell R which columns to take the names and values *from*: `pivot_wider(names_from = name, values_from = val)`.  
+
+:::
+
+`r qbegin("6")`
+Is each dataset in wide or long format? We want them both in long format, so try to reshape either/both if necessary.
+
+:::{.callout-tip collapse="true"}
+### Hint  
+__Hint:__ in the tidyverse functions, you can specify all columns between column **x** and column **z** by using the colon, `x:z`.  
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Only the SDMT data is in wide format:
+```{r}
+head(ef_sdmt)
+```
+
+```{r}
+ef_sdmt_long <-
+  ef_sdmt %>%
+  pivot_longer(Trial_01:Trial_15, names_to = "trial_n", values_to = "SDMT")
+
+head(ef_sdmt_long)
+```
+`r solend()`
+
+:::{.callout-note collapse="true"}
+## Joining dataframes  
+
+There are lots of different ways to join data-sets, depending on whether we want to keep rows from one data-set or the other, or keep only those in both data-sets etc. 
+
+```{r echo=FALSE, fig.cap="Check out the help documentation for them all using `?full_join`."}
+knitr::include_graphics("images/messy/joins.png")
+```
+
+:::
+
+`r qbegin("7")`
+Now comes a fun bit.  
+We have two datasets for this study. We're interested in how the type of audio (information on this is contained in `ef_music.csv`) interferes with scores on an executive functioning task (scores are held in the `ef_sdmt.xlsx`).  
+
+We're going to need to join these together!   
+
+We can't just stick them side by side, because they're in different orders:
+  
+:::: {.columns}
+
+::: {.column width="40%"}
+```{r}
+head(ef_music)
+```
+:::
+
+::: {.column width="10%"}
+<!-- empty column to create gap -->
+:::
+
+::: {.column width="40%"}
+```{r}
+head(ef_sdmt_long)
+```
+:::
+
+::::
+
+Provided that both data-sets contain information on participant number and trial number, which uniquely identify each observation, we can join them together by matching on those variables!  
+
+:::{.callout-tip collapse="true"}
+### Hint  
+
+We're going to want to use one of `left/right/semi/anti/full_join()`, and give the function both the long formatted datasets.  
+We should end up with 600 rows (40 participants * 15 trials each).
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+efdata <- full_join(ef_music, ef_sdmt_long)
+head(efdata)
+```
+`r solend()`
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+
+# Exercises: Clustering & ICC
+
+`r qbegin("8")`
+Continuing with our audio/executive functioning study, consider the following questions:  
+  
+What are the units of observations?  
+What are the groups/clusters?  
+What varies *within* these clusters?  
+What varies *between* these clusters?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+What are the units of observations? __trials__  
+What are the groups/clusters? __participants__  
+What varies *within* these clusters? __the type of audio__    
+What varies *between* these clusters? __whether they listen via headphones or speakers__  
+
+`r solend()`
+
+`r qbegin("9")`
+Calculate the ICC, using the `ICCbare()` function from the **ICC** package.  
+
+What amount of variation in SDMT is explained by the participants clustering?  
+
+:::{.callout-tip collapse="true"}
+### Hint  
+
+Remember, you can look up the help for a function by typing a `?` followed by the function name in the console. The usage of the `ICCbare()` function is as follows:
+
+```
+ICCbare(x = <cluster>, y = <outcome>, data = <data>)
+```
+
+:::
+  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+48% of the variance in SDMT scores is explained by the participant groupings.  
+```{r}
+library(ICC)
+ICCbare(x = PID, y = SDMT, data = efdata)
+```
+`r solend()`
+
+
+:::{.callout-note collapse="true"}
+## ICC
+
+Think back to the lectures, and about what the ICC represents - the ratio of the variance between the groups to the total variance.  
+You can think of the "variance between the groups" as the group means varying around the overall mean (the black dots around the black line), and the total variance as that plus the addition of the variance of the individual observations around each group mean (each set of coloured points around their respective larger black dot):
+```{r}
+ggplot(efdata, aes(x=PID, y=SDMT))+
+  geom_point(aes(col=PID),alpha=.3)+
+  stat_summary(geom = "pointrange")+
+  geom_hline(yintercept = mean(efdata$SDMT,na.rm=T))+
+  theme(axis.text.x = element_text(angle=60,hjust=1))+
+  guides(col='none')
+```
+
+You can also think of the ICC as the correlation between two randomly drawn observations from the same group. Imagine we took a random pair of observations from the same participant and plotted them against one another. Then we did the same thing again, and again, and so on. The correlation between these random pairs is the ICC.  
+
+:::
+
+
+`r qbegin(label = "Question 10 - Optional (Advanced)", qlabel = FALSE)`
+We have two variables of interest here: 
+
+- `audio` (type of audio listened to in a trial)
+- `headphones` (whether or not the participant had headphones on)
+
+We're going to look at them separately for now (we'll get on to addressing the research question next week).  
+
+Compare how the estimates and the uncertainty (the standard errors) for the `audio` coefficients compare between these two models:  
+```{r}
+mod1 <- lm(SDMT ~ audio, data = efdata)
+mod2 <- lm(SDMT ~ audio + PID, data = efdata)
+```
+
+and look how the `headphones` coefficients compare between these two:  
+```{r}
+mod3 <- lm(SDMT ~ headphones, data = efdata)
+mod4 <- lm(SDMT ~ headphones + PID, data = efdata)
+```
+
+What do you notice?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Recall our answers to question 8: 
+
+What are the units of observations? __trials__   
+What are the groups/clusters? __participants__  
+What varies *within* these clusters? __the type of audio__    
+What varies *between* these clusters? __whether they listen via headphones or speakers__  
+
+:::
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Our standard errors for the `audio` coefficients become narrower when we account for participant-level differences (`mod2`). 
+
+This makes sense, because `mod2` explains some variation in the audio groups as being due to participants - the highest "white noise" point is actually still a decrease in SDMT compared to "no_audio" _for that participant_. Whereas `mod1` doesn't know that that highest "white noise" point is high _because_ it comes from a specific participant. Put another way, having a separate line for each participant (RH plot below), gives us more confidence in the differences between audio-types.  
+
+Because we have perfectly balanced data (every participant has the same number of trials in each audio-type) then our estimates here do not actually change at all.  
+```{r}
+#| echo: false
+broom::augment(mod1) |>
+ggplot(aes(x=audio,y=SDMT))+
+  geom_point(alpha=.1) +
+  stat_summary(geom="pointrange", aes(group=1,col=audio),size=.6) +
+  stat_summary(geom="path", aes(group=1))+
+  guides(col="none")+ylim(15,62) +
+  labs(title="lm(SDMT~audio)")+
+
+broom::augment(mod2) |>
+ggplot(aes(x=audio,y=.fitted))+
+  geom_point(aes(y=SDMT),alpha=.1)+
+  stat_summary(geom="pointrange", aes(group=PID,col=audio)) +
+  stat_summary(geom="path", aes(group=PID))+
+  guides(col="none")+ylim(15,62)+
+  labs(title="lm(SDMT~audio+PID)")
+```
+
+In contrast, our estimates for `headphones` coefficients _do_ change when we include `PID` in the model. And the standard errors actually get _larger_. 
+This is because the inclusion of the participant in `mod4` accounts for some of the variance in each group, which means that our comparison between "speakers" and "headphones" is actually a comparison between two groups of 12 participants (RH plot below), rather than 2 groups of 180 trials (LH plot below).  
+
+```{r}
+#| echo: false
+broom::augment(mod3) |>
+ggplot(aes(x=headphones,y=SDMT))+
+  geom_point(alpha=.1) +
+  stat_summary(geom="pointrange", aes(group=1, col=headphones),size=.6) +
+  stat_summary(geom="path", aes(group=1))+
+  guides(col="none") + ylim(15,62)+
+  labs(title="lm(SDMT~headphones)") +
+
+broom::augment(mod4) |>
+ggplot(aes(x=headphones,y=.fitted))+
+  stat_summary(geom="pointrange", aes(group=PID,col=headphones)) +
+  stat_summary(geom="path", aes(group=1))+
+  guides(col="none")+ylim(15,62)+
+  labs(title="lm(SDMT~headphones+PID)")
+```
+
+This sort of perfectly balanced design has traditionally been approached with extensions of ANOVA ("repeated measures ANOVA", "mixed ANOVA"). These methods can partition out variance due to one level of clustering (e.g. subjects), and can examine factorial designs when one factor is within cluster, and the other is between. You can see an example [here](example_00_anova.html) if you are interested. However, ANOVA has a lot of constraints - it can't handle multiple levels of clustering (e.g. children in classes in schools), it will likely require treating variables such as time as a factor, and it's not great with missing data.   
+
+The multi-level model (MLM) provides a far more flexible framework __and also allows you to obtain the same ANOVA style tables__^[ANOVA is just a special case of the linear model], and this is what we will begin to look at next week.  
+
+`r solend()`
+

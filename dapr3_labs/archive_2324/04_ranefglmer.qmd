@@ -1,0 +1,876 @@
+---
+title: "4. Random Effect Structures | Logistic MLM"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+library(effects)
+library(knitr)
+library(kableExtra)
+library(xaringanExtra)
+library(lme4)
+xaringanExtra::use_panelset()
+```
+
+
+::: {.callout-note collapse="true"}
+### Nested and Crossed structures
+
+The same principle we have seen for one level of clustering can be extended to clustering at different levels (for instance, observations are clustered within subjects, which are in turn clustered within groups). 
+
+Consider the example where we have observations for each student in every class within a number of schools:  
+
+```{r}
+#| echo: false
+#| out-width: "1200px"
+knitr::include_graphics("images/structure_nestednew.png")
+```
+
+**Question:** Is "Class 1" in "School 1" the same as "Class 1" in "School 2"?  
+  
+No.  
+The classes in one school are distinct from the classes in another **even though they are named the same**.  
+  
+The classes-within-schools example is a good case of **nested random effects** - one factor level (one group in a grouping varible) appears *only within* a particular level of another grouping variable.  
+  
+In R, we can specify this using:  
+  
+`(1 | school) + (1 | class:school)`  
+  
+or, more succinctly:  
+  
+`(1 | school/class)`  
+
+Consider another example, where we administer the same set of tasks for every participant.  
+  
+**Question:** Are tasks nested within participants?  
+  
+No.  
+Tasks are seen by multiple participants (and participants see multiple tasks).  
+  
+We could visualise this as the below:  
+```{r}
+#| echo: false
+#| out-width: "400px"
+knitr::include_graphics("images/structure_crossednew.png")
+```
+
+In the sense that these are not nested, they are **crossed** random effects.  
+  
+In R, we can specify this using:  
+
+`(1 | subject) + (1 | task)`  
+
+:::blue
+**Nested vs Crossed**  
+
+*Nested:* Each group belongs uniquely to a higher-level group.   
+
+*Crossed:* Not-nested. 
+
+:::
+
+Note that in the schools and classes example, had we changed data such that the classes had unique IDs (e.g., see below), then the structures `(1 | school) + (1 | class)` and `(1 | school/class)` would give the same results.  
+```{r}
+#| echo: false
+#| out-width: "1200px"
+knitr::include_graphics("images/structure_nestedlabnew.png")
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+### Random Effects in lme4  
+
+Below are a selection of different formulas for specifying different random effect structures, taken from the [lme4 vignette](https://cran.r-project.org/web/packages/lme4/vignettes/lmer.pdf). This might look like a lot, but over time and repeated use of multilevel models you will get used to reading these in a similar way to getting used to reading the formula structure of `y ~ x1 + x2` in all our linear models. 
+<br>
+
+|  Formula|  Alternative|  Meaning|
+|--------:|------------:|--------:|
+|  $\text{(1 | g)}$|  $\text{1 + (1 | g)}$|  Random intercept with fixed mean|
+|  $\text{(1 | g1/g2)}$|  $\text{(1 | g1) + (1 | g1:g2)}$|  Intercept varying among $g1$, and $g2$ within $g1$|
+|  $\text{(1 | g1) + (1 | g2)}$|  $\text{1 + (1 | g1) + (1 | g2)}$|  Intercept varying among $g1$ and $g2$|
+|  $\text{x + (x | g)}$|  $\text{1 + x + (1 + x | g)}$|  Correlated random intercept and slope|
+|  $\text{x + (x || g)}$|  $\text{1 + x + (1 | g) + (0 + x | g)}$|  Uncorrelated random intercept and slope|
+  
+**Table 1:** Examples of the right-hand-sides of mixed effects model formulas. $g$, $g1$, $g2$ are grouping factors, $x$ is a predictor variable.
+
+:::
+
+::: {.callout-note collapse="true"}
+### Singular fits
+
+You may have noticed that some of our models over the last few weeks have been giving a warning: `boundary (singular) fit: see ?isSingular`.   
+Up to now, we've been largely ignoring these warnings. However, this week we're going to look at how to deal with this issue.
+
+<p style="color:red">boundary (singular) fit: see ?isSingular</p>
+
+The warning is telling us that our model has resulted in a 'singular fit'. Singular fits often indicate that the model is 'overfitted' - that is, the random effects structure which we have specified is too complex to be supported by the data.  
+
+Perhaps the most intuitive advice would be remove the most complex part of the random effects structure (i.e. random slopes). This leads to a simpler model that is not over-fitted. In other words, start simplifying from the top (where the most complexity is) to the bottom (where the lowest complexity is).
+Additionally, when variance estimates are very low for a specific random effect term, this indicates that the model is not estimating this parameter to differ much between the levels of your grouping variable. It might, in some experimental designs, be perfectly acceptable to remove this or simply include it as a fixed effect.
+
+A key point here is that when fitting a mixed model, we should think about how the data are generated. Asking yourself questions such as "do we have good reason to assume subjects might vary over time, or to assume that they will have different starting points (i.e., different intercepts)?" can help you in specifying your random effect structure
+
+You can read in depth about what this means by reading the help documentation for `?isSingular`. For our purposes, a relevant section is copied below:  
+
+*... intercept-only models, or 2-dimensional random effects such as intercept + slope models, singularity is relatively easy to detect because it leads to random-effect variance estimates of (nearly) zero, or estimates of correlations that are (almost) exactly -1 or 1.*
+
+:::
+::: {.callout-note collapse="true"}
+### Convergence warnings  
+
+Issues of non-convergence can be caused by many things. If you're model doesn't converge, it does *not necessarily* mean the fit is incorrect, however it is **is cause for concern**, and should be addressed, else you may end up reporting inferences which do not hold.
+
+There are lots of different things which you could do which *might* help your model to converge. A select few are detailed below:  
+
+- double-check the model specification and the data  
+
+- adjust stopping (convergence) tolerances for the nonlinear optimizer, using the optCtrl argument to [g]lmerControl. (see `?convergence` for convergence controls). 
+    - What is "tolerance"? Remember that our optimizer is the the method by which the computer finds the best fitting model, by iteratively assessing and trying to maximise the likelihood (or minimise the loss). 
+
+```{r}
+#| label: fig-tolerance 
+#| echo: false
+#| fig-cap: "An optimizer will stop after a certain number of iterations, or when it meets a tolerance threshold"
+knitr::include_graphics("images/tolerance.png")
+```
+
+- center and scale continuous predictor variables (e.g. with `scale`)  
+
+- Change the optimization method (for example, here we change it to `bobyqa`):
+    `lmer(..., control = lmerControl(optimizer="bobyqa"))`  
+    `glmer(..., control = glmerControl(optimizer="bobyqa"))`  
+
+- Increase the number of optimization steps:
+    `lmer(..., control = lmerControl(optimizer="bobyqa", optCtrl=list(maxfun=50000))`  
+    `glmer(..., control = glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=50000))`  
+
+- Use `allFit()` to try the fit with all available optimizers. This will of course be slow, but is considered 'the gold standard'; *"if all optimizers converge to values that are practically equivalent, then we would consider the convergence warnings to be false positives."*  
+
+- Consider simplifying your model, for example by removing random effects with the smallest variance (but be careful to not simplify more than necessary, and ensure that your write up details these changes)
+
+:::
+
+::: {.callout-note collapse="true"}
+### Model Building
+
+Random effect structures can get pretty complicated quite quickly. Very often it is not the random effects part that is of specific interest to us, but we wish to estimate random effects in order to more accurately partition up the variance in our outcome variable and provide better estimates of fixed effects.  
+
+It is a fine balance between fitting the most sophisticated model structure that we possibly can, and fitting a model that converges without too much simplification. Typically for many research designs, the following steps will keep you mostly on track to finding the maximal model:  
+
+`lmer(outcome ~ fixed effects + (random effects | grouping structure))`  
+
+1. Specify the `outcome ~ fixed effects` bit first. 
+    - The outcome variable should be clear: it is the variable we are wishing to explain/predict. 
+    - The fixed effects are the things we want to use to explain/predict variation in the outcome variable. These will often be the things that are of specific inferential interest, and other covariates. Just like the simple linear model.  
+    
+2. If there is a grouping structure to your data, and those groups (preferably n>7 or 8) are perceived as a random sample of a wider population (the specific groups aren't interesting to you), then consider including random intercepts (and possibly random slopes of predictors) for those groups `(1 | grouping)`.  
+
+3. If there are multiple different grouping structures, is one nested within another? (If so, we can specify this as `(1 | high_level_grouping / low_level_grouping)`.  If the grouping structures are not nested, we specify them as crossed: `(1 | grouping1) + (1 | grouping2)`.  
+
+
+4. If any of the things in the fixed effects vary within the groups, it might be possible to also include them as random effects.  
+    - as a general rule, don't specify random effects that are not also specified as fixed effects (an exception could be specifically for model comparison, to isolate the contribution of the fixed effect).  
+    - For things that do not vary within the groups, it rarely makes sense to include them as random effects. For instance if we had a model with `lmer(score ~ genetic_status + (1 + genetic_status | patient))` then we would be trying to model a process where "the effect of genetic_status on scores is different for each patient". But if you consider an individual patient, their genetic status never changes. For patient $i$, what is "the effect of genetic status on score"? It's undefined. This is because genetic status only varies _between_ patients.
+    - Sometimes, things will vary within one grouping, but not within another. E.g. with patients nested within hospitals `(1 | hospital/patient)`, genetic_status varies _between_ patients, but _within_ hospitals. Therefore we could theoretically fit a random effect of `genetic_status | hospital`, but __not__ one for `genetic_status | patient`.  
+    We can include these while preserving the nested structure of the data by separating out the groupings: `(1 + genetic_status | hospital) + (1 | patient:hospital)`.  
+
+5. A common approach to fitting multilevel models is to fit the most complex model _that the study design allows_. This means including random effects for everything that makes _theoretical_ sense to be included. Because this "maximal model" will often not converge, we then simplify our random effect structure to obtain a convergent model.  
+Candidate random effect terms for removal are:
+  - overly complex terms (e.g. `(1 + x1 * x2 | group)` could be simplified to `(1 + x1 + x2 | group)`).  
+  - those with little variance
+  - those with near perfect correlation (we can alternatively remove just the correlation)
+
+6. Obtain final model, and proceed to checking assumptions, checking influence, plotting, and eventually writing up.  
+
+<!-- `r optbegin("An example", olabel=F)` -->
+<!-- Suppose we were also interested in the association between population density and wellbeing. Our data contains information on the population density for each LAA. Note that for all people in our data that are from the same LAA, they will have the same value in the `density` variable, because this is measured at the LAA level, not the person-level:   -->
+<!-- ```{r} -->
+<!-- scotmw %>%  -->
+<!--   select(laa, density) -->
+<!-- ``` -->
+
+<!-- It doesn't really make sense to have random effects of density by LAA (the `density | laa` bit), because the association `wellbeing ~ density` is the same for _every_ person in that LAA. To say that "each LAA has a different effect of population density on wellbeing" is tricky, because we "effect of density on wellbeing" isn't really defined for an individual LAA.  -->
+<!-- ```{r} -->
+<!-- #| error: true -->
+<!-- #| message: true -->
+<!-- model_dens <- lmer(wellbeing ~ 1 + outdoor_time + density + -->
+<!--                    (1 + outdoor_time + density | laa), data = scotmw) -->
+<!-- ``` -->
+<!-- The resulting model gives a singular fit, and we can see how this impacts the model estimates in the random effects. The random effect of `density | laa` is much smaller (explaining less variance), and is very highly correlated to the random intercept `1 | laa`, because it doesn't really contain a great deal more information (if you think about the `laa` and `density` columns of the dataset, there is a one-to-one mapping between them). Including the `density | laa` random effect here is not supported by the data.   -->
+<!-- ```{r} -->
+<!-- VarCorr(model_dens) -->
+<!-- ``` -->
+<!-- `r optend()` -->
+
+:::
+
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+
+
+
+# Exercises: Crossed Ranefs
+
+:::frame
+__Data: Test-enhanced learning__  
+
+An experiment was run to conceptually replicate "test-enhanced learning" (Roediger & Karpicke, 2006): two groups of 25 participants were presented with material to learn. One group studied the material twice (`StudyStudy`), the other group studied the material once then did a test (`StudyTest`). Recall was tested immediately (one minute) after the learning session and one week later. The recall tests were composed of 175 items identified by a keyword (`Test_word`). 
+
+The researchers are interested in how test-enhanced learning influences time-to-recall. The critical (replication) prediction is that the `StudyTest` group will retain the material better (lower reaction times) on the 1-week follow-up test compared to the `StudyStudy` group.  
+
+```{r echo=FALSE}
+load(url("https://uoepsy.github.io/data/RTtestlearning.RData"))
+tibble(
+  variable=names(telrt),
+  description=c("Unique Participant Identifier", "Group denoting whether the participant studied the material twice (StudyStudy), or studied it once then did a test (StudyTest)","Time of recall test ('min' = Immediate, 'week' = One week later)","Word being recalled (175 different test words)","Time to respond (milliseconds)")
+) %>% knitr::kable()
+```
+
+The following code loads the data into your R environment by creating a variable called `tel`:
+```{}
+load(url("https://uoepsy.github.io/data/RTtestlearning.RData"))
+```
+
+:::
+
+
+`r qbegin("1")`
+Load and plot the data.  
+
+For this week, we'll use Reaction Time as our proxy for the test performance, so you'll probably want that variable on the y-axis.  
+
+Does it look like the effect was replicated?
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Our outcome variable is reaction time, so we'll want to plot that on the y axis.  
+
+As described in the data summary, this is a replication, and the prediction is that the `StudyTest` group will retain the material better (have lower reaction times) on the 1-week follow-up test compared to the `StudyStudy` group.  
+
+So we want to show the reaction times for each group, at each test (`min` or `week` delay). Do we want to show _all_ the datapoints, or maybe just the average for each group at each test (in which case, does `stat_summary()` help?).  
+
+:::
+
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+load(url("https://uoepsy.github.io/data/RTtestlearning.RData"))
+```
+You can make use of `stat_summary()`! 
+```{r, eval=FALSE}
+ggplot(telrt, aes(Delay, Rtime, col=Group)) + 
+  stat_summary(fun.data=mean_se, geom="pointrange")+
+  theme_light()
+```
+It's more work, but some people might rather calculate the numbers and then plot them directly. It does just the same thing: 
+```{r}
+telrt %>% 
+  group_by(Delay, Group) %>%
+  summarise(
+    mean = mean(Rtime),
+    se = sd(Rtime)/sqrt(n())
+  ) %>%
+  ggplot(., aes(x=Delay, col = Group)) +
+  geom_pointrange(aes(y=mean, ymin=mean-se, ymax=mean+se))+
+  theme_light() +
+  labs(y = "Response Time (ms)")
+```
+  
+That looks like test-enhanced learning to me!  
+`r solend()` 
+
+`r qbegin("2")`
+> The critical (replication) prediction is that the `StudyStudy` group should perform somewhat better on the immediate recall test, but the `StudyTest` group will retain the material better and thus perform better on the 1-week follow-up test.  
+
+Test the critical hypothesis using a multi-level model.  
+**Try** to fit the maximally complex random effect structure that is supported by the experimental design.  
+
+__NOTE: Your model probably won't converge. We'll deal with that in the next question__  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- We can expect variability across subjects (some people are better at learning than others) __and__ across items (some of the recall items are harder than others). How should this be represented in the random effects?
+- _If a model takes ages to fit, you might want to cancel it by pressing the escape key. It is normal for complex models to take time, but for the purposes of this task, give up after a couple of minutes, and try simplifying your model._  
+
+:::
+
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+We know that we are interested in the `Rtime ~ Delay * Group` interaction, because we want to see how people perform at one week vs one minute (the `Delay` variable) and whether this is different between those in each condition (the `Group` variable, specifying whether participants are in the 'StudyStudy' condition or the 'StudyTest' condition).  
+
+We want to include Subject random effects _and_ Item random effects, and these groupings are crossed, so we're going to have `(1 + ??? | Subject_ID) + (1 + ??? | Test_word)`.  Each subject is only in one group, so we can only have `(1 + Delay | Subject_ID)`, but the Test_word items are seen by subjects in both groups, and at both timepoints, so we can have `(1 + Delay * Group | Test_word)`.  
+
+This one will probably take a little bit of time:  
+```{r}
+m <- lmer(Rtime ~ Delay * Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay * Group | Test_word),
+           data=telrt, control=lmerControl(optimizer = "bobyqa"))
+```
+`r solend()` 
+
+`r qbegin("3")`
+Often, models with maximal random effect structures will not converge, or will obtain a singular fit. So we need to simplify the model until we achieve convergence ([Barr et al., 2013](https://doi.org/10.1016/j.jml.2012.11.001)).  
+
+Incrementally simplify your model from the previous question until you obtain a model that converges and is not a singular fit.  
+  
+::: {.callout-tip collapse="true"}
+#### Hints  
+you can look at the variance estimates and correlations easily by using the `VarCorr()` function. What jumps out?  
+
+There's a bit of subjectivity here about which simplifications we can live with, so you might end up with a slightly different model from the solutions, and _that's okay_.  
+:::
+
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+There are very high correlations with the by-item random effects of the interaction Delay:Group. We might expect that because it's an interaction term, but it is quite a complex bit of the model, so let's remove it:  
+```{r}
+VarCorr(m)
+```
+```{r}
+m1 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay + Group | Test_word),
+           data=telrt, control=lmerControl(optimizer = "bobyqa"))
+VarCorr(m1)
+isSingular(m1)
+```
+We still have a singular fit here, and we still have quite high^[It's always going to be debateable about what is 'too high' because in certain situations you might expect correlations close to 1. It's best to think through whether it is a feasible value given the study itself] correlations between by-testword random effects. Thinking about the study, if we are going to remove __one__ of the by-testword random effects (`Delay` or `Group`), which one do we consider to be more theoretically justified? Is the effect of Delay likely to vary by test-words? More so than the effect of group is likely to vary by test-words? Quite possibly - there's no obvious reason for _certain_ words to be more memorable for people in one group vs another. But there is reason for words to vary in the effect that delay of one week has - how familiar a word is will likely influence the amount to which a week's delay has on recall.   
+
+Let's remove the by-testword random effect of group. 
+```{r}
+m2 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay | Test_word),
+           data=telrt, control=lmerControl(optimizer = "bobyqa"))
+isSingular(m2)
+VarCorr(m2)
+```
+Hooray, the model converged! 
+```{r}
+summary(m2)
+```
+
+Let's quickly visualise the interaction. Remember, lower reaction times are better here. 
+It looks like we have replicated the hypothesised effect:  
+```{r}
+library(sjPlot)
+plot_model(m2, type="int")
+```
+
+`r solend()` 
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+
+# Exercises: Nested Random Effects
+
+:::frame
+__Data: Naming__ 
+
+74 children from 10 schools were administered the full Boston Naming Test (BNT-60) on a yearly basis for 5 years to examine development of word retrieval. Five of the schools taught lessons in a bilingual setting with English as one of the languages, and the remaining five schools taught in monolingual English.  
+
+The data is available at [https://uoepsy.github.io/data/bntmono.csv](https://uoepsy.github.io/data/bntmono.csv).  
+
+```{r echo=FALSE}
+bnt <- read_csv("https://uoepsy.github.io/data/bntmono.csv")
+tibble(variable = names(bnt),
+       description = c("unique child identifier","unique school identifier","score on the Boston Naming Test-60. Scores range from 0 to 60","Year of school","Mono/Bi-lingual School. 0 = Bilingual, 1 = Monolingual")
+) %>% pander::pander()
+```
+
+:::
+
+`r qbegin("4")`
+Let's start by thinking about our clustering - we'd like to know how much of the variance in BNT60 scores is due to the clustering of data within children, who are themselves within schools. One easy way of assessing this is to fit an _intercept only_ model, which has the appropriate random effect structure.  
+
+Using the model below, calculate the proportion of variance attributable to the clustering of data within children within schools.  
+
+```{r}
+bnt_null <- lmer(BNT60 ~ 1 +  (1 | school_id/child_id), data = bnt)
+```
+
+::: {.callout-tip collapse="true"}
+#### Hints
+the random intercept variances are the building blocks here. There are no predictors in this model, so all the variance in the outcome gets attributed to either school-level nesting, child-level nesting, or else is lumped into the residual.   
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+As we can see from `summary(bnt_null)`, the random intercept variances are 36.52 for child-level, 28.76 for school-level, and the residual variance is 99.11.  
+
+So the nesting of data within children within schools accounts for $\frac{36.52 + 28.76}{36.52 + 28.76 + 99.11} = 0.397$ of the variance in the outcome BNT60.   
+
+We can calculate this directly using the model estimates if we want, but sometimes doing it by hand is more straightforward.  
+
+```{r}
+as.data.frame(VarCorr(bnt_null)) %>%
+  select(grp, vcov) %>% 
+  mutate(
+    prop_var = vcov / sum(vcov),
+    prop_var2 = cumsum(prop_var)
+  )
+```
+
+`r solend()`
+
+`r qbegin("5")`
+Fit a model examining the interaction between the effects of school year and mono/bilingual teaching on word retrieval (via BNT test), with random intercepts only for children and schools.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+make sure your variables are of the right type first - e.g. numeric, factor etc  
+:::
+  
+  
+Examine the fit and consider your model assumptions, and assess what might be done to improve the model in order to make better statistical inferences. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+This is a quick way to make a set of variables factors:  
+```{r}
+bnt <- bnt %>% mutate(across(c(mlhome, school_id, child_id), factor))
+```
+
+And now let's fit our model: 
+```{r}
+bntm0 <- lmer(BNT60 ~ schoolyear * mlhome + (1 | school_id/child_id), data = bnt)
+```
+
+Residuals don't look zero mean:
+```{r}
+plot(bntm0, type=c("p","smooth"))
+```
+
+It looks a little like, compared to our model (black lines below) the children's scores (coloured lines) are more closely clustered together when they start school, and then they are more spread out by the end of the study. 
+The fact that we're fitting the same slope for each child is restricting us here, so we should try fitting random effects of schoolyear. 
+```{r}
+library(broom.mixed)
+augment(bntm0) %>%
+  ggplot(aes(x=schoolyear, col=child_id)) + 
+  geom_point(aes(y = BNT60))+
+  geom_path(aes(y = BNT60))+
+  geom_path(aes(y = .fitted), col="black", alpha=.3)+
+  guides(col="none")+
+  facet_wrap(~school_id)
+```
+
+
+```{r}
+bntm1 <- lmer(BNT60 ~ schoolyear * mlhome + (1 + schoolyear | school_id/child_id), data = bnt)
+plot(bntm1, type=c("p","smooth"))
+```
+Much better!  
+
+Let's do some quick diagnostic checks for influence:
+```{r}
+library(HLMdiag)
+inf1 <- hlm_influence(bntm1, level=1)
+dotplot_diag(inf1$cooksd, cutoff = "internal")
+```
+
+If you check in the help for `dotplot_diag()`, it tells you that
+
+a) we can add an index for the labels, and 
+b) the coordinates (x,y) are flipped. We're telling R to change the limits of the y axis, but actually it is the x axis. This is just because we want to see the label for that point out to the right. 
+
+```{r}
+infchild <- hlm_influence(bntm1, level="child_id:school_id")
+dotplot_diag(infchild$cooksd, cutoff = "internal", index = infchild$`child_id:school_id`) + 
+  scale_y_continuous(limits=c(0,.05))
+```
+And then we can examine the effects to the fixed effects and our standard errors when we remove this child:
+```{r}
+del94 <- case_delete(bntm1, level="child_id:school_id", delete = "ID94:SC9")
+cbind(del94$fixef.original, del94$fixef.delete)
+```
+
+
+::: {.callout-note collapse="true"}
+#### Optional: Case deletion influence on standard errors
+
+We can examine the influence that deleting a case has on the standard errors.
+The standard errors are the square-root of the diagonal of the model-implied variance-covariance matrix:
+
+```{r}
+cbind( 
+  sqrt(diag(del94$vcov.original)),
+  sqrt(diag(del94$vcov.delete))
+)
+```
+
+:::
+
+```{r}
+infschool <- hlm_influence(bntm1, level="school_id")
+dotplot_diag(infschool$cooksd, cutoff = "internal", index = infschool$school_id)
+```
+`r solend()`
+
+`r qbegin("6")`
+Using a method of your choosing, conduct inferences (i.e. obtain p-values or confidence intervals) from your final model and write up the results. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+We'll use case-based bootstrapping for a demonstration, but other methods would be appropriate here. We have a large sample of children (74), each with 5 observations. However, we only have 10 schools. A standard likelihood ratio test using `anova(model1, model2)` might not be preferable here.  
+
+This took quite a while to run: 
+```{r eval=F}
+library(lmeresampler)
+bntm1BS <- bootstrap(bntm1, .f=fixef, type = "case", B = 2000, resample = c(FALSE,TRUE,FALSE))
+confint(bntm1BS, type = "basic")
+```
+```{r echo=FALSE}
+library(lmeresampler)
+load("data/bntbs.rdata")
+confint(bntm1BS, type = "basic")
+```
+
+```{r include=F}
+res <- confint(bntm1BS, type = "basic")
+res[,2:4]<-round(res[,2:4],2)
+res
+```
+
+:::int
+
+Multilevel level linear regression was used to investigate childrens' development of word retrieval over 5 years of school, and whether development was dependent upon the school teaching classes monolingually or bilingually. 
+Initial evaluation of the intercept-only model indicated that the clustering of multiple observations from children within schools accounted for 39.7% of the variance in scores on the Boston Naming Task (BNT60, range 0 to 60).
+BNT60 scores were modelled with fixed effects of school year (1-5) and monolingual teaching (bilingual vs monolingual, treatment coded with bilingual as the reference level). Random intercepts and slopes of school year were included for schools and for children nested within schools. The model was fitting with maximum likelihood estimation using the default optimiser from the **lme4** package (Bates et al., 2015).  
+95% Confidence for fixed effect estimates were constructed by case-based bootstrapping with 2000 bootstraps in which children, (but neither observations within children nor the schools within which children were nested) were resampled. 
+Results indicated that children's scores on the BNT60 increased over the 5 years in which they were studied, with children from bilingual schools increasing in scores by `r res[2,2]` ([`r paste(unlist(res[2,3:4]),collapse=" -- ")`]) every school year. There was a significant interaction between mono/bilingual schools and changes over the school year, with children from monolingual schools increasing `r res[4,2]` ([`r paste(unlist(res[4,3:4]),collapse=" -- ")`]) less than those from bilingual schools for every additional year of school. Full model results can be found in Table 1. 
+
+:::
+
+Table 1
+```{r echo=FALSE, results="asis"}
+predlab <- c("Intercept","School Year","MonolingualSchool [1]","School Year:MonolingualSchool [1]")
+names(predlab) <- names(fixef(bntm1))
+mytab <- tab_model(bntm1,show.p = F, string.ci="95% CI<br>bootstrap",
+                   pred.labels = predlab)
+bsci <- confint(bntm1BS, type = "perc")
+replacewiththis <- paste0(round(bsci$lower,2), "&nbsp;&ndash;&nbsp;", round(bsci$upper,2))
+mytab$page.content <- gsub("4.22\\&nbsp\\;\\&ndash\\;\\&nbsp\\;8.31", replacewiththis[1], mytab$page.content)
+mytab$page.content <- gsub("4.86\\&nbsp\\;\\&ndash\\;\\&nbsp\\;7.88", replacewiththis[2], mytab$page.content)
+mytab$page.content <- gsub("-2.74\\&nbsp\\;\\&ndash\\;\\&nbsp\\;3.02", replacewiththis[3], mytab$page.content)
+mytab$page.content <- gsub("-4.74\\&nbsp\\;\\&ndash\\;\\&nbsp\\;-0.47", replacewiththis[4], mytab$page.content)
+cat(mytab$page.content)
+```
+
+```{r}
+library(effects)
+as.data.frame(effect("schoolyear:mlhome",bntm1)) %>%
+  ggplot(., aes(x=schoolyear,y=fit,col=mlhome))+
+  geom_pointrange(aes(ymin=lower,ymax=upper))+
+  scale_color_manual(NULL,labels=c("Bilingual","Monolingual"),values=c("tomato1","navyblue"))+
+  labs(x="- School Year -", y="BNT-60")
+```
+
+
+`r solend()`
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+
+# Optional Exercises: Logistic MLM
+
+:::frame
+**Don't forget to look back at other materials!** 
+
+Back in DAPR2, we introduced logistic regression in semester 2, week 8. The lab contained some simulated data based on a hypothetical study [about inattentional blindness](https://uoepsy.github.io/dapr2/2122/labs/2_07_binary.html). 
+That content will provide a lot of the groundwork for this week, so we recommend revisiting it if you feel like it might be useful. 
+:::
+
+
+::: {.callout-note collapse="true"}
+#### From `lmer()` to `glmer()`
+
+Remember how we simply used `glm()` and could specify the `family = "binomial"` in order to fit a logistic regression? Well it's much the same thing for multi-level models! 
+
++ Gaussian model: `lmer(y ~ x1 + x2 + (1 | g), data = data)`  
++ Binomial model: `glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial(link='logit'))`
+    + or just `glmer(y ~ x1 + x2 + (1 | g), data = data, family = "binomial")`
+    + or `glmer(y ~ x1 + x2 + (1 | g), data = data, family = binomial)`
+  
+:::
+
+
+<!-- `r optbegin("Binary? Binomial?", olabel=F,show=T,toggle=params$TOGGLE)` -->
+<!-- For binary regression, all the data in our outcome variable has to be a 0 or a 1.   -->
+<!-- For example, the `correct` variable below:   -->
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- tibble(participant = c(1,1,1),question=c(1,2,3),correct=c(1,0,1)) %>% rbind(rep("...",3)) %>% -->
+<!--   gt::gt() -->
+<!-- ``` -->
+
+<!-- But we can re-express this information in a different way, when we know the total number of questions asked. -->
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- tibble(participant = c(1,2,3),questions_correct=c(2,1,3),questions_incorrect=c(1,2,0)) %>% rbind(rep("...",3)) %>% gt::gt() -->
+<!-- ``` -->
+
+<!-- To model data when it is in this form, we can express our outcome as `cbind(questions_correct, questions_incorrect)` -->
+<!-- `r optend()` -->
+
+:::frame
+__Data: Memory Recall & Finger Tapping__ 
+
+> **Research Question:** After accounting for effects of sentence length, does the rhythmic tapping of fingers aid memory recall? 
+
+Researchers recruited 40 participants. Each participant was tasked with studying and then recalling 10 randomly generated sentences between 1 and 14 words long. For 5 of these sentences, participants were asked to tap their fingers along with speaking the sentence in both the study period and in the recall period. For the remaining 5 sentences, participants were asked to sit still.  
+The data are available at [https://uoepsy.github.io/data/memorytap.csv](https://uoepsy.github.io/data/memorytap.csv), and contains information on the length (in words) of each sentence, the condition (static vs tapping) under which it was studied and recalled, and whether the participant was correct in recalling it.  
+
+
+```{r}
+#| echo: false
+memtap <- read_csv("https://uoepsy.github.io/data/memorytap.csv")
+tibble(
+  variable = names(memtap),
+  description = c("Participant Identifier (n=40)","Number of words in sentence","Condition under which sentence is studied and recalled ('static' = sitting still, 'tap' = tapping fingers along to sentence)","Whether or not the sentence was correctly recalled")
+) %>% gt::gt()
+```
+
+
+:::
+
+
+`r qbegin("Optional")`
+> **Research Question:** After accounting for effects of sentence length, does the rhythmic tapping of fingers aid memory recall? 
+
+Fit an appropriate model to answer the research question.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- our outcome is conceptually 'memory recall', and it's been measured by "Whether or not a sentence was correctly recalled". This is a binary variable.  
+- we have multiple observations for each _????_?  
+This will define our `(  | ??? )` bit
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+memtap <- read_csv("https://uoepsy.github.io/data/memorytap.csv")
+```
+
+When we fit the maximal model, note that we obtain a singular fit. The variance of the slength effect between participants is quite small relative to the others, and there is a correlation between it and the random intercepts. 
+```{r}
+tapmod <- glmer(correct ~ 1 + slength + condition + 
+                  (1 + slength + condition | ppt),
+      data = memtap,
+      family = binomial)
+isSingular(tapmod)
+VarCorr(tapmod)
+```
+let's remove the random effect of `slength | ppt`. 
+```{r}
+tapmod2 <- glmer(correct ~ 1 + slength + condition + 
+                  (1 + condition | ppt),
+      data = memtap,
+      family = binomial)
+```
+the model now looks a bit better (not a singular fit):
+```{r}
+summary(tapmod2)
+```
+
+`r solend()`
+
+
+
+::: {.callout-note collapse="true"}
+#### From Log odds to odds ratios
+
+
+Take some time to remind yourself from DAPR2 of the [interpretation of logistic regression coefficients](https://uoepsy.github.io/dapr2/2223/lectures/dapR2_16_binarylogistic.html#37).  
+
+In `family = binomial(link='logit')`, we are modelling the log-odds. 
+We can obtain estimates on this scale using:  
+
+- `fixef(model)`
+- `summary(model)$coefficients`
+- `tidy(model)` **from broom.mixed**  
+- (there are probably more ways, but I can't think of them right now!)
+
+We can use `exp()`, to get these back into odds and odds ratios.  
+
+:::
+
+`r qbegin("Optional")`
+Interpret each of the fixed effect estimates from your model.  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+fixef(tapmod2)
+exp(fixef(tapmod2))
+```
+
+- `(Intercept)`: For an sentence with zero words, when sitting statically, the odds of correctly recalling the sentence are `r round(exp(fixef(tapmod2)[1]),2)`. This is equivalent to a $\frac{`r round(exp(fixef(tapmod2)[1]),2)`}{1 + `r round(exp(fixef(tapmod2)[1]),2)`} = `r round(exp(fixef(tapmod2)[1]),2)/(1+round(exp(fixef(tapmod2)[1]),2))`$ probability of getting it correct.  
+- `slength`: After accounting for differences due to tapping/not-tapping during study & recall, for every 1 word longer a sentence is, the odds of correctly recalling the sentence is decreased by `r round(exp(fixef(tapmod2)[2]),2)`. 
+- `conditiontap`: After accounting for differences in recall due to sentence length, finger tapping during the study and recall of sentences was associated with `r round(exp(fixef(tapmod2)[3]),2)` increased odds correct recall in comparison to sitting still. 
+
+`r solend()`
+
+`r qbegin("Optional")`
+Checking the assumptions in non-gaussian models in general (i.e. those where we set the `family` to some other error distribution) can be a bit tricky, and this is especially true for multilevel models.  
+
+For the logistic MLM, the standard assumptions of normality etc for our Level 1 residuals `residuals(model)` do not hold. However, it is still useful to quickly plot the residuals and check that $|residuals|\leq 2$ (or $|residuals|\leq 3$ if you're more relaxed). We don't need to worry too much about the pattern though. 
+
+While we're more relaxed about Level 1 residuals, we _do_ still want our random effects `ranef(model)` to look fairly normally distributed. 
+
+1. Plot the level 1 residuals and check whether any are greater than 3 in magnitude
+2. Plot the random effects (the level 2 residuals) and assess the normality. 
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+plot(tapmod2)
+sum(abs(resid(tapmod2))>3)
+```
+All residuals are between -3 and 3.  
+
+The random effects look _okay_ here. Not perfect, but bear in mind we have only 40 participants. 
+
+```{r}
+#| eval: false
+qqnorm(ranef(tapmod2)$ppt[, 1], main = "Random intercept")
+qqline(ranef(tapmod2)$ppt[, 1])
+qqnorm(ranef(tapmod2)$ppt[, 2], main = "Random slope of condition")
+qqline(ranef(tapmod2)$ppt[, 2])
+hist(ranef(tapmod2)$ppt[, 1])
+hist(ranef(tapmod2)$ppt[, 2])
+```
+```{r}
+#| echo: false
+par(mfrow=c(2,2))
+qqnorm(ranef(tapmod2)$ppt[, 1], main = "Random intercept")
+qqline(ranef(tapmod2)$ppt[, 1])
+qqnorm(ranef(tapmod2)$ppt[, 2], main = "Random slope of condition")
+qqline(ranef(tapmod2)$ppt[, 2])
+hist(ranef(tapmod2)$ppt[, 1], main = "Random intercept")
+hist(ranef(tapmod2)$ppt[, 2], main = "Random slope of condition")
+par(mfrow=c(1,1))
+```
+
+`r solend()`
+
+::: {.callout-caution collapse="true"}
+#### for beyond DAPR3
+
+- The **HLMdiag** package doesn’t support diagnosing influential points/clusters for `glmer`, but there is a package called **influence.me** which might help:  [https://journal.r-project.org/archive/2012/RJ-2012-011/RJ-2012-011.pdf](https://journal.r-project.org/archive/2012/RJ-2012-011/RJ-2012-011.pdf){target="_blank"}
+- There are packages which aim to create more interpretable residual plots for these models via simulation, such as the **DHARMa** package:  [https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html](https://cran.r-project.org/web/packages/DHARMa/vignettes/DHARMa.html){target="_blank"}
+
+:::
+
+
+<div class="divider div-transparent div-dot"></div>
+
+
+# Practice Datasets Weeks 4 and 5
+
+Below are various datasets on which you can try out your new-found modelling skills. Read the descriptions carefully, keeping in mind the explanation of how the data is collected and the research question that motivates the study design.  
+
+::: {.callout-note collapse="true"}
+#### Practice 1: Music and Driving 
+
+These data are simulated to represent data from a fake experiment, in which participants were asked to drive around a route in a 30mph zone. Each participant completed the route 3 times (i.e. "repeated measures"), but each time they were listening to different audio (either speech, classical music or rap music). Their average speed across the route was recorded. 
+This is a fairly simple design, that we might use to ask **"how is the type of audio being listened to associated with driving speeds?"** 
+
+The data are available at [https://uoepsy.github.io/data/drivingmusicwithin.csv](https://uoepsy.github.io/data/drivingmusicwithin.csv).  
+
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/drivingmusicwithin.csv")),
+  description = c("Participant Identifier","Avg Speed Driven on Route (mph)","Music listened to while driving (classical music / rap music / spoken word)")
+) |> gt::gt()
+```
+
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Practice 2: CBT and Stress
+
+These data are simulated to represent data from 50 participants, each measured at 3 different time-points (pre, during, and post) on a measure of stress. Participants were randomly allocated such that half received some cognitive behavioural therapy (CBT) treatment, and half did not. This study is interested in assessing **whether the two groups (control vs treatment) differ in how stress changes across the 3 time points**. 
+
+The data are available at [https://uoepsy.github.io/data/stressint.csv](https://uoepsy.github.io/data/stressint.csv).  
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/stressint.csv")),
+  description = c("Participant Identifier","Stress (range 0 to 100)","Time (pre/post/during)",
+                  "Whether participant is in the CBT group or control group")
+) |> gt::gt()
+```
+
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Practice 3: Erm.. I don't believe you
+
+These data are simulated to represent data from 30 participants who took part in an experiment designed to investigate **whether fluency of speech influences how believable an utterance is perceived to be**.  
+
+Each participant listened to the same 20 statements, with 10 being presented in fluent speech, and 10 being presented with a disfluency (an "erm, ..."). Fluency of the statements was counterbalanced such that 15 participants heard statements 1 to 10 as fluent and 11 to 20 as disfluent, and the remaining 15 participants heard statements 1 to 10 as disfluent, and 11 to 20 as fluent. The order of the statements presented to each participant was random. Participants rated each statement on how believable it is on a scale of 0 to 100.  
+
+The data are available at [https://uoepsy.github.io/data/erm_belief.csv](https://uoepsy.github.io/data/erm_belief.csv). 
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/erm_belief.csv")),
+  description = c("Participant Identifier","Trial number", "Statement identifier", "Condition (fluent v disfluent)", "belief rating (0-100)", "Statement")
+) |> gt::gt()
+```
+
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Practice 4: Cognitive Aging
+
+These data are simulated to represent a large scale international study of cognitive aging, for which data from 17 research centers has been combined. The study team are interested in **whether different cognitive domains have different trajectories as people age**. Do all cognitive domains decline at the same rate? Do some decline more steeply, and some less? The literature suggests that scores on cognitive ability are predicted by educational attainment, so they would like to control for this.  
+
+Each of the 17 research centers recruited a minimum of 14 participants (Median = 21, Range 14-29) at age 45, and recorded their level of education (in years). Participants were then tested on 5 cognitive domains: processing speed, spatial visualisation, memory, reasoning, and vocabulary. Participants were contacted for follow-up on a further 9 occasions (resulting in 10 datapoints for each participant), and at every follow-up they were tested on the same 5 cognitive domains. Follow-ups were on average 3 years apart (Mean = 3, SD = 0.8). 
+
+The data are available at [https://uoepsy.github.io/data/cogdecline.csv](https://uoepsy.github.io/data/cogdecline.csv). 
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/cogdecline.csv")),
+  description = c("Center ID","Participant Identifier","Educational attainment (years of education)","Age at visit (years)",
+                  "Score on Processing Speed domain task",
+                  "Score on Spatial Visualisation domain task",
+                  "Score on Memory domain task",
+                  "Score on Reasoning domain task",
+                  "Score on Vocabulary domain task"
+                  )
+) |> gt::gt()
+```
+
+:::
+
+
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

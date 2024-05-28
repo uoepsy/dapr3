@@ -1,0 +1,977 @@
+---
+title: "2. Intro to Multilevel Models"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+library(effects)
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+```
+
+
+:::{.callout-caution collapse="true"}
+## A Note on terminology
+
+The methods we're going to learn about in the first five weeks of this course are known by lots of different names: "multilevel models"; "hierarchical linear models"; "mixed-effect models"; "mixed models"; "nested data models"; "random coefficient models"; "random-effects models"; "random parameter models"... and so on).   
+
+What the idea boils down to is that **model parameters vary at more than one level.** This week, we're going to explore what that means.  
+
+Throughout this course, we will tend to use the terms "mixed effect model", "linear mixed model (LMM)" and "multilevel model (MLM)" interchangeably. 
+
+:::
+
+:::{.callout-note collapse="true"}
+## Multilevel Model Notation  
+
+Multilevel Models (MLMs) (or "Linear Mixed Models" (LMMs)) take the approach of allowing the groups/clusters to vary around our $\beta$ estimates. 
+
+In the lectures, we saw this as:
+
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}}\color{black} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}}\color{black} + \varepsilon_{ij} \\
+& \text{Level 2:} \\
+& \color{blue}{\beta_{0i}}\color{black} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{\beta_{1i}}\color{black} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\quad \\
+& \text{Where:} \\
+& \gamma_{00}\text{ is the population intercept, and }\color{orange}{\zeta_{0i}}\color{black}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\
+& \gamma_{10}\text{ is the population slope, and }\color{orange}{\zeta_{1i}}\color{black}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\
+\end{align}
+$$
+
+We are now assuming $\color{orange}{\zeta_0}$, $\color{orange}{\zeta_1}$, and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\sigma_{\color{orange}{\zeta_0}}^2$, $\sigma_{\color{orange}{\zeta_1}}^2$, $\sigma_\varepsilon^2$ respectively. 
+
+The $\color{orange}{\zeta}$ components also get termed the "random effects" part of the model, Hence names like "random effects model", etc. 
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Alternative ("mixed effect") notation
+
+Many people use the symbol $u$ in place of $\zeta$, and in various resources, you are likely to see $\alpha$ used to denote the intercept instead of $\beta_0$.  
+
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading.  
+
+This often fits with the name "mixed effects" for these models, as the "effect" of a predictor is a mix of both a fixed and a random part:  
+
+$$\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{\beta_{0i}}} \cdot 1 + \underbrace{(\gamma_{10} + \color{orange}{\zeta_{1i}})}_{\color{blue}{\beta_{1i}}} \cdot x_{ij}  +  \varepsilon_{ij} \\$$
+
+In words, this equation is denoting: 
+$$
+\begin{align}
+\color{red}{\text{outcome}}\color{black} = &(\color{blue}{\text{overall intercept}}\color{black} + \color{orange}{\text{random adjustment to intercept by group}}\color{black}) \cdot 1 \, + \\
+&( \color{blue}{\text{overall slope}}\color{black} + \color{orange}{\text{random adjustment to slope by group}} \color{black}) \cdot \text{predictor}\, + \\
+& \text{residual} \\
+\end{align}
+$$
+:::
+
+:::{.callout-note collapse="true"}
+## Fitting Multilevel Models: Model Formula
+
+To fit multilevel models, we're going to use the `lme4` package, and specifically the functions `lmer()` and `glmer()`.^["(g)lmer" here stands for "(generalised) linear mixed effects regression".] 
+
+You will have seen some use of these functions in the lectures. The broad syntax is:  
+<br>
+<div style="margin-left:50px;">
+lmer(**_formula_**,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; data = *dataframe*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; REML = *logical*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; control = lmerControl(*options*) <br>
+&nbsp; &nbsp; &nbsp; &nbsp; )</div>    
+<br>
+
+
+We write the first bit of our **formula** just the same as our old friend the normal linear model `y ~ 1 + x + x2 + ...`, where `y` is the name of our outcome variable, `1` is the intercept (which we don't have to explicitly state as it will be included anyway) and `x`, `x2` etc are the names of our explanatory variables.  
+
+With **lme4**, we now have the addition of __random effect terms__, specified in parenthesis with the `|` operator (the vertical line | is often found to the left of the z key on QWERTY keyboards). We use the `|` operator to separate the parameters (intercept, slope etc.) on the LHS, from the grouping variable(s) on the RHS, by which we would like to model these parameters as varying.  
+
+:::statbox
+__Random Intercepts__  
+Let us suppose that we wish to model our intercept not as a fixed constant, but as varying randomly according to some grouping around a fixed center. 
+We can such a model by allowing the intercept to vary by our grouping variable (`g` below): 
+
+<center>`lmer(y ~ 1 + x + (1|g), data = df)`</center>
+$$
+\begin{align}
+& \text{Level 1:} \\
+& \color{red}{Y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot X_{ij}} + \varepsilon_{ij} \\
+& \text{Level 2:} \\
+& \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+$$
+:::
+
+:::statbox
+__Random Intercepts and Slopes__  
+By extension we can also allow the effect `y~x` to vary between groups, by including the `x` on the left hand side of `|` in the random effects part of the call to `lmer()`.
+
+<center>`lmer(y ~ 1 + x + (1 + x |g), data = df)`</center>
+$$
+\begin{align}
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \text{Level 2:} \\
+& \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\end{align}
+$$
+:::
+
+:::
+
+:::{.callout-note collapse="true"}
+## Fitting Multilevel Models: Model Estimation
+
+We can choose whether to estimate our model parameters with ML (maximum likelihood) or REML (restricted maximum likelihood) with the `REML` argument of `lmer()`:  
+
+<br>
+<div style="margin-left:50px;">
+lmer(*formula*,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; data = *dataframe*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; REML = **_logical_**, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; control = lmerControl(*options*) <br>
+&nbsp; &nbsp; &nbsp; &nbsp; )</div>    
+<br>
+
+`lmer()` models are by default fitted with REML, which tends to be better for small samples.    
+
+### Maximum Likelihood (ML)  
+
+Remember back to DAPR2 when we introduced logistic regression, and we briefly discussed **Maximum likelihood estimation** in an explanation of how models are fitted.  
+
+The key idea of maximum likelihood estimation (MLE) is that we (well, the computer) iteratively finds the set of estimates for our model which it considers to best reproduce our observed data. Recall our simple linear regression model of how time spent outdoors (hrs per week) is associated with mental wellbeing: 
+$$
+\color{red}{Wellbeing_i} = \color{blue}{\beta_0 \cdot{} 1 + \beta_1 \cdot{} OutdoorTime_{i}} + \varepsilon_i
+$$
+There are values of $\beta_0$ and $\beta_1$ and $\sigma_\varepsilon$ which maximise the probability of observing the data that we have. For linear regression, these we obtained these same values a different way, via minimising the sums of squares. This approach is not possible for more complex models (e.g., logistic)  which is why we turn to MLE.  
+
+:::statbox
+To read about the subtle difference between "likelihood" and "probability", you can find a short explanation [here](./lvp.html){target="_blank"}
+:::
+
+If we are estimating just one single parameter (e.g. a mean), then we can imagine the process of maximum likelihood estimation in a one-dimensional world - simply finding the top of the curve: 
+```{r}
+#| label: fig-mle
+#| echo: false
+#| out.width: "350px"
+#| fig-cap: "MLE"
+knitr::include_graphics("images/intro/mle.png")
+```
+However, our typical models estimate a whole bunch of parameters. The simple regression model above is already having to estimate $\beta_0$, $\beta_1$ and $\sigma_\varepsilon$, and our multi-level models have far more! With lots of parameters being estimated and all interacting to influence the likelihood, our nice curved line becomes a complex surface (see Left panel of @fig-multisurf). So what we (our computers) need to do is find the maximum, but avoid local maxima and singularities (see @fig-maxima). 
+```{r}
+#| label: fig-multisurf
+#| echo: false
+#| out.width: "49%" 
+#| fig-cap: "MLE for a more complex model"
+#| fig-align: 'center'
+knitr::include_graphics("images/multisurftb.png")
+```
+
+### Restricted Maximum Likelihood (REML)
+
+When it comes to estimating multilevel models, maximum likelihood will consider the fixed effects as fixed, known values when it estimates the variance components (the random effect variances). This leads to biased estimates of the variance components, specifically biasing them toward being too small, especially if $n_\textrm{clusters} - n_\textrm{level 2 predictors} - 1 < 50$. This leads to the standard errors of the fixed effects being too small, thereby inflating our type 1 error rate (i.e. greater chance of incorrectly rejecting our null hypothesis).  
+
+Restricted Maximum Likelihood (REML) is a method that separates the estimation of fixed and random parts of the model, leading to unbiased estimates of the variance components.   
+
+
+:::
+<!-- :::sticky -->
+<!-- __Model Comparisons in MLM__ -->
+
+<!-- When we compare models that differ in their fixed effects via comparing model deviance (e.g. the likelihood ratio), REML should __not__ be used as only the variance components are included in the likelihood. Functions like `anova()` will automatically refit your models with `ML` for you, but it is worth checking.    -->
+
+<!-- We __cannot__ compare (either with ML or REML) models that differ in both the fixed and random parts.  -->
+
+<!-- ::: -->
+
+:::{.callout-note collapse="true"}
+## Fitting Multilevel Models: Model Convergence
+
+Alongside the ML/REML choice for model estimation, we have some control over the underlying algorithm that is used to move around/search the likelihood surface for our estimates. We'll learn more about this next week.  
+
+<br>
+<div style="margin-left:50px;">
+lmer(*formula*,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; data = *dataframe*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; REML = *logical*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; control = lmerControl(**_options_**) <br>
+&nbsp; &nbsp; &nbsp; &nbsp; )</div>    
+<br>
+
+
+For large datasets and/or complex models (lots of random-effects terms), it is quite common to get a *convergence warning*.  There are lots of different ways to [deal with these](https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html) (to try to rule out hypotheses about what is causing them).  
+
+For the time being, if `lmer()` gives you convergence errors, you could try changing the optimizer. Bobyqa is a good one: add `control = lmerControl(optimizer = "bobyqa")` when you run your model.  
+
+```{r eval=F}
+lmer(y ~ 1 + x1 + ... + (1 + .... | g), data = df, 
+     control = lmerControl(optimizer = "bobyqa"))
+```
+
+
+:::statbox
+__What *is* a convergence warning??__  
+
+There are different techniques for maximum likelihood estimation, which we apply by using different 'optimisers'. Technical problems to do with **model convergence** and **'singular fit'** come into play when the optimiser we are using either can't find a suitable maximum, or gets stuck in a singularity (think of it like a black hole of likelihood, which signifies that there is not enough variation in our data to construct such a complex model).  
+
+```{r}
+#| label: fig-maxima
+#| echo: false
+#| out.width: "49%"
+#| fig-cap: "local/global maxima and singularities"
+#| fig-align: "center"
+knitr::include_graphics("images/intro/mle2.png")
+```
+
+:::
+:::
+<br>  
+<div class="divider div-transparent div-dot"></div>
+
+
+# Exercises: Cross-Sectional
+
+:::frame
+__Data: Wellbeing Across Scotland__  
+
+Recall our dataset from last week, in which we used linear regression to determine how outdoor time (hours per week) is associated with wellbeing in different local authority areas (LAAs) of Scotland. We have data from various LAAs, from Glasgow City, to the Highlands.  
+
+```{r message=FALSE,warning=FALSE}
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+```
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(gt)
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+tibble(variable=names(scotmw),
+       description=c("Participant ID","Participant Name","Local Authority Area","Self report estimated number of hours per week spent outdoors","Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being. The scale is scored by summing responses to each item, with items answered on a 1 to 5 Likert scale. The minimum scale score is 14 and the maximum is 70.","LAA Population Density (people per square km)")
+) %>% gt()
+```
+:::
+
+`r qbegin("1")`
+Using `lmer()` from the **lme4** package, fit a model predict `wellbeing` from `outdoor_time`, with by-LAA random intercepts.  
+Pass the model to `summary()` to see the output. 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+#| include: false
+scotmw <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+```
+
+```{r}
+library(lme4)
+ri_model <- lmer(wellbeing ~ outdoor_time + (1 | laa), data = scotmw)
+summary(ri_model)
+```
+`r solend()`
+
+`r qbegin("2")`
+Sometimes the easiest way to start understanding your model is to visualise it. 
+ 
+Load the package **broom.mixed**. Along with some handy functions `tidy()` and `glance()` which give us the information we see in `summary()`, there is a handy function called `augment()` which returns us the data in the model plus the fitted values, residuals, hat values, Cook's D etc..  
+
+:::{.callout-note collapse=true}
+#### broom.mixed  
+
+```{r}
+#| include: false
+model <- ri_model
+```
+
+the broom.mixed package has some useful functions (just like those in the __broom__ package for `lm()`):  
+
+```{r}
+library(broom.mixed)
+glance(model) # for overall model stats
+tidy(model) # for parameter stats
+augment(model) # observation level stuff (data + model)
+```
+:::
+
+
+Add to the code below to plot the model fitted values, and color them according to LAA. 
+(you will need to edit `ri_model` to be whatever name you assigned to your model).
+
+```{r eval=FALSE}
+augment(ri_model) %>%
+  ggplot(aes(x = outdoor_time, y = ...... 
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+augment(ri_model) %>%
+  ggplot(aes(x = outdoor_time, y = .fitted, col = laa)) + 
+  geom_line()
+```
+`r solend()`
+
+
+`r qbegin("3")`
+We have just fitted the model:
+$$
+\begin{align}
+& \text{For person } j \text{ in LAA } i \\
+& \color{red}{\textrm{Wellbeing}_{ij}}\color{black} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot \textrm{Outdoor Time}_{ij}}\color{black} + \varepsilon_{ij} \\
+& \color{blue}{\beta_{0i}}\color{black} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+$$
+
+For our estimates of $\gamma_{00}$ (the fixed value around which LAA intercepts vary) and $\beta_1$ (the fixed estimate of the relationship between wellbeing and outdoor time), we can use `fixef()`.  
+```{r}
+fixef(ri_model)
+```
+Can you add to the plot in the previous question, a thick black line with the intercept and slope given by `fixef()`?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+**Hint:** `geom_abline()`
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+augment(ri_model) %>%
+  ggplot(aes(x = outdoor_time, y = .fitted, col = laa)) + 
+  geom_line() + 
+  geom_abline(intercept = fixef(ri_model)[1], slope = fixef(ri_model)[2], lwd = 2)
+```
+`r solend()`
+
+`r qbegin("4")`
+By now, you should have a plot which looks more or less like the left-hand figure below (we have added on the raw data - the points).  
+<div style="display:inline-block; width: 55%;vertical-align: top;">
+```{r}
+#| label: fig-modfit
+#| echo: false
+#| fig.asp: 1
+#| fig-cap: "Model fitted values"
+augment(ri_model) %>%
+  ggplot(aes(x = outdoor_time, y = .fitted, col = laa)) + 
+  geom_line() + 
+  geom_abline(intercept = fixef(ri_model)[1], slope = fixef(ri_model)[2], lwd = 2)+
+  geom_point(aes(y=wellbeing), alpha=.4)
+```
+</div>
+<div style="display:inline-block; width: 40%;vertical-align: top;">
+```{r}
+#| label: fig-lmersummap
+#| echo: false
+#| out.width: "400px"
+#| fig-cap: "Summary model output<br>lmer(wellbeing~1 + outdoor_time + (1|laa),<br>data = scotmw)"
+knitr::include_graphics("images/intro/summarylmer2.png")
+```
+</div>
+<br>
+<br>
+Match the coloured sections Yellow (W), Red (X), Blue (Y), and Orange (Z) in @fig-lmersummap to the descriptions below of @fig-modfit A through D. 
+
+A) where the black line cuts the y axis
+B) the standard deviation of the distances from all the individual LAA lines to the black line
+C) the slope of the black line
+D) the standard deviation of the distances from all the individual observations to the line for the LAA to which it belongs.
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
++ A = Blue (Y)
++ B = Yellow (W)
++ C = Orange (Z)
++ D = Red (X)
+
+`r solend()`
+
+
+`r qbegin("5")`
+Match the colours sections and descriptions from the previous question, to the mathematical terms in the model equation:  
+
+$$
+\begin{align}
+& \text{Level 1:} \\
+& \color{red}{Wellbeing_{ij}}\color{black} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1} \cdot OutdoorTime_{ij}}\color{black} + \varepsilon_{ij} \\
+& \text{Level 2:} \\
+& \color{blue}{\beta_{0i}}\color{black} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+& \text{where} \\
+& \color{orange}{\zeta_0}\color{black} \sim N(0, \sigma_{\color{orange}{\zeta_{0}}}\color{black})  \text{ independently} \\
+& \varepsilon \sim N(0, \sigma_{\varepsilon}) \text{ independently} \\
+\end{align}
+$$
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
++ A = Blue (Y) = $\gamma_{00}$  
++ B = Yellow (W) = $\sigma_{\color{orange}{\zeta_{0}}}$
++ C = Orange (Z) = $\beta_{1}$     
++ D = Red (X) = $\sigma_{\varepsilon}$    
+
+
+
+`r solend()`
+
+
+`r qbegin("6")`
+Fit a model which allows *also* (along with the intercept) the effect of `outdoor_time` to vary by-LAA.   
+
+Then, using `augment()` again, plot the model fitted values. What do you think you will see?  
+Does it look like this model better represents the individual LAAs? Take a look at, for instance, Glasgow City.  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+rs_model <- lmer(wellbeing ~ 1 + outdoor_time + (1 + outdoor_time | laa), data = scotmw)
+
+augment(rs_model) %>%
+  ggplot(aes(x = outdoor_time, y = .fitted, col = laa)) + 
+  geom_line() + 
+  geom_point(aes(y=wellbeing), alpha=.4)
+```
+
+`r solend()`
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+
+# Exercises: Repeated Measures
+
+While the wellbeing example considers the groupings or 'clusters' of different LAAs, a more common grouping in psychological research is that of several observations belonging to the same individual. One obvious benefit of this is that we can collect many more observations with fewer participants but control for the resulting dependency of observations. 
+
+:::frame
+__Data: REPLICATION Audio/SDMT study__  
+
+
+Recall the data from the previous week, from an experiment in which executive functioning was measured (via the SDMT) for people when listening to different types of audio, either via normal speakers or via noise-cancelling headphones.  
+
+This week, we have data from a __replication__ of that study, in which the researchers managed to recruit 30 participants. Unfortunately, some participants did not complete all the trials, so we have an unbalanced design. The data is available at [https://uoepsy.github.io/data/ef_replication.csv](https://uoepsy.github.io/data/ef_replication.csv).  
+```{r}
+#| include: false
+set.seed(5)
+n_groups = 30
+N = n_groups*3*5
+g = rep(1:n_groups, e = N/n_groups)
+
+w = rep(rep(letters[1:3],5),n_groups)
+w1 = model.matrix(lm(rnorm(N)~w))[,2]
+w2 = model.matrix(lm(rnorm(N)~w))[,3]
+
+b = rep(0:1, e = N/2)
+
+re0 = rnorm(n_groups, sd = 2)[g]
+re_w1  = rnorm(n_groups, sd = 1)[g]
+re_w2  = rnorm(n_groups, sd = 1)[g]
+
+lp = (0 + re0) + 
+  (3)*b + 
+  (0 + re_w1)*w1 +
+  (-2 + re_w2)*w2 + 
+  (2)*b*w1 +
+  (-1)*b*w2
+  
+y = rnorm(N, mean = lp, sd = 1.5) # create a continuous target variable
+
+df <- data.frame(w, g=factor(g),b, y)
+head(df)
+with(df,boxplot(y~interaction(w,b)))
+
+library(tidyverse)
+df %>% transmute(
+  PID = paste0("PPT_",formatC(g,width=2,flag=0)),
+  audio = fct_recode(factor(w),
+                     no_audio = "a",
+                     white_noise = "b",
+                     music = "c"),
+  headphones = fct_recode(factor(b),
+                          speakers = "0",
+                          anc_headphones = "1"),
+  SDMT = pmax(0,round(35 + scale(y)[,1]*12))
+) %>% arrange(PID,audio,headphones) -> ef_music
+
+ef_music <- ef_music %>% group_by(PID) %>%
+  mutate(trial_n = paste0("Trial_",formatC(sample(1:15),width=2,flag=0))) %>%
+  arrange(PID,trial_n) %>% ungroup()
+
+efrep <- slice_sample(ef_music, prop = .8) %>% select(PID,trial_n,audio,headphones,SDMT)
+
+# write_csv(efrep, file="../../data/ef_replication.csv")
+```
+
+```{r}
+#| echo: false
+tibble(variable=names(efrep),
+       description = c(
+         "Participant ID",
+         "Trial Number (1-15)",
+         "Audio heard during the test ('no_audio', 'white_noise','music')",
+         "Whether the participant listened via speakers in the room or via noise cancelling headphones",
+         "Symbol Digit Modalities Test (SDMT) score")
+) %>% gt()
+```
+
+:::
+
+`r qbegin("7")`
+How many participants are there in the data?   
+How many have complete data (15 trials)?  
+What is the average number of trials that participants completed? What is the minimum?   
+Does every participant have _some_ data for each type of audio?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+The `count()` function will likely be useful here. 
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+#| eval: false
+efrep <- read_csv("https://uoepsy.github.io/data/ef_replication.csv")
+```
+
+Here are the counts of trials for each participant. We can see that no participant completed all 15 trials. Everyone completed at least 10, and the median was 12. 
+```{r}
+efrep %>% 
+  count(PID) %>%
+  summary()
+```
+
+We can add in `audio` to our counting to see that everyone has data from $\geq 2$ trials for a given audio type.
+```{r}
+efrep %>% 
+  count(PID,audio) %>%
+  summary()
+```
+
+`r solend()`
+
+
+`r qbegin("8")`
+The model below is sometimes referred to as the "null model" (or "intercept only model"). The grouping structure of the data is specified in the model, but nothing more.  
+
+```{r}
+nullmod <- lmer(SDMT ~ 1 + (1 | PID), data = efrep)
+```
+
+Fit the model and examine the summary.  
+How much of the variation in SDMT scores is down to participant grouping?  
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+nullmod <- lmer(SDMT ~ 1 + (1 | PID), data = efrep)
+summary(nullmod)
+```
+```{r}
+#| echo: false
+rr = as.data.frame(VarCorr(nullmod))[,4]
+```
+
+$\frac{`r round(rr[1],2)`}{`r round(rr[1],2)`+`r round(rr[2],2)`} = `r round(rr[1]/sum(rr),2)`$, or `r round(rr[1]/sum(rr),2)*100`% of the variance in SDMT scores is explained by participant differences.  
+
+We can check this matches (closely enough) with the `ICCbare()` function from last week:  
+```{r}
+library(ICC)
+ICCbare(x = PID, y = SDMT, data = efrep)
+```
+
+
+`r solend()`
+
+`r qbegin("9")`
+Set the reference levels of the `audio` and `headphones` variables to "no audio" and "speakers" respectively.    
+Fit a multilevel model to address the research question below.  
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+ 
+
+::: {.callout-tip collapse="true"}
+#### things to think about:  
+
+- what is our outcome variable of interest?
+- what are our predictor variables (and interactions?) that we are interested in?
+    - these should be in the fixed effects part.    
+- what is the clustering?
+    - this should be the random effects `(1 | cluster)` part
+- does audio type (`audio`) vary within clusters, or between?
+    - if so, we might be able to fit a random slope of `audio | cluster`. if not, then it doesn't make sense to do so.  
+- does delivery mode (`headphones`) vary within clusters, or between?
+      - if so, we might be able to fit a random slope of `headphones | cluster`. if not, then it doesn't make sense to do so. 
+
+
+_If you get an error about model convergence, consider changing the optimiser (see the "model estimation" box)_
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+efrep <- efrep %>%
+  mutate(
+    audio = fct_relevel(factor(audio), "no_audio"),
+    headphones = fct_relevel(factor(headphones), "speakers")
+  )
+
+
+sdmt_mod <- lmer(SDMT ~ audio * headphones + 
+              (1 + audio | PID), data = efrep,
+              REML = TRUE, control = lmerControl(optimizer="bobyqa"))
+summary(sdmt_mod)
+```
+
+`r solend()`
+
+`r qbegin("10")`
+We now have a model, but we don't have any p-values, confidence intervals, or inferential criteria on which to draw conclusions.  
+
+Pick a method of your choosing and perform a test of/provide an interval for the relevant effect of interest.  
+Provide a brief write-up of the results along with a visualisation.  
+
+
+::: {.callout-tip collapse="true"}
+#### Options
+
+As with normal regression, we have two main ways in which we can conduct inference. We can focus on our coefficients, or we can compare models.^[What is the difference between testing coefficients and comparing models? This is most easily seen when the model includes a categorical variable as a predictor. The `summary()` function would return, for each level of the predictor (excluding the reference level), a coefficient, its standard error, the t-statistic, and the p-value for a test of whether the coefficient is significantly different from 0.
+A model comparison between that model and a null model without the categorical predictor would collapse all levels into a single test across all levels of the predictor.]  
+
+There are a whole load of different methods available for drawing inferences from multilevel models, which means it can be a bit of a never-ending rabbit hole. For the purposes of this course, we'll limit ourselves to these two:  
+
+
+|                  | df approximations                                                  | likelihood-based                                                    | 
+| ---------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------- | 
+| tests or CIs for model parameters | `library(parameters)`<br>`model_parameters(model, ci_method="kr")` | `confint(model, type="profile")`                                    | 
+| model comparison<br><small>(different fixed effects, same random effects)</small> | `library(pbkrtest)`<br>`KRmodcomp(model1,model0)`                  | `anova(model0,model)`                                               |
+|                  | fit models with `REML=TRUE`.<br>good option for small samples      | fit models with `REML=FALSE`.<br>needs large N at both levels (40+) | 
+
+
+:::
+
+
+`r qend()`
+
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+In this case we have $n=30$ participants (our level 2 sample size), and each participant has at most 15 observations (and some have fewer). These numbers are possibly a bit small for standard likelihood based methods. We would be better off using models fitted with REML because they will provide more accurate estimates of the variance components (the `(1 + audio | PID)` bit), and so better estimates of the standard errors for our fixed effects. 
+
+The easiest option here is to use the __parameters__ package:  
+```{r}
+library(parameters)
+model_parameters(sdmt_mod, ci_method="kr")
+```
+
+And if we want to go down the model comparison route, we just need to isolate the relevant part(s) of the model that we are interested in. 
+For instance, to test the interaction:  
+  
+```{r}
+sdmt_res <- lmer(SDMT ~ audio + headphones + 
+                   (1 + audio | PID), data = efrep,
+                 REML = TRUE, control = lmerControl(optimizer="bobyqa"))
+library(pbkrtest)
+KRmodcomp(largeModel = sdmt_mod, smallModel = sdmt_res)
+```
+
+
+```{r}
+#| echo: false
+res = as.data.frame(model_parameters(sdmt_mod, ci_method="kr"))
+res[,c(2,3,5,6,7,8)] <- apply(res[,c(2,3,5,6,7,8)], 2, function(x) round(x, 2))
+res[,9] <- format.pval(res[,9],eps=.001,digits=2)
+res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
+```
+
+:::int
+SDMT scores were modelled using linear mixed effects regression, with fixed effects of audio-type (no audio/white noise/music, treatment coded with no audio as the reference level), audio delivery (speakers/ANC-headphones, treatment coded with speakers as the reference level) and their interaction. Participant-level random intercepts and random slopes of audio-type were also included. The model was fitted using the **lme4** package in R, and estimated with restricted estimation maximum likelihood (REML) using the bobyqa optimizer. Denominator degrees of freedom for all tests were approximated using the Kenward-Rogers method.  
+
+Inclusion of the interaction between headphones and audio-type was found to improve model fit ($F(2, 26.8) = 10.64, p < .001$), suggesting that the interference of different types of audio on executive functioning is dependent upon whether the audio is presented through ANC-headphones or through speakers.  
+Participants not wearing headphones and presented with no audio scored on average `r res[1,2]` on the SDMT. Listening to music via speakers was associated with lower scores ($\beta = `r res[3,2]`, SE = `r res[3,3]`, t(`r res[3,8]`)=`r res[3,7]`, p `r res[3,9]`$) compared to no audio. White noise played via speakers was not associated with a difference in performance on the SDMT compared to no audio.  
+
+Without any audio playing, wearing ANC-headphones was associated with higher SDMT scores compared to no headphones ($\beta = `r res[4,2]`, SE = `r res[4,3]`, t(`r res[4,8]`)=`r res[4,7]`, p `r res[4,9]`$). This difference between headphones and speakers was also evident when listening to white-noise ($\beta = `r res[5,2]`, SE = `r res[5,3]`, t(`r res[5,8]`)=`r res[5,7]`, p `r res[5,9]`$). The apparent detrimental influence of music was not found to differ depending on whether headphones were worn ($\beta = `r res[6,2]`, p `r res[6,9]`$).  
+
+These results suggest that while music appears to interfere with executive functioning (resulting in lower SDMT scores) regardless of whether it is heard through headphones or speakers, listening to white noise may actually improve executive functioning, but only when presented via headphones. Furthermore, there appears to be benefits for executive functioning from wearing ANC-headphones even when not-listening to audio, perhaps due to the noise cancellation. The pattern of findings are displayed in @fig-efplot.  
+
+
+```{r}
+#| label: fig-efplot
+#| fig-cap: "Interaction between the type (no audio/white noise/music) and the delivery (speakers/ANC headphones) on executive functioning task (SDMT)"
+library(sjPlot)
+plot_model(sdmt_mod, type="int")
+```
+:::
+`r solend()`
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+  
+  
+# Exercises: Longitudinal  
+
+```{r}
+#| eval: false
+#| echo: false
+load(url("https://uoepsy.github.io/data/WeightMaintain3.rda"))
+set.seed(993)
+WeightMaintain3 %>% mutate(
+  wellbeing = scale(WeightChange)[,1]*4,
+  Condition = fct_recode(factor(Condition),
+                         "4day_week"="None",
+                         "unlimited_leave"="MR",
+                         "none"="ED"),
+  TimePoint = Assessment+1
+) %>% 
+  group_by(ID) %>% mutate(
+    int = rnorm(n(),40,3.5),
+    Wellbeing = round(wellbeing + int)
+  ) %>% ungroup %>% select(ID, TimePoint, Condition, Wellbeing) -> wellbeingwork3
+
+#save(wellbeingwork3,file="../../data/wellbeingwork3.rda")
+```
+
+
+Another very crucial advantage of these methods is that we can use them to study how people change over time.  
+
+:::frame
+__Data: Wellbeing in Work__  
+
+The "Wellbeing in Work" dataset contains information on employees who were randomly assigned to one of three employment conditions:
+
+* control: No change to employment. Employees continue at 5 days a week, with standard allocated annual leave quota.    
+* unlimited_leave : Employees were given no limit to their annual leave, but were still expected to meet required targets as specified in their job description. 
+* fourday_week: Employees worked a 4 day week for no decrease in pay, and were still expected to meet required targets as specified in their job description.
+
+Wellbeing was was assessed at baseline (start of maintenance), 12 months post, 24 months post, and 36 months post.  
+
+The researchers had two main questions: 
+
+- Q1): Overall, did the participants' wellbeing stay the same or did it change?
+- Q2): Did the employment condition groups differ in the how wellbeing changed over the assessment period?   
+
+The data is available, in **.rda** format, at [https://uoepsy.github.io/data/wellbeingwork3.rda](https://uoepsy.github.io/data/wellbeingwork3.rda). You can read it directly into your R environment using: 
+```{}
+load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
+```
+After running the code above you will find the data in an object called `wellbeingwork3` in your environment.  
+
+:::
+
+`r qbegin("11")`  
+
+> Q1): Overall, did the participants' wellbeing stay the same or did it change?  
+
+
+Each of our participants have measurements at 4 assessments. 
+We need to think about what this means for the **random effects** that we will include in our model (our **random effect structure**). Would we like our models to accommodate individuals to vary in their overall wellbeing, to vary in how they change in wellbeing over the course of the assessment period, or both?
+
+To investigate whether wellbeing changed over the course of the assessments, or whether it stayed the same, we can fit and compare 2 models:  
+
+1. A null model. 
+2. A model with wellbeing predicted by time point.  
+
+And we can then compare them in terms of model fit (as mentioned above, there are lots of different ways we might do this).  
+
+Our sample size here (180 participants, each with 4 observations) is reasonably large given the relative simplicity of our model. We might consider running a straightforward Likelihood Ratio Test using `anova(restricted_model, full_model)` to compare our two models (in which case we should fit them with `REML=FALSE`)
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- Remember, we shouldn't use likelihood ratio tests to compare models with different random effect structures.  
+- (For now, don't worry too much about "singular fits". We'll talk more about how we might deal with them next week!)
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
+head(wellbeingwork3)
+```
+
+
+This is our null model:
+```{r}
+m.null <- lmer(Wellbeing ~ 1 + (1 | ID), data=wellbeingwork3, REML=FALSE)
+summary(m.null)
+```
+We can see the `4.76 / (4.76 + 22.48)`, or `r (4.76 / (4.76 + 22.48)) %>% round(.,2)` of the total variance in wellbeing is attributable to participant-level variation. 
+
+Now lets suppose we want to compare this null model with a model with an effect of `TimePoint` (to assess whether there is overall change over time).
+Which model should we compare `m.null` to?  
+```{r}
+#| eval: false
+modA <- lmer(Wellbeing ~ 1 + TimePoint + (1 + TimePoint | ID), data=wellbeingwork3, REML=FALSE)
+modB <- lmer(Wellbeing ~ 1 + TimePoint + (1 | ID), data=wellbeingwork3, REML=FALSE)
+```
+A comparison between `m.null` and `modA` will not be assessing the influence of _only_ the fixed effect of TimePoint (remember, we shouldn't compare models that differ in both fixed and random effects)  
+However, `modB` doesn't include our by-participant random effects of timepoint, so comparing this to `m.null` is potentially going to mis-attribute random deviations in participants' change to being an overall effect of timepoint.  
+
+If we want to conduct a model comparison to isolate the average change over time (a fixed effect of `TimePoint`), we _might_ want to compare these two models:
+```{r}
+m.base0 <- lmer(Wellbeing ~ 1 + (1 + TimePoint | ID), data=wellbeingwork3, REML=FALSE)
+m.base <- lmer(Wellbeing ~ 1 + TimePoint + (1 + TimePoint | ID), data=wellbeingwork3, REML=FALSE)
+```
+The first of these models is a bit weird to think about - how can we have by-participant random deviations of `TimePoint` if we don't have a fixed effect of `TimePoint`? That makes very little sense. What it is actually fitting is a model where the average participant has no effect of TimePoint. So the fixed effect is 0. 
+
+```{r}
+# Straightforward LRT
+anova(m.base0, m.base)
+```
+
+`r solend()`
+
+`r qbegin("12")`
+
+> Q: Did the employment condition groups differ in the how wellbeing changed over the assessment period?   
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+It helps to break it down. There are two questions here:  
+
+  1. do groups differ overall?  
+  2. do groups differ over time?  
+
+We can begin to see that we're asking two questions about the `Condition` variable here: "is there an effect of Condition?" and "Is there an interaction between TimePoint and Condition?".  
+
+Try fitting two more models which incrementally build these levels of complexity, and compare them (perhaps to one another, perhaps to models from the previous question - think about what each comparison is testing!)  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+m.int <- lmer(Wellbeing ~ 1 + TimePoint + Condition + (1 + TimePoint | ID), 
+              data=wellbeingwork3, REML=FALSE)
+m.full <- lmer(Wellbeing ~ 1+ TimePoint*Condition + (1 + TimePoint | ID), 
+               data=wellbeingwork3, REML=FALSE)
+```
+
+We're going to compare each model to the previous one to examine the improvement in fit due to inclusion of each parameter. 
+We could do this quickly with
+```{r}
+anova(m.base0, m.base, m.int, m.full)
+```
+:::int 
+Conditions differed overall in wellbeing change $\chi^2(2)=11.39, p = .003$  
+Conditions differed in change over assessment period $\chi^2(2)=23.71, p < .001$
+:::
+
+`r solend()`
+
+
+`r qbegin("13")`
+
+Visualise the model estimated change in wellbeing over time for each Condition.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+There are lots of ways you can visualise the model, try a couple: 
+
+1. Using the **effects** package, this might help: `as.data.frame(effect("TimePoint*Condition", model))`  
+2. We can also use **sjPlot**, as we have seen in DAPR2  
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Using the `effect()` function (and then adding the means and SEs from the original data):  
+```{r}
+ef <- as.data.frame(effect("TimePoint*Condition", m.full))
+
+ggplot(ef, aes(TimePoint, fit, color=Condition)) + 
+  geom_line() +
+  geom_ribbon(aes(ymin=lower,ymax=upper,fill=Condition), alpha=.2)+
+  stat_summary(data=wellbeingwork3, aes(y=Wellbeing), 
+               fun.data=mean_se, geom="pointrange", size=1) +
+  theme_bw()
+```
+
+Additionally, __sjPlot__ can give us the model fitted values, but it's trickier to add on the observed means. We can add the raw data using `show.data=TRUE`, but that will make it a bit messier
+
+```{r}
+library(sjPlot)
+plot_model(m.full, type="int")
+```
+
+`r solend()`
+
+
+`r qbegin("14")`
+
+Examine the parameter estimates and interpret them (i.e., what does each parameter represent?  
+Can you match them with parts of the plot obtained from `plot_model(m.full, type="int")`?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We can get the fixed effects using `fixef(model)`, and we can also use `tidy(model)` from the **broom.mixed** package, and similar to `lm` models in DAPR2, we can pull out the bit of the `summary()` using `summary(model)$coefficients`.   
+
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+#| echo: false
+round(coef(summary(m.full)), 3)
+```
+
+* `(Intercept)` ==> Wellbeing at baseline in 'control' group.  
+* `TimePoint`  ==> Slope of wellbeing change in 'control' group.  
+* `Conditionunlimited_leave` ==> baseline wellbeing difference from 'unlimited_leave' group relative to 'control' group.  
+* `Conditionfourday_week` ==> baseline wellbeing difference from 'fourday_week' group relative to 'control' group.  
+* `TimePoint:Conditionunlimited_leave`  ==> slope of wellbeing change in 'unlimited_leave' group relative to 'control' group.  
+* `TimePoint:Conditionfourday_week`  ==> slope of wellbeing change in 'fourday_week' group relative to 'control' group.  
+
+```{r}
+#| label: fig-wblplot
+#| fig-cap: "Well-being over time, for employees working in different conditions"  
+plot_model(m.full, type="int")
+```
+
+* `(Intercept)` ==> the height of the red line at timepoint 0.  
+* `TimePoint`  ==> slope of the red line (basically flat).  
+* `Conditionunlimited_leave` ==> the difference at timepoint 0 in height of the blue line from height of the red line (basically 0, but blue line starts ever so slightly below the red).   
+* `Conditionfourday_week` ==> the difference at timepoint 0 in height of the green line from height of the red line (also very small, but it is a bit further below the red than the blue is).   
+* `TimePoint:Conditionunlimited_leave` ==> the difference from slope of red line to slope of blue line. i.e. while the red line goes -0.023 for every 1 across, the blue line goes $-0.023+1.357=1.334$ up for every 1 across.  
+* `TimePoint:Conditionfourday_week`  ==> difference from slope of red line to slope of green line. i.e. while the red line goes -0.023 for every 1 across, the green line goes $-0.023+2.282=2.259$ up for every 1 across. 
+
+
+:::int
+Compared to the control group, wellbeing increased by 1.36 points/year more for employees with unlimited leave, and by 2.28 points/year for employees on the 4 day week.  
+:::
+
+
+`r solend()`
+
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
