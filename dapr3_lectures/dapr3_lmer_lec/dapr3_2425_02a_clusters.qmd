@@ -1,0 +1,494 @@
+---
+title: "Clustered Data"
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+
+
+# Clustered data
+
+## Examples of clustered data
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- children within schools  
+
+- patients within clinics  
+
+- observations within individuals  
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/h2.png)
+:::
+::::
+
+
+## Examples of clusters of clusters
+
+::::{.columns}
+:::{.column width="50%"}
+
+- children within classrooms within schools within districts etc...  
+
+- patients within doctors within hospitals... 
+
+- time-periods within trials within individuals
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/h3.png)
+:::
+::::
+
+:::aside
+Other relevant terms you will tend to see: "grouping structure", "levels", "hierarchies". 
+:::
+
+## Is clustering important?  
+
+Clustering will likely result in measurements on observational units within a given cluster being more similar to each other than to those in other clusters.  
+
+- For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
+
+![](img_sandbox/lev1.png)
+
+
+## ICC (intra-class correlation coefficient) {.smaller}
+
+Clustering is expressed in terms of the correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
+
+
+There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
+
+<br>
+$\rho = \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\ \qquad \\\textrm{Where:} \\ \sigma^2_{b} = \textrm{variance between clusters} \\ \sigma^2_e = \textrm{variance within clusters (residual variance)} \\$
+
+:::aside
+Can also be interpreted as the expected correlation between two randomly drawn observations from the same group. 
+:::
+
+## ICC (intra-class correlation coefficient)
+
+The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r echo=FALSE, fig.asp=.8, fig.align="center"}
+iccgen <- function(j,n,e,icc,coef=0){
+  v = (icc*e)/(1-icc)
+  es = e/(v+e)
+  v = if(is.infinite(v)){v=e}else{v/(v+e)}
+  npj = n/j
+  tibble(
+    j = letters[1:j],
+    zeta_j = rnorm(j,0,sqrt(v))
+  ) %>%
+    mutate(
+      e_ij = map(j, ~rnorm(npj, 0, sqrt(es)))
+    ) %>% unnest() %>%
+    mutate(
+      x = rnorm(n, 10, 5),
+      y = 5 + coef*x + zeta_j + e_ij
+    )
+}
+set.seed(3406)
+sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
+        ~iccgen(j=10,n=100,e=1,icc=.,coef=0), .id="icc") %>%
+  group_by(icc, j) %>%
+  mutate(
+    m = mean(y)
+  ) %>% ungroup
+
+ggplot(sims, aes(x=j, y=y))+
+  geom_jitter(height=0, size=2,aes(col=j))+
+  scale_y_continuous(NULL, labels=NULL)+
+  stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
+  facet_wrap(~icc)+
+  guides(col=F)+
+  labs(x="cluster")
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| fig-asp: 0.8
+set.seed(875)
+sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
+        ~iccgen(j=10,n=100,e=1,icc=.,coef=.1), .id="icc")
+
+ggplot(sims, aes(x=x, y=y))+
+  geom_point(aes(col=j))+
+  geom_line(aes(col=j))+
+  facet_wrap(~icc)+
+  guides(col=F)+
+  scale_y_continuous(NULL, labels=NULL)+
+  scale_x_continuous("X", labels=NULL)
+```
+
+:::
+::::
+
+
+## is clustering problematic?  
+
+#### Why is it a problem?
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+Clustering is something **systematic** that our model should (arguably) take into account.  
+
+- remember, $\varepsilon \sim N(0, \sigma) \textbf{ independently}$ 
+
+:::
+
+:::{.column width="50%" .fragment}
+#### How is it a problem?  
+
+Standard errors will often be smaller than they should be, meaning that:  
+
+  - confidence intervals will often be too narrow 
+  
+  - $t$-statistics will often be too large  
+  
+  - $p$-values will often be misleadingly small
+
+:::
+::::
+
+# Working with clustered data
+
+## Wide Data/Long Data
+
+
+::::{.columns}
+:::{.column width="50%"}
+__Wide Data__  
+observations are spread across columns
+
+```{r echo=FALSE}
+tibble(
+  ID = sprintf("%03d",1:4), 
+  age = rdunif(4, 18, 75),
+  trial_1 = c(10, 7.5, 12, 10.5),
+  trial_2 = c(12.5, 7, 14.5, 17),
+  trial_3 = c(18, 5, 11, 14)
+) -> wided
+wided %>% rbind(.,"...")
+```
+
+:::
+
+:::{.column width="50%"}
+__Long Data__
+each observation of the outcome is a separate row
+
+```{r echo=FALSE}
+tibble(
+  ID = sprintf("%03d",1:4), 
+  age = rdunif(4, 18, 75),
+  trial_1 = c(10, 7.5, 12, 10.5),
+  trial_2 = c(12.5, 7, 14.5, 17),
+  trial_3 = c(18, 5, 11, 14)
+) -> wided
+pivot_longer(wided, 3:5, names_to="trial", values_to="score") -> longd
+longd %>% rbind(.,"...")
+```
+:::
+::::
+
+## Wide Data/Long Data
+
+
+```{r echo=FALSE}
+knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
+```
+
+:::aside
+Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (\\@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)
+:::
+
+##  Long Data = Good for Plotting
+
+
+::::{.columns}
+:::{.column width="50%"}
+__`group` aesthetic__  
+
+```{r}
+#| echo: true
+#| fig-asp: .5
+ggplot(longd, aes(x=trial,y=score, group=ID))+
+  geom_point(size=4)+
+  geom_path()
+```
+
+:::
+
+:::{.column width="50%"}
+__`facet_wrap()`__  
+```{r}
+#| echo: true
+#| fig-asp: .5
+ggplot(longd, aes(x=trial,y=score))+
+  geom_point(size=4)+
+  geom_path(aes(group=1))+
+  facet_wrap(~ID)
+```
+:::
+::::
+
+## Long Data = Good for by-Cluster Computations
+
+```{r}
+longd %>% 
+  group_by(ID) %>%
+  summarise(
+    ntrials = n_distinct(trial),
+    meanscore = mean(score),
+    sdscore = sd(score)
+  )
+```
+
+
+# Modelling clustered data 
+
+## Example data {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
+
+Each participant has 10 datapoints. Participants are clusters.  
+
+```{r}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+head(d3)
+```
+
+```{r}
+library(ICC)
+ICCbare(x = ppt, y = ACE, data = d3)
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE, fig.align="center", fig.asp=.9}
+ggplot(d3, aes(x=visit ,y=ACE))+
+  geom_point(size=4)+
+  geom_smooth(method="lm", se=F)+
+  labs(x="",y="") -> p1
+ggplot(d3, aes(x=visit ,y=ACE, col=ppt))+
+  geom_point(size=4)+
+  geom_smooth(method="lm", se=FALSE)+
+  facet_wrap(~ppt, scales="free_y")+
+  guides(col=FALSE)+
+  labs(x="study visit",y="cognition") +
+  theme(text = element_text(size=16))-> p2
+
+p1 / p2 + plot_layout(heights=c(1,2))
+```
+:::
+::::
+
+## Ignore it {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(Complete pooling)__  
+
++ `lm(y ~ 1 + x, data = df)`  
+
++ Information from all clusters is pooled together to estimate over x  
+
+```{r}
+model <- lm(ACE ~ 1 + visit, data = d3)
+```
+```{r echo=FALSE, out.width="300px"}
+.pp(summary(model),l=list(c(10:12)))
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+df <- d3 %>% rename(y=ACE, x = visit) %>% mutate(cluster_var = gsub("PPT","cluster",ppt))
+model <- lm(y ~ x, data = df)
+df %>% mutate(
+  f = fitted(model)
+) %>%
+ggplot(.,aes(x=x,y=y))+geom_point(size=4)+
+  geom_smooth(method="lm")+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  labs(x="study visit",y="cognition")
+```
+:::
+::::
+
+## Ignore it (2) {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(Complete pooling)__  
+
++ `lm(y ~ 1 + x, data = df)`  
+
++ Information from all clusters is pooled together to estimate over x  
+
+```{r}
+model <- lm(ACE ~ 1 + visit, data = d3)
+```
+```{r echo=FALSE, out.width="300px"}
+.pp(summary(model),l=list(c(10:12)))
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+library(ggfx)
+library(ggforce)
+model <- lm(y ~ x, data = df)
+df %>% mutate(
+  f = fitted(model)
+) -> pdat 
+
+ggplot(pdat,aes(x=x,y=y))+
+  with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
+  geom_point(data = filter(pdat,cluster_var %in% c("cluster_20")),aes(col=cluster_var),size=4) + 
+  
+  geom_mark_ellipse(aes(label = ppt, filter = cluster_var == "cluster_20"),
+                    con.colour  = "#526A83", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  guides(col=FALSE, alpha=FALSE)+
+  geom_smooth(method="lm",se=F)+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  labs(x="study visit",y="cognition")
+```
+:::
+::::
+
+
+## Ignore it (3) {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(Complete pooling)__  
+
++ `lm(y ~ 1 + x, data = df)`  
+
++ Information from all clusters is pooled together to estimate over x  
+
+```{r}
+model <- lm(ACE ~ 1 + visit, data = d3)
+```
+```{r echo=FALSE, out.width="300px"}
+.pp(summary(model),l=list(c(10:12)))
+```
+
+But different clusters show different patterns.  
+Residuals are __not__ independent.  
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+library(ggfx)
+library(ggforce)
+model <- lm(y ~ x, data = df)
+df %>% mutate(
+  f = fitted(model)
+) -> pdat 
+
+ggplot(pdat,aes(x=x,y=y))+
+  with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
+  geom_point(data = filter(pdat,cluster_var %in% c("cluster_19")),aes(col=cluster_var),size=4) + 
+  
+  geom_mark_ellipse(aes(label = ppt, filter = cluster_var == "cluster_19"),
+                    con.colour  = "#526A83", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  geom_point(data = filter(pdat,cluster_var %in% c("cluster_10")),aes(col=cluster_var),size=4) + 
+  
+  geom_mark_ellipse(aes(label = ppt, filter = cluster_var == "cluster_10"),
+                    con.colour  = "#526A83", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  
+  guides(col=FALSE, alpha=FALSE)+
+  geom_smooth(method="lm",se=F)+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
+  labs(x="study visit",y="cognition")
+```
+:::
+::::
+
+
+## Fixed Effects Models {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(No pooling)__  
+
+- `lm(y ~ x * cluster, data = df)`  
+
+- Information from a cluster contributes to estimate *for that cluster*, but information is not pooled (estimate for cluster 1 completely independent from estimate for cluster 2). 
+
+```{r}
+model <- lm(ACE ~ 1 + ppt + visit, data = d3)
+```
+
+:::{.fragment}
+
+TODO  
++ Lots of estimates (separate for each cluster). 
++ Variance estimates constructed based on information *only* within each cluster. 
+
+```{r echo=FALSE}
+.pp(summary(model),l=list(c(10:34)))
+```
+:::
+
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+model1 <- lm(y~x+cluster_var,df)
+df %>% mutate(
+  f = fitted(model1)
+) %>%
+ggplot(.,aes(x=x,y=y,col=cluster_var))+
+  geom_point(alpha=.2)+
+  geom_line(aes(y=f,group=cluster_var))+
+  geom_smooth(df %>% mutate(f = fitted(model1)) %>% filter(cluster_var == "cluster_1"), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=y,col=cluster_var), lty="dashed", lwd=.5) +
+  
+  guides(col=FALSE)+
+  #geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.4) + 
+  labs(x="study visit",y="cognition")+
+  xlim(0,10)
+```
+:::
+::::
+
+
+
+

@@ -1,0 +1,275 @@
+---
+title: "<b>sleep deprivation example<br>(building up to lmm visually)</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+params: 
+    finalcompile: FALSE
+editor_options:
+  chunk_output_type: console
+---
+
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+library(lme4)
+
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+
+xaringanExtra::use_share_again()
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+
+knitr::opts_chunk$set(
+  dev = "svg",
+  warning = FALSE,
+  message = FALSE,
+  cache = TRUE,
+  fig.asp=.8
+)
+theme_set(
+    theme_minimal() + 
+    theme(text = element_text(size=20))
+)
+source("jk_source/jk_presfuncs.R")
+
+library(xaringanthemer)
+style_mono_accent(
+  base_color = "#88B04B", # DAPR3 
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+# Research Question
+
+> **How do reaction times change with increasing sleep deprivation?** <span style="opacity:.4">Participants measured over 10 days of sleep deprivation.</span>  
+
+
+???
+- so we have a straightforward research question.  
+- how do reaction times change as days without sleep increases? - we're going to ignore the context right now, and just use this as a starting point for a broad view of what we've looked at so far in dapr3  
+
+---
+# lm: a line
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide1.PNG")
+```
+
+???
+- our relationship is RT predicted by Days without sleep
+- we can fit a simple regression model where we are estimating two parameters, an interept and slope  
+- beta 0 is the intercept - the average RT at day 0
+- beta 1 is the slope - the amount by which RT increases with every day of no sleep
+
+
+---
+# lm: a line (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide13.PNG")
+```
+
+???
+- this is fine if we have just measured a person with 2 days of no sleep, and another person with 5 days of no sleep, another with 3 days, etc.  
+- because my reaction time is not dependent upon Tom's, or Emma's, or Umberto's etc. 
+
+---
+# lm: a line (3)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide2.PNG")
+```
+
+???
+- but instead, let's suppose our design involves measuring people over time. 
+- for each person, we have measured their RT with 1 day of no sleep, 2 days of no sleep, etc.. 
+- now all these observations from me are related to one another. they're all high because i have slow reaction times
+- for tom, his are all low - i.e. quick.  
+
+
+---
+# lm: lines and differences between them
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide3.PNG")
+```
+
+???
+- in week1 we saw how we might try and model the differences between people directly  
+- we'd get out loads more coefficients for the differences between a set of things that we are not specifically interested in. 
+- the coefficients are the estimated adjustments to get from Tom's RT to my RT
+- we'd rather think of the variation in RT between me and Tom as just some random variation that would be different if the experiment we repeated (because you would have different participants rather than me and Tom).  
+
+---
+# lmer: lines with a distribution of intercepts
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide4.PNG")
+```
+
+???
+- multilevel models allow us to think in that way  
+- they allow us to have parts of our model, e.g. the intercept in this plot, as a distribution. 
+- we have a fixed value around which peoples' own intercepts vary
+- so the fixed value is here. to get to mine, we need to add a bit, because i'm slower than the average person
+- to get to Tom's we subtract a bit, because he's faster than the average person
+
+- and the model estimates this fixed value, and the standard deviation of people's differences from that value  
+
+---
+# lmer: lines with a distribution of intercepts (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide5.PNG")
+```
+
+???
+- So our intercept now is the combination of a fixed intercept, and random people-level variance around that intercept.
+- we can get out these specific bits for me, for Tom, but we think of our model as really being the estimated variance in all of these. 
+
+
+---
+# lmer: lines with a distribution of intercepts (3)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide6.PNG")
+```
+
+???
+- and this one the model is allowing for people do have different intercepts _only_. 
+- Note they all have the same slope. 
+- so the model thinks that my RT increases by some amount for every day of no sleep, and this is the same amount for Tom, and for everyone. 
+
+---
+# lmer: lines with a distribution of intercepts (4)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide7.PNG")
+```
+
+???
+- So we the association between RT and Days of no sleep is just one fixed number
+- it's only in the fixed effects part of the model syntax
+
+---
+# lmer: and with a distribution of slopes
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide8.PNG")
+```
+
+
+???
+- but it doesn't have to be.
+- we can say that the association between RT and days of no sleep _also_ varies between people.  
+- i can cope with no sleep, so my RT doesn't get that much slower
+- Tom can't. he needs his sleep. his RT gets a lot slower as he has more days of no sleep  
+
+
+---
+# lmer: and with a distribution of slopes (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide9.PNG")
+```
+
+???
+- and really, just like the intercept is now a distribution
+- the slope is now a distribution.
+  - there's an overall average slope
+  - and people vary a bit around that. 
+  - so Tom's RT goes up a lot more (he's above the average slope) - the T here
+  - my RT doesn't go up as much - i'm below the average slope. the J here
+  - and they are the little additions we make above the overall slope, in order to get to each persons own slope
+
+---
+# fixed and random
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide10.PNG")
+```
+
+???
+- 95% of the time, research is interested in the fixed part. Describes the average group. 
+  - Fixed effects estimates are the bits we test  
+  - Random effects provide context
+
+---
+# nested: distributions of distributions 
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide11.PNG")
+```
+
+???
+- we can extend the MLM approach to have more levels  
+- so here we have some higher level grouping - Tom and I are both in Psychology, we also measured people in Linguistics, in Engineering, in Philosophy, etc.  
+- around the overall average person from the average department
+  - some departments have higher RT, some lower RT
+  - psychology are really slow
+  - engineering are really fast
+- and _within_ those, people vary around the department 
+  - i'm slower for psychology
+  - Tom's quicker for psychology
+
+
+---
+# crossed: distributions and distributions
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("jk_img_sandbox/rt_example/Slide12.PNG")
+```
+
+???
+- it's much harder to visualise the idea of crossed random effects in these figures, but i'm giving it a go  
+- suppose we tested people's RT on lots of different tasks
+  - the dropping & catching a ruler
+  - pressing a button when they see a light
+  - pressing a button when they hear a sound
+  - etc
+- we've got rid of the department stuff here, so no nesting. 
+- in the coloured points you can see three tasks I did every day, and Tom did the same 3 tasks, etc. 
+- we might expect these tasks to be vary in how quick people perform them. 
+  - e.g. people press buttons quicker when they see a light vs hear a sound
+  - pink task tend to be quick than the blue task. 
+- we can model this variation as task-level differences, alongside person-level differences  
+- intercept is now the RT for average person, on average task
+  - to get to my estimated blue task intercept, we need to
+  - add the "josiah is a slow person" bit
+  - add the "blue task is a slow task" bit  
+
+
+
+---
+class: inverse, center, middle
+
+# End

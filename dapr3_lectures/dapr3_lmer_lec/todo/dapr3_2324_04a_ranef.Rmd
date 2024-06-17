@@ -1,0 +1,586 @@
+---
+title: "<b>Random Effect Structures</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "Josiah King"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    self-contained: true
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+params: 
+    show_extra: false
+editor_options:
+  chunk_output_type: console
+---
+
+
+```{r setup, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+library(lme4)
+
+xaringanExtra::use_share_again()
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+knitr::opts_chunk$set(
+  dev = "svg",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE,
+  fig.asp = .8
+)
+
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+
+theme_set(
+    theme_minimal() + 
+    theme(text = element_text(size=20))
+)
+
+source("jk_source/jk_presfuncs.R")
+
+library(xaringanthemer)
+
+style_mono_accent(
+  base_color = "#88B04B", # DAPR3 
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+
+
+???
+Now that we've taken a bit of time to look at assumptions and diagnostic in multilevel models, we're going to move on to thinking about random effect structures in a bit more detail. 
+
+
+
+---
+# Grouping structures so far... 
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+]
+.pull-right[
+
+]
+???
+
+---
+# Look at your data! Read the study design!  
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+]
+.pull-right[
+```{r echo=FALSE}
+data.frame(
+  g = c(1,1,1,"...","...","i","i","..."),
+  x = c(1,7,3,"...","...",5,1,"..."),
+  y = c(34,32,37,"...","...",25,29,"...")
+) |> print(row.names=FALSE)
+```
+]
+
+---
+count: false
+# Look at your data! Read the study design!  
+
+.pull-left[
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- **observations within clusters**  
+
+]
+.pull-right[
+```{r echo=FALSE}
+data.frame(
+  g = c(1,1,1,"...","...","i","i","..."),
+  x = c(1,7,3,"...","...",5,1,"..."),
+  y = c(34,32,37,"...","...",25,29,"...")
+) |> print(row.names=FALSE)
+```
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g`
+]
+
+---
+# Adding more levels!  
+
+.pull-left[
+
+- children within schools *within districts*
+
+- people within areas *within countries*
+
+- trials within participants *within pairs*
+
+- timepoint within participants *within families*
+
+- nurses within hospitals *within health boards*
+
+- **observations within clusters _within higher clusters_**  
+
+]
+.pull-right[
+
+```{r echo=FALSE}
+data.frame(
+  g1 = c("A","A","A","...","...","A","A","...","  ","B","B","B","...","...","B"),
+  g2 = c(1,1,1,"...","...","i","i","...","  ",101,101,102,"...","...","..."),
+  x = c(1,7,3,"...","...",5,1,"...","  ",4,6,2,"...","...","..."),
+  y = c(34,32,37,"...","...",25,29,"...","  ",31,25,27,"...","...","...")
+) |> print(row.names=FALSE)
+```
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g2`, which are in turn grouped by values of higher-level group identifier `g1`
+
+]
+
+---
+# Nested Structures
+
+- the things in a cluster belong __only__ to that cluster.  
+
+```{r out.width="450px", echo=FALSE, fig.align="center"}
+knitr::include_graphics("https://media.gettyimages.com/photos/albatross-chick-between-parents-feet-falkland-islands-picture-id642348358?s=2048x2048")
+```
+
+???
+the idea of a nested structure here is that each observation belongs to only one higher up level. 
+so each chick is in a nest, and they don't go into other nests.  
+each nest is in a tree, and the nests don't move to other trees. 
+
+
+---
+count:false
+# Nested Structures
+
+- the things in a cluster belong __only__ to that cluster.  
+
+- **`(1 | school/class)`** or **`(1 | school) + (1 | class:school)`**
+
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/structure_nestednew.png")
+```
+
+???
+we can have multiple levels of nesting. for instance, children in classes in schools. 
+in this case, we need to specify the nesting in our model. 
+so we use a forward slash, or a longer format which is more explicitly fitting a random intercept for each school, and a random intercept for each class within each school.
+
+---
+# Nested Structures - labels!  
+
+- the things in a cluster belong __only__ to that cluster.  
+
+- If labels are unique, **`(1 | school) + (1 | class)`** is the same as **`(1 | school/class)`**  
+
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/structure_nestedlabnew.png")
+```
+
+???
+one thing to note is that if our grouping labels are unique. for instance, all the classes from school A are called "Class A"-something, then we can also write it like this. 
+in this case we don't have to specify the nesting of classes within schools explicitly because the labels of the classes are unique to each school. 
+rather than the previous slide where there was a "class 1" label in all 3 schools, but these were actually DIFFERENT classes. 
+
+
+---
+count:false
+# Example
+
+.pull-left[
+One study site recruits 20 participants.  
+Each participant has 10 datapoints.  
+
+```{r}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+```
+```{r echo=FALSE}
+rbind(
+  d3[1:4,],
+  "...",
+d3[d3$condition=="mindfulness",][1:4,]) |> as.data.frame() |>
+  print(row.names=FALSE)
+```
+```{r eval=FALSE}
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)
+```
+
+]
+.pull-right[
+```{r eval=FALSE}
+... + (1 + ... | ppt)
+```
+
+```{r echo=FALSE}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)+
+  theme(legend.position = "bottom")
+```
+]
+
+---
+# Nested Example
+
+.pull-left[
+14 study sites each recruit between 15-30 participants.  
+Each participant has 10 datapoints.  
+
+```{r}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+```
+```{r echo=FALSE}
+rbind(
+  d3full[338:343,],
+  "...",
+  "...",
+  d3full[956:959,],
+  "..."
+) |> as.data.frame() |> print(row.names=FALSE)
+```
+```{r eval=FALSE}
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+
+]
+.pull-right[
+```{r eval=FALSE}
+... + (1 + ... | sitename / ppt)
+```
+
+```{r echo=FALSE}
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)+
+  theme(legend.position = "bottom")
+```
+]
+
+
+
+---
+# Crossed Structures
+
+- "crossed" = not nested!
+
+???
+crossed random effects are simply anything which is not nested. 
+
+--
+
+- **`(1 | subject) + (1 | task)`**  
+- the things in a cluster can also belong to other clusters
+
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("jk_img_sandbox/structure_crossednew.png")
+```
+
+???
+a typical example is where each participant completes the same set of tasks, or sees the same set of stimuli. 
+if you want to carry on the schools, children example, you could consider subjects maths, english, history etc are not nested within schools, but history is taught in every school, and each school teaches every subject. 
+
+
+---
+# Random Effects Revisited
+
+**What do we mean by "random effects"?**  
+
+$$
+\text{... + }\underbrace{\text{(random intercept + random slopes | grouping structure)}}_{\text{random effects}}
+$$
+.pull-left[
+
+People use different phrasings...   
+
+- when referring to random slopes:
+  - "random effects of x for g"  
+  - "random effects of x by g"  
+  - "by-g random effects of x"  
+- when referring to random intercept:
+  - "random effect for g"
+  
+common definition: "allow ___ to vary by g"
+]
+.pull-right[
+
+__Nested__  
+```
+... + (1 + ... | g1 / g2)
+... + (1 + ... | g1 ) + (1 + ... | g1:g2)
+```
+
+__Crossed__  
+```
+... + (1 + ... | g1 ) + (1 + ... | g2)
+```
+]
+
+
+
+---
+# Random Effects Revisited (2)
+
+**Should variable `g` be fixed or random?**  
+
+| Criterion: | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed<br>**y ~ ... + g**  | <center>Same groups would be used</center>     |    <center>The groups used</center>                                   |
+| Random<br>**y ~ ... + (...&#124;g)** | <center>Different groups would be used</center>   | <center>A population from which the groups used<br> are just a (random) sample</center> |
+
+
+- If only small number of groups, estimating variance components may be unstable.  
+
+- Partialling out group-differences as fixed effects *may* be preferable. 
+
+
+???
+in discussing random effect structures, it's worth reiterating our distinction between fixed and random effects. sometimes it may be preferable to fit grouping as a fixed effect, if, for instance, we have a small number of clusters. 
+
+---
+# Random Effects Revisited (3)
+
+**I have  `y ~ 1 + x + (1 | g)` should I include by-g random slope of x?**  
+
+If the effect of x can vary by g, then including `x | g` will give a better estimate of the uncertainty in the fixed effect of x.  
+
+<br><br>
+```
+1. ACE ~ visit + (1 + visit | ppt)
+2. ACE ~ visit + (1 | ppt)
+```
+
+1 is preferable to 2, especially because we're interested in estimating and testing the effect of visit.  
+
+```
+3. ACE ~ visit + covariate + (1 + visit + covariate | ppt)
+4. ACE ~ visit + covariate + (1 + visit | ppt)
+```
+
+3 is preferable to 4 because it more accurately represents the world (people vary in how the covariate influences cognition). But it's less crucial here - we're not interested in assessing significance of covariate, we're just controlling for it.  
+
+---
+# Random Effects Revisited (4)
+
+.pull-left[
+```{r}
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+ggplot(d3, aes(x=visit,y=ACE,col=condition))+
+  geom_point()+
+  facet_wrap(~ppt)
+```
+]
+.pull-right[
+
+- multiple observations from each participant  
+`(1 | ppt)` theoretically makes sense  
+(participants may vary in their average cognition)
+{{content}}
+
+]
+
+--
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design.  
+therefore, this *could* be different for different ppts!  
+`(visit | ppt)` makes theoretical sense.
+{{content}}
+  
+--
+  
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design (each ppt is either one condition or the other).  
+~~`(condition | ppt)`~~ makes no sense
+  
+
+---
+# Random Effects Extended
+
+.pull-left[
+```{r}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+]
+.pull-right[
+
+- multiple observations from each participant:  
+`(1 | ppt)`
+{{content}}
+
+]
+
+--
+
+- multiple participants nested within study sites:  
+`(1 | sitename/ppt)`
+{{content}}
+
+--
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | ppt)`
+- for a single study site, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | sitename)`
+{{content}}
+
+--
+
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design:  
+~~`(condition | ppt)`~~
+- for a single study site, the slope of `ACE ~ condition` exists in our study design:  
+`(condition | sitename)`
+
+---
+# Random Effects Extended (2)
+
+.pull-left[
+```{r}
+d3full <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+]
+.pull-right[
+
+`1 | ppt`  
+`1 | sitename/ppt`  
+`visit | ppt`  
+`visit | sitename`  
+~~`condition | ppt`~~  
+`condition | sitename`  
+
+```
+... + (1 + visit + condition | sitename / ppt)
+```
+```
+... + (1 + visit + condition | sitename ) + 
+      (1 + visit | ppt:sitename)
+```
+{{content}}
+]
+
+--
+
+**ONLY IF** ppts labels are unique to each study site:
+```
+... + (1 + visit + condition | sitename ) + 
+      (1 + visit | ppt)
+```
+
+```{r echo=FALSE}
+data.frame(
+  sitename = c("Savdz", "Sbfxt", "..."),
+  ppt = c("ppt_1","ppt_1","..."),
+  ACE = rep("...",3),
+  visit = rep("...",3),
+  condition = rep("...",3)
+) |> print(row.names=FALSE)
+```
+
+
+---
+# The poke in the eye  
+
+It's a trade-off...  
+
+.pull-left[
+
+**Accurately representing the world**  
+
+everything that can vary is modelled as varying
+
+]
+
+--
+
+.pull-right[
+
+**Being able to fit the model**  
+
+in our sample, some things will not vary _enough_ to fit `x|g`  
+{{content}}
+
+]
+
+--
+
+- not enough groups in `g`
+  - fit `+g` instead of `(1|g)`
+- predictors on different scales
+  - `mm|g` vs `km|g`
+      - can be fixed with scaling  
+- not enough variance in `y~x` between groups
+
+  
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End
+

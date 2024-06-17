@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>WEEK 2 Path Mediation</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="dapR3 Team" />
+    <script src="jk_libs/libs/header-attrs/header-attrs.js"></script>
+    <link href="jk_libs/libs/tile-view/tile-view.css" rel="stylesheet" />
+    <script src="jk_libs/libs/tile-view/tile-view.js"></script>
+    <link href="jk_libs/libs/animate.css/animate.xaringan.css" rel="stylesheet" />
+    <link href="jk_libs/libs/tachyons/tachyons.min.css" rel="stylesheet" />
+    <link href="jk_libs/libs/xaringanExtra-extra-styles/xaringanExtra-extra-styles.css" rel="stylesheet" />
+    <script src="jk_libs/libs/clipboard/clipboard.min.js"></script>
+    <link href="jk_libs/libs/shareon/shareon.min.css" rel="stylesheet" />
+    <script src="jk_libs/libs/shareon/shareon.min.js"></script>
+    <link href="jk_libs/libs/xaringanExtra-shareagain/shareagain.css" rel="stylesheet" />
+    <script src="jk_libs/libs/xaringanExtra-shareagain/shareagain.js"></script>
+    <link rel="stylesheet" href="xaringan-themer.css" type="text/css" />
+    <link rel="stylesheet" href="jk_libs/tweaks.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# <b>WEEK 2<br>Path Mediation</b>
+]
+.subtitle[
+## Data Analysis for Psychology in R 3
+]
+.author[
+### dapR3 Team
+]
+.institute[
+### Department of Psychology<br/>The University of Edinburgh
+]
+
+---
+
+
+
+
+
+
+# Learning Objectives
+1. Understand the purpose of mediation models and the conceptual challenges
+2. Be able to describe direct, indirect and total effects in a mediation model.
+3. Estimate and interpret a mediation model using `lavaan`
+
+---
+class: inverse, center, middle
+
+&lt;h2&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Reporting&lt;/h2&gt;
+
+---
+# Mediation
+
+- Is when a predictor X, has an effect on an outcome Y, via a mediating variable M
+
+- The mediator **transmits** the effect of X  to Y 
+
+- Examples of mediation hypotheses:
+    - Conscientiousness (X) affects health (Y) via health behaviors (M)
+    - Conduct problems (X) increase the risk of depression (Y) via peer problems (M)
+    - Attitudes to smoking (X) predict intentions to smoke (M) which in turn predicts smoking behavior (Y) 
+    - An intervention (X) to reduce youth crime (Y) works by increasing youth self-control (M)
+    
+---
+# Visualising a mediation model
+
+.pull-left[
+- In a SEM diagram we can represent mediation as:
+]
+
+.pull-right[
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-1-1.png" width="17777" /&gt;
+]
+
+---
+# Mediation...not to be confused with moderation
+- Mediation is commonly confused with **moderation** 
+
+- Moderation is when a moderator z modifies the effect of X on Y
+  - e.g., the effect of X on Y is stronger at higher levels of Z
+  - Also known as an **interaction** between X and Z
+
+- Examples of moderation could be:
+    - An intervention (X) works better to reduce bullying (Y) at older ages (Z) of school pupil
+    - The relation between stress (X) and depression (Y) is lower for those scoring higher on spirituality (Z) 
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Reporting&lt;/h2&gt;  
+
+---
+# Direct and indirect effects in mediation
+- We seldom hypothesize that a mediator completely explains the relation between X and Y
+
+- More commonly, we expect both **indirect effects** and **direct effects** of X on Y
+  - The indirect effects of X on Y are those transmitted via the mediator
+  - The direct effect of X on Y is the remaining effect of X on Y
+
+
+---
+# Visualing direct and indirect effects in mediation
+
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-2-1.png" width="1707" /&gt;
+
+---
+# Testing mediation
+
+.pull-left[
+- Traditionally, mediation was tested using a series of separate linear models:
+  1. Y~X  
+  2. Y~X+M  
+  3. M~X
+
+- May see this referred to as the Baron and Kenny approach.
+
+]
+
+.pull-right[
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-3-1.png" width="1707" /&gt;
+
+]
+
+
+
+---
+# Traditional methods for mediation
+.pull-left[
+- The three regression models:
+  1. Y~X  
+  2. Y~X+M  
+  3. M~X
+    
+]
+
+.pull-right[
+- Model 1 estimates the overall effect of X on Y
+- Model 2 estimates the partial effects of X and M on Y
+- Model 3 estimates the effect of X on M
+
+- If the following conditions were met, mediation was assumed to hold:
+  - The effect of X on Y (eq.1) is significant
+  - The effect of X on M (eq.3) is significant
+  - The effect of X on Y becomes reduced when M is added into the model (eq.2)
+]
+
+
+---
+# Limitations of traditional methods for mediation
+- Low power
+
+- Very cumbersome for multiple mediators, predictors, or outcomes
+
+- You don't get an estimate of the magnitude of the indirect effect
+
+- Much better way: **path mediation model**
+
+---
+# BREAK QUIZ
+- Quiz question:
+    - Which of these hypotheses is a mediation hypothesis?
+      - 1) Vocabulary development in childhood follows a non-linear trajectory
+      - 2) The effects of conscientiousness on academic achievement are stronger at low levels of cognitive ability
+      - 3) Poverty affects child behavior problems through increasing parental stress
+      - 4) Earlier pubertal onset increases the risk of antisocial behavior only in girls and not boys
+      
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 4: Reporting&lt;/h2&gt;
+
+---
+# WELCOME BACK
+
+- Welcome back!
+- The answer to the quiz question is...
+   - Which of these hypotheses is a mediation hypothesis?
+      - 1) Vocabulary development in childhood follows a non-linear trajectory
+      - 2) The effects of conscientiousness on academic achievement are stronger at low levels of cognitive ability
+      - 3) **Poverty affects child behavior problems through increasing parental stress**
+      - 4) Earlier pubertal onset increases the risk of antisocial behavior only in girls and not boys
+
+
+---
+# Testing a path mediation model in lavaan
+
+- Specification
+  - Create a lavaan syntax object
+
+- Estimation
+  - Estimate the model using e.g., maximum likelihood estimation
+
+- Evaluation/interpretation
+  - Inspect the model to judge how good it is
+  - Interpret the parameter estimates
+
+
+---
+# Example
+.pull-left[
+- Does peer rejection mediate the association between aggression and depression?
+
+
+]
+
+.pull-right[
+
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-4-1.png" width="17777" /&gt;
+
+]
+
+
+---
+# The data
+
+```r
+slice(agg.data2, 1:10)
+```
+
+```
+##        Dep      PR       Agg
+## 1   0.2466  0.7660  0.356742
+## 2   0.3543  1.5883  1.723399
+## 3  -1.7653 -0.6616 -0.891406
+## 4   0.9377  1.9045  0.852624
+## 5   0.1180 -0.1149 -0.653107
+## 6  -0.4619  2.3821 -0.667404
+## 7   0.4619 -1.0537  0.075925
+## 8   0.9918  0.2231 -0.152125
+## 9   0.4318  0.2338  0.006892
+## 10 -0.3855 -1.7180  0.127499
+```
+
+
+---
+# Mediation Example
+
+- Does peer rejection mediate the association between aggression and depression?
+
+
+```r
+model1&lt;-'Dep ~ PR      # Depression predicted by peer rejection
+         Dep ~ Agg     # Depression predicted by aggression (the direct effect)
+         PR ~ Agg      # Peer rejection predicted by aggression
+'     
+```
+
+- Estimate the model 
+
+
+```r
+model1.est&lt;-sem(model1, data=agg.data2)
+```
+
+
+---
+# Model Ouput
+
++ Typically we want to see:
+  + Model estimates
+  + Model fit
+  + Standardized solutions
+  + Possibly modification indices
+  
++ We get those by:
+
+
+```r
+summary(model1.est, 
+        fit.measures = T, 
+        std=T, 
+        modindices = T)
+```
+
+
+---
+# The model output
+
+.scroll-output[
+
+```r
+summary(model1.est)
+```
+
+```
+## lavaan 0.6-12 ended normally after 1 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         5
+## 
+##   Number of observations                           500
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 0.000
+##   Degrees of freedom                                 0
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                             Standard
+##   Information                                 Expected
+##   Information saturated (h1) model          Structured
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##   Dep ~                                               
+##     PR                0.295    0.046    6.387    0.000
+##     Agg               0.196    0.046    4.236    0.000
+##   PR ~                                                
+##     Agg               0.507    0.039   13.089    0.000
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##    .Dep               0.817    0.052   15.811    0.000
+##    .PR                0.766    0.048   15.811    0.000
+```
+]
+
+---
+# Things to note from the model output
+
+- All three regressions paths are statistically significant
+
+- The model is **just-identified**
+  - The degrees of freedom are equal to 0
+  - The model fit cannot be tested
+  - The model fit statistics (TLI, CFI, RMSEA, SRMR) all suggest perfect fit but this is meaningless
+
+---
+# Visualising the model using `semPaths()`
+
+- We can use semPaths() from the semPlot package to help us visualize the model
+    - Shows the parameter estimates within an SEM diagram
+
+
+```r
+library(semPlot)
+semPaths(model1.est, what='est')
+```
+
+---
+# Visualising the model using `semPaths()`
+
+![](week2_pathmediation_files/figure-html/unnamed-chunk-10-1.png)&lt;!-- --&gt;
+
+
+---
+# Calculating the indirect effects 
+
+.pull-left[
+- To calculate the indirect effect of X on Y in path mediation, we need to create some new parameters
+
+- The indirect effect of X on Y via M is:
+  - `\(a*b\)`
+  - `\(a\)` = the regression coefficient for M~X
+  - `\(b\)` = the regression coefficient for Y~M
+]
+
+.pull-right[
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-11-1.png" width="17777" /&gt;
+
+]
+
+---
+# Calculating indirect effects in lavaan
+
+.pull-left[
+- To calculate the indirect effect of X on Y in lavaan we:
+
+- Use parameter labels 'a' and 'b' to label the relevant paths
+  - a is for the effect of X on M
+  - b is for the effect of M on Y
+
+- Use the ':=' operator to create a new parameter 'ind'
+  - 'ind' represents our indirect effect
+]
+
+.pull-right[
+
+```r
+model1&lt;-'Dep~b*PR        
+         Dep~Agg     
+         PR~a*Agg
+         ind:=a*b
+         '
+```
+]
+
+---
+# Indirect effects in the output
+
+.scroll-output[
+
+```r
+model1.est&lt;-sem(model1, data=agg.data2)
+summary(model1.est)
+```
+
+```
+## lavaan 0.6-12 ended normally after 1 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         5
+## 
+##   Number of observations                           500
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 0.000
+##   Degrees of freedom                                 0
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                             Standard
+##   Information                                 Expected
+##   Information saturated (h1) model          Structured
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##   Dep ~                                               
+##     PR         (b)    0.295    0.046    6.387    0.000
+##     Agg               0.196    0.046    4.236    0.000
+##   PR ~                                                
+##     Agg        (a)    0.507    0.039   13.089    0.000
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##    .Dep               0.817    0.052   15.811    0.000
+##    .PR                0.766    0.048   15.811    0.000
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|)
+##     ind               0.150    0.026    5.740    0.000
+```
+
+]
+
+---
+# Statistical significance of the indirect effects
+- Default method of assessing the statistical significance of indirect effects assume normal sampling distribution
+
+- May not hold for indirect effects which are the product of regression coefficients
+
+- Instead we can use **bootstrapping**
+  - Allows 95% confidence intervals (CIs) to be computed
+  - If 95% CI includes 0, the indirect effect is not significant at alpha=.05
+    
+---
+# Bootstapped CIs for indirect effect in lavaan
+
+
+```r
+  model1&lt;-'Dep~b*PR          
+           Dep~Agg     
+           PR~a*Agg      
+ind:=a*b'    
+
+model1.est&lt;-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se='bootstrap'
+```
+
+---
+# Output for bootstrapped CIs 
+
+.scroll-output[
+
+```r
+summary(model1.est, ci=T) # we add the argument ci=T to see the confidence intervals in the output
+```
+
+```
+## lavaan 0.6-12 ended normally after 1 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         5
+## 
+##   Number of observations                           500
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 0.000
+##   Degrees of freedom                                 0
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                            Bootstrap
+##   Number of requested bootstrap draws             1000
+##   Number of successful bootstrap draws            1000
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##   Dep ~                                                                 
+##     PR         (b)    0.295    0.043    6.862    0.000    0.204    0.381
+##     Agg               0.196    0.049    4.043    0.000    0.102    0.295
+##   PR ~                                                                  
+##     Agg        (a)    0.507    0.041   12.333    0.000    0.426    0.590
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##    .Dep               0.817    0.050   16.235    0.000    0.708    0.909
+##    .PR                0.766    0.050   15.160    0.000    0.668    0.866
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##     ind               0.150    0.026    5.818    0.000    0.100    0.201
+```
+]
+
+---
+# Total effects in path mediation
+
+- As well as the direct and indirect effect, it is often of interest to know the **total** effect of X on Y
+
+`$$Total = Indirect + Direct$$`
+
+---
+# Total effects in path mediation
+
+`$$Total = a*b + c$$`
+
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-12-1.png" width="17777" /&gt;
+
+---
+# Total effect in lavaan
+
+
+```r
+  model1&lt;-'Dep~b*PR          
+           Dep~c*Agg         # we add the label c for our direct effect    
+           PR~a*Agg      
+ind:=a*b
+total:=a*b+c                 # we add a new parameter for the total effect'    
+
+model1.est&lt;-sem(model1, data=agg.data2, se='bootstrap') #we add the argument se='bootstrap'
+```
+
+---
+# Total effect in lavaan output
+
+.scroll-output[
+
+```r
+summary(model1.est, ci=T)
+```
+
+```
+## lavaan 0.6-12 ended normally after 1 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         5
+## 
+##   Number of observations                           500
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 0.000
+##   Degrees of freedom                                 0
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                            Bootstrap
+##   Number of requested bootstrap draws             1000
+##   Number of successful bootstrap draws            1000
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##   Dep ~                                                                 
+##     PR         (b)    0.295    0.043    6.879    0.000    0.212    0.381
+##     Agg        (c)    0.196    0.049    3.983    0.000    0.096    0.290
+##   PR ~                                                                  
+##     Agg        (a)    0.507    0.041   12.388    0.000    0.426    0.590
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##    .Dep               0.817    0.050   16.487    0.000    0.711    0.910
+##    .PR                0.766    0.048   15.867    0.000    0.664    0.863
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##     ind               0.150    0.025    5.878    0.000    0.103    0.204
+##     total             0.346    0.047    7.412    0.000    0.254    0.442
+```
+]
+
+---
+# Why code the total effect in lavaan?
+
+- We could have just added up the coefficients for the direct and indirect effects
+
+- By coding it in lavaan, however, we can assess the statistical significance of the total effect
+
+- Useful because sometimes the direct and indirect effects are not individually significant but the total effect is
+  - May be especially relevant in cases where there are many mediators of small effect
+
+---
+# Interpreting the total, direct, and indirect effect coefficients
+- The total effect can be interpreted as the **unit increase in Y expected to occur when X increases by one unit**
+
+- The indirect effect can be interpreted as the **unit increase in Y expected to occur via M when X increases by one unit**
+
+- The direct effect can be interpreted as the **unit increase in Y expected to occur with a unit increase in X over and above the increase transmitted by M**
+
+- **Note**: 'direct' effect may not actually be direct - it may be acting via other mediators not included in our model
+
+---
+# Standardised parameters
+- As with CFA models, standardized parameters can be obtained using:
+
+
+```r
+summary(model1.est, ci=T, std=T)
+```
+
+---
+# Standardised parameters
+.scroll-output[
+
+```
+## lavaan 0.6-12 ended normally after 1 iterations
+## 
+##   Estimator                                         ML
+##   Optimization method                           NLMINB
+##   Number of model parameters                         5
+## 
+##   Number of observations                           500
+## 
+## Model Test User Model:
+##                                                       
+##   Test statistic                                 0.000
+##   Degrees of freedom                                 0
+## 
+## Parameter Estimates:
+## 
+##   Standard errors                            Bootstrap
+##   Number of requested bootstrap draws             1000
+##   Number of successful bootstrap draws            1000
+## 
+## Regressions:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##   Dep ~                                                                 
+##     PR         (b)    0.295    0.043    6.879    0.000    0.212    0.381
+##     Agg        (c)    0.196    0.049    3.983    0.000    0.096    0.290
+##   PR ~                                                                  
+##     Agg        (a)    0.507    0.041   12.388    0.000    0.426    0.590
+##    Std.lv  Std.all
+##                   
+##     0.295    0.298
+##     0.196    0.198
+##                   
+##     0.507    0.505
+## 
+## Variances:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##    .Dep               0.817    0.050   16.487    0.000    0.711    0.910
+##    .PR                0.766    0.048   15.867    0.000    0.664    0.863
+##    Std.lv  Std.all
+##     0.817    0.812
+##     0.766    0.745
+## 
+## Defined Parameters:
+##                    Estimate  Std.Err  z-value  P(&gt;|z|) ci.lower ci.upper
+##     ind               0.150    0.025    5.878    0.000    0.103    0.204
+##     total             0.346    0.047    7.412    0.000    0.254    0.442
+##    Std.lv  Std.all
+##     0.150    0.151
+##     0.346    0.349
+```
+]
+
+---
+# BREAK QUIZ
+
+- Time for a pause
+- Quiz question
+    - If the effect of X on M is b=.30 and the effect of M on Y is b=.10, what is the indirect effect of X on Y?
+      - 1) b=.40
+      - 2) b=.03
+      - 3) b=.30
+      - 4) b=.10
+      
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 1: Introduction to mediation&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 2: Direct, indirect and total effects&lt;/h2&gt;
+&lt;h2 style="text-align: left;opacity:0.3;"&gt;Part 3: Estimating mediation in `lavaan`&lt;/h2&gt;
+&lt;h2&gt;Part 4: Reporting&lt;/h2&gt;
+
+
+
+---
+# Welcome back
+- The answer to the quiz question is...
+- Quiz question
+    - If the effect of X on M is b=.30 and the effect of M on Y is b=.10, what is the indirect effect of X on Y?
+      - 1) b=.40
+      - 2) **b=.03**
+      - 3) b=.30
+      - 4) b=.10
+
+---
+# Reporting path mediation models 
+
+- Methods/ Analysis Strategy
+  - The model being tested
+  - e.g. 'Y was regressed on both X and M and M was regressed on X'
+  - The estimator used (e.g., maximum likelihood estimation)
+  - The method used to test the significance of indirect effects ('bootstrapped 95% confidence intervals')
+
+- Results
+  - Model fit (for over-identified models)
+  - The parameter estimates for the path mediation  and their statistical significance
+  - Can be useful to present these in a SEM diagram
+  - The diagrams from R not considered 'publication quality' draw in powerpoint or similar
+
+---
+# Reporting path mediation models - example of SEM diagram with results
+
+.pull-left[
+- Include the key parameter estimates
+
+- Indicate statistically significant paths (e.g. with an '*')
+
+- Include a figure note that explains how statistically significant paths (and at what level) are signified 
+
+]
+
+.pull-right[
+
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-14-1.png" width="1707" /&gt;
+
+]
+
+---
+# Reporting path mediation models - the indirect effects
+
+- Results
+ - The coefficient for the indirect effect and the bootstrapped 95% confidence intervals
+ - Common to also report **proportion mediation**:
+  
+`$$\frac{indirect}{total}$$` 
+  
+- However, important to be aware of limitations:
+  - Big proportion mediation possible when total effect is small - makes effect seem more impressive
+  - Small proportion mediation even when total effect is big - can underplay importance of effect
+  - Should be interpreted in context of total effect
+
+- Tricky interpretation if there are a mix of negative and positive effects involved
+
+
+---
+# Extensions of path mediation models
+- We can extend our path mediation model in various ways:
+  - Several mediators in sequence or parallel
+  - Multiple outcomes
+  - Multiple predictors
+  - Multiple groups (e.g., comparing direct and indirect effects across males and females)
+  - Add covariates to adjust for potential confounders
+
+
+---
+# Example: Multiple mediation model
+.pull-left[
+
+```r
+model2&lt;-'Dep~b2*Aca  
+         Aca~a2*Agg
+         Dep~b1*PR
+         PR~a1*Agg
+         Dep~c*Agg  
+
+        ind1:=a1*b1
+        ind2:=a2*b2
+        
+        total=a1*b1+a2*b2+c
+'
+```
+]
+
+.pull-right[
+
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-15-1.png" width="17777" /&gt;
+
+]
+
+---
+## Other path analysis models
+- Path mediation models are a common application of path models
+  - But they are just one example
+
+- Anything that can be expressed in terms of regressions between observed variables can be tested as a path model
+  - Can include ordinal or binary variables
+  - Can include moderation
+
+- Other common path analysis models include:
+    - Auto-regressive models for longitudinal data
+    - Cross-lagged panel models for longitudinal data
+
+---
+# Making model modifications
+- You **may** want to make some modifications to your initially hypothesized model 
+  - non-significant paths that you want to trim
+  - include some additional paths not initially included
+
+- Remember that this now moves us into exploratory territory where:
+  - Model modifications should be substantively as well as statistically justifiable
+  - You must be aware of the possibility that you are capitalizing on chance
+  - You should aim to replicate the modifications in independent data
+
+---
+# Cautions regarding path analysis models
+- **Assumption** that the paths represent causal effects is only an assumption
+  - Especially if using cross-sectional data
+  - Mediation models should ideally be estimated on longitudinal data.
+    - X time 1
+    - M time 2
+    - Y time 3
+
+- The parameters are only accurate if the model is correctly specified
+
+---
+# Cautions: Indistinguishable models
+
+&lt;img src="week2_pathmediation_files/figure-html/unnamed-chunk-16-1.png" width="17777" /&gt;
+
+---
+# Measurement error in path analysis
+- Path analysis models use observed variables
+  - Assumes no measurement error in these variables
+
+- Path coefficients likely to be attenuated due to unmodeled measurement error
+
+- Structural equation models solve this issue
+  - They are path analysis models where the paths are between latent rather than observed variables
+  - ...very brief comment on this in the final week
+
+---
+# Path analysis summary
+- Path analysis can be used to fit sets of regression models
+  - Common path analysis model is the path mediation model
+  - But very flexible huge range of models that can be tested
+
+- In R, path analysis can be done using the `sem()` function in `lavaan`
+
+- Need to be aware that we aren't *testing* causality but assuming it
+
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
+
+# Bonus `laavan`
+
+---
+# 2+ category nominal predictors
+
++ To include these variables, we need to create the 0/1 dummy coded variables:
+
+
+```r
+tib1 &lt;- tibble(
+  city = c("Bristol","Bristol","Birmingham","Birmingham", "London", "London"),
+  cityd1 = ifelse(city =="Bristol", 1, 0),
+  cityd2 = ifelse(city == "Birmingham", 1, 0)
+)
+
+tib1
+```
+
+```
+## # A tibble: 6 × 3
+##   city       cityd1 cityd2
+##   &lt;chr&gt;       &lt;dbl&gt;  &lt;dbl&gt;
+## 1 Bristol         1      0
+## 2 Bristol         1      0
+## 3 Birmingham      0      1
+## 4 Birmingham      0      1
+## 5 London          0      0
+## 6 London          0      0
+```
+
++`cityd1` and `cityd2` can then be added to a `lavaan` model syntax.
+
+---
+# Interactions
+
++ Here we need to create the product variable in our data set:
+
+
+```r
+tib2 &lt;- tibble(
+  pred1 = rnorm(100, 15, 2),
+  pred2 = rnorm(100, 10, 4),
+  pred1z = scale(pred1)[,1],
+  pred2z = scale(pred2)[,1],
+  prod12 = pred1z*pred2z
+) 
+
+slice(tib2, 1:3)
+```
+
+```
+## # A tibble: 3 × 5
+##   pred1 pred2 pred1z pred2z prod12
+##   &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;
+## 1  12.7  11.5 -1.01   0.288 -0.291
+## 2  14.0  13.0 -0.327  0.684 -0.223
+## 3  13.1  13.2 -0.769  0.727 -0.560
+```
+
+
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="jk_libs/macros.js"></script>
+<script>var slideshow = remark.create({
+"navigation": {
+"scroll": false
+},
+"ratio": "16:9",
+"highlightStyle": "github",
+"highlightLines": true,
+"countIncrementalSlides": false
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

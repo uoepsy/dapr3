@@ -1,0 +1,594 @@
+---
+title: "<b>WEEK 4<br>Exploratory Factor Analysis 1</b>"
+subtitle: "Data Analysis for Psychology in R 3"
+author: "dapR3 Team"
+institute: "Department of Psychology<br/>The University of Edinburgh"
+date: ""
+output:
+  xaringan::moon_reader:
+    lib_dir: jk_libs/libs
+    css: 
+      - xaringan-themer.css
+      - jk_libs/tweaks.css
+    nature:
+      beforeInit: "jk_libs/macros.js"
+      ratio: '16:9'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+editor_options:devtools::install_github("gadenbuie/xaringanExtra"):
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+options(htmltools.dir.version = FALSE)
+options(digits=4,scipen=2)
+options(knitr.table.format="html")
+xaringanExtra::use_xaringan_extra(c("tile_view","animate_css","tachyons"))
+xaringanExtra::use_tile_view()
+xaringanExtra::use_extra_styles(
+  mute_unhighlighted_code = FALSE
+)
+xaringanExtra::use_share_again()
+library(knitr)
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(patchwork)
+knitr::opts_chunk$set(
+  fig.asp=.9,
+  dev = "png",
+  warning = FALSE,
+  message = FALSE,
+  cache = FALSE
+)
+themedapr3 = function(){
+  theme_minimal() + 
+    theme(text = element_text(size=20))
+}
+source("jk_source/jk_presfuncs.R")
+```
+
+```{r xaringan-themer, include = FALSE}
+library(xaringanthemer)
+style_mono_accent(
+  # base_color = "#0F4C81", # DAPR1
+  # base_color = "#BF1932", # DAPR2
+  base_color = "#88B04B", # DAPR3 
+  # base_color = "#FCBB06", # USMR
+  # base_color = "#a41ae4", # MSMR
+  header_color = "#000000",
+  header_font_google = google_font("Source Sans Pro"),
+  header_font_weight = 400,
+  text_font_google = google_font("Source Sans Pro", "400", "400i", "600", "600i"),
+  code_font_google = google_font("Source Code Pro"),
+  code_font_size = "0.7rem",
+  extra_css = list(".scroll-output" = list("height"="90%","overflow-y"="scroll"))
+)
+```
+
+# Learning Objectives
+1. Understand the conceptual difference between PCA and EFA
+2. Understand the strengths and weaknesses of different methods to estimate the optimal number of factors
+3. Understand the purpose of factor rotation and the difference between orthogonal and oblique rotation.
+4. Run and interpret EFA analyses in R.
+
+---
+class: inverse, center, middle
+
+<h2>Part 1: Introduction to EFA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Estimation & Number of factors problem</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Factor rotation</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Example and interpretation</h2>
+
+---
+# Real friends don't let friends do PCA.
+
+## W. Revelle, 25 October 2020
+
+---
+# Why are we reducing?
+
++ Why are your variables correlated?
+  + Agnostic/don't care
+  + **Believe there *are* underlying "causes" of these correlations**
+
+
++ What are your goals?
+  + Just reduce the number of variables
+  + **Reduce your variables and learn about/model their underlying (latent) causes**
+  
++ It is possible to use FA for pure reduction.
+
+---
+
+# Latent variables
++ One of many features that distinguish factor analysis and principal
+  components analysis
+
++ Key concept of psychometrics (factor analysis is a part)
+
+
++ Theorized common cause (e.g., cognitive ability) of responses to a
+  set of variables
+  + Explain correlations between measured variables
+  + Held to be true
+  + No direct test of this theory
+
+---
+
+```{r, echo=FALSE}
+magick::image_read("pca_vs_efa.png")
+```
+
+
+.pull-left[
+\begin{equation}
+\mathbf{z} = x_{1}w_{1} + x_{2}w_{2} + x_{3}w_{3}
+\end{equation}
+]
+
+.pull-right[
+\begin{equation}
+y_{1}=\lambda_{1}\xi+e_{1} \\
+y_{2}=\lambda_{2}\xi+e_{2} \\
+y_{3}=\lambda_{3}\xi+e_{3} \\
+cov(\xi, e_{j})=0
+\end{equation}
+]
+
+---
+
+# PCA versus EFA
++ PCA
+  + The observed measures $(x_{1}, x_{2}, x_{3})$ are independent variables
+  + The component $(\mathbf{z})$ is the dependent variable
+  + Explains as much variance in the measures $(x_{1}, x_{2}, x_{3})$
+  as possible
+  + Components are determinate
+
+
++ EFA
+  + The observed measures $(y_{1}, y_{2}, y_{3})$ are dependent
+  variables
+  + The factor $(\xi)$, is the independent variable
+  + Models the relationships between variables
+  $(r_{y_{1},y_{2}},r_{y_{1},y_{3}}, r_{y_{2},y_{3}})$
+  + Factors are *in*determinate	
+
+---
+# Modeling the data
+|        |   Item 1 |   Item 2 |   Item 3 | Item 4 | Item 5 | Item 6 | Item 7 | Item 8 |
+|-------:|---------:|---------:|---------:|-------:|-------:|-------:|-------:|-------:|
+| Item 1 |     1.00 |          |          |        |        |        |        |        |
+| Item 2 | **0.60** |     1.00 |          |        |        |        |        |        |
+| Item 3 | **0.55** | **0.61** |     1.00 |        |        |        |        |        |
+| Item 4 | **0.45** | **0.48** | **0.71** |   1.00 |        |        |        |        |
+| Item 5 |     0.10 |     0.01 |     0.04 |   0.13 |   1.00 |        |        |        |
+| Item 6 |     0.05 |     0.00 |     0.08 |   0.20 |   0.52 |   1.00 |        |        |
+| Item 7 |     0.14 |     0.02 |     0.11 |   0.14 |   0.76 |   0.51 |   1.00 |        |
+| Item 8 |     0.07 |     0.11 |     0.13 |   0.04 |   0.68 |   0.54 |   0.48 |   1.00 |
+
+---
+# Modeling the data
+|        | Item 1 | Item 2 | Item 3 | Item 4 |   Item 5 |   Item 6 |   Item 7 | Item 8 |
+|-------:|-------:|-------:|-------:|-------:|---------:|---------:|---------:|-------:|
+| Item 1 |   1.00 |        |        |        |          |          |          |        |
+| Item 2 |   0.60 |   1.00 |        |        |          |          |          |        |
+| Item 3 |   0.55 |   0.61 |   1.00 |        |          |          |          |        |
+| Item 4 |   0.45 |   0.48 |   0.71 |   1.00 |          |          |          |        |
+| Item 5 |   0.10 |   0.01 |   0.04 |   0.13 |     1.00 |          |          |        |
+| Item 6 |   0.05 |   0.00 |   0.08 |   0.20 | **0.52** |     1.00 |          |        |
+| Item 7 |   0.14 |   0.02 |   0.11 |   0.14 | **0.76** | **0.51** |     1.00 |        |
+| Item 8 |   0.07 |   0.11 |   0.13 |   0.04 | **0.68** | **0.54** | **0.48** |   1.00 |
+
+---
+
+# Modeling the data
++ EFA tries to explain patterns of correlations
+	+ If, for our three items, the model (factor or $\xi$) is good, it
+	will explain their interrelationships
+	+ Read the dots $(\cdot)$ as "given" or "controlling for"
+
+\begin{equation}
+\rho(y_{1},y_{2}\cdot\xi)=corr(e_{1},e_{2})=0 \\
+\rho(y_{1},y_{3}\cdot\xi)=corr(e_{1},e_{3})=0 \\
+\rho(y_{2},y_{3}\cdot\xi)=corr(e_{2},e_{3})=0 \\
+\end{equation}
+
+---
+# Modeling the data
++ Factor analysis has to distinguish between the true and
+  unique variance
+  + True variance
+	  + Variance common to an item and at least one other item
+	  + Variance specific to an item that is not shared with any other
+      items
+  + Unique variance
+	  + Variance specific to an item that is not shared with any other
+      items
+	  + Error variance
+
+\begin{equation}
+var(total) = var(common) + var(specific) + var(error)
+\end{equation}
+
+---
+# The general factor model equation
+$$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$
+
+$\mathbf{\Sigma}$: A $p \times p$ observed covariance matrix (from data)
+
+$\mathbf{\Lambda}$: A $p \times m$ matrix of factor loading's (relates
+the $m$ factors to the $p$ items)
+
+$\mathbf{\Phi}$: An $m \times m$ matrix of correlations between
+factors ("goes away" with orthogonal factors)
+
+$\mathbf{\Psi}$: A diagonal matrix with $p$ elements indicating unique
+(error) variance for each item
+
+---
+# Assumptions
++ Another way that factor analysis resembles regression
+  + The residuals/error terms $(e)$ should be uncorrelated (it's a
+    diagonal matrix, remember!)
+  + The residuals/errors should not correlate with  factor
+  + Relationships between items and factors should be linear, although
+  there are models that can account for nonlinear relationships
+
+---
+# Practical Steps
+
+1. Check the appropriateness of the data and decide of the appropriate estimator.
+2. Decide which methods to use to select a number of factors.
+3. Decide conceptually whether to apply rotation and how to do so.
+4. Decide on the criteria to assess and modify your solution.
+5. Run the analysis.
+6. Evaluate the solution (apply 4)
+7. Select a final solution and interpret the model, labeling the factors. 
+8. Report your results.
+
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 1
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to EFA</h2>
+<h2>Part 2: Estimation & Number of factors problem</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Factor rotation</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Example and interpretation</h2>
+
+---
+# Estimation
++ For PCA, we discussed the use of the eigen decomposition.
+  + This is not an estimation method, it is simply a calculation
+
++ As we have a model for the data in factor analysis, we need to estimate the model parameters
+  + primarily here the factor loading's.
+  
+---
+# A brief pause for factor loadings
++ When we run an FA, the main element of our output are the factor loading's and factor correlations (see rotation)
+
++ Factor loading's, like PCA loading's, show the relationship of each measured variable to each factor.
+  + They range between -1.00 and 1.00
+  + Larger absolute values = stronger relationship between measured variable and factor
+
++ We interpret our factor models by the pattern and size of these loading's.
+  + **Primary loading's**: refer to the factor on which a measured variable has it's highest loading
+  + **Cross-loading's**: refer to all other factor loading's for a given measured variable
+
+---
+# Factor loadings
+```{r, echo=FALSE, warning=FALSE}
+library(psych)
+res <- fa(bfi[1:10], nfactors = 2)
+res$loadings
+```
+
+
+---
+# Estimation & Communalities
++ The most efficient (i.e., least computationally intensive) way to factor analyze data is to start by estimating communalities
+  + Communalities are estimates of how much true variance any variable has
+  + Indicate how much variance in an item is explained by other variables, or factors
+  + They appear in the diagonal of your correlation matrix
+
++ Estimating communalities is difficult because population communalities are unknown
+  + Range from 0 (no shared variance) to 1 (all variance is shared)
+  + Occasionally estimates will be $\ge 1$ (called a 'Heywood Case')
+  + Methods often are iterative and "mechanical" as a result
+
+---
+# Principal axis factoring
++ Principal factors with squared multiple correlation (SMC)
+
+1. Compute initial communalities from SMCs, which are multiple correlations of each item regressed on all $p-1$ other variables
+
+2. Once we have these reasonable lower bounds, we substitute the 1s in the diagonal of our correlation matrix with the SMCs derived in step 1
+
+3. Obtain the factor loading matrix using the eigenvalues and eigenvectors of the matrix obtained in the step 2
+
++ Some versions of principal axis factor use an iterative approach in which they replace the diagonal with the communalities obtained in step 3, and then repeat step 3, and so on, a set number of times
+
+---
+
+# Method of minimum residuals
++ This is an iterative approach and the default of the `fa` procedure
+
+1. Starts with some other solution, e.g., PCA or principal axes, extracting a set number of factors
+
+2. Adjusts loading's of all factors on each variable so as to minimize the residual correlations for that variable
+
++ MINRES doesn't "try" to estimate communalities
+
++ If you apply principal axis factoring to the original correlation matrix with a diagonal of communalities derived from step 2, you get the same factors as in the method of minimum residuals
+
+---
+
+# Maximum likelihood estimation
++ Uses a general iterative procedure for estimating parameters that we have previously discussed.
+  + Assume a distribution for your data, e.g., a normal distribution
+  + Your covariance matrix contains information related to the parameters, that is, factor loading's, uniqueness, and correlations between factors
+  + The procedure works to find values for these parameters that maximize the likelihood of obtaining the covariance matrix
+  
++ Method offers the advantage of providing numerous "fit" statistics that you can use to evaluate how good your model is compared to alternative models
+
++ Assumes a distribution (usually the multivariate normal)
+  + The methods I described before do not
+  + Which approach would be the most 'robust' to deviations from normality in your data?
+
+---
+# ML con's
++ The issue is that for big analyses, sometimes it is not possible to find values for factor loadings that = MLE estimates.
+  + Referred to as non-convergence (you may see warnings)
+
++ Also may produce solutions with impossible values
+  + Factor loadings > 1.00 (Heywood cases), thus negative residuals.
+  + Factor correlations > 1.00
+
+---
+# Non-continuous data
++ Don't mistake response options for how the construct is likely to be distributed
+  + I can easily get some life into a rather dull party? Yes/No
+  + I have committed: 1. No crimes; 2. A minor crime; 3. A major crime
+
++ Most constructs we seek to measure by questionnaire are assumed to be continuously distributed
+  + It's thus *usually* okay to treat the data as if they are, too
+  + The exception is for maximum likelihood factor analysis
+  + Or if the observed distribution is very skewed
+
+---
+# Non-continuous data
+
+```{r, echo=FALSE}
+magick::image_read("response.png")
+```
+
+---
+# Non-continuous data 
++ If we are concerned and the construct is normally distributed, we can conduct our analysis on a matrix of polychoric correlations
+  
++ If the construct is not normally distributed, you can conduct a factor analysis that allows for these kinds of variables
+
+---
+# Choosing an estimator
++ The best option, as with many statistical models, is ML.
+
++ If ML solutions fail to converge, principal axis is a simple approach which typically yields reliable results.
+
++ If concerns over the distribution of variables, use PAF on the polychoric correlations.
+
+---
+# Number of factors
++ We have discussed the methods for deciding on the number of factors in the context of PCA.
+
++ Recall we have 4 tools:
+  + Variance explained
+  + Scree plots
+  + MAP
+  + Parallel Analysis (FA or PCA)
+  
++ For FA, we generally want a slightly more nuanced approach than pure variance:
+  + Use them all to provide a range of plausible number of factors
+  + Treat MAP as a minimum
+  + PA as a maximum
+  + Explore all solutions in this range and select the one that yields the best numerically and theoretically.
+
++ We will go through this process in later video.
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 2
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to EFA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Estimation & Number of factors problem</h2>
+<h2>Part 3: Factor rotation</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 4: Example and interpretation</h2>
+
+---
+# Factor rotation: what and why?
++ Factor solutions can sometimes be complex to interpret.
+  + the pattern of the factor loading's is not clear.
+  + The difference between the primary and cross-loading's is small
+
++ Why is this the case?
+  + **Rotational indeterminacy** means that there are an infinite number of pairs of factor loading's and factor score matrices which will fit the data **equally well**, and are thus **indistinguishable** by any numeric criteria
+  
++ In other words, there is no **unique solution** to the factor problem
+
++ And this is also in part why the theoretical coherence of the models plays a much bigger role in FA than PCA.
+
+---
+# Analytic rotation
++ Factor rotation is an approach to clarifying the relationships between items and factors.
+  + Rotation aims to maximize the relationship of a measured item with a factor.
+  + That is, make the primary loading big and cross-loading's small.
+
++ Thus although we can not numerically tell rotated solutions apart, we can select the one with the most coherent solution.
+
++ There are many different ways this can be achieved.
+  + One framework for this is referred to as **simple structure**
+
+
+---
+
+# Simple structure
++ Adapted from Sass and Schmitt (2011):
+
+1. Each variable (row) should have at least one zero loading 
+
+2. Each factor (column) should have same number of zero’s as there are factors
+   
+3. Every pair of factors (columns) should have several variables which load on one factor, but not the other 
+   
+4. Whenever more than four factors are extracted, each pair of factors (columns) should have a large proportion of variables which do not load on either factor
+   
+5. Every pair of factors should have few variables which load on both factors
+
+---
+# Orthogonal vs Oblique Rotation
++ All factor rotation methods seek to optimize one or more aspects of simple structure.
+  + But there are two broad groupings
+
++ Orthogonal
+	  + Includes varimax and quartimax rotations
+	  + Axes at right angles; correlations between factors are zero
+
++ Oblique
+	 + Includes promax and oblimin rotations
+	 + Axes are not at right angles; correlations between factors are not zero
+
+
+---
+# The impact of rotation
+
+.pull-left[
+**Original correlations** 
+
+```{r, echo=FALSE, warning=FALSE}
+library(qgraph)
+bfi2 <- na.omit(bfi)
+qgraph(cor(bfi2[1:25]))
+```
+
+
+]
+
+
+.pull-right[
+**EFA with no rotation and 5 factors**
+```{r, echo=FALSE, warning=FALSE}
+no_rotate <- fa(bfi2, 5, rotate="none")
+qgraph(no_rotate$loadings, minimum = 0.2)
+```
+
+]
+
+
+---
+# The impact of rotation
+
+.pull-left[
+**EFA with no rotation and 5 factors**
+```{r, echo=FALSE, warning=FALSE}
+no_rotate <- fa(bfi2, 5, rotate="none")
+qgraph(no_rotate$loadings, minimum = 0.2)
+```
+
+
+]
+
+
+.pull-right[
+**EFA with orthogonal rotation and 5 factors**
+```{r, echo=FALSE, warning=FALSE}
+orth_rotate <- fa(bfi2, 5, rotate="varimax")
+qgraph(orth_rotate$loadings, minimum = 0.2)
+```
+
+]
+
+
+---
+# The impact of rotation
+
+.pull-left[
+**EFA with orthogonal rotation and 5 factors**
+```{r, echo=FALSE, warning=FALSE}
+qgraph(orth_rotate$loadings, minimum = 0.2)
+```
+
+
+]
+
+
+.pull-right[
+**EFA with oblique rotation and 5 factors**
+```{r, echo=FALSE, warning=FALSE}
+obl_rotate <- fa(bfi2, 5, rotate="oblimin")
+qgraph(obl_rotate$loadings, minimum = 0.2)
+```
+
+]
+
+
+---
+# How do I choose which rotation?
+
++ Easy, my recommendation is always to choose oblique.
+
++ Why?
+  + It is very unlikely factors have correlations of 0
+  + If they are close to zero, this is allowed within oblique rotation
+  + The whole approach is exploratory, and the constraint is unnecessary. 
+
++ However, there is a catch...
+
+---
+# Interpretation and obique rotation
++ When we have an obliquely rotated solution, we need to draw a distinction between the **pattern** and **structure** matrix.
+  + Pattern Matrix: matrix of regression weights (loading's) from factors to variables. 
+  + Structure Matrix: matrix of correlations between factors and variables.
+
++ When we use orthogonal rotation, the pattern and structure matrix are the same. 
+
++ When we use oblique rotation, the structure matrix is the pattern matrix multiplied by the factor correlations.
+
++ In most practical situations, this does not impact what we do, but it is important to highlight the distinction.
+
+---
+class: inverse, center, middle, animated, rotateInDownLeft
+
+# End of Part 3
+
+---
+class: inverse, center, middle
+
+<h2 style="text-align: left;opacity:0.3;">Part 1: Introduction to EFA</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 2: Estimation & Number of factors problem</h2>
+<h2 style="text-align: left;opacity:0.3;">Part 3: Factor rotation</h2>
+<h2>Part 4: Example and interpretation</h2>
+
+---
+# Worked Example
+
+- In this weeks LEARN folder there is a worked example of an EFA.
+
+- In next weeks Live R, we will do a complete analysis, start to finish.
+
+
+---
+class: extra, inverse, center, middle, animated, rotateInDownLeft
+
+# End
+
