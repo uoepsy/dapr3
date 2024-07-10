@@ -1,5 +1,7 @@
 ---
 title: "Clustered Data"
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r}
@@ -9,6 +11,28 @@ title: "Clustered Data"
 library(tidyverse)
 library(patchwork)
 source('_theme/theme_quarto.R')
+```
+
+
+# Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more multilevel models",
+                "more complex groupings",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c("PCA",
+                "EFA",
+                "EFA 2",
+                "CFA",
+                "CFA 2")
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=2)
 ```
 
 
@@ -57,35 +81,62 @@ source('_theme/theme_quarto.R')
 Other relevant terms you will tend to see: "grouping structure", "levels", "hierarchies". 
 :::
 
-## Is clustering important?  
+## Common study designs
 
-Clustering will likely result in measurements on observational units within a given cluster being more similar to each other than to those in other clusters.  
-
-- For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
 
 ![](img_sandbox/lev1.png)
 
+## the impact of clustering
 
-## ICC (intra-class correlation coefficient) {.smaller}
+Measurements on observational units within a given cluster are often more similar to each other than to those in other clusters.  
 
-Clustering is expressed in terms of the correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
+- For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
 
+
+
+
+## the impact of clustering  
+
+::::{.columns}
+:::{.column width="50%"}
+#### why?
+
+
+Clustering is something **systematic** that our model should (arguably) take into account.  
+
+- $\varepsilon \sim N(0, \sigma) \textbf{ independently}$ 
+
+:::
+
+:::{.column width="50%" .fragment}
+#### how?
+
+Standard errors will often be smaller than they should be, meaning that:  
+
+- confidence intervals will often be too narrow 
+- $t$-statistics will often be too large  
+- $p$-values will often be misleadingly small
+
+
+:::
+::::
+
+
+## quantifying clustering {.smaller}
+
+Clustering can be expressed in terms of the expected correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
+
+
+::::{.columns}
+:::{.column width="50%"}
 
 There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
 
 <br>
 $\rho = \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\ \qquad \\\textrm{Where:} \\ \sigma^2_{b} = \textrm{variance between clusters} \\ \sigma^2_e = \textrm{variance within clusters (residual variance)} \\$
 
-:::aside
-Can also be interpreted as the expected correlation between two randomly drawn observations from the same group. 
 :::
 
-## ICC (intra-class correlation coefficient)
-
-The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
-
-
-::::{.columns}
 :::{.column width="50%"}
 
 ```{r echo=FALSE, fig.asp=.8, fig.align="center"}
@@ -123,10 +174,21 @@ ggplot(sims, aes(x=j, y=y))+
   labs(x="cluster")
 ```
 
+
+:::
+::::
+
+
+:::aside
+Can also be interpreted as the expected correlation between two randomly drawn observations from the same group. 
 :::
 
-:::{.column width="50%"}
+:::notes
+The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
+:::
+
 ```{r}
+#| eval: false
 #| fig-asp: 0.8
 set.seed(875)
 sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
@@ -141,37 +203,6 @@ ggplot(sims, aes(x=x, y=y))+
   scale_x_continuous("X", labels=NULL)
 ```
 
-:::
-::::
-
-
-## is clustering problematic?  
-
-#### Why is it a problem?
-
-
-::::{.columns}
-:::{.column width="50%"}
-
-Clustering is something **systematic** that our model should (arguably) take into account.  
-
-- remember, $\varepsilon \sim N(0, \sigma) \textbf{ independently}$ 
-
-:::
-
-:::{.column width="50%" .fragment}
-#### How is it a problem?  
-
-Standard errors will often be smaller than they should be, meaning that:  
-
-  - confidence intervals will often be too narrow 
-  
-  - $t$-statistics will often be too large  
-  
-  - $p$-values will often be misleadingly small
-
-:::
-::::
 
 # Working with clustered data
 
@@ -197,7 +228,7 @@ wided %>% rbind(.,"...")
 :::
 
 :::{.column width="50%"}
-__Long Data__
+__Long Data__  
 each observation of the outcome is a separate row
 
 ```{r echo=FALSE}
@@ -225,7 +256,7 @@ knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts
 Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (\\@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)
 :::
 
-##  Long Data = Good for Plotting
+##  Long Data = plots by group
 
 
 ::::{.columns}
@@ -255,9 +286,10 @@ ggplot(longd, aes(x=trial,y=score))+
 :::
 ::::
 
-## Long Data = Good for by-Cluster Computations
+## Long Data = computations by-group
 
 ```{r}
+#| echo: true
 longd %>% 
   group_by(ID) %>%
   summarise(
@@ -270,45 +302,229 @@ longd %>%
 
 # Modelling clustered data 
 
-## Example data {.smaller}
+```{r}
+#| include: false
+set.seed(7555)
+n_groups = 12
+N = n_groups*10
+g = rep(1:n_groups, e = N/n_groups)
+#x = rep(seq(-1,1,length.out=10),n_groups)
+x = rnorm(N)
+b = rbinom(n_groups,1,.5)[g]
+re0 = rnorm(n_groups, sd = 1)
+re0[1] = 2.3
+re0[11] = -1.7
+re0[9] = -3.4
+re = re0[g]
+b = rbinom(n_groups,1,plogis(scale(order(re0))))[g]
+rex = rnorm(n_groups, sd = .5)
+rex[c(3,8)] = rnorm(2,.2,1)
+rex[9] = -1.4
+re_x = rex[g]
+lp = (0 + re) + (1 + re_x) * x
+y = rnorm(N, mean = lp, sd = 1)
+x = round(x*2)#unname(unlist(by(x,g,order,simplify=T)))
+df = data.frame(x,b=factor(b), g = factor(g), y)
+df = df[-c(81,83:89),]
+df[c(97,102),"y"] <- df[c(97,102),"y"]+2
+df$x = df$x + abs(min(df$x)) + .5
+df$x = as.numeric(as.character(factor(df$x,levels=sort(unique(df$x)),
+           labels=seq(15,65,5))))
+df$y = round(50+scale(df$y)*13.3)
+df[81,"y"] = 20
+ggplot(df,aes(x=x,y=y,col=b))+geom_point()+facet_wrap(~g)
+gg = c("Dunfermline","Inverness","Glasgow","Edinburgh","Aberdeen","Dumfries",
+  "Perth","Dundee","Kirkcaldy","Paisley","Fort William","Stirling")
+d3 = df |> transmute(
+  age = x,
+  lifesat = y[,1],
+  dwelling = gg[g],
+  size = ifelse(b==1,"<100k",">100k")
+) |> sample_n(nrow(df))
+df$cluster_var = d3$dwelling
+#write_csv(d3,file="../../../data/d3lmm.csv")
+```
+
+
+<!-- ## Example data {.smaller} -->
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- > TODO   -->
+
+
+<!-- ```{r} -->
+<!-- #d3 <-  -->
+<!-- head(d3) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(ICC) -->
+<!-- ICCbare(x = city, y = lifesat, data = d3) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE, fig.align="center", fig.asp=.9} -->
+<!-- ggplot(d3, aes(x=lifesat))+ -->
+<!--   geom_dotplot(dotsize=.3)+  -->
+<!--   scale_y_continuous(NULL,breaks=NULL)+ -->
+<!--   labs(x="Life Satisfaction") -> p1 -->
+<!-- ggplot(d3, aes(x=lifesat,fill=city))+ -->
+<!--   geom_dotplot()+ -->
+<!--   facet_wrap(~city)+ -->
+<!--   guides(fill=FALSE)+ -->
+<!--   scale_y_continuous(NULL,breaks=NULL)+ -->
+<!--   labs(x="Life Satisfaction")-> p2 -->
+
+<!-- p1 / p2 + plot_layout(heights=c(1,2)) -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+
+
+<!-- ## Ignore it  (v1) {.smaller} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __(Complete pooling)__   -->
+
+<!-- + `lm(y ~ 1, data = df)`   -->
+
+<!-- + Information from all clusters is pooled together to estimate $y$ (equivalent to `mean(df$y)`) -->
+
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- model <- lm(lifesat ~ 1, data = d3) -->
+<!-- ``` -->
+<!-- ```{r echo=FALSE, out.width="300px"} -->
+<!-- .pp(summary(model),l=list(c(9:12))) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE} -->
+<!-- ggplot(d3,aes(x=city,y=lifesat,col=city))+ -->
+<!--   geom_point(size=4,alpha=.3)+ -->
+<!--   guides(col=FALSE)+ -->
+<!--   geom_hline(yintercept=mean(d3$lifesat),lty="longdash") -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+<!-- ## Fixed Effects (v1) {.smaller} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __(No pooling)__   -->
+
+<!-- - `lm(y ~ 1 + cluster, data = df)`   -->
+
+<!-- - *Completely* partition out cluster differences in average $y$.  -->
+
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- model <- lm(lifesat ~ 1 + city, data = d3) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...  ...")) -->
+<!-- ``` -->
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE} -->
+<!-- lm(lifesat ~ 1 + city, data = d3) |> -->
+<!--   broom::augment() |> -->
+<!--   ggplot(aes(x=city,y=lifesat,col=city))+ -->
+<!--   geom_point(size=4,alpha=.3)+ -->
+<!--   guides(col=FALSE)+ -->
+<!--   stat_summary(geom="point",size=7,col="black",shape="_") -->
+<!--   NULL -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+<!-- ## Fixed Effects (v1) {.smaller} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __(No pooling)__   -->
+
+<!-- - `lm(y ~ 1 + cluster, data = df)`   -->
+
+<!-- - *Completely* partition out cluster differences in average $y$.  -->
+
+<!-- - like separating out each clusters' data and calculating the mean $y$.   -->
+
+<!-- - prevents us from studying cluster level effects, e.g.:   -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- model <- lm(lifesat ~ 1 + city + culture, data = d3) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- cat(c(.pp(summary(model),l=list(c(9:14))),"...  ...\n... ...")) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- .pp(summary(model),l=list(c(21:23))) -->
+<!-- ``` -->
+
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE} -->
+<!-- lm(lifesat ~ 1 + city+culture, data = d3) |> -->
+<!--   broom::augment() |> -->
+<!--   ggplot(aes(x=city,y=lifesat,col=culture))+ -->
+<!--   geom_point(size=4,alpha=.3)+ -->
+<!--   guides(col=FALSE)+ -->
+<!--   stat_summary(geom="point",size=7,col="black",shape="_") -->
+<!--   NULL -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+## Example data
 
 ::::{.columns}
 :::{.column width="50%"}
-> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
-
-Each participant has 10 datapoints. Participants are clusters.  
+> Are older people more satisfied with life? 112 people from 12 different dwellings (cities/towns) in Scotland. Information on their ages and some measure of life satisfaction.  
 
 ```{r}
-d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+#| echo: true
+d3 <- read_csv("../../../data/d3lmm.csv") 
 head(d3)
 ```
 
 ```{r}
+#| echo: true
 library(ICC)
-ICCbare(x = ppt, y = ACE, data = d3)
+ICCbare(x = dwelling, y = lifesat, data = d3)
 ```
 :::
 
 :::{.column width="50%"}
-```{r echo=FALSE, fig.align="center", fig.asp=.9}
-ggplot(d3, aes(x=visit ,y=ACE))+
-  geom_point(size=4)+
-  geom_smooth(method="lm", se=F)+
-  labs(x="",y="") -> p1
-ggplot(d3, aes(x=visit ,y=ACE, col=ppt))+
-  geom_point(size=4)+
-  geom_smooth(method="lm", se=FALSE)+
-  facet_wrap(~ppt, scales="free_y")+
-  guides(col=FALSE)+
-  labs(x="study visit",y="cognition") +
-  theme(text = element_text(size=16))-> p2
+```{r echo=FALSE, fig.align="center"}
+ggplot(d3, aes(x=age,y=lifesat))+
+  geom_point(size=4,alpha=.3)+
+  labs(x="Age",y="Life Satisfaction") -> p1
+ggplot(d3, aes(x=age,y=lifesat,fill=dwelling))+
+  geom_point(size=4,alpha=.3)+
+  facet_wrap(~dwelling)+
+  guides(fill=FALSE)+
+  labs(x="Age",y="Life Satisfaction")-> p2
 
 p1 / p2 + plot_layout(heights=c(1,2))
 ```
 :::
 ::::
 
-## Ignore it {.smaller}
+## Ignore it
 
 
 ::::{.columns}
@@ -320,29 +536,32 @@ __(Complete pooling)__
 + Information from all clusters is pooled together to estimate over x  
 
 ```{r}
-model <- lm(ACE ~ 1 + visit, data = d3)
+#| echo: true
+model <- lm(lifesat ~ 1 + age, data = d3)
 ```
-```{r echo=FALSE, out.width="300px"}
+```{r}
 .pp(summary(model),l=list(c(10:12)))
 ```
 :::
 
 :::{.column width="50%"}
-```{r echo=FALSE}
-df <- d3 %>% rename(y=ACE, x = visit) %>% mutate(cluster_var = gsub("PPT","cluster",ppt))
-model <- lm(y ~ x, data = df)
-df %>% mutate(
-  f = fitted(model)
-) %>%
-ggplot(.,aes(x=x,y=y))+geom_point(size=4)+
+```{r}
+lm(y ~ x, data = df) |>
+  broom::augment() |>
+  ggplot(aes(x=x,y=y))+
+  geom_point(size=4,alpha=.3)+
   geom_smooth(method="lm")+
-  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
-  labs(x="study visit",y="cognition")
+  geom_smooth(method="lm",se=F,fullrange=T)+
+  geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
+  geom_segment(aes(y=y, yend = .fitted, x = x, xend = x), alpha=.2,lty="dotted")+
+  labs(x="Age",y="Life Satisfaction")+
+  xlim(0,70)+
+  NULL
 ```
 :::
 ::::
 
-## Ignore it (2) {.smaller}
+## Ignore it
 
 
 ::::{.columns}
@@ -354,89 +573,47 @@ __(Complete pooling)__
 + Information from all clusters is pooled together to estimate over x  
 
 ```{r}
-model <- lm(ACE ~ 1 + visit, data = d3)
+#| echo: true
+model <- lm(lifesat ~ 1 + age, data = d3)
 ```
-```{r echo=FALSE, out.width="300px"}
-.pp(summary(model),l=list(c(10:12)))
-```
-:::
-
-:::{.column width="50%"}
-```{r echo=FALSE}
-library(ggfx)
-library(ggforce)
-model <- lm(y ~ x, data = df)
-df %>% mutate(
-  f = fitted(model)
-) -> pdat 
-
-ggplot(pdat,aes(x=x,y=y))+
-  with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
-  geom_point(data = filter(pdat,cluster_var %in% c("cluster_20")),aes(col=cluster_var),size=4) + 
-  
-  geom_mark_ellipse(aes(label = ppt, filter = cluster_var == "cluster_20"),
-                    con.colour  = "#526A83", con.cap = 0, 
-                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
-                    show.legend = FALSE) + 
-  guides(col=FALSE, alpha=FALSE)+
-  geom_smooth(method="lm",se=F)+
-  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
-  labs(x="study visit",y="cognition")
-```
-:::
-::::
-
-
-## Ignore it (3) {.smaller}
-
-
-::::{.columns}
-:::{.column width="50%"}
-__(Complete pooling)__  
-
-+ `lm(y ~ 1 + x, data = df)`  
-
-+ Information from all clusters is pooled together to estimate over x  
-
 ```{r}
-model <- lm(ACE ~ 1 + visit, data = d3)
-```
-```{r echo=FALSE, out.width="300px"}
 .pp(summary(model),l=list(c(10:12)))
 ```
 
-But different clusters show different patterns.  
-Residuals are __not__ independent.  
+But residuals are __not__ independent.  
 :::
 
 :::{.column width="50%"}
-```{r echo=FALSE}
+```{r}
 library(ggfx)
 library(ggforce)
-model <- lm(y ~ x, data = df)
-df %>% mutate(
-  f = fitted(model)
+df |> mutate(
+  cluster_var=gg[g],
+  f = fitted(lm(y ~ x, data = df))
 ) -> pdat 
 
 ggplot(pdat,aes(x=x,y=y))+
   with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
-  geom_point(data = filter(pdat,cluster_var %in% c("cluster_19")),aes(col=cluster_var),size=4) + 
+  geom_point(data = filter(pdat,cluster_var %in% gg[1]),aes(col=cluster_var),size=4) + 
   
-  geom_mark_ellipse(aes(label = ppt, filter = cluster_var == "cluster_19"),
-                    con.colour  = "#526A83", con.cap = 0, 
+  geom_mark_ellipse(aes(label = cluster_var, filter = cluster_var == gg[1]),
+                    con.colour  = "black", con.cap = 0, 
                     con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
                     show.legend = FALSE) + 
-  geom_point(data = filter(pdat,cluster_var %in% c("cluster_10")),aes(col=cluster_var),size=4) + 
+  geom_point(data = filter(pdat,cluster_var %in% gg[11]),aes(col=cluster_var),size=4) + 
   
-  geom_mark_ellipse(aes(label = ppt, filter = cluster_var == "cluster_10"),
-                    con.colour  = "#526A83", con.cap = 0, 
+  geom_mark_ellipse(aes(label = cluster_var, filter = cluster_var == gg[11]),
+                    con.colour  = "black", con.cap = 0, 
                     con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
                     show.legend = FALSE) + 
   
   guides(col=FALSE, alpha=FALSE)+
-  geom_smooth(method="lm",se=F)+
-  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2) + 
-  labs(x="study visit",y="cognition")
+  geom_smooth(method="lm",se=F,fullrange=T)+
+  geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2)+
+  xlim(0,70)+
+  labs(x="Age",y="Life Satisfaction")+
+  NULL
 ```
 :::
 ::::
@@ -449,46 +626,129 @@ ggplot(pdat,aes(x=x,y=y))+
 :::{.column width="50%"}
 __(No pooling)__  
 
-- `lm(y ~ x * cluster, data = df)`  
+- `lm(y ~ cluster + x, data = df)`  
 
-- Information from a cluster contributes to estimate *for that cluster*, but information is not pooled (estimate for cluster 1 completely independent from estimate for cluster 2). 
+- *Completely* partition out cluster differences in average $y$. 
+
+- Treat every cluster as an independent entity.  
 
 ```{r}
-model <- lm(ACE ~ 1 + ppt + visit, data = d3)
+#| echo: true
+model <- lm(lifesat ~ 1 + dwelling + age, data = d3)
+```
+```{r}
+cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...\n...  ..."))
+.pp(summary(model),l=list(c(23:24)))
 ```
 
-:::{.fragment}
+:::
 
-TODO  
-+ Lots of estimates (separate for each cluster). 
-+ Variance estimates constructed based on information *only* within each cluster. 
+:::{.column width="50%"}
+```{r}
+model = lm(y ~ g+x, data = df)
+df |> mutate(
+  cluster_var=gg[g],
+  f = fitted(model)
+) -> pdat 
 
-```{r echo=FALSE}
-.pp(summary(model),l=list(c(10:34)))
+ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
+  geom_point(size=4,alpha=.3)+
+  geom_line(aes(y=f,group=cluster_var))+
+  geom_smooth(pdat |> filter(cluster_var == gg[1]), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
+  geom_point(x=0,y=coef(model)[1],size=3,aes(col=gg[1]))+
+  guides(col=FALSE) +
+  labs(x="Age",y="Life Satisfaction")+
+  xlim(0,70)+
+  NULL
 ```
 :::
+::::
+
+## Fixed Effects Models {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(No pooling)__  
+
+- `lm(y ~ cluster * x, data = df)`  
+
+- *Completely* partition out cluster differences in $y \sim x$. 
+
+- Treat every cluster as an independent entity.  
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + dwelling * age, data = d3)
+```
+```{r echo=FALSE}
+cat(c(.pp(summary(model),l=list(c(9:14))),"...  ..."))
+cat(c(.pp(summary(model),l=list(c(23:26))), "...  ..."))
+```
 
 :::
 
 :::{.column width="50%"}
 ```{r echo=FALSE}
-model1 <- lm(y~x+cluster_var,df)
-df %>% mutate(
-  f = fitted(model1)
-) %>%
-ggplot(.,aes(x=x,y=y,col=cluster_var))+
-  geom_point(alpha=.2)+
+model = lm(y ~ g*x, data = df)
+df |> mutate(
+  cluster_var=gg[g],
+  f = fitted(model)
+) -> pdat 
+
+ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
+  geom_point(size=4,alpha=.3)+
   geom_line(aes(y=f,group=cluster_var))+
-  geom_smooth(df %>% mutate(f = fitted(model1)) %>% filter(cluster_var == "cluster_1"), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=y,col=cluster_var), lty="dashed", lwd=.5) +
-  
-  guides(col=FALSE)+
-  #geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.4) + 
-  labs(x="study visit",y="cognition")+
-  xlim(0,10)
+  geom_smooth(pdat |> filter(cluster_var == gg[1]), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
+  geom_point(x=0,y=coef(model)[1],size=3,aes(col=gg[1]))+
+  guides(col=FALSE) +
+  labs(x="Age",y="Life Satisfaction")+
+  xlim(0,70)+
+  NULL
 ```
 :::
 ::::
 
+:::notes
+
+It doesn't matter if 99/100 clusters all show one pattern, we're happy to let cluster 100 do it's own thing.  
+
+:::
+
+
+## Fixed Effects Models {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(No pooling)__  
+
+- `lm(y ~ cluster * x, data = df)`  
+
+- *Completely* partition out cluster differences in $y \sim x$. 
+
+- Treat every cluster as an independent entity.  
+
+- Prevents us from studying cluster level effects. 
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + dwelling * age + size, data = d3)
+```
+
+```{r}
+cat(c(.pp(summary(model),l=list(c(9:14))),"...  ...\n...  ..."))
+cat(c(.pp(summary(model),l=list(c(20:26))),"... ..."))
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+d3 |> select(dwelling, size) |> table()
+```
+:::
+::::
 
 
 

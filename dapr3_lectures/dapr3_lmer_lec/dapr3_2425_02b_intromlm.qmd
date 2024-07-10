@@ -13,6 +13,7 @@ library(patchwork)
 source('_theme/theme_quarto.R')
 ```
 
+# Introducing the multi-level model
 
 ## Terminology
 
@@ -78,7 +79,7 @@ $$
 :::{.column width="50%" style="font-size: 70%;color:#999999"}
 <br>
 for observation $j$,  
-<br><br>
+<br>
 their value of $\color{red}{y}$ =  
 &nbsp;&nbsp;some number ($\color{blue}{b_0}$) +  
 &nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
@@ -106,7 +107,7 @@ $$
 :::{.column width="50%" style="font-size: 70%;color:#999999"}
 <br>
 for observation $j$ **from group $i$**,  
-<br><br>
+<br>
 their value of $\color{red}{y}$ =   
 &nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
 &nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
@@ -138,7 +139,7 @@ $$
 :::{.column width="50%" style="font-size: 70%;color:#999999"}
 <br>
 for observation $j$ **from group $i$**,  
-<br><br>
+<br>
 their value of $\color{red}{y}$ =   
 &nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
 &nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
@@ -167,7 +168,7 @@ $$
 & \text{Level 2:} \\
 & \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
 \quad \\
-& \color{orange}{\zeta_{0i}} \sim N(0, \sigma_0) \\
+& \color{orange}{\zeta_{0i}} \sim N(0, \color{orange}{\sigma_0}) \\
 & \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
 \end{align}
 $$
@@ -177,7 +178,7 @@ $$
 :::{.column width="50%" style="font-size: 70%;color:#999999"}
 <br>
 for observation $j$ **from group $i$**,  
-<br><br>
+<br>
 their value of $\color{red}{y}$ =   
 &nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
 &nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
@@ -187,7 +188,7 @@ group $i$'s intercept ($\color{blue}{b_{0i}}$) =
 &nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
 &nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
 <br><br>
-We are now assuming $\color{orange}{\zeta_0}$ and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\sigma_{\color{orange}{0}}^2$ and $\sigma_\varepsilon^2$ respectively.  
+We are now assuming $\color{orange}{\zeta_0}$ and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\color{orange}{\sigma_0^2}$ and $\sigma_\varepsilon^2$ respectively.  
   
 :::
 ::::
@@ -231,6 +232,7 @@ The intercept $\color{blue}{b_{0i}}$ is a "mix" of two things:
 
 :::
 
+# Building up the idea
 
 ## back to our example {.smaller}
 
@@ -412,7 +414,7 @@ summary(mod)
 :::{.column width="50%"}
 
 ```{r}
-twoplot = plotlines |> filter(grepl("Aberd|Kirkcal",dwelling),age==2)
+twoplot = plotlines |> filter(grepl("Aberd|Stirl",dwelling),age==2)
 
 basep + 
   with_blur(geom_line(data = broom::augment(femod), aes(y=.fitted,group=dwelling),alpha=.3),sigma=2) + 
@@ -424,158 +426,20 @@ basep +
   geom_label(data=plotlabs[grepl("Aberd",plotlabs$dwelling),],
              aes(x=x,y=y,label=dwelling),
              hjust=0,col="blue")+
-  geom_line(data = plotlines[plotlines$dwelling=="Kirkcaldy",], aes(y=.fitted,group=dwelling),col="blue") +
-  geom_label(data=plotlabs[grepl("Kirkcaldy",plotlabs$dwelling),],
+  geom_line(data = plotlines[plotlines$dwelling=="Stirling",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Stirling",plotlabs$dwelling),],
              aes(x=x,y=y,label=dwelling),
              hjust=0,col="blue") +
   geom_line(data = twoplot,
                aes(x=age,y=.fitted),col="blue",lty="dashed")+
   annotate("text",x=2,y=mean(twoplot$.fitted),
-           label=expression(beta["dwellingKirkcaldy"]),size=8,
+           label=expression(beta["dwellingStirling"]),size=8,
            hjust=0,col="blue")
 ```
 
 :::
 ::::
-
 ## deviations from an average 
-
-::::{.columns}
-:::{.column width="50%"}
-
-Group deviations from an overall average
-
-:::
-
-:::{.column width="50%"}
-```{r}
-library(lme4)
-rimod = lmer(lifesat~1+age+(1|dwelling),d3 |> mutate(age=age/10))
-
-plotlabs = tibble(dwelling=unique(d3$dwelling),age=6,x=6)
-plotlabs$y = predict(rimod, newdata=plotlabs)
-
-plotlines = 
-  as.data.frame(coef(rimod)$dwelling) |> 
-  rownames_to_column() |>
-  mutate(
-    g = 1:n(),
-    data = map2(`(Intercept)`,age, ~tibble(x = 0:6, .fitted = ..1 + ..2*(0:6)))
-  ) |> unnest(data)
-
-specg = plotlines |> filter(g==12) |>
-  mutate(f = fixef(rimod)[1])
-
-basep + 
-  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.3),sigma=2) + 
-  geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)['age'],
-              lwd=1,col="#a41ae4") +
-  geom_point(x=0,y=fixef(rimod)[1],size=3,col="#a41ae4")+
-  
-  geom_line(data = specg,lwd=1,
-            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
-  geom_curve(
-    data=specg[1,],
-    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
-    curvature=.2,lwd=1
-  ) +
-  annotate("text",x=-.1,y=mean(unlist(specg[1,c(6,7)])),
-           label=expression(zeta["0Strlng"]),size=8,
-           hjust=1,col="darkorange3")+
-  geom_text(data=plotlabs,
-             aes(x=x,y=y,label=dwelling),
-             hjust=0,alpha=.3)+
-  geom_label(data=plotlabs[grepl("Stirling",plotlabs$dwelling),],
-             aes(x=x,y=y,label=dwelling),
-             hjust=0,col="darkorange3")+
-  guides(col="none")
-```
-:::
-::::
-
-## deviations from an average {visibility="uncounted"}
-
-::::{.columns}
-:::{.column width="50%"}
-
-Group deviations from an overall average
-
-:::
-
-:::{.column width="50%"}
-```{r}
-specg = plotlines |> filter(g==1) |>
-  mutate(f = fixef(rimod)[1])
-
-basep + 
-  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.3),sigma=2) + 
-  geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)['age'],
-              lwd=1,col="#a41ae4") +
-  geom_point(x=0,y=fixef(rimod)[1],size=3,col="#a41ae4")+
-  
-  geom_line(data = specg,lwd=1,
-            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
-  geom_curve(
-    data=specg[1,],
-    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
-    curvature=-.2,lwd=1
-  )  +
-  annotate("text",x=-.1,y=mean(unlist(specg[1,c(6,7)])),
-           label=expression(zeta["0Abdn"]),size=8,
-           hjust=1,col="darkorange3")+
-  geom_text(data=plotlabs,
-             aes(x=x,y=y,label=dwelling),
-             hjust=0,alpha=.3)+
-  geom_label(data=plotlabs[grepl("Aberde",plotlabs$dwelling),],
-             aes(x=x,y=y,label=dwelling),
-             hjust=0,col="darkorange3")+
-  guides(col="none")
-```
-:::
-::::
-
-## deviations from an average {visibility="uncounted"}
-
-::::{.columns}
-:::{.column width="50%"}
-
-Group deviations from an overall average
-
-:::
-
-:::{.column width="50%"}
-```{r}
-specg = plotlines |> filter(g==7) |>
-  mutate(f = fixef(rimod)[1])
-
-basep + 
-  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.3),sigma=2) + 
-  geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)['age'],
-              lwd=1,col="#a41ae4") +
-  geom_point(x=0,y=fixef(rimod)[1],size=3,col="#a41ae4")+
-  
-  geom_line(data = specg,lwd=1,
-            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
-  geom_curve(
-    data=specg[1,],
-    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
-    curvature=.2,lwd=1
-  ) +
-  annotate("text",x=-.1,y=mean(unlist(specg[1,c(6,7)])),
-           label=expression(zeta["0Glsgw"]),size=8,
-           hjust=1,col="darkorange3")+
-  geom_text(data=plotlabs,
-             aes(x=x,y=y,label=dwelling),
-             hjust=0,alpha=.3)+
-  geom_label(data=plotlabs[grepl("Glasg",plotlabs$dwelling),],
-             aes(x=x,y=y,label=dwelling),
-             hjust=0,col="darkorange3")+
-  guides(col="none")
-```
-:::
-::::
-
-## v2 deviations from an average 
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -633,7 +497,7 @@ basep +
 :::
 ::::
 
-## v2 deviations from an average {visibility="uncounted"}
+## deviations from an average {visibility="uncounted"}
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -674,7 +538,7 @@ basep +
 :::
 ::::
 
-## v2 deviations from an average {visibility="uncounted"}
+## deviations from an average {visibility="uncounted"}
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -751,18 +615,23 @@ basep +
            aes(x=0,ydist=dist_normal(fixef(rimod)[1],sqrt(VarCorr(rimod)[[1]][1]))), 
            alpha=.3, fill="#a41ae4")+
   geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)[2], lwd=1,col="#a41ae4")+
-    geom_text(data=plotlabs,
+  geom_text(data=plotlabs,
              aes(x=x,y=y,label=dwelling),
              hjust=0,alpha=.3) +
-  annotate("text",x=-.1,y=fixef(rimod)[1],
-           label=expression(gamma["00"]),size=8,
-           hjust=-.25,vjust=1.2,col="#a41ae4",parse=TRUE) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]-sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1) +
   geom_segment(x=0,xend=0,y=fixef(rimod)[1],
                yend=fixef(rimod)[1]+sqrt(VarCorr(rimod)[[1]][1]),
-               col="darkorange3",lwd=1) +
-  annotate("text",x=-.1,y=30,
+               col="darkorange3",lwd=1, alpha=.5) +
+  annotate("text",x=-.1,y=17,
            label=expression(sigma["0"]),size=8,
-           hjust=1,col="darkorange3")
+           hjust=1,col="darkorange3")+
+  geom_point(data=tibble(age=0,lifesat=fixef(rimod)[1]), col="#a41ae4",size=3)+
+  annotate("text",x=.5,y=fixef(rimod)[1],
+           label=expression(gamma["00"]),size=8,
+           hjust=0,vjust=1.2,col="#a41ae4",parse=TRUE)+
+  geom_segment(aes(x=0,xend=.5,y=fixef(rimod)[1], yend=fixef(rimod)[1]-2),col="#a41ae4",lwd=.3)
 ```
 :::
 ::::
@@ -800,18 +669,23 @@ basep +
            aes(x=0,ydist=dist_normal(fixef(rimod)[1],sqrt(VarCorr(rimod)[[1]][1]))), 
            alpha=.3, fill="#a41ae4")+
   geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)[2], lwd=1,col="#a41ae4")+
-    geom_text(data=plotlabs,
+  geom_text(data=plotlabs,
              aes(x=x,y=y,label=dwelling),
              hjust=0,alpha=.3) +
-  annotate("text",x=-.1,y=fixef(rimod)[1],
-           label=expression(gamma["00"]),size=8,
-           hjust=-.25,vjust=1.2,col="#a41ae4",parse=TRUE) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]-sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1) +
   geom_segment(x=0,xend=0,y=fixef(rimod)[1],
                yend=fixef(rimod)[1]+sqrt(VarCorr(rimod)[[1]][1]),
-               col="darkorange3",lwd=1) +
-  annotate("text",x=-.1,y=30,
+               col="darkorange3",lwd=1, alpha=.5) +
+  annotate("text",x=-.1,y=17,
            label=expression(sigma["0"]),size=8,
-           hjust=1,col="darkorange3")
+           hjust=1,col="darkorange3")+
+  geom_point(data=tibble(age=0,lifesat=fixef(rimod)[1]), col="#a41ae4",size=3)+
+  annotate("text",x=.5,y=fixef(rimod)[1],
+           label=expression(gamma["00"]),size=8,
+           hjust=0,vjust=1.2,col="#a41ae4",parse=TRUE)+
+  geom_segment(aes(x=0,xend=.5,y=fixef(rimod)[1], yend=fixef(rimod)[1]-2),col="#a41ae4",lwd=.2)
 ```
 
 :::
@@ -853,25 +727,29 @@ basep +
            aes(x=0,ydist=dist_normal(fixef(rimod)[1],sqrt(VarCorr(rimod)[[1]][1]))), 
            alpha=.3, fill="#a41ae4")+
   geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)[2], lwd=1,col="#a41ae4")+
-    geom_text(data=plotlabs,
+  geom_text(data=plotlabs,
              aes(x=x,y=y,label=dwelling),
              hjust=0,alpha=.3) +
-  annotate("text",x=-.1,y=fixef(rimod)[1],
-           label=expression(gamma["00"]),size=8,
-           hjust=-.25,vjust=1.2,col="#a41ae4",parse=TRUE) +
   geom_segment(x=0,xend=0,y=fixef(rimod)[1],
                yend=fixef(rimod)[1]-sqrt(VarCorr(rimod)[[1]][1]),
                col="darkorange3",lwd=1) +
-  annotate("text",x=-.1,y=20,
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]+sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=.2) +
+  annotate("text",x=-.1,y=17,
            label=expression(sigma["0"]),size=8,
            hjust=1,col="darkorange3")+
-  
+  geom_point(data=tibble(age=0,lifesat=fixef(rimod)[1]), col="#a41ae4",size=3)+
+  annotate("text",x=.5,y=fixef(rimod)[1],
+           label=expression(gamma["00"]),size=8,
+           hjust=0,vjust=1.2,col="#a41ae4",parse=TRUE)+
+  geom_segment(aes(x=0,xend=.5,y=fixef(rimod)[1], yend=fixef(rimod)[1]-2),col="#a41ae4", lwd=.2)+
   geom_line(data = specg,lwd=1,
             aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
   geom_curve(
     data=specg[1,],
     aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
-    curvature=.2,lwd=1
+    curvature=.6,lwd=1
   ) +
   annotate("text",x=-.1,y=mean(unlist(specg[1,c(6,7)])),
            label=expression(zeta["0Edb"]),size=8,
@@ -887,6 +765,56 @@ basep +
 :::
 ::::
 
+## fixed and random {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+$$
+\begin{align}
+& \text{Level 1:} \\ 
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 +} \overbrace{\color{blue}{b_{1}}}^{\textrm{fixed}} \color{blue}{ \cdot x_{ij}} + \varepsilon_{ij} \\ 
+& \text{Level 2:} \\ & \color{blue}{b_{0i}} = \underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}} \\ 
+\quad \\ 
+\end{align}
+$$
+
+:::
+
+:::{.column width="50%"}
+
+$$
+\color{red}{y_{ij}} = (\underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}}) \cdot 1 + \underbrace{b_1}_{\textrm{fixed}} \cdot x_{ij} + \varepsilon_{ij} \\
+$$
+
+:::
+::::
+
+The $\color{orange}{\zeta}$ components also get termed the "random effects" part of the model, Hence names like "random effects model", etc.
+
+$\color{orange}{\zeta_i}$ is "random" because considered a random sample from larger population such that $\color{orange}{\zeta_{0i}} \sim N(0, \color{orange}{\sigma^2_0})$. 
+
+
+## fixed and random {.smaller}
+
+I have groups in my data, when should I:  
+
+a. include group as a fixed effect predictor $\color{blue}{b \cdot Group}$  
+b. consider the groups to be 'clusters' and include group-level random effects $\color{orange}{\zeta_{i}}$  
+
+| Criterion: | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ |
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed effects  | Same levels would be used     |   The levels used                                    |
+| Random effects | Different levels would be used   | A population from which the levels used<br> are just a (random) sample |
+
+
+Practical points:  
+
+- Sometimes there isn't enough variability between groups to model random effects. 
+  - $\color{orange}{\sigma^2_0}$ gets estimated as (too close to) zero.
+- Sometimes you might not have sufficient data (e.g. only have 4 'clusters'). 
+  - estimate of $\color{orange}{\sigma^2_0}$ needs sufficient $n$. 
 
 ## random intercepts
 
@@ -910,7 +838,7 @@ $$
 :::{.column width="50%" style="font-size: 70%;color:#999999"}
 <br>
 for observation $j$ **from group $i$**,  
-<br><br>
+<br>
 their value of $\color{red}{y}$ =   
 &nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
 &nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
@@ -928,6 +856,7 @@ group $i$'s intercept ($\color{blue}{b_{0i}}$) =
 ::::{.columns}
 :::{.column width="50%"}
 ::: {style="width:0; float:left;"}
+
 $$
 \begin{align}
 & \text{for observation }j\text{ in group }i \\
@@ -940,16 +869,17 @@ $$
 & \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
 \end{align}
 $$
+
 :::
 :::
 
 :::{.column width="50%" style="font-size: 70%;color:#999999"}
 <br>
 for observation $j$ **from group $i$**,  
-<br><br>
+<br>
 their value of $\color{red}{y}$ =   
 &nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
-&nbsp;&nbsp;some amount **for group $i$** ($\color{blue}{b_1i}$) times their value of $x$ +  
+&nbsp;&nbsp;some amount **for group $i$** ($\color{blue}{b_{1i}}$) times their value of $x$ +  
 &nbsp;&nbsp;their residual $\varepsilon_{ij}$  
 <br>
 group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
@@ -966,72 +896,66 @@ group $i$'s slope ($\color{blue}{b_{1i}}$) =
 
 ::::{.columns}
 :::{.column width="50%"}
+::: {style="width:0; float:left;"}
+
 $$
 \begin{align}
 & \text{for observation }j\text{ in group }i \\
 \quad \\
 & \text{Level 1:} \\
-& \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
 & \text{Level 2:} \\
-& \color{blue}{\beta_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
-& \color{blue}{\beta_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
-\quad \\
-& \text{Where:} \\
-& \gamma_{00}\text{ is the population intercept, and }\color{orange}{\zeta_{0i}}\text{ is the deviation of group }i\text{ from }\gamma_{00} \\
-& \gamma_{10}\text{ is the population slope, and }\color{orange}{\zeta_{1i}}\text{ is the deviation of group }i\text{ from }\gamma_{10} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+& \qquad \\
+& \qquad \\
+& \begin{bmatrix} \color{orange}{\zeta_{0i}} \\ \color{orange}{\zeta_{1i}} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \color{orange}{\sigma_0} & \color{orange}{\rho_{01}} \\
+        \color{orange}{\rho_{01}} & \color{orange}{\sigma_1}
+    \end{bmatrix}
+\right) \\
+& \quad \\
+& \varepsilon_{ij} \sim N(0,\sigma_\varepsilon) \\
 \end{align}
 $$
-:::
-
-:::{.column width="50%"}
-
 
 :::
-::::
-
-
-
-## the multilevel model: partial pooling
-
-
-::::{.columns}
-:::{.column width="50%"}
-
-- Remember - in a no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to differences from reference cluster to cluster $i$, but nothing else.  
-    - Information from Glasgow, Edinburgh, Perth, Stirling etc doesn't influence what we think about Kirkcaldy.  
-    
 :::
 
-:::{.column width="50%"}
-
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_0}$.  
-    - so we expect fewer groups to be really far away from the average
-
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount **for group $i$** ($\color{blue}{b_{1i}}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+group $i$'s slope ($\color{blue}{b_{1i}}$) =  
+&nbsp;&nbsp;the slope for the average of the population of groups ($\gamma_{10}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{1i}}$) from $\gamma_{10}$  
+<br>
+group deviations for intercepts and slopes are normally distributed with mean of 0 and standard deviations of $\color{orange}{\sigma_0}$ and $\color{orange}{\sigma_1}$ respectively, and with a correlation of $\color{orange}{\rho_{01}}$. 
+  
 :::
 ::::
-
-
-
-## the multilevel model: partial pooling {transition="slide"}
-
-
-::::{.columns}
-:::{.column width="50%"}
-
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_0}$.  
-    - so we expect fewer groups to be really far away from the average
-    
-:::
-
-:::{.column width="50%"}
 
 
 ```{r}
 #| eval: false
-femod = lm(lifesat~1+age+dwelling,d3 |> mutate(age=age/10))
-rimod = lmer(lifesat~1+age+(1|dwelling),d3 |> mutate(age=age/10))
+library(gganimate)
+femod = lm(lifesat~1+age*dwelling,d3 |> mutate(age=age/10))
+rimod = lmer(lifesat~1+age+(1+age|dwelling),d3 |> mutate(age=age/10))
 
-plotlabs = tibble(dwelling=unique(d3$dwelling),age=6,x=6)
+plotlabs = tibble(dwelling=unique(d3$dwelling),age=7,x=7)
 plotlabs$y = predict(rimod, newdata=plotlabs)
 
 plotlines = 
@@ -1039,11 +963,11 @@ plotlines =
   rownames_to_column() |>
   mutate(
     g = 1:n(),
-    data = map2(`(Intercept)`,age, ~tibble(x = 0:6, .fitted = ..1 + ..2*(0:6)))
+    data = map2(`(Intercept)`,age, ~tibble(x = 0:7, .fitted = ..1 + ..2*(0:7)))
   ) |> unnest(data)
 
 plotlinesF = 
-  expand_grid(dwelling=unique(d3$dwelling),age=0:6) %>%
+  expand_grid(dwelling=unique(d3$dwelling),age=0:7) %>%
   mutate(
     x=age,
     .fitted = predict(femod, newdata = .)
@@ -1051,33 +975,143 @@ plotlinesF =
 
 anim_plotlines = bind_rows(
   plotlines |> mutate(dwelling=rowname) |>
-    select(dwelling,g,x,.fitted) |> mutate(f = 1),
-  plotlinesF |> select(dwelling,x,.fitted) |> mutate(f = 0)
+    select(dwelling,g,x,.fitted) |> mutate(f = "partial pooling"),
+  plotlinesF |> select(dwelling,x,.fitted) |> mutate(f = "no pooling")
 ) |> group_by(dwelling) |>
   mutate(g=mean(g,na.rm=T)) |> ungroup()
 
-plotlabsF = tibble(dwelling=unique(d3$dwelling),age=6,x=6)
+plotlabsF = tibble(dwelling=unique(d3$dwelling),age=7,x=7)
 plotlabsF$y = predict(femod, newdata=plotlabsF)
-anim_plotlabs = bind_rows(plotlabs |> mutate(f=1),
-                          plotlabsF |> mutate(f=0))
+anim_plotlabs = bind_rows(plotlabs |> mutate(f="partial pooling"),
+                          plotlabsF |> mutate(f="no pooling"))
 
 anim_dist = tibble(age=-1,lifesat=fixef(rimod)[1],
        x=0,m=c(mean(plotlinesF$.fitted[plotlinesF$x==0]),
                fixef(rimod)[1]),
        s=c(1e3,sqrt(VarCorr(rimod)[[1]][1])),
-       f = 0:1
+       f = c("no pooling", "partial pooling")
 )
 
+anim_slopes = bind_rows(
+  full_join(
+  plotlinesF |> filter(age==0) |> 
+    transmute(dwelling,intercept=.fitted),
+  marginaleffects::avg_slopes(femod,variables="age", by="dwelling") |>
+    as_tibble() |> transmute(dwelling, slope=estimate,f="no pooling"),  
+  ),
   
-library(gganimate)
-animp = basep + 
+  as.data.frame(coef(rimod)$dwelling) |> 
+  rownames_to_column() |>
+  transmute(dwelling=rowname,g = 1:n(),
+            intercept=`(Intercept)`,slope = age,f="partial pooling")
+) |> arrange(f,dwelling)
+
+anim_slopedist = tibble(
+  m = c(mean(marginaleffects::avg_slopes(femod,variables="age",
+                            by="dwelling")$estimate),
+        fixef(rimod)['age']),
+  s = c(1e3,sqrt(VarCorr(rimod)[[1]][2,2])),
+  f = c("no pooling", "partial pooling")
+)
+
+animp1 = ggplot(anim_slopes,
+                aes(x=intercept))+
+  geom_density(col=NA)+
+  scale_x_continuous(NULL, limits=c(-10,85),breaks=c(0,20,40,60,80),
+                     labels=NULL) +
+  scale_y_continuous("density", limits=c(-1,0),breaks=c(-1,0))+
+  geom_rug(sides="t",aes(col=dwelling),lwd=1)+
+  guides(col="none",alpha="none")+
+  geom_text(aes(y=0,label=dwelling),size=5,
+            angle=0,hjust=1, alpha=.1)+
+  #
+  # geom_text(aes(y=0,label=dwelling, col=dwelling,
+  #               alpha=factor(dwelling=="Stirling")),size=5,
+  #           angle=0,hjust=1)+
+  #
+  stat_eye(side="left",
+           data=anim_dist,
+           aes(x=0,y=0,xdist=dist_normal(m,s)), 
+           alpha=.3, fill="#a41ae4")+
+  theme(axis.title.y = element_text(colour="white"),
+        axis.text.x = element_text(colour="white"),
+        title = element_text(color="white"),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank())+
+  coord_flip()+
+  
+  transition_states(f)+
+  labs(title="{closest_state}")+
+  ease_aes('sine-in-out')
+
+
+animp2 = ggplot(anim_slopes,
+                aes(x=slope))+
+  geom_density(col=NA)+
+  scale_x_continuous(NULL,limits=c(-11,15),labels=NULL)+
+  scale_y_continuous("dens",limits=c(-1,0),breaks=c(-1,0),
+                     labels=NULL)+
+  geom_rug(sides="t",aes(col=dwelling),lwd=1)+
+  guides(col="none",alpha="none")+
+  geom_text(aes(y=0,label=dwelling),size=5,
+            angle=90,hjust=1, alpha=.1)+
+  #
+  # geom_text(aes(y=0,label=dwelling, col=dwelling,
+  #               alpha=factor(dwelling=="Stirling")),size=5,
+  #           angle=90,hjust=1)+
+  #
+  stat_eye(side="left",
+           data=anim_slopedist,
+           aes(x=0,y=0,xdist=dist_normal(m,s)), 
+           alpha=.3, fill="#a41ae4")+
+  theme(axis.title.y = element_text(colour="white"),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank())+
+  transition_states(f)+
+  ease_aes('sine-in-out')
+#anim_save("output2.gif",animp2) 
+
+animp3 = ggplot(anim_slopes,
+                aes(x=slope,y=intercept))+
+  scale_x_continuous(limits=c(-11,15))+
+  scale_y_continuous(limits=c(-10,85),breaks=c(0,20,40,60,80)) +
+  guides(col="none",alpha="none")+
+  geom_text(aes(label=dwelling),size=5,
+            angle=0,hjust=0, alpha=.3)+
+  geom_rug(aes(col=dwelling),lwd=1)+
+  #
+  # geom_text(aes(label=dwelling, col=dwelling,
+  #               alpha=factor(dwelling=="Stirling")),size=5,
+  #           angle=0,hjust=0)+
+  #
+  theme(title = element_text(color="white")) +
+  transition_states(f)+
+  labs(title="{closest_state}")+
+  ease_aes('sine-in-out')
+# anim_save("output3.gif",animp3) 
+
+
+animp = ggplot(d3 |> mutate(age=age/10), 
+               aes(x=age,y=lifesat))+
+  geom_point(size=3,alpha=.2,aes(col=dwelling)) +
+  guides(col="none")+
+  geom_vline(xintercept=0,lty="dashed")+
+  scale_x_continuous(limits=c(-1,8),breaks=c(0:7),labels=seq(0,70,10))+
+  scale_y_continuous(limits=c(-10,85),breaks=c(0,20,40,60,80)) +
   with_blur(geom_line(data = anim_plotlines,
                       aes(x=x,y=.fitted,group=g),alpha=.2), sigma=2) + 
-  geom_line(data = anim_plotlines |> filter(dwelling=="Kirkcaldy"),
-            aes(x=x,y=.fitted,group=g)) +
-  geom_point(data = d3 |> filter(dwelling=="Kirkcaldy") |>
-               mutate(age=age/10),
-            aes(x=age,y=lifesat,col=dwelling),size=3) +
+  geom_point(data = anim_plotlines[anim_plotlines$x==0,],
+             aes(x=x,y=.fitted,col=dwelling),shape="_",size=8)+
+  #
+  # geom_line(data = anim_plotlines |> filter(dwelling=="Stirling"),
+  #           aes(x=x,y=.fitted,group=g,col=dwelling), lty="dashed",size=1) +
+  # geom_point(data = d3 |> filter(dwelling=="Stirling") |>
+  #              mutate(age=age/10),
+  #           aes(x=age,y=lifesat,col=dwelling),size=4) +
+  # geom_label(data=anim_plotlabs |> filter(dwelling=="Stirling"),
+  #            aes(x=x,y=y,label=dwelling,col=dwelling),
+  #            hjust=0) +
+  #
   geom_text(data=anim_plotlabs,
              aes(x=x,y=y,label=dwelling),
              hjust=0,alpha=.3) +
@@ -1087,59 +1121,103 @@ animp = basep +
            alpha=.3, fill="#a41ae4")+
   
   transition_states(f)+
+  labs(title="{closest_state}")+
   ease_aes('sine-in-out')
   
-anim_save("output.gif",animp)
+#anim_save("output.gif",animp)
+
+library(magick)
+# a_gif = animate(animp, width=240,height=240)
+# b_gif = animate(animp2, width=150,height=240)
+# a_mgif <- image_read(a_gif)
+# b_mgif <- image_read(b_gif)
+
+a_mgif = animate(animp, nframes = 100, width=600,height=600,
+                 renderer = magick_renderer(loop = FALSE))
+b_mgif = animate(animp1, nframes = 100, width=150, height=300,
+                 renderer = magick_renderer(loop = FALSE))
+c_mgif = animate(animp2, nframes = 100, width=300, height=300,
+                 renderer = magick_renderer(loop = FALSE))
+d_mgif = animate(animp3, nframes = 100, width=300, height=300,
+                 renderer = magick_renderer(loop = FALSE))
+
+new_gif <- image_append(c(a_mgif[1], 
+                          image_append(c(b_mgif[1],
+                                         image_blank(150,300,color="white")),
+                                       stack=TRUE),
+                          image_append(c(d_mgif[1], c_mgif[1]), stack=TRUE)))
+
+
+for(i in 2:100){
+  combined <- image_append(c(a_mgif[i], 
+                          image_append(c(b_mgif[i],
+                                         image_blank(150,300,color="white")),
+                                       stack=TRUE),
+                          image_append(c(d_mgif[i], c_mgif[i]), stack=TRUE)))
+  new_gif <- c(new_gif, combined)
+}
+anim_save("output_both.gif",new_gif)
+
+
 ```
 
-:::
-::::
+## the multilevel model: partial pooling  {.smaller}
+
+- In a no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to the slope for cluster $i$, but nothing else.  
+    - Information from Glasgow, Edinburgh, Perth, Stirling etc doesn't influence what we think about Stirling.  
+    
+
+## the multilevel model: partial pooling  {.smaller}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
+- clusters' contributions to the model depend on:  
+    - $\color{orange}{\sigma_b}$ relative to $\sigma_\varepsilon$
+    - the amount of data in each cluster  
+    
+## the multilevel model: partial pooling  {.smaller}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
+- clusters' contributions to the model depend on:  
+    - how distinct the clustering is
+    - how big a cluster is
+
+## the multilevel model: partial pooling  {.smaller}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
+- cluster specific predictions are *shrunk* towards the average depending on:  
+    - how distinct the clustering is
+    - how big a cluster is
+
+## the multilevel model: partial pooling {.smaller}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
+- cluster specific predictions are *shrunk* towards the average depending on:  
+    - how distinct the clustering is
+    - how big a cluster is
+
+![](output_both.gif){width=1000px}
+
+## the multilevel model: partial pooling {.smaller}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma}$.  
+- cluster specific predictions are *shrunk* towards the average depending on:  
+    - how distinct the clustering is
+    - how big a cluster is
+    
+
+![](output_bothK.gif){width=1000px}
+
+## the multilevel model: partial pooling {.smaller}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma}$.  
+- cluster specific predictions are *shrunk* towards the average depending on:  
+    - how distinct the clustering is
+    - how big a cluster is    
+
+![](output_bothS.gif){width=1000px}
 
 
 
-
-
-## fixed and random {.smaller}
-
-::::{.columns}
-:::{.column width="50%"}
-
-
-$\begin{align}& \text{Level 1:} \\ & \color{red}{y_{ij}} = \color{blue}{\beta_{0i} \cdot 1 + \beta_{1i} \cdot x_{1ij} + \beta_2 \cdot x_{2ij}} + \varepsilon_{ij} \\ & \text{Level 2:} \\ & \color{blue}{\beta_{0i}} = \underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}} \\ & \color{blue}{\beta_{1i}} = \underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}} \\ \quad \\ \end{align}$
-
-:::
-
-:::{.column width="50%"}
-
-$\color{red}{y_{ij}} = (\underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}}) \cdot 1 + (\underbrace{\gamma_{10}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{1i}}_{\textrm{random}}}) \cdot x_{1ij} + \underbrace{\beta_2}_{\textrm{fixed}} \cdot x_{2ij} +  \varepsilon_{ij} \\$
-
-:::
-::::
-
-The $\color{orange}{\zeta}$ components also get termed the "random effects" part of the model, Hence names like "random effects model", etc.
-
-$\color{orange}{\zeta_i}$ is "random" because considered a random sample from larger population such that $\color{orange}{\zeta_i} \sim N(0, \sigma^2_{\color{orange}{\zeta_i}})$. 
-
-
-## fixed and random {.smaller}
-
-I have groups in my data, should I:  
-
-a. include group as a fixed effect predictor $\color{blue}{\beta \cdot Group}$  
-b. consider the groups to be 'clusters' and include group-level random effects $\color{orange}{\zeta_{i}}$
-
-| Criterion: | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ |
-|----------------|--------------------------------------------------|----------------------------------------------------|
-| Fixed effects  | Same levels would be used     |   The levels used                                    |
-| Random effects | Different levels would be used   | A population from which the levels used<br> are just a (random) sample |
-
-
-Practical points:  
-
-- Sometimes there isn't enough variability between groups to model random effects. 
-  - $\sigma^2_{\color{orange}{\zeta}}$ gets estimated as (too close to) zero.
-- Sometimes you might not have sufficient data (e.g. only have 4 'clusters'). 
-  - estimate of $\sigma^2_{\color{orange}{\zeta}}$ needs sufficient $n$ 
   
 ## Advantages of MLM {.smaller}
 
@@ -1225,6 +1303,8 @@ $$
 \end{equation}
 $$
 
+
+# Multi-level models in R
 
 ## The lme4 package {.smaller}
 
@@ -1530,11 +1610,13 @@ summary(model, correlation=F)
 :::{.column width="50%"}
 Fixed effects:  
 ```{r}
+#| echo: true
 fixef(model)
 ```
 
 Variance components:  
 ```{r}
+#| echo: true
 VarCorr(model)
 ```
 :::
@@ -1586,6 +1668,7 @@ coef = fixef + ranef
 :::{.column width="50%"}
 Fit an intercept-only model:  
 ```{r highlight.output=c(13,14)}
+#| echo: true
 null_mod <- lmer(ACE ~ 1 + (1 | ppt), data = d3) 
 summary(null_mod)
 ```
@@ -1593,6 +1676,7 @@ summary(null_mod)
 
 :::{.column width="50%"}
 ```{r}
+#| echo: true
 2.22 / (2.22 + 2.54)
 ```
 

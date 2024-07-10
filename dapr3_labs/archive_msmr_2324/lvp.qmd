@@ -1,0 +1,151 @@
+---
+title: "Likelihood vs Probability"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+---
+
+```{r setup, include=FALSE}
+source('assets/setup.R')
+library(tidyverse)
+library(patchwork)
+library(effects)
+```
+
+
+Upon hearing the terms "probability" and "likelihood", people will often tend to interpret them as synonymous. In statistics, however, the distinction between these two concepts is very important (and often misunderstood).  
+
+:::statbox
+In the statistical framework we have been learning, "probability" refers to the chance of observing possible results *if* some certain state of the world were true^[This is the typical frequentist stats view. There are other ways to do statistics (not covered in this course) - e.g., in Bayesian statistics, probability relates to the reasonable expectation (or "plausibility") of a belief]
+
+Likelihood refers to the probability of seeing our data, given some hypothesis.  
+
+:::
+
+
+## Setup
+
+Let's consider a coin flip. For a fair coin, the chance of getting a heads/tails for any given flip is 0.5.  
+
+We can simulate the number of "heads" in a single fair coin flip with the following code (because it is a single flip, it's just going to return 0 or 1):
+```{r}
+rbinom(n = 1, size = 1, prob = 0.5)
+```
+We can simulate the number of "heads" in 8 fair coin flips with the following code: 
+```{r}
+rbinom(n = 1, size = 8, prob = 0.5)
+```
+As the coin is fair, what number of heads would we expect to see out of 8 coin flips? Answer: 4! 
+Doing another 8 flips:
+```{r}
+rbinom(n = 1, size = 8, prob = 0.5)
+```
+and another 8:
+```{r}
+rbinom(n = 1, size = 8, prob = 0.5)
+```
+We see that they tend to be around our intuition expected number of 4 heads. We can change `n = 1` to ask `rbinom()` to not just do 1 set of 8 coin flips, but to do 1000 sets of 8 flips:
+```{r}
+table(rbinom(n = 1000, size = 8, prob = 0.5))
+```
+
+## Probability
+
+So what is the **probability** of observing $k$ heads in $n$ flips of a fair coin?  
+
+As coin flips are independent, we can calculate probability using the product rule ($P(AB) = P(A)\cdot P(B)$ where $A$ and $B$ are independent).   
+So the probability of observing 2 heads in 2 flips is $0.5 \cdot 0.5 = 0.25$  
+
+We can get to this probability using `dbinom()`:  
+```{r}
+dbinom(2, size=2, prob=0.5)
+```
+
+In **8** flips, those two heads could occur in various ways:
+```{r echo=FALSE}
+ways = replicate(10, paste0(sample(c(rep("T",6),rep("H",2)), 8),collapse=""))
+library(tidyverse)
+tibble(
+  `Ways to get 2 heads in 8 flips` = c(ways[!duplicated(ways)], "...")
+) |> gt::gt()
+```
+As it happens, there are 28 different ways this could happen.^[If you really want to see them all, try running `combn(8, 2)` in your console.]  
+
+The probability of getting 2 heads in 8 flips of a fair coin is, therefore:
+```{r}
+28 * (0.5^8)
+```
+Or, using `dbinom()`
+```{r}
+dbinom(2, size = 8, prob = 0.5)
+```
+
+:::imp
+The important thing here is that when we are computing the probability, two things are fixed: 
+
+ - the number of coin flips (8)
+ - the value(s) that govern the coin's behaviour (0.5 chance of landing on heads for _any given flip_)
+ 
+We can then can compute the probabilities for observing various numbers of heads:
+```{r}
+dbinom(0:8, 8, prob = 0.5)
+```
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(tidyverse)
+tibble(
+  n_heads = 0:8,
+  prob = dbinom(0:8, 8, prob = 0.5)
+) %>%
+  ggplot(., aes(x=n_heads, y=prob))+
+  geom_point(size = 2)+
+  geom_segment(aes(x=n_heads,xend=n_heads,y=0,yend=prob), alpha=.3)
+```
+Note that the probability of observing 10 heads in 8 coin flips is 0, as we would hope! 
+```{r}
+dbinom(10, 8, prob = 0.5)
+```
+:::
+
+## Likelihood 
+
+So how does **likelihood** differ?  
+
+For likelihood, we are interested in *hypotheses* about or *models* of our coin. Do we think it is a fair coin (for which the probability of heads is 0.5?). Do we think it is biased to land on heads 60% of the time? or 30% of the time? All of these are different 'models'.  
+
+To consider these hypotheses, we need to observe some data -  we need to have a given number of flips, and the resulting number of heads.  
+
+Whereas when discussing probability, we varied the number of heads, and fixed the parameter that designates the true chance of landing on heads for any given flip, for the likelihood we are fixing the number of heads observed, and can make statements about different possible parameters that might govern the coin's behaviour. 
+
+For example, let's suppose we __did__ observe 2 heads in 8 flips, what is the probability of seeing this data given various parameters?  
+
+Here, our parameter (the probability that we think the coin lands on heads) can take any real number between from 0 to 1, but let's do it for a selection:
+```{r}
+possible_parameters = seq(from = 0, to = 1, by = 0.05)
+dbinom(2, 8, possible_parameters)
+```
+
+So what we are doing here is considering the possible parameters that govern our coin. Given that we observed 2 heads in 8 coin flips, it seems very unlikely that the coin weighted such that it lands on heads 80% of the time (e.g., the parameter of 0.8 is not likely). The idea that the coin is fair (0.5 probability) is more likely. The most likely parameter is 0.25 (because $\frac{2}{8}=0.25$).  
+You can visualise this below:  
+
+```{r}
+#| echo: false
+curve(
+  dbinom(2,8,x), xlim = c(0,1),
+  ylab="Likelihood",
+  xlab=expression(paste("Binomial ", rho)),
+)
+```
+
+
+## A slightly more formal approach
+
+Let $d$ be our data (our _observed_ outcome), and let $\theta$ be the parameters that govern the data generating process.  
+
+When talking about "probability" we are talking about $P(d | \theta)$ for a given value of $\theta$.  
+E.g. above we were talking about $P(\text{2 heads in 8 flips}\vert \text{fair coin})$.  
+
+In reality, we don't actually know what $\theta$ is, but we do observe some data $d$.  
+Given that we know that _if we have a specific value for $\theta$_, then $P(d \vert \theta)$ will give us the probability of observing $d$, we can ask "what value of $\theta)$ will maximise the probability of observing $d$?".  
+This will sometimes get written as $\mathcal{L}(\theta \vert d)$ as the "likelihood function" of our unknown parameters $\theta$, conditioned upon our observed data $d$.  
+

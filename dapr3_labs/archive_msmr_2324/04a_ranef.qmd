@@ -1,0 +1,765 @@
+---
+title: "4A: Random Effect Structures"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+library(lme4)
+library(broom.mixed)
+```
+
+
+:::lo
+This reading:  
+
+- extending the multilevel model to encompass more complex random effect structures
+
+- model building and common issues  
+
+:::
+
+
+# "random effects"
+
+
+So far, we've fitted various multilevel models that have had grouping structures such as:  
+
+- each observation is a child, and children are grouped into schools
+- each observation is an individual trial or assessment, and multiple observations come from each participants
+- each observation is a single timepoint, and we have multiple timepoints for  each participant  
+
+In all of these, we have been specifying models with a random effect structure that takes the form `(.... | g)`. 
+
+We're now going to move to look at how multilevel modelling can capture more complex structures - when there is more than just the one grouping variable.  
+
+
+::: {.callout-note collapse="true"}
+#### a small note on how people use the term "random effects"  
+
+People often use the term "random effects" to collectively refer to all of the stuff we're putting in the brakects of `lmer()`: 
+
+$$
+\text{... + }\underbrace{\text{(random intercept + random slopes | grouping structure)}}_{\text{random effects}}
+$$
+
+People will use different phrases to refer to individual random intercepts or slopes, such as:  
+
+- *"random effects of x by g"* to refer to `... +  x | g)`
+- *"by-g random effects of x"* to refer to `... +  x | g)`
+- *"random effects of x for g"* to refer to `... +  x | g)`
+- *"random effect for/of g"* to refer to `(1 | g)`
+
+These are all really trying to just different ways to say that a model allows *[insert-parameter-here]* to be different for each group of g, and that it estimates their variance.  
+
+:::
+
+
+<div class="divider div-transparent div-dot"></div>
+
+# Nested
+
+The same principle we have seen for models with 2 levels can be extended to situations in which those level 2 clusters are themselves grouped in to higher level clusters.  
+
+For instance:  
+
+- each observation is a child, and children are grouped into schools. Schools are nested within districts.  
+- each observation is an individual assessment, and we have multiple assessments for each patient, and patients are nested within hospitals. 
+- each observation is an individual timepoint, and we have multiple timepoint per child. children are nested within schools  
+
+This sort of structure is referred to as "nested" in that at each level, individual units belong to only _one_ of the higher up units. For instance, in a "observations within children within schools" structure, each observation belongs to only one child, and each child is at only one school. You can see this idea in @fig-nesting
+
+```{r}
+#| echo: false
+#| out-width: "100%"
+#| label: fig-nesting
+#| fig-cap: "A 'nested' structure, in which each level 1 unit belongs to a single level 2 unit, and each level 2 unit belongs to a single level 3 unit"
+knitr::include_graphics("images/structure_nestednew.png")
+```
+
+
+In R, we can specify a nested structure using:  
+```{r}
+#| eval: false
+... + (1 + ... | school) + (1 + .... | school:child)
+```
+This specifies that things can vary between schools and that things can also vary between the children within the schools.  
+
+So `(1 | school) + (1 | school:child)` means that the intercept varies by school (some schools have a higher $y$, some have lower), and also by the children within the schools (some children have a higher $y$ for the school, some have lower).  
+
+You might think of this as the variance in school intercepts (width of purple distribution in @fig-intnest) and the variance in child intercepts around their school average (width of the right-hand distributions in @fig-intnest). In @fig-intnest below there is a lot of school-level variation, and less child-level variation, but you could just as likely have a situation in which children that vary a lot and schools vary less. 
+
+```{r}
+#| echo: false
+#| out-width: "100%"
+#| label: fig-intnest
+#| fig-cap: "Lines for each child from 12 Schools. Purple distribution shows school-level variance in intercepts. Distributions to the right show the within-school child-level variance in intercepts"  
+library(ggdist)
+library(distributional)
+library(patchwork)
+neststress <- read_csv("https://uoepsy.github.io/data/stressweek_nested.csv")
+neststress$school = paste0("School ",as.numeric(factor(neststress$dept)))
+neststress$day<-neststress$day-1
+neststress$stress<-neststress$stress+neststress$day*.1
+
+mnest2 <- lmer(stress ~ 1 + day + 
+                (1 | school) +
+                (1 | school:pid), data = neststress)
+vc = as.data.frame(VarCorr(mnest2))
+g1s <- coef(mnest2)$school |> rownames_to_column() |>
+      mutate(school=rowname,schoolint = `(Intercept)`, .fitted=50)
+
+g1s |> arrange(desc(schoolint)) |> pull(school) -> dorder
+g1s$school = factor(g1s$school, levels=dorder)
+
+broom.mixed::augment(mnest2) |>
+  mutate(
+    school = factor(school, levels=dorder)
+  ) |>
+  ggplot(aes(x=day,y=.fitted,col=school))+
+  geom_path(aes(group=interaction(school,pid)),alpha=.4)+
+  stat_eye(inherit.aes=FALSE,side="left",
+           data=g1s,
+           aes(x=0,
+               ydist=dist_normal(schoolint,vc[1,5]), fill=school), 
+           alpha=.2)+
+  stat_eye(inherit.aes=FALSE,side="left",
+           data=tibble(x=-1,.fitted=50),
+           aes(x=-1.3,ydist=dist_normal(fixef(mnest2)[1],vc[2,5])), 
+           alpha=.3, fill="#a41ae4")+
+  geom_point(data=g1s, aes(x=0,y=schoolint,col=school), size=2)+
+  geom_point(data=g1s, aes(x=-1.32,y=schoolint,col=school), size=2)+
+  scale_x_continuous("x",limits=c(-2.5,4),labels=NULL)+
+  scale_y_continuous("y",labels=NULL)
+```
+
+```{r}
+#| eval: false
+#| echo: false
+#| out-width: "100%"
+#| label: fig-jellyfish
+#| fig-cap: "Top panel shows school lines with the green distribution representing the estimated school-level variation. Bottom panel shows child lines within each school, with the purple distributions representing the estimated child-level variation"  
+library(ggdist)
+library(distributional)
+library(patchwork)
+ss=5105
+set.seed(ss)
+simg2 = function(dd){
+  n_groups = 10
+  N = n_groups*7
+  g = rep(1:n_groups, e = N/n_groups)
+  x = rep(0:6,n_groups)
+  ag = round(runif(n_groups,25,60))
+  a = rep(ag,e=7)
+  bw = rep(rbinom(n_groups,1,plogis(scale(a))),e=7)
+  
+  re0 = rnorm(n_groups, sd = 3)
+  re = re0[g]
+  rex = rnorm(n_groups, sd = 1)
+  re_x = rex[g]
+  lp = (0 + re) + .35*a + (.9 *bw) +  (-1.5 + re_x) * x +1.2*bw*x 
+  y = rnorm(N, mean = lp, sd = 3.6)
+  y_bin = rbinom(N, size = 1, prob = plogis(lp))
+  df = data.frame(x, g = factor(g), a,bw, y, y_bin)
+  df
+}
+df_nest <- map_dfr(letters[1:9],~simg2(.),.id="g1")
+rnames <- sample(paste0("School ",1:9))
+df_nest <- df_nest |> mutate(
+  y = y+as.numeric(g1)*4,
+  g1 = map_chr(g1, ~rnames[as.numeric(.)])
+  #g1 = paste0("School ",g1)
+) 
+
+m = lmer(y~1+x+(1|g1)+(1|g1:g),df_nest)
+
+vc = as.data.frame(VarCorr(m))
+
+p1 = broom.mixed::augment(m) |>
+  ggplot(aes(x=x,y=.fitted,col=g1))+
+  #geom_line(aes(group=interaction(g,g1)),alpha=.4) +
+  stat_smooth(method=lm,se=F,aes(group=g1))+
+  stat_eye(inherit.aes=FALSE,side="left",
+           data=tibble(x=-1,.fitted=50),
+           aes(x=0,ydist=dist_normal(fixef(m)[1],vc[vc$grp=="g1",5])), 
+           alpha=.3, fill="#1ae4a4")+
+  scale_x_continuous("x",breaks=NULL)+
+  scale_y_continuous("y",breaks=NULL)+
+  guides(col="none")
+
+g1s <- coef(m)$g1 |> rownames_to_column() |>
+      transmute(g1=rowname,g1int = `(Intercept)`, .fitted=50)
+  
+p2 = broom.mixed::augment(m) |>
+  ggplot(aes(x=x,y=.fitted,col=g1))+
+  geom_line(aes(group=interaction(g,g1)),alpha=.6) +
+  stat_eye(inherit.aes=FALSE,side="left",
+           data=g1s,
+           aes(x=-.2,ydist=dist_normal(g1int,vc[vc$grp=="g1:g",5])), 
+           alpha=.4, fill="#a41ae4") +
+  facet_wrap(~g1) + 
+  scale_x_continuous("x",breaks=NULL)+
+  scale_y_continuous("y",breaks=NULL)+
+  guides(col="none")
+
+
+p1 / p2 & plot_layout(heights=c(1,3))
+
+```
+
+::: {.callout-note collapse="true"}
+#### a shortcut
+
+In __lme4__, there is a shortcut for writing nested random effects that uses the `/` to specify `higher/lower` level of nesting.  
+
+For instance,  
+`(1 + .... | school/child)`  
+is the same thing as  
+`(1 + ... | school) + (1 + .... | school:child)`
+
+This shortcut has a bit of a disadvantage in that it means all the same random slopes are fitted for schools and for children-within-schools, so often it is preferable to keep them separated out.  
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### uniqueness of labels
+
+If labels of children are unique to each school, e.g. the child variable has values like "school1_child1", "school2_child2" etc., then 
+`school:child` captures the same set of groups as `child` does, and therefore  
+`(1 + ... | school) + (1 + .... | school:child)`  
+is the same as  
+`(1 + ... | school) + (1 + .... | child)`  
+
+
+The risk of just specifying `... |child` is that whether or not it gets at the correct groups depends on your labels. 
+
+__in the `summary()` output of a multilevel model, immediately beneath the random effects it will show you how many groups. It's always worth checking that these match with how many you would expect!__   
+
+
+:::
+
+
+<div class="divider div-transparent div-dot"></div>
+
+# Crossed
+
+```{r}
+#| include: false
+dfcr <- read_csv("https://uoepsy.github.io/data/stressweek_crossed.csv") |>
+  mutate(day=day-1,
+         pid = paste0("PPT_",as.numeric(factor(pid))),
+         task = paste0("Task_",as.numeric(factor(measure)))
+         )
+
+mcross = lmer(stress ~ day + (1|pid)+(1|task),dfcr,control=lmerControl(optimizer="bobyqa"))
+
+plotsamp = paste0("PPT_",c(12,9,1,2))
+
+vc = as.data.frame(VarCorr(mcross))
+g1s <- coef(mcross)$task |> rownames_to_column() |>
+      mutate(task=rowname,taskint = `(Intercept)`, .fitted=50)
+g1s |> arrange(desc(taskint)) |> pull(task) -> dorder
+g1s$task = factor(g1s$task, levels=dorder)
+g2 <- coef(mcross)$pid |> rownames_to_column() |>
+      mutate(pid=rowname,pidint = `(Intercept)`, .fitted=50)
+
+p1 = broom.mixed::augment(mcross) |>
+  ggplot(aes(x=day,y=.fitted))+
+  geom_line(col=NA,lwd=1)+
+  stat_summary(geom="line",aes(group=pid,col=pid),alpha=.7)+
+  #geom_point(data=g2,aes(x=0,y=pidint,col=pid),size=2,alpha=.3)+
+  geom_text(data=g2,aes(x=4,y=pidint+(fixef(mcross)[2]*4),label=pid,col=pid),size=3,alpha=1,
+            hjust=0)+
+  stat_eye(inherit.aes=FALSE,side="left",
+           data=tibble(x=-1,.fitted=50),
+           aes(x=0,ydist=dist_normal(fixef(mcross)[1],vc[1,5])),
+           alpha=.3, fill="#a41ae4")+
+  scale_x_continuous("x",limits=c(-1,5),labels=NULL)+
+  scale_y_continuous("y",labels=NULL)+
+  guides(col="none")
+
+p2 = broom.mixed::augment(mcross) |>
+  mutate(
+    task=factor(task,levels=dorder)
+  ) |>
+  ggplot(aes(x=day,y=.fitted))+
+  geom_line(col=NA,lwd=1)+
+  stat_summary(geom="line",aes(group=task,lty=task),alpha=.7)+
+  geom_text(data=g1s,aes(x=4,y=taskint+(fixef(mcross)[2]*4),label=task),size=3,alpha=1,hjust=0)+
+  stat_eye(inherit.aes=FALSE,side="left",
+           data=tibble(x=-1,.fitted=50),
+           aes(x=0,ydist=dist_normal(fixef(mcross)[1],vc[2,5])),
+           alpha=.3, fill="#a41ae4")+
+  scale_x_continuous("x",limits=c(-1,5),labels=NULL)+
+  scale_y_continuous("y",labels=NULL)+
+  guides(lty="none")
+  
+p3 = broom.mixed::augment(mcross) |>
+  mutate(
+    task=factor(task,levels=dorder)
+  ) |> 
+  filter(pid %in% plotsamp) |>
+  ggplot(aes(x=day,y=.fitted,col=pid,lty=task))+
+  geom_line(lwd=.75)+
+  guides(col="none")+
+  facet_wrap(~pid)+
+  scale_x_continuous("x",labels=NULL)+
+  scale_y_continuous("y",labels=NULL)
+```
+
+Crossed structures are, in simplest terms, anything that is not nested. So if a unit of observation exists in more than one of another level, we have a crossed design - i.e. where there is not the same hierarchy to the structure.   
+
+For instance:  
+
+- Each observation is an assessment of a patient by a therapist. Patients see various therapists, and therapists see many different patients (patients and therapists are not nested)
+- Each observation is an individual trial, which will be one from a set of experimental items. All participants see all items, but all items are seen by all participants, so items and participants are not nested. 
+
+This sort of structure is referred to as "crossed" because of the lines crossing in such diagrams as in @fig-crossed. In @fig-crossed, observations can be grouped into tasks, but they can also be grouped into participants.  
+
+```{r}
+#| echo: false
+#| out-width: "100%"
+#| label: fig-crossed
+#| fig-cap: "A 'crossed' structure"
+knitr::include_graphics("images/structure_crossednew.png")
+```
+
+In R, we simply specify these as separate groupings
+```{r}
+#| eval: false
+... + (1 + ... | participant) + (1 + .... | task)
+```
+This specifies that things can vary between participants, and that things can also vary between tasks.  
+
+So `(1 | participant) + (1 | task)` means that the intercept varies by participant (some people have a higher $y$, some have lower),b and also by tasks (some tasks result in a higher $y$, some lower).  
+
+It's a bit more difficult to visualise, but @fig-crosstest shows two independent distributions representing the intercept variance between Participants (left) and between Tasks (right). 
+```{r}
+#| echo: false
+#| label: fig-crosstest
+#| out-width: "100%"
+#| fig-cap: "A crossed design, with participant level variance (left) and task level variance (right)"
+p1 + p2
+```
+
+We can see in @fig-crosstest, for instance, that "PPT_9" tends to have a higher $y$, and that "Task_5" tends to have lower scores etc. Combined, these imply our model fitted values as shown for just 4 of the participants in @fig-crosstest2.  
+
+```{r}
+#| echo: false
+#| label: fig-crosstest2
+#| out-width: "100%"
+#| fig-cap: "fitted values from a crossed design for a sample of 4 participants"
+p3
+```
+
+
+
+
+# Examples
+
+## Example 1: Two levels
+
+Below is an example of a study that has a similar structure to those that we've seen thus far, in which we have just two levels (observations that are grouped in some way).  
+
+::::panelset
+:::panel
+#### Study Design
+
+Suppose, for instance, that we conducted an experiment on a sample of 20 staff members from the Psychology department to investigate effects of CBD consumption on stress over the course of the working week. Participants were randomly allocated to one of two conditions: the control group continued as normal, and the CBD group were given one CBD drink every day. Over the course of the working week (5 days) participants stress levels were measured using a self-report questionnaire.  
+
+We can see our data here:  
+```{r}
+psychstress <- read_csv("https://uoepsy.github.io/data/stressweek1.csv")
+head(psychstress)
+```
+
+:::
+:::panel
+#### Plot
+
+```{r}
+#| code-fold: true
+# take the dataset, and make the x axis of our plot the 'day' variable, 
+# and the y axis the 'stress' variable: 
+# color everything by the CBD groups
+ggplot(psychstress, aes(x = day, y = stress, col=CBD)) + 
+  geom_point() + # add points to the plot
+  geom_line() + # add lines to the plot
+  facet_wrap(~pid) # split it by participant
+```
+
+:::
+:::panel
+#### Model
+
+We might fit a model that looks something like this:  
+```{r}
+#| code-fold: true
+library(lme4)
+# re-center 'day' so the intercept is day 1
+psychstress$day <- psychstress$day-1 
+
+# fit a model of stress over time: stress~day
+# estimate differences between the groups in their stress change: day*CBD
+# people vary in their overall stress levels: 1|pid
+# people vary in their how stress changes over the week: day|pid
+m2level <- lmer(stress ~ 1 + day * CBD + 
+                  (1 + day | pid), data = psychstress)
+```
+
+Note that there is a line in the model summary output just below the random effects that shows us the information about the groups, telling us that we have 100 observations that are grouped into 20 different participants'.  
+
+```{r}
+summary(m2level)
+```
+
+
+:::
+::::
+
+## Example 2: Three level Nested
+
+Let's suppose that instead of simply sampling 20 staff members from the Psychology department, we instead went out and sampled lots of people from different departments across the University. The dataset below contains not just our 20 Psychology staff members, but also data from 220 other people from departments such as History, Philosophy, Art, etc..  
+
+```{r}
+neststress <- read_csv("https://uoepsy.github.io/data/stressweek_nested.csv")
+head(neststress)
+```
+
+In this case, we have observations that are grouped by participants, and those participants can be grouped into the department in which they work. Three levels of nesting!  
+
+You can see in the @fig-neststress1 below that there is variation between departments (i.e. people working in Art are a bit more relaxed, Political Science and CMVM is stressful, etc), and then _within_ each of those, there is variation between participants (i.e. some people working in Art are more stressed than other people in Art).  
+
+```{r}
+#| code-fold: true
+#| label: fig-neststress1
+#| fig-cap: "A longitudinal study in which participants are nested within department"  
+ggplot(neststress, aes(x=day, y=stress,col=CBD))+
+  # plot points
+  geom_point()+
+  # split by departments
+  facet_wrap(~dept)+
+  # make a line for each participant
+  geom_line(aes(group=pid),alpha=.3)+ 
+  # plot the mean and SE for each day.
+  stat_summary(geom="pointrange",col="black")
+  
+```
+
+To account for these multiple sources of variation, we can fit a model that says both `( ... | dept)` ("things vary by department") _and_ `( ... | dept:pid)` ("things vary by participants within departments").  
+
+So a model might look something like this:  
+```{r}
+# re-center 'day' so the intercept is day 1
+neststress$day <- neststress$day-1
+
+mnest <- lmer(stress ~ 1 + day * CBD + 
+                (1 + day * CBD | dept) +
+                (1 + day | dept:pid), data = neststress)
+```
+
+Note that we can have different random slopes for departments vs those for participants. Our model above includes all random slopes that are feasible given the study design.  
+
+::: {.callout-tip collapse="true"}
+#### explanations of each random slope
+
+- <small>participants can vary in their baseline stress levels.</small>
+    + `(1 | dept:pid)`
+- <small>participants can vary in how stress changes over the week. e.g., some participants might get more stressed over the week, some might get less stressed</small>
+    + `(days | dept:pid)`  
+- <small>participants cannot vary in how CBD changes their stress level. because each participant is _either_ CBD _or_ control, "the effect of CBD on stress" doesn't exist for a single participant (and so can't very between participants)</small>
+    + ~~`(CBD | dept:pid)`~~  
+- <small>participants cannot vary in how CBD affects their changes in stress over the week. For the same reason as above.</small>  
+    + ~~`( day*CBD | dept:pid)`~~
+- <small>departments can vary in their baseline stress levels.</small>
+    + `(1 | dept)`  
+- <small>departments can vary in how stress changes over the week.</small>  
+    + `(days | dept)`
+- <small>departments can vary in how CBD changes stress levels. because each department contains some participants in the CBD group and some in the control group, "the effect of CBD on stress" _does_ exist for a given department, and so _could_ vary between departments. e.g. Philosophers taking CBD get really relaxed, but CBD doesn't affect Mathematicians that much.</small> 
+    + `(CBD | dept)`  
+- <small>departments can vary in how CBD affects changes in stress over the week</small>
+    + `( day*CBD | dept)`  
+
+:::
+
+Note that the above model is a singular fit, but it gives us a better place to start simplifying from. If we remove the `day*CBD` interaction in the by-department random effects, we get a model that converges:
+
+```{r}
+mnest2 <- lmer(stress ~ 1 + day * CBD + 
+                (1 + day + CBD | dept) +
+                (1 + day | dept:pid), data = neststress)
+```
+
+And plot our fitted values
+```{r}
+#| code-fold: true
+#| out-width: "100%"
+#| label: fig-plotfitnest
+#| fig-cap: "Plot of fitted values of the model. Individual lines for each participant, facetted by department. Thicker lines represent the department average fitted values split by CBD group" 
+library(broom.mixed)
+augment(mnest2) |> 
+  ggplot(aes(x=day, y=.fitted, col=CBD))+
+    # split by departments
+    facet_wrap(~dept) + 
+    # make a line for each participant
+    geom_line(aes(group=pid),alpha=.3)+
+    # average fitted value for CBD vs control:  
+    stat_summary(geom="line",aes(col=CBD),lwd=1)
+```
+
+
+```{r}
+#| echo: false
+rr = VarCorr(mnest2) |> as.data.frame()
+rr$sdcor = round(rr$sdcor,2)
+```
+
+And we can see in our summary that there is a lot of by-department variation - departments vary in their baseline stress levels with a standard deviation of `r rr[4,5]`, and within departments, participants vary in baseline stress scores with a standard deviation of `r rr[1,5]`. 
+
+```{r}
+#| eval: false
+summary(mnest2)
+```
+```
+...
+Random effects:
+ Groups   Name        Variance Std.Dev. Corr       
+ dept:pid (Intercept) 0.147661 0.38427             
+          day         0.012142 0.11019  -0.03      
+ dept     (Intercept) 0.648410 0.80524             
+          day         0.001979 0.04449  -0.18      
+          CBDY        0.055388 0.23535   0.40 -0.22
+ Residual             0.129765 0.36023             
+Number of obs: 1200, groups:  dept:pid, 240; dept, 12
+...
+```
+
+Examining `ranef(mnest2)` now gives us a list of `dept:pid` random effects, and then of `dept` random effects. We can plot them using `dotplot.ranef.mer()`, as seen below. From these, we can see for instance, that the effect of `CBD` is more negative for Theology, and Sociology and Maths have higher slopes of `day`. These map with the plot of fitted values we saw in @fig-plotfitnest - the department lines are going up more Math and Sociology than in other departments, and in Theology the blue CBD line is much lower relative to the red control line than in other departments.  
+
+```{r}
+dotplot.ranef.mer(ranef(mnest2))$dept
+```
+
+## Example 3: Crossed
+
+Forgetting about participants nested in departments, let's return to our sample of 20 staff members from the Psychology department. In our initial study design, we had just one self report measure of stress each day for each person.  
+However, we might just as easily have taken more measurements. i.e. on Day 1, we could have recorded Martin's stress levels 10 times. Furthermore, we could have used 10 different measurements of stress, rather than just a self-report measure. We could measure his cortisol levels, blood pressure, heart rate variability, give him different questionnaires, ask an informant like his son to report his stress, and so on. And we could have done the same for everybody.  
+
+```{r}
+stresscross <- read_csv("https://uoepsy.github.io/data/stressweek_crossed.csv")
+head(stresscross)
+```
+
+In this case, we can group our participants in two different ways. For each participant we have 5 datapoints for each of 10 different measures of stress. So we have 5x10 = 50 observations for each participant. But if we group them by measure instead, then we have each measure 5 times for 20 participants, so 5x20 = 100 observations of each measure. And there is no hierarchy here - the "blood pressure" measure is the same measure for Martin as it is for Dan and Aja etc. It makes sense to think of by-measure variability as not being 'within-participants'.  
+
+This means we can choose when plotting whether to split the plots by participants, with a different line for each measure (@fig-crosseg), or split by measure with a different line for each participant (@fig-crosseg1)
+
+::::panelset
+:::panel
+#### facet = participant, line = measure
+
+```{r}
+#| code-fold: true
+#| label: fig-crosseg
+#| fig-cap: "crossed designs with participants and measures. we can facet by participant and plot a line for each measure"  
+ggplot(stresscross, aes(x=day, y=stress, col=CBD))+
+  geom_point()+
+  #make a line for each measure
+  geom_line(aes(group=measure))+
+  facet_wrap(~pid)
+```
+
+:::
+:::panel
+#### facet = measure, line = participant
+```{r}
+#| code-fold: true
+#| label: fig-crosseg1
+#| fig-cap: "crossed designs with participants and measures. we can facet by measure and plot a line for each participant"  
+ggplot(stresscross, aes(x=day, y=stress, col=CBD))+
+  geom_point()+
+  # make a line for each ppt
+  geom_line(aes(group=pid))+
+  facet_wrap(~measure)
+```
+:::
+::::
+
+
+We can fit a model that therefore accounts for the by-participant variation ("things vary between participants") _and_ the by-measure variation ("things vary between measures"). 
+
+So a model might look something like this:  
+```{r}
+# re-center 'day' so the intercept is day 1
+stresscross$day <- stresscross$day-1
+
+mcross <- lmer(stress ~ 1 + day * CBD + 
+                (1 + day * CBD | measure) +
+                (1 + day | pid), data = stresscross)
+```
+
+Note that just as with the nested example above, we can have different random slopes for measures vs those for participants, depending upon what effects can vary given the study design.  
+
+As before, removing the interaction in the random effects achieves model convergence:
+
+```{r}
+mcross2 <- lmer(stress ~ 1 + day * CBD + 
+                (1 + day + CBD | measure) +
+                (1 + day | pid), data = stresscross)
+```
+
+And again we might plot our fitted values either of the ways we plotted our initial data in @fig-crosseg above, only with the `.fitted` values obtained from the `augment()` function:  
+```{r}
+#| code-fold: true
+augment(mcross2) |>
+  ggplot(aes(x=day, y=.fitted, col=CBD))+
+    geom_point()+
+    geom_line(aes(group=pid))+
+    facet_wrap(~measure)
+```
+
+```{r}
+#| echo: false
+vc = as.data.frame(VarCorr(mcross2))
+vc$sdcor = round(vc$sdcor,2)
+```
+
+Our random effect variances show the estimated variance in different terms (the intercept, slopes of day, effect of CBD) between participants, and between measures.  
+From the below it is possible to see, for instance, that there is considerable variability between how measures respond to CBD (they vary in the effect of CBD on stress with a standard deviation of `r vc[6,5]`)
+```{r}
+#| eval: false
+summary(mcross2)
+```
+```
+...
+Random effects:
+ Groups   Name        Variance Std.Dev. Corr       
+ pid      (Intercept) 0.316578 0.56265             
+          day         0.014693 0.12121  -0.51      
+ measure  (Intercept) 0.087111 0.29515             
+          day         0.008542 0.09242   0.88      
+          CBDY        0.283635 0.53257  -0.10  0.11
+ Residual             0.088073 0.29677             
+Number of obs: 1000, groups:  pid, 20; measure, 10
+...
+```
+
+Again, our dotplots of random effects help to also show this picture. We can see that the measures of "blood pressure", "alpha-amylase", "cortisol", and "HRV" all have more effects of CBD that are more negative. We can see this in our plot of fitted values - these measures look like CBD vs control differnce is greater than in other measures. 
+```{r}
+dotplot.ranef.mer(ranef(mcross2))$measure
+```
+
+<div class="divider div-transparent div-dot"></div>
+
+# Model building
+
+Random effect structures can get pretty complicated quite quickly. Very often it is not the random effects part that is of specific interest to us, but we wish to estimate random effects in order to more accurately partition up the variance in our outcome variable and provide better estimates of fixed effects.  
+It is a fine balance between fitting the most sophisticated model structure that we possibly can, and fitting a model that converges without too much simplification. Typically for many research designs, the following steps will keep you mostly on track to finding the maximal model:  
+
+`lmer(outcome ~ fixed effects + (random effects | grouping structure))`  
+
+1. Specify the `outcome ~ fixed effects` bit first. 
+    - The outcome variable should be clear: it is the variable we are wishing to explain/predict. 
+    - The fixed effects are the things we want to use to explain/predict variation in the outcome variable. These will often be the things that are of specific inferential interest, and other covariates. Just like the simple linear model.  
+    
+2. If there is a grouping structure to your data, and those groups (preferably n>7 or 8) are perceived as a random sample of a wider population (the specific groups aren't interesting to you), then consider including random intercepts (and possibly random slopes of predictors) for those groups `(1 | grouping)`.  
+
+3. If there are multiple different grouping structures, is one nested within another? (If so, we can specify this as `(1 | high_level_grouping ) + (1 |  high_level_grouping:low_level_grouping)`.  If the grouping structures are not nested, we specify them as crossed: `(1 | grouping1) + (1 | grouping2)`.  
+
+
+4. If any of the things in the fixed effects vary within the groups, it might be possible to also include them as random effects.  
+    - as a general rule, don't specify random effects that are not also specified as fixed effects (an exception could be specifically for model comparison, to isolate the contribution of the fixed effect).  
+    - For things that do not vary within the groups, it rarely makes sense to include them as random effects. For instance if we had a model with `lmer(score ~ genetic_status + (1 + genetic_status | patient))` then we would be trying to model a process where "the effect of genetic_status on scores is different for each patient". But if you consider an individual patient, their genetic status never changes. For patient $i$, what is "the effect of genetic status on score"? It's undefined. This is because genetic status only varies _between_ patients.
+    - Sometimes, things will vary within one grouping, but not within another. E.g. with patients nested within hospitals `(1 | hospital) + (1 | hospital:patient)`, genetic_status varies _between_ patients, but _within_ hospitals. Therefore we could theoretically fit a random effect of `genetic_status | hospital`, but __not__ one for `genetic_status | patient`.  
+
+5. A common approach to fitting multilevel models is to fit the most complex model _that the study design allows_. This means including random effects for everything that makes _theoretical_ sense to be included. Because this "maximal model" will often not converge, we then simplify our random effect structure to obtain a convergent model.  
+
+There is no _right_ way to simplify random effect structures - it's about what kind of simplifications we are willing to make (a subjective decision).  
+
+Some general pointers: 
+
+- If we want to make inferences about a (within-group) fixed effect, we should ideally include it as a corresponding random effect, else we might get false positives.  
+- Complex terms like interactions (e.g. `(1 + x1 * x2 | group)` are often causes of non-convergence as they require more data to estimate group-level variability. This could be simplified to `(1 + x1 + x2 | group)`).  
+- Looking at at the random effects of a non-converging model can help point towards problematic terms. Look for random effects with little variance, or with near perfect correlation (we can alternatively remove just the correlation). 
+- Random effects of categorical variables often result in the model attempting to estimate _a lot_ of variances and covariances. You could consider moving this to the right hand side `(1 + catX | group)` becoming `(1 | group) + (1 | group:catX)`
+
+6. Obtain final model, and proceed to checking assumptions, checking influence, plotting, and eventually writing up.  
+
+
+
+::: {.callout-note collapse="true"}
+#### model convergence
+
+Issues of non-convergence can be caused by many things. If your model doesn't converge, it does *not necessarily* mean the fit is incorrect, however it is **is cause for concern**, and should be addressed before using the model, else you may end up reporting inferences which do not hold.  
+
+There are lots of different things which you could do which *might* help your model to converge. A select few are detailed below:  
+
+- double-check the model specification and the data  
+
+- adjust stopping (convergence) tolerances for the nonlinear optimizer, using the optCtrl argument to [g]lmerControl. (see `?convergence` for convergence controls). 
+    - What is "tolerance"? Remember that our optimizer is the the method by which the computer finds the best fitting model, by iteratively assessing and trying to maximise the likelihood (or minimise the loss). 
+
+```{r}
+#| label: fig-tolerance 
+#| echo: false
+#| fig-cap: "An optimizer will stop after a certain number of iterations, or when it meets a tolerance threshold"
+knitr::include_graphics("images/tolerance.png")
+```
+
+- center and scale continuous predictor variables (e.g. with `scale`)  
+
+- Change the optimization method (for example, here we change it to `bobyqa`):
+    `lmer(..., control = lmerControl(optimizer="bobyqa"))`  
+    `glmer(..., control = glmerControl(optimizer="bobyqa"))`  
+
+- Increase the number of optimization steps:
+    `lmer(..., control = lmerControl(optimizer="bobyqa", optCtrl=list(maxfun=50000))`  
+    `glmer(..., control = glmerControl(optimizer="bobyqa", optCtrl=list(maxfun=50000))`  
+
+- Use `allFit()` to try the fit with all available optimizers. This will of course be slow, but is considered 'the gold standard'; *"if all optimizers converge to values that are practically equivalent, then we would consider the convergence warnings to be false positives."*  
+
+- Consider simplifying your model, for example by removing random effects with the smallest variance (but be careful to not simplify more than necessary, and ensure that your write up details these changes)
+
+:::
+
+::: {.callout-note collapse="true"}
+#### singular fits
+
+You may have noticed that some of our models over the last few weeks have been giving a warning: `boundary (singular) fit: see ?isSingular`.   
+Up to now, we've been largely ignoring these warnings. However, this week we're going to look at how to deal with this issue.
+
+<p style="color:red">boundary (singular) fit: see ?isSingular</p>
+
+The warning is telling us that our model has resulted in a 'singular fit'. Singular fits often indicate that the model is 'overfitted' - that is, the random effects structure which we have specified is too complex to be supported by the data.  
+
+Perhaps the most intuitive advice would be remove the most complex part of the random effects structure (i.e. random slopes). This leads to a simpler model that is not over-fitted. In other words, start simplifying from the top (where the most complexity is) to the bottom (where the lowest complexity is).
+Additionally, when variance estimates are very low for a specific random effect term, this indicates that the model is not estimating this parameter to differ much between the levels of your grouping variable. It might, in some experimental designs, be perfectly acceptable to remove this or simply include it as a fixed effect.
+
+A key point here is that when fitting a mixed model, we should think about how the data are generated. Asking yourself questions such as "do we have good reason to assume subjects might vary over time, or to assume that they will have different starting points (i.e., different intercepts)?" can help you in specifying your random effect structure
+
+You can read in depth about what this means by reading the help documentation for `?isSingular`. For our purposes, a relevant section is copied below:  
+
+*... intercept-only models, or 2-dimensional random effects such as intercept + slope models, singularity is relatively easy to detect because it leads to random-effect variance estimates of (nearly) zero, or estimates of correlations that are (almost) exactly -1 or 1.*
+
+:::
+
+
+
+
+
+
+
+
+
+

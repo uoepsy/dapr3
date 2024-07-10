@@ -1,0 +1,512 @@
+---
+title: "Data Wrangling for Surveys & Questionnaires"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+```
+
+Questionnaire data often comes to us in 'wide' format, which is often how we want it for many of the analytical methods we use with questionnaire data. However, working with data in the wide format comes with some specific challenges that generally arise because we have lots and lots of variables. 
+
+Below we will walk through some of the common ways we want to wrangle and clean questionnaire data.  
+
+
+# Variable names
+
+Very often, the data might come to us with huge long names that correspond to the question being asked.  
+For instance: 
+```{r}
+#| eval: false
+#| echo: false
+survdat <- read_csv("data/surveywrangle.csv") |> mutate(ppt = 1:n())
+survdat <- survdat[,c(60,3:52)]
+names(survdat) <- gsub("Describe yourself as you generally are now, not as you wish to be in the future. Describe yourself as you honestly see yourself, in relation to other people you know of the same age and sex as you are. Remember that responses are anonymised. Please indicate the accuracy for each statement in how it describes you.  ","",names(survdat))
+survdat$age = round(runif(nrow(survdat),20,29))
+survdat$height = round(rnorm(nrow(survdat),168,12))
+survdat$height[3]<-NA
+survdat <- survdat |> relocate(age,height,.after=ppt)
+# write_csv(survdat, file="../../data/surveywrangle.csv")
+```
+```{r}
+survdat <- read_csv("https://uoepsy.github.io/data/surveywrangle.csv")
+head(survdat)
+```
+
+
+Often, we want our variables to have some easier names to work with, e.g. "q1", "q2" etc.  
+
+Because it's often important to keep track of what each question actually asks, it can be useful to create a little dictionary to map our new variable names to the current names.  
+
+In our data, we have variables called `ppt`, `age` and `height`, and then 50 variables corresponding to 50 different questions.  
+What I plan to do is rename them to `ppt`,`age`,`height`,`q1`, `q2`, ..., `q50`.  
+
+
+::: {.callout-tip collapse="true"}
+#### what do `paste()/paste0()` do?   
+
+The `paste` functions allow us to simply "paste" characters together:  
+By default, `paste()` will separate these with a space:  
+```{r}
+paste("i have a dog called", "dougal")
+```
+and `paste0()` will not separate them by anything:
+```{r}
+paste0("i have a dog called", "dougal")
+```
+
+We can paste the same thing to a set of things: 
+```{r}
+paste("i have a dog called", c("dougal", "rufus","rosie"))
+```
+Which can be useful for quickly making a set of variable names: 
+```{r}
+paste0("item_",1:10)
+```
+
+:::
+
+
+```{r}
+datadict <- 
+  tibble(
+    # these are my proposed new names
+    variable = c("ppt","age","height", 
+                 paste0("q", 1:50)),
+    # current names
+    question = names(survdat)
+  )
+head(datadict)
+```
+
+If we want to, we can write this to a .csv file so that we can keep it somewhere useful.
+```{r}
+#| eval: false
+write_csv(datadict, file = "survey_dictionary.csv")
+```
+
+Now we have created our record, we can actually change the names of the variables:  
+```{r}
+names(survdat)[4:53] <- paste0("q", 1:50)
+head(survdat)
+```
+
+# Variable recoding
+
+First things first, all of the questions are scored on a 5 point likert^[Technically this is pronounced "LICK-URT" and not "LIE-KURT". It's named after [Dr Rensis Likert](https://en.wikipedia.org/wiki/Rensis_Likert){target="_blank"}, and that's how he pronounced his name!] scale. 
+
+The data has come out of whatever questionnaire software we used and it's showing the chosen response for each question in words, e.g. "`r survdat$q1[6]`". But we are going to turn them into numbers so that they are easier to work with.  
+
+```{r}
+#| echo: false
+tibble(
+response = c("Very Inaccurate","Moderately Inaccurate","Neither Accurate nor Inaccurate","Moderately Accurate","Very Accurate"),
+score = c(1:5)
+) %>% gt::gt()
+```
+
+You might be shouting at the screen here that by turning these words into numbers we're about to turn a set of ordered categories into an interval scale. Is "Moderately Inaccurate" really 2 x "Very Inaccurate"? You might be right to have this intuition - it's a contentious issue! In psychology, in which questionnaire based methods are everywhere, an often used rule of thumb is that likert data with $\geq 5$ levels can be treated as if they are continuous without unduly influencing results (see [Johnson, D.R., & Creech, J.C. (1983). Ordinal measures in multiple indicator models: A simulation study of categorization error](https://discovered.ed.ac.uk/permalink/f/1s15qcp/TN_cdi_crossref_primary_10_2307_2095231){target="_blank"}).  
+
+Let's push on and see how we can do this sort of recoding.  
+First we'll do it for just one variable. As always in R, there are lots of ways to do the same thing. All of these approaches follows an if-else type logic - "if we have 'moderately inaccurate', make it '2', and if we have 'very inaccurate, make it 1, and if ... ".  
+
+
+::::panelset
+:::panel
+#### ifelse()  
+
+This is the most cumbersome way to do this logic as it requires multiple nested ifelse statements.  
+To ensure that anything that isn't one of the 5 valid response options gets to be an NA, we have the final "else" specifying that if it's none of the prespecified options, make it an NA
+```{r}
+survdat |>
+  mutate(
+    q1 = ifelse(q1 == "Very Inaccurate", 1,
+                ifelse(q1 == "Moderately Inaccurate", 2, 
+                       ifelse( q1 == "Neither Accurate nor Inaccurate", 3, 
+                               ifelse(q1 == "Moderately Accurate", 4, 
+                                      ifelse(q1 == "Very Accurate", 5, NA)))))
+  )
+```
+:::
+:::panel
+#### case_when
+
+`case_when()` follows this same logic as `ifelse()` but makes for easier reading (and writing). Each line is a statement saying "if [variable] is equal to [value], then return [new value]". The final entry here `TRUE ~ NA` is a bit like saying "and if it is anything else, make it an NA". 
+
+```{r}
+survdat |>
+  mutate(
+    q1 = case_when(
+      q1 == "Very Inaccurate" ~ 1,
+      q1 == "Moderately Inaccurate" ~ 2,
+      q1 == "Neither Accurate nor Inaccurate" ~ 3,
+      q1 == "Moderately Accurate" ~ 4,
+      q1 == "Very Accurate" ~ 5,
+      TRUE ~ NA
+    )
+  )
+```
+:::
+:::panel
+#### case_match()
+
+The `ifelse()` and `case_when()` functions are much more generalised - we can say "if x is 1 make it 1, and if y is 2 make it 0, and if z is ... ".  
+
+However, in the task at hand, all of our "if" questions apply to the value of the same variable. The `case_match()` function is perfectly designed for this:  
+
+```{r}
+survdat |> 
+  mutate(
+    q1 = case_match(q1, 
+                "Very Inaccurate" ~ 1,
+                "Moderately Inaccurate" ~ 2,
+                "Neither Accurate nor Inaccurate" ~ 3,
+                "Moderately Accurate" ~ 4,
+                "Very Accurate" ~ 5)
+  )
+```
+
+If we wanted to collapse levels, the syntax works like so:  
+```{r}
+#| eval: false
+survdat |> 
+  mutate(
+    q1 = case_match(q1, 
+                    c("Very Inaccurate","Moderately Inaccurate") ~ 1,
+                    "Neither Accurate nor Inaccurate" ~ 2,
+                    c("Moderately Accurate","Very Accurate") ~ 3
+    )
+  )
+```
+
+
+:::
+
+::::
+
+
+# Applying the same operation across variables
+
+Now that we know how to recode a variable, what if we want to do it for all 50 questions? We don't want to do it manually, because that would be hugely inefficient:  
+```{r}
+#| eval: false
+survdat |> mutate(
+  q1 = case_match(q1,
+    ...
+    ..
+    ...
+  ),
+  q2 = case_match(q2,
+    ...
+    ..
+    ...
+  ),
+  ..
+)
+
+```
+
+There are various ways to do this, but the two main ones are by utilising __tidyverse__'s `across()` function, or by using the Base R `apply()` function.  
+
+::::panelset
+:::panel
+#### across()
+
+The `across()` function works inside other tidyverse functions like `summarise()` and `mutate()`, and allows us to do the same operation across a set of columns.  
+
+The syntax is (with either summarise or mutate):  
+```{r}
+#| eval: false
+data |>
+  mutate(across(variables, operation))
+```
+
+As an example, suppose i wanted to summarise across the first three variables (`ppt`,`age`, and `height`) and get the mean. We can either specify the column numbers, or a set of names, or use the `:` to choose all variables between two columns.  
+These all do the same:  
+```{r}
+#| eval: false
+survdat |> summarise(across(1:3, mean))
+survdat |> summarise(across(c(ppt,age,height), mean))
+survdat |> summarise(across(c(ppt:height), mean))
+```
+```{r}
+#| echo: false
+survdat |> summarise(across(1:3, mean))
+```
+
+Note that we get an NA in the mean heights, because there is an NA in the data. So we need to specify that `na.rm=TRUE` when using the `mean()` function.  
+Unfortunately, this won't work:  
+```{r}
+#| error: true
+survdat |> summarise(across(1:3, mean(na.rm=T)))
+```
+This is because when we open the brackets of `mean()`, it looks for the object we want to take the mean of. We can pass this through using `~` and `.`, like so: 
+(You can kind of read the `.` as a place-holder for each variable)
+```{r}
+survdat |> summarise(across(1:3, ~mean(x=., na.rm=T)))
+```
+
+
+
+Using this syntax, we can apply the recoding we have seen above, but do it for all of the variables from `q1` to `q50`. All at once. like magic!  
+Note, we're not summarising here (i.e. we're not summarising down into a single value, we're just wanting to mutate the existing variables):  
+```{r}
+survdat |> 
+  mutate(across(q1:q50,
+                ~case_match(., 
+                "Very Inaccurate" ~ 1,
+                "Moderately Inaccurate" ~ 2,
+                "Neither Accurate nor Inaccurate" ~ 3,
+                "Moderately Accurate" ~ 4,
+                "Very Accurate" ~ 5)
+  ))
+```
+
+:::
+:::panel
+#### apply()
+
+Base R (the non-tidyverse stuff) has some really useful functions of the `apply()` family, that can allow us to do the same thing (apply an operation across a set of columns).  
+
+For `apply()`, we give it an object like a dataframe, and we give it the dimension that we wish to perform the operation over. If we choose 1, it will do it for each row, and if we choose 2, it will do it for each column.  
+So if we want the mean of the first 3 columns:  
+```{r}
+apply(survdat[,1:3], MARGIN=2, FUN=mean)
+```
+
+Much like with `across()`, this doesn't work because `mean()` now wants x explicitly given:
+```{r}
+#| error: true
+apply(survdat[,1:3], MARGIN=2, FUN=mean(na.rm=TRUE))
+```
+But instead of the `~` and `.` stuff in tidyverse, the `apply()` wants us to explicitly define a little function, using `function()`.  
+```{r}
+#| error: true
+apply(survdat[,1:3], MARGIN=2, FUN=function(x) mean(x, na.rm=TRUE))
+```
+(it's actually just convention that people use `function(x)`. we could use `function(kermit) mean(kermit, na.rm=TRUE)` and it would still work!)
+
+So how do we do the recoding of all our questions? We simply apply a function like `case_match()` to each column! 
+
+```{r}
+#| eval: false
+survdat[,4:53] <- apply(survdat[,4:53], MARGIN=2, FUN=function(x) 
+  case_match(x, 
+             "Very Inaccurate" ~ 1,
+             "Moderately Inaccurate" ~ 2,
+             "Neither Accurate nor Inaccurate" ~ 3,
+             "Moderately Accurate" ~ 4,
+             "Very Accurate" ~ 5)
+  )
+survdat
+```
+
+```{r}
+#| echo: false
+survdat[,4:53] <- apply(survdat[,4:53], MARGIN=2, FUN=function(x) 
+  case_match(x, 
+             "Very Inaccurate" ~ 1,
+             "Moderately Inaccurate" ~ 2,
+             "Neither Accurate nor Inaccurate" ~ 3,
+             "Moderately Accurate" ~ 4,
+             "Very Accurate" ~ 5)
+  )
+survdat
+```
+
+
+:::
+::::
+
+
+
+::: {.callout-caution collapse="true"}
+#### optional: more complex functions
+
+We can also define our custom functions outside of the use of `apply()`/`across()`, which can be useful if we have more complex functions. 
+
+For example, we can do the same recoding and _then_ standardise each variable, by explicitly defining a function that does that: 
+```{r}
+recodemysurvey <- function(question){
+  score = case_match(question, 
+             "Very Inaccurate" ~ 1,
+             "Moderately Inaccurate" ~ 2,
+             "Neither Accurate nor Inaccurate" ~ 3,
+             "Moderately Accurate" ~ 4,
+             "Very Accurate" ~ 5)
+  score = (score - mean(score, na.rm = TRUE)) / sd(score, na.rm = TRUE)
+  return(score)
+}
+```
+
+And then using that function, either with:
+```{r}
+#| eval: false
+survdat |>
+  mutate(across(q1:q50, recodemysurvey))
+```
+or with:  
+```{r}
+#| eval: false
+apply(survdat[,4:53], 2, recodemysurvey)
+```
+
+
+:::
+
+
+# Reverse coding
+
+It's very common for questionnaires to have a combination of questions for a construct, some of which are positively phrased and some which are negatively phrased. The idea here is to avoid introducing biases such as a bias to agree more than to disagree.   
+
+Take, for instance, `q1` and `q6` in our data, which are both measuring Extraversion: 
+
+```{r}
+datadict |>
+  filter(variable %in% c("q1","q6"))
+```
+
+Someone very extraverted might respond to `q1` with "Very Accurate", and `q6` with "Very Inaccurate".  
+
+Often when we have a set of questions, we will want to reverse code the negatively phrased ones in order to have them all in the same direction. I.e. once they are recoded into numbers, we want the value 5 to represent highly extraverted on _both_ `q1` and `q6`.   
+
+How do we reverse? We want any value of 1 to become 5, any value of 2 to become 4, 3 stays 3, 4 becomes 2, and 5 becomes 1.  
+We can just subtract the value from 6!  
+```{r}
+6-c(1,2,3,4,5)
+```
+
+So to reverse code `q6`, we can simply subtract the variable from 6.  
+```{r}
+survdat |> 
+  mutate(q6 = 6-q6)
+```
+
+But we're going to want to do this for all the negatively phrased questions in our survey. If we take a look at the [inventory page of the IPIP](https://ipip.ori.org/new_ipip-50-item-scale.htm){target="_blank"}, we can see that these are all the even questions from 2 to 38, and then questions 39, 44, 46, and 49.  
+
+That's a frustrating set!  
+Let's find a way to capture those. `seq(2,38,2)` will give us a sequence from 2 to 38 in steps of 2. So that gives us most of them. We can then just combine that with the other ones, and put "q" in front of each one to give us the variable names:  
+```{r}
+neg_items <- paste0("q", c(seq(2,38,2),39,44,46,49))
+neg_items
+```
+
+::::panelset
+:::panel
+#### using `across()`
+```{r}
+survdat |> 
+  mutate(across(all_of(neg_items),~6-.))
+```
+
+:::
+:::panel
+#### using `apply()`
+
+```{r}
+survdat[,neg_items] <- apply(survdat[,neg_items], 2, function(x) 6-x)
+survdat
+```
+
+:::
+::::
+
+
+# Row scoring  
+
+Very often, people want to calculate a scale score. For instance, if people responded to each of 7 questions for a scale of generalised anxiety, then we would want to calculate a 'generalised anxiety score' by adding up their responses 5+1+2+4+4+3+5 = 24.  
+
+There are handy functions that can do quick row scoring: `rowSums()` and `rowMeans()`.  
+
+For instance, to calculate each person's (each row of our data is a person) sum of the questions 1 to 5, we can use any of:  
+```{r}
+#| eval: false
+# tidyverse
+survdat |> select(q1:q5) |> rowSums()
+# indexing:
+rowSums(survdat[,c("q1","q2","q3","q4","q5")])
+# concise indexing
+rowSums(survdat[, paste0("q",1:5)])
+```
+```{r}
+#| echo: false
+rowSums(survdat[, paste0("q",1:5)])
+```
+
+From the [inventory page of the IPIP](https://ipip.ori.org/new_ipip-50-item-scale.htm){target="_blank"}, we can see that the questions are ordered such that questions 1, 6, 11, ..., all correspond to Extraversion, questions 2, 7, 12, ... all correspond to Agreeableness, and so on.  
+
+We can use things like `seq()` to capture the relevant numbers of each question:
+```{r}
+# sequence from 1 to 50 in steps of 5
+seq(1,50,5) 
+# sequence from 1 to 50 in steps of 5
+seq(2,50,5) 
+```
+
+
+Which means we can get the scores for each personality trait using something such as: 
+
+```{r}
+survdat$extr <- rowSums(survdat[, paste0("q",seq(1,50,5))])
+survdat$agree <- rowSums(survdat[, paste0("q",seq(2,50,5))])
+survdat$consc <- rowSums(survdat[, paste0("q",seq(3,50,5))])
+survdat$emot_s <- rowSums(survdat[, paste0("q",seq(4,50,5))])
+survdat$imagin <- rowSums(survdat[, paste0("q",seq(5,50,5))])
+```
+
+And we can quickly examine all our scale scores:  
+```{r}
+library(psych)
+survdat |> 
+  select(extr:imagin) |>
+  pairs.panels()
+```
+
+# More Rowwise Stuff
+
+We can also find out useful information for each row about things like how much missingness there is:  
+```{r}
+# is.na will turn all NA entries to "TRUE", and all non-missing values to FALSE. 
+# then we sum them up across the rows and it will give us how many NAs are in each row, across the 50 questions!  
+rowSums( is.na( survdat[, paste0("q",1:50)] ) )
+```
+
+
+Occasionally, you might find that you want to do row-wise operations that don't have easy functions like `rowSums`. 
+In these cases, the tidyverse function `rowwise()` can be useful in that it applies an operation to one row at a time: 
+
+```{r}
+survdat |> 
+  rowwise() |>
+  mutate(
+    # find the minimum score given for each row
+    maxscore = min(across(q1:q50)), 
+    # put the column after the height column
+    .after = height
+  )
+```
+
+Alternatively, `apply()` to the rescue again!  
+`MARGIN = 1` here applies the operation across rows:  
+```{r}
+apply(survdat[,paste0("q",1:50)], MARGIN = 1, FUN = min)
+```
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,491 @@
+---
+title: "Week 10 Exercises: Structural Equation Modelling (SEM)"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+library(psych)
+library(semPlot)
+library(lavaan)
+```
+
+
+::: {.callout-note collapse="true"}
+#### Measurement Error and the need for SEM
+
+You have probably heard the term "Structural Equation Modelling (SEM)" for a few weeks now, but we haven't been very clear on what exactly it is. Is it CFA? Is it Path Analysis? In fact it is both - it is the overarching framework of which CFA and Path Analysis are just particular cases. The beauty comes in when we put the CFA and Path Analysis approaches together.
+
+Path analysis, as we saw last week, offers a way of specifying and evaluating a *structural* model, in which variables relate to one another in various ways, via different (sometimes indirect) paths. Common models like our old friend multiple regression can be expressed in a Path Analysis framework.
+
+Factor Analysis, on the other hand, brings something absolutely crucial to the table - it allows us to mitigate some of the problems which are associated with measurement error by specifying the existence of some latent variable which is measured via some observed variables. No question can perfectly measure someone's level of "anxiety", but if we take a set of 10 carefully chosen questions, we can consider the shared covariance between those 10 questions to represent the construct that is common between all of them (they all ask, in different ways, about "anxiety"), also modeling the unique error with which each individual question fails to perfectly represent the entire construct.  
+
+Combine them and we can reap the rewards of having both a *structural model* and a *measurement model*. The measurement model is our specification between the items we directly observed, and the latent variables of which we consider these items to be manifestations. The structural model is our specified model of the relationships between the latent variables.  
+
+
+```{r}
+#| label: fig-semmdiag
+#| fig-cap: "SEM diagram. Measurement model in orange, Structural model in purple"
+#| echo: false
+knitr::include_graphics("images/semdiag2.png")
+```
+
+:::frame
+__You can't test the structural model if the measurement model is bad__  
+
+If you test the relationships between a set of latent factors, and they are not reliably measured by the observed items, then this error propagates up to influence the fit of the structural model.  
+To test the measurement model, it is typical to *saturate* the structural model (i.e., allow all the latent variables to correlate with one another). This way any misfit is due to the measurement model only.  
+
+Alternatively, we can fit individual CFA models for each construct and assess their fit (making any reasonable adjustments if necessary) prior to then fitting the full SEM.
+
+:::
+
+:::
+
+# Exercising Exercises
+
+```{r}
+#| include: false
+set.seed(235)
+m = "
+att =~ 0.689*attitude1+0.726*attitude2+0.689*attitude3+0.719*attitude4
+SN =~ 0.661*SN1+0.651*SN2+0.616*SN3+0.638*SN4
+PBC =~ 0.799*PBC1+0.772*PBC2+0.756*PBC3+0.773*PBC4
+intent =~ 0.584*int1+0.646*int2+0.625*int3+0.597*int4+0.6*int5
+beh =~ 0.649*beh1+0.599*beh2+0.588*beh3+-0.605*beh4
+
+int2~~.4*int4
+int1~~.14*int3
+SN3~~.12*SN4
+PBC1~~.1*PBC2
+beh2~~.1*beh3
+
+beh ~ 0.506*intent + 0.185*PBC
+intent ~ 0.359*att + 0.196*SN + 0.49*PBC
+
+att~~0.32*SN
+att~~0.253*PBC
+SN~~0.196*PBC
+"
+df = simulateData(m, sample.nobs = 890)
+df = as.data.frame(apply(df, 2, function(x) as.numeric(cut(x,7,labels=1:7))))
+TPB_data<-df
+# write.table(df, file = "../../data/tpb2.txt",sep = "\t")
+# save(TPB_data, file="../../data/tpb2.Rdata")
+```
+
+
+
+:::frame
+__Dataset: tpb2__  
+
+The "Theory of Planned Behaviour" is a theory about why people engage in physical activity (i.e. why people exercise). 
+
+The theory is represented in the diagram in @fig-tpb (only the latent variables and not the measured items are shown). **Attitudes** refer to the extent to which a person has a favourable view of exercising; **subjective norms** refer to whether they believe others whose opinions they care about believe exercise to be a good thing; and **perceived behavioural control** refers to the extent to which they believe exercising is under their control. **Intentions** refer to whether a person intends to exercise and **behaviour** is a measure of the extent to which they exercised. Each construct is measured using four items. 
+
+```{r}
+#| label: fig-tpb
+#| fig-cap: "Theory of planned behaviour (latent variables only)"
+#| echo: false
+knitr::include_graphics("images/TPB example.png")
+```
+
+The data are available either:  
+
++ as a .RData file: [https://uoepsy.github.io/data/tpb2.Rdata](https://uoepsy.github.io/data/tpb2.Rdata){target="_blank"}
++ as a .txt file: [https://uoepsy.github.io/data/tpb2.txt](https://uoepsy.github.io/data/tpb2.txt){target="_blank"} 
+
+```{r}
+#| label: tbl-tpbdict
+#| tbl-cap: "Data Dictionary for TPB data"
+#| echo: false
+read_csv("data/tpbdictionary.csv") |>
+  gt::gt()
+```
+
+
+:::
+
+`r qbegin(qcounter())`
+Load in the various packages you will probably need (tidyverse, lavaan), and read in the data using the appropriate function.  
+
+We've given you **.csv** files for a long time now, but it's good to be prepared to encounter all sorts of weird filetypes. Can you successfully read in from both types of data?  
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Either one or the other of:
+```{r read in data}
+library(tidyverse)
+library(lavaan)
+load(url("https://uoepsy.github.io/data/tpb2.Rdata"))
+
+TPB_data <- read.table("https://uoepsy.github.io/data/tpb2.txt", header = TRUE, sep = "\t")
+```
+`r solend()`
+
+
+
+`r qbegin(qcounter())`
+Test separate one-factor models for each construct.  
+Are the measurement models satisfactory? *(check their fit measures)*. 
+`r qend()` 
+`r solbegin("Attitudes",slabel=FALSE, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Here we specify our one factor CFA model for attitudes:
+```{r}
+att_mod <- "
+  att =~ attitude1 + attitude2 + attitude3 + attitude4
+  "
+```
+And we estimate the model using `cfa()`
+```{r}
+att_mod.est <- cfa(att_mod, data=TPB_data, std.lv = TRUE)
+```
+Let's first inspect the fit measures:  
+```{r}
+fitmeasures(att_mod.est)[c("rmsea","srmr","tli","cfi")]
+```
+Our fit is good: RMSEA<.05, SRMR<.05, TLI>0.95 and CFI>.95.  
+We should also check that all loadings are significant and $>|.30|$.  
+To save space I am going to not show the entire summary output here, but just pull out the parameter estimates:  
+```{r}
+parameterestimates(att_mod.est)
+```
+They all look good!  
+`r solend()`
+`r solbegin("Subjective Norms",slabel=FALSE, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Following the same logic as for the Attitudes, let's fit the CFA for Subjective norms. 
+Again, all fit measures are very good, and loadings are all significant at greater than 0.3.  
+
+```{r}
+sn_mod <- "
+  SubjN =~ SN1 + SN2 + SN3 + SN4
+  "
+
+sn_mod.est <- cfa(sn_mod, data=TPB_data, std.lv = TRUE)
+
+fitmeasures(sn_mod.est)[c("rmsea","srmr","tli","cfi")]
+
+parameterestimates(sn_mod.est)
+```
+
+
+`r solend()`
+`r solbegin("Perceived Behavioural Control",slabel=FALSE, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+All good with Perceived Behavioural Control!  
+Almost _too_ good (TLI>1, and RMSEA is coming out at exactly 0!), but this is most probably because of this being fake data.  
+When data is simulated based on a specific model, then fitting that same model structure to the data will obviously fit extremely well!  s
+```{r}
+pbc_mod <- "
+  PBC =~ PBC1 + PBC2 + PBC3 + PBC4
+  "
+
+pbc_mod.est <- cfa(pbc_mod, data=TPB_data, std.lv = TRUE)
+
+fitmeasures(pbc_mod.est)[c("rmsea","srmr","tli","cfi")]
+
+parameterestimates(pbc_mod.est)
+```
+
+
+`r solend()`
+`r solbegin("Intentions",slabel=FALSE, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Uh-oh, it's looking less good with Intentions.  
+The loadings all look okay, but the fit indices aren't great
+```{r}
+int_mod <- "
+  intent =~ int1 + int2 + int3 + int4 + int5
+  "
+
+int_mod.est <- cfa(int_mod, data=TPB_data, std.lv = TRUE)
+
+fitmeasures(int_mod.est)[c("rmsea","srmr","tli","cfi")]
+
+parameterestimates(int_mod.est)
+```
+
+Let's examine the modification indices:
+```{r}
+modindices(int_mod.est, sort = TRUE)
+```
+
+It looks like correlating the residuals for items `int2` and `int4` would improve our model. The expected correlation is 0.757, which is fairly large (remember correlations are between -1 and 1).  
+
+Note that the items have a possible theoretical link too, beyond just "intention to exercise". It looks like both `int2` and `int4` are specifically about intentions in the _next three months_. It might make sense that responses to these two items are related more than just representing general 'intention'.  
+
+When we include this covariance, our model fit looks much better!  
+```{r}
+int_mod <- "
+  intent =~ int1 + int2 + int3 + int4 + int5
+  int2 ~~ int4
+  "
+
+int_mod.est <- cfa(int_mod, data=TPB_data, std.lv = TRUE)
+
+fitmeasures(int_mod.est)[c("rmsea","srmr","tli","cfi")]
+
+parameterestimates(int_mod.est)
+```
+
+`r solend()`
+`r solbegin("Behaviour",slabel=FALSE, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Finally, the behaviour model looks absolutely fine.  
+Note that `bey4` has a negative loading, which is perfectly okay. In fact, if you look at the items, you'll notice that this is the only item that is reversed (higher scores on the item reflect _less_ exercising)
+```{r}
+beh_mod <- "
+  behav =~ beh1 + beh2 + beh3 + beh4
+  "
+
+beh_mod.est <- cfa(beh_mod, data=TPB_data, std.lv = TRUE)
+
+fitmeasures(beh_mod.est)[c("rmsea","srmr","tli","cfi")]
+
+parameterestimates(beh_mod.est)
+```
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Using lavaan syntax, specify the full structural equation model that corresponds to the model in @fig-tpb. For each construct use the measurement models from the previous question.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This involves specifying the measurement models for all the latent variables, and then also specifying the relationships between those latent variables. All in the same model!  
+:::
+
+
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r specify TPB model}
+TPB_model<-'
+  # measurement models  
+  att =~ attitude1 + attitude2 + attitude3 + attitude4
+  SN =~ SN1 + SN2 + SN3 + SN4
+  PBC =~ PBC1 + PBC2 + PBC3 + PBC4
+  intent =~ int1 + int2 + int3 + int4 + int5
+  beh =~ beh1 + beh2 + beh3 + beh4
+  
+  # covariances between items
+  int2 ~~ int4
+
+  # regressions  
+  beh ~ intent + PBC
+  intent ~ att + SN + PBC
+
+  # covariances between attitudes, SN, and PBC
+  att ~~ SN    
+  att ~~ PBC
+  SN ~~ PBC
+'
+
+```
+`r solend()`
+
+`r qbegin(qcounter())`
+Estimate and evaluate the model  
+
++ Does the model fit well?  
++ Are the hypothesised paths significant?  
+
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We can estimate the model using the `sem()` function.  
+As with `cfa()`, by default the `sem()` function will scale the latent variables by fixing the loading of the first item for each latent variable to 1.  
+
+```{r estimate TPB_model}
+TPB_model.est<-sem(TPB_model, data=TPB_data, std.lv=TRUE)
+
+fitmeasures(TPB_model.est)[c("rmsea","srmr","tli","cfi")]
+```
+
+We can see that the model fits well according to RMSEA, SRMR, TLI and CFI.  
+From the output below, all of the hypothesised paths in the theory of planned behaviour are statistically significant.  
+
+```{r}
+summary(TPB_model.est, standardized=TRUE)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Examine the modification indices and expected parameter changes - are there any additional parameters you would consider including?  
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r modindices}
+modindices(TPB_model.est, sort = TRUE) |> head()
+```
+
+In this case, none of the expected parameter changes are large enough that we would consider including any additional parameters
+`r solend()`
+
+`r qbegin(qcounter())`
+Test the indirect effect of attitudes, subjective norms, and perceived behavioural control on behaviour via intentions.  
+
+Remember, when you fit the model with `sem()`, use `se='bootstrap'` to get boostrapped standard errors (it may take a few minutes). When you inspect the model using `summary()`, get the 95% confidence intervals for parameters with `ci = TRUE`. 
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+First, let's name the paths in the structural equation model:
+
+```{r echo=FALSE, out.width="85%"}
+knitr::include_graphics("images/msmr-w9.png")
+```
+
+To test these indirect effects we create new a parameter for each indirect effect:
+
+```{r indirect effects}
+TPB_model2 <- '
+  # measurement models  
+  att =~ attitude1 + attitude2 + attitude3 + attitude4
+  SN =~ SN1 + SN2 + SN3 + SN4
+  PBC =~ PBC1 + PBC2 + PBC3 + PBC4
+  intent =~ int1 + int2 + int3 + int4 + int5
+  beh =~ beh1 + beh2 + beh3 + beh4
+  
+  # covariances between items
+  int2 ~~ int4
+
+  # regressions  
+  beh ~ b*intent + PBC
+  intent ~ a1*att + a2*SN + a3*PBC
+
+  # covariances between attitudes, SN, and PBC
+  att ~~ SN    
+  att ~~ PBC
+  SN ~~ PBC
+
+  # indirect effects:  
+  ind1 := a1*b  #indirect effect of attitudes via intentions
+  ind2 := a2*b  #indirect effect of SN via intentions
+  ind3 := a3*b  #indirect effect of PBC via intentions
+'
+```
+
+When we estimate the model, we request bootstrapped standard errors: 
+```{r}
+#| echo: false
+# TPB_model2.est<-sem(TPB_model2, std.lv=TRUE, se='bootstrap', data=TPB_data)
+# save(TPB_model2.est, file="data/tpb_sem.Rdata")
+load("data/tpb_sem.Rdata")
+```
+```{r estimate model 2}
+#| eval: false
+TPB_model2.est<-sem(TPB_model2, std.lv=TRUE, se='bootstrap', data=TPB_data)
+```
+
+When we inspect the model, we request the 95% confidence intervals for parameters: 
+
+```{r summarise model 2}
+summary(TPB_model2.est, ci=TRUE)
+```
+
+We can see that all of the indirect effects are statistically significant at p<.05 as none of the 95% confidence intervals for the coefficients include zero.
+`r solend()`
+
+`r qbegin(qcounter())`
+Write up your analysis as if you were presenting the work in academic paper, with brief separate 'Method' and 'Results' sections
+`r qend()` 
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+**Method**
+
+We tested a theory of planned behaviour model of physical activity by fitting a structural equation model in which attitudes, subjective norms, perceived behavioural control, intentions and behaviour were latent variables defined by four items. We first tested the measurement models for each construct by fitting a one-factor CFA model.  Latent variable scaling was by fixing the loading of the first item for each construct to 1. 
+
+Within the SEM, behaviour was regressed on intentions and perceived behavioural control and intentions were regressed on attitudes, subjective norms, and perceived behavioiural control. In addition, attitudes, subjective norms, and perceived behavioural control were allowed to covary. The indirect effects of attitudes, subjective norms and perceived behavioural control on behaviour were calculated as the product of the effect of the relevant predictor on the mediator (intentions) and the effect of the mediator on the outcome. The statistical significance of the indirect effects were evaluated using bootstrapped 95% confidence intervals with 1000 resamples.
+
+In all cases models were fit using maximum likelihood estimation and model fit was judged to be good if CFI and TLI were $>.95$ and RMSEA and SRMR were $<.05$. Modification indices and expected parameter changes were inspected to identify any areas of local mis-fit but model modifications were only made if they could be justified on substantive grounds.
+
+**Results**
+
+All measurement models fit well (CFI and TLI $>.95$ and RMSEA and SRMR $<.05$) with the exception of the measurement model for intentions. Modification indices suggested the inclusion of residual covariance between two items on the intentions scale (int2 and int4) that both made specific reference to short term intentions. The addition of this parameter resulted in a good fit. 
+The full structural equation model fit well (CFI = `r round(fitmeasures(TPB_model2.est)["cfi"],2)`, TLI = `r round(fitmeasures(TPB_model2.est)["tli"],2)`, RMSEA = `r round(fitmeasures(TPB_model2.est)["rmsea"],2)`, SRMR = `r round(fitmeasures(TPB_model2.est)["srmr"],2)`). Unstandardised parameter estimates are provided in @tbl-tabsem. All of the hypothesised paths  were statistically significant at $p<.05$. The significant indirect effects suggested that intentions mediate the effects of attitudes, subjective norms, and  perceived behavioural control on behaviour whilst perceived behavioural control also has a direct effect on behaviour. Results thus provide support for a theory of planned behaviour model of physical activity. 
+
+```{r}
+#| echo: false
+#| label: tbl-tabsem
+#| tbl-cap: "Unstandardised parameter estimates for structural equation model for a theory of planned behaviour model of physical activity. Note: PBC = Perceived Behavioural Control, CI = Confidence Interval"
+library(gt)
+parameterestimates(TPB_model2.est) |>
+  mutate(
+    lhs = case_when(
+      lhs == "att" ~ "Attitudes",
+      lhs == "SN" ~ "Subjective Norms",
+      lhs == "intent" ~ "Intentions",
+      lhs == "beh" ~ "Behaviours",
+      TRUE ~ lhs
+    ),
+    rhs = case_when(
+      rhs == "att" ~ "Attitudes",
+      rhs == "SN" ~ "Subjective Norms",
+      rhs == "intent" ~ "Intentions",
+      rhs == "beh" ~ "Behaviours",
+      TRUE ~ rhs
+    ),
+    Parameter = case_when(
+      op == "=~" ~ rhs,
+      op == "~~" ~ paste0(lhs," with ",rhs),
+      op == "~" ~ paste0(lhs," on ",rhs),
+      rhs == "a1*b" ~ "Attitudes via Intentions",
+      rhs == "a2*b" ~ "Subjective Norms via Intentions",
+      rhs == "a3*b" ~ "PBC via Intentions",
+      TRUE ~ ""
+    ),
+    LV = case_when(
+      op == "=~" & rhs == "attitude1" ~ "Attitudes",
+      op == "=~" & rhs == "SN1" ~ "Subjective Norms",
+      op == "=~" & rhs == "PBC1" ~ "PBC",
+      op == "=~" & rhs == "int1" ~ "Intentions",
+      op == "=~" & rhs == "beh1" ~ "Behaviours",
+      TRUE ~ ""
+    ),
+    what = case_when(
+      op == "=~" ~ "Loadings",
+      op == "~~" ~ "Covariances",
+      op == "~" ~ "Regressions",
+      op == ":=" ~ "Indirect effects",
+      TRUE ~ ""
+    )
+) |>
+  filter(!(op=="~~" & (lhs==rhs))) |>
+  transmute(
+    what, ` `=LV, Parameter,
+    Estimate = round(est,2),
+    SE = round(se,2),
+    z = round(z,2),
+    p = format.pval(pvalue,eps=.001,digits=3),
+    `95% CI` = paste0("[",round(ci.lower,2),", ",round(ci.upper,2),"]")
+  ) |> group_by(what) |> gt() |>
+  tab_style(
+    style = cell_fill(color = "gray85"),
+    locations = cells_row_groups()
+  ) |> 
+  opt_stylize(style = 6, color = 'gray')
+```
+
+
+`r solend()`
+

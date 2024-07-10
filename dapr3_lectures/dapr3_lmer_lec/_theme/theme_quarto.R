@@ -12,10 +12,8 @@ color_blender <-
       blend_colors(x, y, alpha)
 theme_quarto <- function (text_color = color_text,
                           background_color = color_bg,
-                          text_font = font_text,
                           text_font_size = 30,
                           accent_color = color_base,
-                          title_font = font_title,
                           title_font_size = 30) {
   blend <- color_blender(text_color, background_color)
   ggplot2::theme(
@@ -23,7 +21,6 @@ theme_quarto <- function (text_color = color_text,
     rect = ggplot2::element_rect(fill = background_color),
     title = ggplot2::element_text(
       color = accent_color,
-      family = title_font,
       size = title_font_size
     ),
     plot.background = ggplot2::element_rect(fill = background_color,
@@ -38,9 +35,10 @@ theme_quarto <- function (text_color = color_text,
     axis.ticks = ggplot2::element_line(color = blend(0.8)),
     axis.text = ggplot2::element_text(color = blend(0.4), size = title_font_size * 0.7),
     legend.key = ggplot2::element_rect(fill = "transparent", colour = NA),
-    legend.text = ggplot2::element_text(size = title_font_size * 0.8, family = title_font),
+    legend.text = ggplot2::element_text(size = title_font_size * 0.8),
     plot.caption = ggplot2::element_text(size = text_font_size * 0.8,
-                                         color = blend(0.3))
+                                         color = blend(0.3)),
+    strip.text.x = element_text(size = 16)
   )
 }
 
@@ -48,7 +46,7 @@ update_geom_defaults("line",list(size=2))
 
 knitr::opts_chunk$set(dev.args = list(bg="transparent"))
 
-options(digits=4,scipen=8)
+options(digits=3,scipen=8)
 
 
 knitr::opts_chunk$set(
@@ -60,7 +58,6 @@ knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
 color_base <- '#458c3c'
 color_text <- '#000000'
 color_bg <- '#ffffff'
-font_title <- 'Bakbak One'
 theme_set(theme_quarto())
 
 ### my functions

@@ -13,6 +13,35 @@ library(patchwork)
 source('_theme/theme_quarto.R')
 ```
 
+# Course Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("linear models refresher",
+                "working with groupings of data (the multilevel model)",
+                "more multilevel models",
+                "more than one level of grouping",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c("reducing many variables to a smaller number of dimensions (PCA)",
+                "identifying the underlying constructs that explain responses to a larger set of items (EFA)",
+                "EFA 2",
+                "CFA",
+                "CFA 2")
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=1)
+```
+
+# This week
+
+- The generalised linear model
+    - model structures (multiple predictors, interactions, link functions)
+    - inference (coefficients and model comparisons)
+    - assumptions
+
+
 # Model Structures
 
 ## Models
@@ -71,7 +100,10 @@ Our proposed model of the world:
 
 $\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_i} + \varepsilon_i$  
 
-:::{.fragment}
+:::
+
+:::{.column width="50%"}
+
 ```{r bb}
 x <- tibble(x=c(-1,4))
 f <- function(x) {5+2*x}
@@ -104,32 +136,52 @@ p1 +
            size=8,parse=TRUE,colour="blue",alpha=.1) +
   
   scale_y_continuous("y",labels=NULL)+
-  scale_x_continuous(limits=c(-0.3,4), breaks=c(0,1), labels=c("0","1"))
+  scale_x_continuous(limits=c(-0.3,4), breaks=c(0,1), labels=c("0","1"))+
+  ggtitle(expression(paste("y = ",b[0] %.% 1 + b[1] %.% x)))
   
 ```
-:::
-:::
 
-:::{.column width="50%" .fragment}
+:::
+::::
 
-Our model $\widehat{\textrm{fitted}}$ to some data:  
+
+## The Linear Model
+
+
+::::{.columns}
+:::{.column width="50%"}
+Our model $\hat{\textrm{f}}\textrm{itted}$ to some data:  
 
 $\hat{y}_i = \color{blue}{\hat b_0 \cdot{} 1 + \hat b_1 \cdot{} x_i}$  
-
-
-
-:::{.fragment}
+  
 For the $i^{th}$ observation:  
 
   - $\color{red}{y_i}$ is the value we observe for $x_i$   
   - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
   - $\color{red}{y_i} = \hat{y}_i + \hat\varepsilon_i$  
-  
+
 :::
-  
-  
+
+:::{.column width="50%"}
+
+```{r}
+#| label: fitplot
+xX <-1.2
+yY <- 9.9
+p1 + 
+  geom_point(aes(x=xX,y=yY),size=3,colour="red") +
+  geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") +
+  annotate("text",1.1,8.6,hjust=1,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=8)+
+  geom_point(aes(x=xX,y=f(xX)),col="black",size=3,shape=1)+
+  ggtitle(expression(paste("y = ",b[0] %.% 1 + b[1] %.% x)))+
+  scale_y_continuous("y")+
+  scale_x_continuous(limits=c(-0.3,4), breaks=c(0,1), labels=c("0","1"))+
+  theme(axis.text.y=element_text(colour="white"))+
+  NULL
+```
 :::
 ::::
+
 
 
 ## An example
@@ -137,11 +189,12 @@ For the $i^{th}$ observation:
 ::::{.columns}
 
 :::{.column width="50%"}
-$\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_i} + \hat\varepsilon_i$  
+Our model $\hat{\textrm{f}}\textrm{itted}$ to some data:  
+
 $\color{red}{y_i} = \color{blue}{5 \cdot{} 1 + 2 \cdot{} x_i} + \hat\varepsilon_i$  
   
-__e.g.__   
-for the observation $x_i = 1.2, \; y_i = 9.9$:  
+:::{.fragment}
+For the observation $x_i = 1.2, \; y_i = 9.9$:  
 
 $$
 \begin{align}
@@ -151,15 +204,17 @@ $$
 \end{align}
 $$
 :::
+:::
 :::{.column width="50%"}
 ```{r}
 #| label: errplot
 xX <-1.2
 yY <- 9.9
-p1 + ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) +
+p1 + #ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) +
   geom_point(aes(x=xX,y=yY),size=3,colour="red") +
   geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") +
-  annotate("text",1.1,8.6,hjust=1,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=8)
+  annotate("text",1.1,8.6,hjust=1,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=8)+
+  ggtitle(expression(paste("y = ", 5 %.% 1 + 2 %.% x)))
 ```
 
 :::
@@ -211,7 +266,7 @@ More than one predictor?
 $\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + \, ... \, + b_k \cdot x_k} + \varepsilon$
 
 :::aside
-I've stopped showing the $i$'s for now because we start to have more subscripts, but for any individual $i$, our model is $\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_{1i} + \, ... \, + b_k \cdot x_{ki}} + \varepsilon$
+I've stopped showing the $i$'s for now because we start to have more subscripts, but for any individual $i$, our model is $\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_{1i} + \, ... \, + b_k \cdot x_{ki}} + \varepsilon_i$
 :::
 
 ## Multiple Regression 
@@ -266,28 +321,49 @@ persp(x1,x2,y, theta = 35,phi=10, col = NA,zlim=c(10,80), axes=F)
 :::
 ::::
 
-## tangent: {.smaller}
-
-![](img_sandbox/ssvenn/Slide1.PNG)
-
-
-## tangent:  {.smaller}
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
 
 ::::{.columns}
 :::{.column width="50%"}
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide1.PNG)
+:::
+::::
+
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+- X and Y are 'orthogonal' (perfectly uncorrelated)  
+
+:::
+
+:::{.column width="50%"}
 ![](img_sandbox/ssvenn/Slide2.PNG)
 
+:::
+::::
 
-X and Y are 'orthogonal' (perfectly unrelated)  
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+- X and Y are correlated.  
+    - **a** = portion of Y's variance shared with X
+    - **e** = portion of Y's variance unrelated to X
 
 :::
 
 :::{.column width="50%"}
 ![](img_sandbox/ssvenn/Slide3.PNG)
 
-X and Y are correlated.  
-**a** = portion of Y's variance that is shared with X
-**e** = portion of Y's variance unrelated to X
 
 :::
 ::::
@@ -299,22 +375,25 @@ with me?
 
 :::
 
-
-## tangent: enter X2... {.smaller}
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
 
 
 ::::{.columns}
 :::{.column width="50%"}
 
-- X2 is also related to Y (**c**)
-- X2 is orthogonal to X1 (no overlap)
+- X and Y are correlated.  
+    - **a** = portion of Y's variance shared with X
+    - **e** = portion of Y's variance unrelated to X
+- Z is also related to Y (**c**)
+- Z is orthogonal to X (no overlap)
 
-<br>
+:::{.fragment}
 
-- relation between X1 and Y is unaffected (**a**)
-- unexplained variance in Y (**e**) is reduced, so **a**:**e** ratio greater.
+- relation between X and Y is unaffected (**a**)
+- unexplained variance in Y (**e**) is reduced, so **a**:**e** ratio is greater.
 
-Design is so important! If possible, we could *ensure* that X1 and X2 are orthogonal.  
+Design is so important! If possible, we could design it so that X and Z are orthogonal (in the long run) by e.g., randomisation.  
+:::
 :::
 
 :::{.column width="50%"}
@@ -323,29 +402,33 @@ Design is so important! If possible, we could *ensure* that X1 and X2 are orthog
 ::::
 
 :::{.notes}
-so accounting for x2 differences can make it easier to detect differences due to x
+so accounting for Z differences can make it easier to detect differences due to x
 
 experiments - if we randomly allocate people in to condition A vs B, then we ensure that, in the long run, condition is unrelated to e.g. age. 
 
 :::
 
 
-
-## tangent: enter X2 ... {.smaller}
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
 
 
 ::::{.columns}
 :::{.column width="50%"}
 
-- X2 is also related to Y (**c**)  
-- X2 *is* related to X1 (**b + d**)
+- X and Y are correlated.  
 
-Association between X1 and Y is changed if we consider X2 (**a** is smaller than previous slide), because there is a bit (**b**) that could be attributed to X2 instead.  
+<br>
 
-- regression coefficients for X1 and X2 are like areas **a** and **c** (scaled to be in terms of 'per unit change in the predictor')
-- total variance explained by _both_ X1 and X2 is **a+b+c**
+- Z is also related to Y (**c + b**)  
+- Z *is* related to X (**b + d**)
 
+:::{.fragment}
+Association between X and Y is changed if we adjust for Z (**a** is smaller than previous slide), because there is a bit (**b**) that could be attributed to Z instead.  
 
+- regression coefficients for X and Z are like areas **a** and **c** (scaled to be in terms of 'per unit change in the predictor')
+- total variance explained by _both_ X and Z is **a+b+c**
+
+:::
 :::
 
 :::{.column width="50%"}
@@ -353,10 +436,27 @@ Association between X1 and Y is changed if we consider X2 (**a** is smaller than
 :::
 ::::
 
+## Multiple Regression
+
+TODO
+
+
+::::{.columns}
+:::{.column width="50%"}
+summary(model)
+:::
+
+:::{.column width="50%"}
+interpretation
+
+:::
+::::
+
+
 
 ## Interactions
 
-what if the effect of x1 depends on the level of x2?  
+what if the relationship of interest *depends on* the level of some other variable?  
 
 . . .
 
@@ -366,38 +466,72 @@ $\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + b_2 \cdot x_2 +
 
 
 :::aside
-to get at why the product works this way, we could rearrange the above model equation to:  
-$\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + (b_1 + b_3 \cdot x_2) \cdot{} x_1 + b_2 \cdot x_2} + \varepsilon$  
-
-you can see the "the effect of x1 on y" is now $(b_1 + b_3 \cdot x_2)$ - i.e. "some number $b_1$, plus some number $b_3$ that changes depending on $x_2$".  
+Why the product? 
+We could rearrange the above model equation to: $\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + (b_1 + b_3 \cdot x_2) \cdot{} x_1 + b_2 \cdot x_2} + \varepsilon$  
+This highlights that "the effect of x1 on y" is now $(b_1 + b_3 \cdot x_2)$ - i.e. "some number $b_1$, plus some number $b_3$ that changes depending on $x_2$".  
 
 :::
 
-## Interactions
+
+## Interactions (2)
 
 ::::{.columns}
 :::{.column width="50%"}
 ```{r}
+#| out-height: "350px"
 mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
   isRural = factor(ifelse(location=="rural","rural","notrural"))
 )
-par(mfrow=c(1,2))
+df <- mwdata2 |> transmute(
+  y = wellbeing,
+  x1 = outdoor_time,
+  x2 = ifelse(isRural=="rural","Level2","Level1")
+)
+
+
 fit<-lm(wellbeing~outdoor_time+isRural, data=mwdata2)
 with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2\n(x2 is categorical)"))
 abline(a = coef(fit)[1],b=coef(fit)[2])
 abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2], col="red")
+```
 
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2, data = df)), l = list(c(9:13)))
+```
+
+:::
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
 fit<-lm(wellbeing~outdoor_time*isRural, data=mwdata2)
 with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2+x1:x2\n(x2 is categorical)"))
 abline(a = coef(fit)[1],b=coef(fit)[2])
 abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
-par(mfrow=c(1,1))
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
 ```
 
 :::
-:::{.column width="50%" .fragment}
+::::
 
+
+## Interactions (3)
+
+::::{.columns}
+:::{.column width="50%"}
 ```{r}
+#| out-height: "350px"
 set.seed(913)
 df <- tibble(
   x1 = round(pmax(0,rnorm(50,4,2)),1),
@@ -405,145 +539,173 @@ df <- tibble(
   y = 8 + .6*x1 + .5*x2 + .8*x1*x2 + rnorm(50,0,4),
   yb = rbinom(50,1,plogis(scale(y)))
 )
-modl2 <- lm(y~x1*x2,df)
 
-x1_pred <- df |> with(seq(min(x1),max(x1),length.out=100))
-x2_pred <- df |> with(seq(min(x2),max(x2),length.out=100))
+modl2 <- lm(y~x1+x2,df)
+
+x1_pred <- df |> with(seq(min(x1),max(x1),length.out=20))
+x2_pred <- df |> with(seq(min(x2),max(x2),length.out=20))
 
 ac <- expand.grid(x1=x1_pred,x2=x2_pred) 
 
 ypred <- matrix(predict(modl2,type="response",
-                             newdata=ac),nrow=100)
+                             newdata=ac),nrow=20)
 
 library(plot3D)
 
-persp3D(x=x1_pred,y=x2_pred,z=ypred,theta=65,phi=15,
+persp3D(x=x1_pred,y=x2_pred,z=ypred,theta=45,phi=15,
         type="surface",xlab="x1",ylab="x2",zlab="y",
         xlim=c(0,9), ylim=c(0,8),
-        zlim=c(min(df$y),max(df$y)+2),colkey=FALSE)
-points3D(x=df$x1,y=df$x2,z=df$y,col="black",add=TRUE)
+        zlim=c(min(df$y),max(df$y)+2),border="black",
+      #col="white",
+        colkey=FALSE,
+        main="y~x1+x2")
+points3D(x=df$x1,y=df$x2,z=df$y,col="black",pch=16,add=TRUE)
 ```
-
-:::
-::::
-
-
-## Interactions
-
-::::{.columns}
-:::{.column width="50%"}
 ```{r}
-mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
-  isRural = factor(ifelse(location=="rural","rural","notrural"))
-)
-par(mfrow=c(1,2))
-fit<-lm(wellbeing~outdoor_time+isRural, data=mwdata2)
-with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2\n(x2 is categorical)"))
-abline(a = coef(fit)[1],b=coef(fit)[2])
-abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2], col="red")
-
-fit<-lm(wellbeing~outdoor_time*isRural, data=mwdata2)
-with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2+x1:x2\n(x2 is categorical)"))
-abline(a = coef(fit)[1],b=coef(fit)[2])
-abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
-par(mfrow=c(1,1))
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2, data = df))
 ```
-
+```{r}
+.pp(summary(lm(y ~ x1 + x2, data = df)), l = list(c(9:13)))
+```
 :::
 :::{.column width="50%"}
 ```{r}
+#| out-height: "350px"
+modl2 <- lm(y~x1*x2,df)
 
-x1_pred <- df |> with(seq(min(x1),max(x1),length.out=100))
-x2_pred <- df |> with(seq(min(x2),max(x2),by=1))
+x1_pred <- df |> with(seq(min(x1),max(x1),length.out=20))
+x2_pred <- df |> with(seq(min(x2),max(x2),length.out=20))
 
-library(plot3D)
-lines3D(x=x1_pred,y=rep(1,100),theta=65,phi=15,
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=1)),
-        xlab="x1",ylab="x2",zlab="y",
+ac <- expand.grid(x1=x1_pred,x2=x2_pred) 
+
+ypred <- matrix(predict(modl2,type="response",
+                             newdata=ac),nrow=20)
+
+persp3D(x=x1_pred,y=x2_pred,z=ypred,theta=45,phi=15,
+        type="surface",xlab="x1",ylab="x2",zlab="y",
         xlim=c(0,9), ylim=c(0,8),
-        zlim=c(min(df$y),max(df$y)+2),colkey=FALSE)
-lines3D(x=x1_pred,y=rep(2,100),
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=2)),
-        colkey=FALSE,add=TRUE)
-lines3D(x=x1_pred,y=rep(3,100),
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=3)),
-        colkey=FALSE,add=TRUE)
-lines3D(x=x1_pred,y=rep(4,100),
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=4)),
-        colkey=FALSE,add=TRUE)
-lines3D(x=x1_pred,y=rep(5,100),
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=5)),
-        colkey=FALSE,add=TRUE)
-lines3D(x=x1_pred,y=rep(6,100),
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=6)),
-        colkey=FALSE,add=TRUE)
-lines3D(x=x1_pred,y=rep(7,100),
-        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=7)),
-        colkey=FALSE,add=TRUE)
+        zlim=c(min(df$y),max(df$y)+2),
+        #col="white",
+        border="black",
+        colkey=FALSE,
+        main="y~x1+x2+x1:x2")
+points3D(x=df$x1,y=df$x2,z=df$y,col="black",pch=16,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
 ```
 :::
 ::::
 
-## Interactions
+## Interactions (4)
 
 ::::{.columns}
 :::{.column width="50%"}
-```{r}
-mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
-  isRural = factor(ifelse(location=="rural","rural","notrural"))
-)
-par(mfrow=c(1,2))
-fit<-lm(wellbeing~outdoor_time+isRural, data=mwdata2)
-with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2\n(x2 is categorical)"))
-abline(a = coef(fit)[1],b=coef(fit)[2])
-abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2], col="red")
-
-fit<-lm(wellbeing~outdoor_time*isRural, data=mwdata2)
-with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2+x1:x2\n(x2 is categorical)"))
-abline(a = coef(fit)[1],b=coef(fit)[2])
-abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
-par(mfrow=c(1,1))
-```
 
 :::
 :::{.column width="50%"}
 ```{r}
+#| out-height: "350px"
 modl2 <- lm(y~x1*x2,df)
 
 x1_pred <- df |> with(seq(min(x1),max(x1),by=1))
-x2_pred <- df |> with(seq(min(x2),max(x2),length.out=100))
+x2_pred <- df |> with(seq(min(x2),max(x2),length.out=20))
 
 library(plot3D)
-lines3D(x=rep(1,100),y=x2_pred,theta=65,phi=15,
+lines3D(x=rep(1,20),y=x2_pred,theta=45,phi=15,
         z=predict(modl2, newdata=tibble(x1=1,x2=x2_pred)),
         xlab="x1",ylab="x2",zlab="y",
         xlim=c(0,9), ylim=c(0,8),
         zlim=c(min(df$y),max(df$y)+2),colkey=FALSE)
-lines3D(x=rep(2,100),y=x2_pred,
+lines3D(x=rep(2,20),y=x2_pred,
         z=predict(modl2, newdata=tibble(x1=2,x2=x2_pred)),
         colkey=FALSE,add=TRUE)
-lines3D(x=rep(3,100),y=x2_pred,
+lines3D(x=rep(3,20),y=x2_pred,
         z=predict(modl2, newdata=tibble(x1=3,x2=x2_pred)),
         colkey=FALSE,add=TRUE)
-lines3D(x=rep(4,100),y=x2_pred,
+lines3D(x=rep(4,20),y=x2_pred,
         z=predict(modl2, newdata=tibble(x1=4,x2=x2_pred)),
         colkey=FALSE,add=TRUE)
-lines3D(x=rep(5,100),y=x2_pred,
+lines3D(x=rep(5,20),y=x2_pred,
         z=predict(modl2, newdata=tibble(x1=5,x2=x2_pred)),
         colkey=FALSE,add=TRUE)
-lines3D(x=rep(6,100),y=x2_pred,
+lines3D(x=rep(6,20),y=x2_pred,
         z=predict(modl2, newdata=tibble(x1=6,x2=x2_pred)),
         colkey=FALSE,add=TRUE)
-lines3D(x=rep(7,100),y=x2_pred,
+lines3D(x=rep(7,20),y=x2_pred,
         z=predict(modl2, newdata=tibble(x1=7,x2=x2_pred)),
         colkey=FALSE,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
+```
+:::
+::::
+
+
+## Interactions (5)
+
+::::{.columns}
+:::{.column width="50%"}
+
+:::
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+x1_pred <- df |> with(seq(min(x1),max(x1),length.out=20))
+x2_pred <- df |> with(seq(min(x2),max(x2),by=1))
+
+library(plot3D)
+lines3D(x=x1_pred,y=rep(1,20),theta=45,phi=15,
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=1)),
+        xlab="x1",ylab="x2",zlab="y",
+        xlim=c(0,9), ylim=c(0,8),
+        zlim=c(min(df$y),max(df$y)+2),colkey=FALSE)
+lines3D(x=x1_pred,y=rep(2,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=2)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(3,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=3)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(4,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=4)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(5,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=5)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(6,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=6)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(7,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=7)),
+        colkey=FALSE,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
 ```
 :::
 ::::
 
 ## Notation
 
-$\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + ... + b_k \cdot x_k} & + & \;\;\;\varepsilon \\ \qquad \\ \color{red}{\begin{bmatrix}y_1 \\ y_2 \\ y_3 \\ y_4 \\ y_5 \\ \vdots \\ y_n \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} & x_{21} & \dots & x_{k1} \\ 1 & x_{12} & x_{22} &  & x_{k2} \\ 1 & x_{13} & x_{23} &  & x_{k3} \\ 1 & x_{14} & x_{24} &  & x_{k4} \\ 1 & x_{15} & x_{25} &  & x_{k5} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{1n} & x_{2n} & \dots & x_{kn} \end{bmatrix} \begin{bmatrix} b_0 \\ b_1 \\ b_2 \\ \vdots \\ b_k \end{bmatrix}} & + & \begin{bmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \varepsilon_3 \\ \varepsilon_4 \\ \varepsilon_5 \\ \vdots \\ \varepsilon_n \end{bmatrix} \\ \qquad \\ \\\color{red}{\boldsymbol y} \;\;\;\;\; & = \qquad \qquad \;\;\; \mathbf{\color{blue}{X \qquad \qquad \qquad \;\;\;\: \boldsymbol \beta}} & + & \;\;\; \boldsymbol \varepsilon \\ \end{align}$
+$\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + ... + b_k \cdot x_k} & + & \;\;\;\varepsilon \\ \qquad \\ \color{red}{\begin{bmatrix}y_1 \\ y_2 \\ y_3 \\ y_4 \\ y_5 \\ \vdots \\ y_n \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} & x_{21} & \dots & x_{k1} \\ 1 & x_{12} & x_{22} &  & x_{k2} \\ 1 & x_{13} & x_{23} &  & x_{k3} \\ 1 & x_{14} & x_{24} &  & x_{k4} \\ 1 & x_{15} & x_{25} &  & x_{k5} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{1n} & x_{2n} & \dots & x_{kn} \end{bmatrix} \begin{bmatrix} b_0 \\ b_1 \\ b_2 \\ \vdots \\ b_k \end{bmatrix}} & + & \begin{bmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \varepsilon_3 \\ \varepsilon_4 \\ \varepsilon_5 \\ \vdots \\ \varepsilon_n \end{bmatrix} \\  \\\color{red}{\boldsymbol y} \;\;\;\;\; & = \qquad \qquad \;\;\; \mathbf{\color{blue}{X \qquad \qquad \qquad \;\;\;\: \boldsymbol \beta}} & + & \;\;\; \boldsymbol \varepsilon \\ \end{align}$
 
 
 ## Link functions
@@ -622,6 +784,31 @@ g + geom_area(data=ld,aes(x=x,y=y),fill="grey30",alpha=.3) +
   geom_curve(aes(x=1.5, xend=1.3, y=35, yend=2.5), col="tomato1", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))
 ```
 
+## Null Hypothesis Testing
+
+```{r}
+
+ld <- layer_data(g) %>% filter(x <= sd(samplemeans) & x >= (-sd(samplemeans)))
+ld2 <- layer_data(g) %>% filter(x <= 2*sd(samplemeans) & x >= (-2*sd(samplemeans)))
+ld3 <- layer_data(g) %>% filter(x >= qnorm(.975,0,sd(samplemeans)))
+ld4 <- layer_data(g) %>% filter(x <= qnorm(.025,0,sd(samplemeans)))
+
+
+g + geom_area(data=ld,aes(x=x,y=y),fill="grey30",alpha=.3) + 
+  geom_area(data=ld2,aes(x=x,y=y),fill="grey30",alpha=.1) +
+  geom_area(data=ld3,aes(x=x,y=y),fill="blue",alpha=.3) +
+  geom_area(data=ld4,aes(x=x,y=y),fill="blue",alpha=.3) +
+  geom_segment(aes(x=0,xend=0,y=0,yend=dnorm(0,0,sd=sd(samplemeans))*280), lty="dashed")+
+  scale_y_continuous(NULL, breaks=NULL)+
+  scale_x_continuous(NULL, breaks=NULL, limits=c(-1.5,2))+
+  annotate("text",x=-.5, y=250, label="population parameter\nunder null hypothesis", col="grey30")+
+  annotate("text",x=1, y=210, label="statistics we would expect from\nsamples of size n if the\nnull hypothesis is true", col="grey30")+
+  annotate("text",x=1.5, y=40, label="critical regions", col="blue")+
+  geom_curve(aes(x=1.5, xend=1.2, y=35, yend=5), col="blue", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))+
+  geom_curve(aes(x=-.5, xend=0, y=240, yend=220), col="grey30", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))+
+  geom_curve(aes(x=1, xend=0.5, y=190, yend=150), col="grey30", size=0.5, curvature = -0.2, arrow = arrow(length = unit(0.03, "npc")))
+```
+
 ## test of individual parameters
 
 ![](img_sandbox/sum1.png)
@@ -642,35 +829,32 @@ g + geom_area(data=ld,aes(x=x,y=y),fill="grey30",alpha=.3) +
 
 ![](img_sandbox/sum4.png)
 
-
-## Sums of Squares {.smaller}
+## Sums of Squares
 
 ::::{.columns}
 :::{.column width="50%"}
 
 Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
 
-- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$.  
+- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
 
 - $SS_{model} = \sum^{n}_{i=1}(\hat y_i - \bar y)^2$  
   
 - $SS_{residual} = \sum^{n}_{i=1}(y_i - \hat y_i)^2$  
 
 :::
+:::{.column width="50%"}
 
-:::{.column width="50%" .fragment}
-![](img_sandbox/ssvenn/Slide5.PNG)
-
-*SStotal = a+b+c+e, SSmodel = a+b+c, SSresidual = e*
 :::
 ::::
 
-## Sums of Squares {.smaller}
+
+## Sums of Squares (2)
 
 ::::{.columns}
 :::{.column width="50%"}
 
-Rather than phrasing as slope coefficients, we can also think of our model in terms of sums of squares (SS).  
+Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
 
 - $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
 
@@ -719,6 +903,29 @@ plt_sst / (plt_ssm + plt_ssr) & scale_x_continuous("x",breaks=NULL) & scale_y_co
 :::
 ::::
 
+## Sums of Squares (3)
+
+::::{.columns}
+:::{.column width="50%"}
+
+Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
+
+- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
+    - **a+b+c+e**
+- $SS_{model} = \sum^{n}_{i=1}(\hat y_i - \bar y)^2$  
+    - **a+b+c**
+- $SS_{residual} = \sum^{n}_{i=1}(y_i - \hat y_i)^2$  
+    - **e**
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide5.PNG)
+:::
+::::
+
+
+
 ## $R^2$
 
 
@@ -731,14 +938,14 @@ plt_sst / (plt_ssm + plt_ssr) & scale_x_continuous("x",breaks=NULL) & scale_y_co
 :::{.column width="50%"}
 $R^2 = \frac{SS_{Model}}{SS_{Total}} = 1 - \frac{SS_{Residual}}{SS_{Total}}$
 ```{r echo=FALSE}
-x1 = rnorm(100)
-x2 = rnorm(100)
-y = .2*x1 + .3*x2 + rnorm(100)
+x = rnorm(100)
+z = rnorm(100)
+y = .2*x + .3*z + rnorm(100)
 ```
 ```{r}
 #| echo: true
 #| eval: false
-mdl <- lm(y ~ 1 + x1 + x2)
+mdl <- lm(y ~ 1 + z + x)
 summary(mdl)
 ```
 ```
@@ -747,8 +954,8 @@ summary(mdl)
 Coefficients:
             Estimate Std. Error t value Pr(>|t|)   
 (Intercept)   ...       ...      ...    ...
-x1            ...       ...      ...    ...
-x2            ...       ...      ...    ...
+z             ...       ...      ...    ...
+x             ...       ...      ...    ...
 ...
 
 ...
@@ -764,22 +971,22 @@ Multiple R-squared:  0.134,	Adjusted R-squared:  0.116
 ```{r echo=F}
 set.seed(2345)
 tibble(
-  x1=rnorm(100),
-  x2=rnorm(100),
-  x3=rnorm(100),
+  x=rnorm(100),
+  z=rnorm(100),
+  z2=rnorm(100),
   species=rep(c("cat","dog","parrot","horse"),e=25),
-  y=10+x1-2*x2+2*x3+(species=="cat")*4 + rnorm(100)
+  y=10+x-2*z+2*z2+(species=="cat")*4 + rnorm(100)
 ) -> df
 ```
 
-We can test reduction in residual sums of squares:
+Model comparisons:
 
 
 ::::{.columns}
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-m1 <- lm(y ~ 1 + x1, data = df)
+m1 <- lm(y ~ 1 + x, data = df)
 ```
 ![](img_sandbox/ssvenn/Slide8.PNG)
 :::
@@ -787,25 +994,23 @@ m1 <- lm(y ~ 1 + x1, data = df)
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-m2 <- lm(y ~ 1 + x1 + x2 + x3, data = df)
+m2 <- lm(y ~ 1 + z + z2 + x, data = df)
 ```
 ![](img_sandbox/ssvenn/Slide7.PNG)
 :::
 ::::
 
-## tests of multiple parameters
 
-isolating the improvement in model fit due to inclusion of additional parameters
-
-
+## tests of multiple parameters (2)
 
 ::::{.columns}
 :::{.column width="50%"}
+isolate the improvement in model fit due to inclusion of additional parameters
 
 ```{r}
 #| echo: true
-m1 <- lm(y ~ 1 + x1, data = df)
-m2 <- lm(y ~ 1 + x1 + x2 + x3, data = df)
+m1 <- lm(y ~ 1 + x, data = df)
+m2 <- lm(y ~ 1 + z + z2 + x, data = df)
 anova(m1,m2)
 ```
 
@@ -816,19 +1021,22 @@ anova(m1,m2)
 :::
 ::::
 
-## tests of multiple parameters
+:::aside
+For linear models, model comparisons are typically testing reduction in residual sums of squares (via an $F$ test). For models with other error distributions, we often test differences in log-likelihood (via $\chi^2$ test).  
+:::
 
-or testing everything in the model all at once (by comparing it to a 'null model' with no predictors)
 
+## tests of multiple parameters (3)
 
 ::::{.columns}
 :::{.column width="50%"}
+Test everything in the model all at once by comparing it to a 'null model' with no predictors:  
 
 ```{r}
 #| echo: true
-m1 <- lm(y ~ 1, data = df)
-m2 <- lm(y ~ 1 + x1 + x2 + x3, data = df)
-anova(m1,m2)
+m0 <- lm(y ~ 1, data = df)
+m2 <- lm(y ~ 1 + z2 + z + x, data = df)
+anova(m0,m2)
 ```
 
 :::
@@ -839,33 +1047,60 @@ anova(m1,m2)
 ::::
 
 
-## tests of multiple parameters {.smaller}
+## tests of multiple parameters  (4)
 
 - Recall that a categorical predictor with $k$ levels involves fitting $k-1$ coefficients
 - We can test "are there differences in group means?" by testing the reduction in residual sums of squares resulting from the inclusion of all $k-1$ coefficients at once  
 
 ```{r}
 #| echo: true
-m1 = lm(y ~ 1, data = df)
-m2 = lm(y ~ 1 + species, data = df)
-coef(m2)
-anova(m1, m2)
+m0 = lm(y ~ 1, data = df)
+m1 = lm(y ~ 1 + species, data = df)
 ```
 
-
-## tangent: traditional ANOVA/ANCOVA {.smaller}
-
-This is kind of where traditional "analysis of (co)variance" sits.  
+<br>
 
 ::::{.columns}
 :::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+summary(m1)
+```
+```{r}
+.pp(summary(m1), l=list(c(9:20)))
+```
+
+
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+anova(m0, m1)
+```
+
+:::
+::::
+
+
+
+
+## ![](img_sandbox/tangent.png){width=35px} traditional ANOVA/ANCOVA {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+This is kind of where traditional "analysis of (co)variance" sits.  
+
+There are different 'types' of ANOVA..  
 
 - Type 1 ("sequential"): tests the addition of each variable entered in to the model, **in order**
 
 ```{r}
 #| echo: true
-m1 = lm(y ~ x1 + x2 + x3, data = df)
-anova(m2)
+m1 = lm(y ~ z2 + z + x, data = df)
+anova(m1)
 ```
 
 :::
@@ -876,20 +1111,22 @@ anova(m2)
 ::::
 
 :::aside
-this is not really relevant for DAPR3, but put a mental pin here for if your dissertation supervisor wants you to do an ANOVA/ANCOVA. You've already got all the tools to do these in the regression framework with `lm()`.  
+this is not really relevant for DAPR3, but put a pin in it here, and come back to it if your dissertation supervisor suggests that you do an ANOVA/ANCOVA. You've already got all the tools to do these in the regression framework with `lm()`.  
 :::
 
-## tangent: traditional ANOVA/ANCOVA {.smaller}
-
-This is kind of where traditional "analysis of (co)variance" sits.  
+## ![](img_sandbox/tangent.png){width=35px} traditional ANOVA/ANCOVA  {.smaller}
 
 ::::{.columns}
 :::{.column width="50%"}
-- Type 3: tests the addition of each variable *as if it were the last one entered in to the model*:  
+This is kind of where traditional "analysis of (co)variance" sits.  
+
+There are different 'types' of ANOVA..  
+
+- Type 3: tests the addition of each variable **as if it were the last one entered in to the model**:  
 
 ```{r}
 #| echo: true
-m1 = lm(y ~ x1 + x2 + x3, data = df)
+m1 = lm(y ~ z2 + z + x, data = df)
 car::Anova(m1, type="III")
 ```
 
@@ -901,7 +1138,7 @@ car::Anova(m1, type="III")
 ::::
 
 :::aside
-this is not really relevant for DAPR3, but put a mental pin here for if your dissertation supervisor wants you to do an ANOVA/ANCOVA. You've already got all the tools to do these in the regression framework with `lm()`.  
+this is not really relevant for DAPR3, but put a pin in it here, and come back to it if your dissertation supervisor suggests that you do an ANOVA/ANCOVA. You've already got all the tools to do these in the regression framework with `lm()`.  
 :::
 
 
@@ -913,7 +1150,7 @@ Our model:
 
 $\color{red}{y} = \color{blue}{\mathbf{X \boldsymbol \beta}} + \varepsilon \qquad \text{where } \boldsymbol \varepsilon \sim N(0, \sigma) \text{ independently}$
 <br>
-
+<br>
 Our ability to generalise from the model we fit on sample data to the wider population requires making some _assumptions._
 
 . . .
@@ -931,7 +1168,7 @@ You can also phrase the linear model as: $\color{red}{\boldsymbol  y} \sim Norma
 :::
 
 
-## The broader idea {.smaller}
+## The broader idea
 
 All our work here is in
 aim of making **models of the world**.  
@@ -947,7 +1184,7 @@ aim of making **models of the world**.
 - In an ideal world, our model accounts for _all_ the systematic relationships. The leftovers (our residuals) are just random noise.  
 
 
-  - If our model is mis-specified, or we don't measure some systematic relationship, then our residuals will reflect this.
+  - If our model is mis-specified, or we don't measure some systematic relationship, then our residuals may reflect this.
 
 
 - We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
@@ -971,7 +1208,8 @@ aim of making **models of the world**.
 :::{.column width="50%"}
 
 
-What does randomness look like? "zero mean and constant variance"
+What does randomness look like?  
+"zero mean and constant variance"
 
 - mean of the residuals = zero across the predicted values of the model.  
 
@@ -1011,7 +1249,8 @@ p1 / p2
 :::{.column width="50%"}
 
 
-What does randomness look like? "zero mean and constant variance"
+What does randomness look like?  
+"zero mean and constant variance"
 
 - **mean of the residuals = zero across the predicted values of the model.**  
 
@@ -1054,7 +1293,8 @@ p1 / p2
 :::{.column width="50%"}
 
 
-What does randomness look like? "zero mean and constant variance"
+What does randomness look like?  
+"zero mean and constant variance"
 
 - mean of the residuals = zero across the predicted values of the model.  
 
@@ -1097,7 +1337,8 @@ p1 / p2
 :::{.column width="50%"}
 
 
-What does randomness look like? "zero mean and constant variance"
+What does randomness look like?  
+"zero mean and constant variance"
 
 - mean of the residuals = zero across the predicted values of the model.  
 
@@ -1110,12 +1351,12 @@ What does randomness look like? "zero mean and constant variance"
 __`plot(model)`__
 
 ```{r echo=FALSE}
-df<-tibble(x=runif(1000,1,10),xr = round(x),x2=rnorm(1000),y=1*x+.4*x2+rnorm(1000))
+df<-tibble(x=runif(1000,1,10),xr = round(x),z=rnorm(1000),y=1*x+.4*z+rnorm(1000))
 ```
 
 ```{r echo=c(2,3)}
 par(mfrow=c(2,2))
-my_model <- lm(y ~ x + x2, data = df)
+my_model <- lm(y ~ z + x, data = df)
 plot(my_model)
 par(mfrow=c(1,1))
 ```
@@ -1123,7 +1364,7 @@ par(mfrow=c(1,1))
 :::
 ::::
 
-## Assumptions: Recipe Book
+## assumptions: the recipe book
   
   
 **L**inearity  
@@ -1135,17 +1376,20 @@ par(mfrow=c(1,1))
 "A Line without N is a Lie!" (Umberto)
 :::
 
-## assumption plots looking weird? {.smaller}
+## when things look weird...
+
+first thing to do: **think!**  
 
 - is our model mis-specified?  
   - is the relationship non-linear? higher order terms? (e.g. $y \sim x + x^2$)
   - is there an omitted variable or interaction term? 
+  - given our outcome variable, do we really *expect* our errors to be normally distributed?  
 
 ...
   
-## assumption plots looking weird? {.smaller}
+## when things look weird...
 
-...
+highly skewed?  
 
 - transform the outcome variable?
   - makes things look more "normal"
@@ -1154,15 +1398,16 @@ par(mfrow=c(1,1))
 
 ...
 
-## assumption plots looking weird? {.smaller}
+## when things look weird...
 
-...
+non-constant variance?  
 
 - bootstrap\*
   - do many times: resample (with replacement) your data, and refit your model.
   - obtain a distribution of parameter estimate of interest. 
   - summarise the distribution to compute a confidence interval for the estimate
   - celebrate?  
+- corrected standard errors (see **{lmtest}** package)
 
 ...
 
@@ -1170,9 +1415,9 @@ par(mfrow=c(1,1))
 \* not great with small samples.
 :::
 
-## What about independence?  
+## what about independence?  
 
-- you can't tell violations of independence from plots - we need to know about how the data were generated.  
+- you can't necessarily see violations of independence in diagnostic plots - we need to think about how the data were generated.  
 
 - transformations/bootstraps/ etc don't help us if we have violated our assumption of independence...
 
@@ -1189,6 +1434,40 @@ par(mfrow=c(1,1))
 - when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.  
 
   - one of these is that the errors are independent.
+
+## This week 
+
+
+::::{.columns}
+:::{.column width="50%"}
+### Tasks
+
+![](img_sandbox/readings.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete readings 
+
+<br>
+
+![](img_sandbox/labs.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Attend your lab and work together on the exercises 
+
+<br>
+
+![](img_sandbox/exam.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+### Support
+
+![](img_sandbox/forum.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Piazza forum! 
+
+<br>
+
+![](img_sandbox/oh.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Office hours (see Learn page for details)
+
+
+
+:::
+::::
 
 
 

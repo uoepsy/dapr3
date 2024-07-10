@@ -1,0 +1,1322 @@
+---
+title: "Week 5 Exercises: Assumptions, Diagnostics, Writing up"
+params: 
+    SHOW_SOLS: TRUE
+    showme2: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(ggdist)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+library(lme4)
+```
+
+# Video game aggression and the dark triad 
+
+:::frame
+__Dataset: NGV.csv__  
+
+These data are from an experiment designed to investigate how the realism of video games is associated with more/less unnecessarily aggressive gameplay, and whether this differs depending upon a) the playing mode (playing on a screen vs VR headset), and b) individual differences in the 'dark triad' personality traits.  
+
+The experiment involved playing 10 levels of a game in which the objective was to escape a maze. Various obstacles and other characters were present throughout the maze, and players could interact with these by side-stepping or jumping over them, or by pushing or shooting at them. All of these actions took the same amount of effort to complete (pressing a button), and each one achieved the same end (moving beyond the obstacle and being able to continue through the maze).  
+
+Each participant completed all 10 levels twice, once in which all characters were presented as cartoons, and once in which all characters were presented as realistic humans and animals. The layout of the level was identical in both, the only difference being the depiction of objects and characters. For each participant, these 20 levels ($2 \times 10$ mazes) were presented in a random order. Half of the participants played via a screen, and the other half played via a VR headset. For each level played, we have a record of "needless game violence" (NGV) which was calculated via the number of aggressive (pushing/shooting) actions taken (+0.5 for every action that missed an object, +1 for every action aimed at an inanimate object, and +2 for every action aimed at an animate character).  
+Prior to the experiment, each participant completed the Short Dark Triad 3 (SD-3), which measures the three traits of machiavellianism, narcissism, and psychopathy.  
+
+**Dataset:** [https://uoepsy.github.io/data/NGV.csv](https://uoepsy.github.io/data/NGV.csv){target="_blank"}
+
+```{r}
+#| echo: false
+ngv <- read_csv("../../data/NGV.csv")
+tibble(
+  variable=names(ngv),
+  description=c(
+    "Participant number",
+    "Participant age (years)",
+    "Maze level (1 to 20)",
+    "Whether the objects and characters in the level were presented as 'cartoon' or as 'realistic'",
+    "Whether the participant played via a screen or with a VR headset",
+    "Psycopathy Trait from SD-3 (score 1-5)",
+    "Narcissism Trait from SD-3 (score 1-5)",
+    "Machiavellianism Trait from SD-3 (score 1-5)",
+    "Needless Game Violence metric"
+  )
+) |> gt::gt()
+```
+
+
+
+:::
+
+`r qbegin(qcounter())`
+Conduct an analysis to address the research aims!  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- There's a lot to unpack in the research aim: _"how the realism of video games is associated with more/less unnecessarily aggressive gameplay, and whether this differs depending upon a) the playing mode (playing on a screen vs VR headset), and b) individual differences in the 'dark triad' personality traits."_    
+
+
+:::
+
+`r qend()`
+`r solbegin(label="1 - some quick checks", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+```{r}
+ngv <- read_csv("https://uoepsy.github.io/data/NGV.csv")
+```
+
+Let's make things factors and see where we stand: 
+```{r}
+ngv <- ngv |> 
+  mutate(
+    PID = factor(PID),
+    level = factor(level),
+    character = factor(character),
+    mode = factor(mode)
+  )
+
+summary(ngv)
+```
+
+everything looks good to me! All ranges looks fine.  
+
+How many people do we have? 
+```{r}
+dim(table(ngv$PID, ngv$character))
+```
+76!  
+Does everyone have 10 datapoints for cartoon and 10 for realistic?  
+```{r}
+any(table(ngv$PID, ngv$character)!=10)
+```
+yes, they do!  
+
+
+`r solend()`
+`r solbegin(label="2 - some exploratory plots", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Okay. Let's plot.. 
+The question asks about _"how the realism of video games is associated with more/less unnecessarily aggressive gameplay"_.  
+
+So we'll put the `character` on the x-axis and our outcome `NGV` on the y:  
+I like jitters, but you could put boxplots or violin plots too!  
+```{r}
+ggplot(ngv, aes(x = character, y = NGV)) +
+  geom_jitter(height=0, width=.2, alpha=.2)
+```
+
+We're also interested in whether this differs depending on the mode of gameplay (screen vs VR headset). So we could facet_wrap perhaps? or colour?  
+Let's also plot the means - i'll put those to the side of all the jittered points with a "nudge".. 
+```{r}
+ggplot(ngv, aes(x = character, y = NGV, col = mode)) +
+  geom_jitter(height=0, width=.2, alpha=.2) +
+  stat_summary(geom="pointrange", position = position_nudge(x=.25))
+```
+
+As well as looking at whether the `NGV~character` relationship differs between modes, we're also interested in the differences in this relationship due to individual differences in the dark triad personality traits. We have these measured for each person, so we can just use a similar idea:  
+```{r}
+ggplot(ngv, aes(x = character, y = NGV, col = factor(P))) +
+  geom_jitter(height=0, width=.2, alpha=.2) +
+  stat_summary(geom="pointrange", position = position_nudge(x=.25))
+
+ggplot(ngv, aes(x = character, y = NGV, col = factor(M))) +
+  geom_jitter(height=0, width=.2, alpha=.2) +
+  stat_summary(geom="pointrange", position = position_nudge(x=.25))
+
+ggplot(ngv, aes(x = character, y = NGV, col = factor(N))) +
+  geom_jitter(height=0, width=.2, alpha=.2) +
+  stat_summary(geom="pointrange", position = position_nudge(x=.25))
+```
+
+What do we get from all these plots? Well, it looks like mode _might_ be changing the relationship between character and violence. 
+It also looks like there's a considerable effect of the dark triad on the amount of violence people use! Of course, in these individual plots, it's hard to ascertain the extent to which plots showing differences between levels of Narcissism are due to Narcissism or due to differences in Psychopathy (all the dark triad traits are fairly correlated)
+```{r}
+ngv |> select(P,N,M) |>
+  cor() |> round(2)
+```
+
+So we need to do some modelling! 
+
+
+`r solend()`
+`r solbegin(label="3 - fitting a model", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+__NOTE:__ This is how I might approach this question. There are lots of other things that we could quite sensibly do!  
+
+
+- We know that we're interested in `NGV ~ character`.  
+- We also have the additional question of whether this is different between modes - `NGV ~ character * mode`.  
+- And whether the `NGV ~ character` association is modulated by Psychopathy `NGV ~ character * P`, and by Narcissism `NGV ~ character * N`, and by Machiavellianism `NGV ~ character * M`.  
+
+We could fit these all in one:  
+`NGV ~ character * (mode + P + M + N)`  
+
+We have multiple observations per participant `PID`, and we also have multiple observations for each level `level`. All participants see every level, and every level is seen by all participants. It's not the case that a level is unique to a single participant, so these are _crossed_.  
+`( ?? | PID) + ( ?? | level)`  
+
+Participants plays both the cartoon and the realistic versions, so we could have variation between participants in how realism affects violence - `(1 + character | PID)`. Beyond this, all variables are measured at the participant level, so we can't have anything else.  
+
+For the levels, each level is played by some participants in VR headsets and some participants on a screen, so we could have some levels for which VR feels very different (and makes you play more violently?) - `(mode | level)`.  We could also have some levels for which the realism has a bigger effect - `(character | level)`, and also have some levels for which people high on the dark triad play differently - i.e. the dark triad could result in lots of violence in level 2, but not in level 3 - `(P + M + N | level)`.  
+
+_(you could also try to fit the interactions in the random effects here but i'm not going to even try!)_  
+```{r}
+m0 = lmer(NGV ~ character * (mode + P + M + N) + 
+            (1 + character | PID) + 
+            (1 + character + mode + P + M + N | level), data = ngv)
+```
+
+after some simplification, I end up at the model below. You might end up at a slightly different random effect structure, and that is completely okay! The important thing is to be transparent in your decisions.  
+```{r}
+m1 = lmer(NGV ~ character * (mode + P + M + N) + 
+            (1 + character | PID) + 
+            (1 + mode | level), data = ngv)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Check the assumptions of your model
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We have a multilevel model, so we have assumptions at multiple levels! See [5A#mlm-assumptions-diagnostics](05a_assump.html#mlm-assumptions-diagnostics){target="_blank"}.  
+
+Be careful - QQplots with few datapoints can make things look weirder than they are - try a histogram too 
+
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Here are some assumption plots: 
+```{r}
+plot(m1)
+plot(m1,
+     form = sqrt(abs(resid(.))) ~ fitted(.),
+     type = c("p","smooth"))
+```
+
+There's something weird going on in the left hand side with a bunch of points looking funny! My guess is that this may well come out when examining influence. 
+
+In the QQplots of the random effects below we can see a couple of participants are a bit off - this may well be what we are seeing above.  
+```{r echo=c(2,3,4,5)}
+par(mfrow=c(2,2))
+qqnorm(ranef(m1)$PID[,1],main="1|PID");qqline(ranef(m1)$PID[,1])
+qqnorm(ranef(m1)$PID[,2],main="character|PID");qqline(ranef(m1)$PID[,2])
+qqnorm(ranef(m1)$level[,1],main="1|level");qqline(ranef(m1)$level[,1])
+qqnorm(ranef(m1)$level[,2],main="mode|level");qqline(ranef(m1)$level[,2])
+par(mfrow=c(1,1))
+```
+
+The QQplots for the level random effects are hard to evaluate in part because there aren't many levels (only 10). Let's do some histograms too. They don't look _terrible_.. 
+
+```{r echo=c(2,3,4,5)}
+par(mfrow=c(2,2))
+hist(ranef(m1)$PID[,1],main="1|PID")
+hist(ranef(m1)$PID[,2],main="character|PID")
+hist(ranef(m1)$level[,1],main="1|level")
+hist(ranef(m1)$level[,2],main="mode|level")
+par(mfrow=c(1,1))
+```
+
+Our model predictions don't look great either. Something is happening at values of 0?  
+
+```{r}
+library(performance)
+check_predictions(m1)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Check the extent to which your results may be sensitive to certain influential observations, or participants, or levels!  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See [5A #influence](05a_assump.html#influence){target="_blank"} for two packages that can assess influence. 
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+let's check for influential participants first:  
+```{r}
+library(HLMdiag)
+inf2 <- hlm_influence(m1,level="PID")
+dotplot_diag(inf2$cooksd, index=inf2$PID, cutoff="internal")
+```
+
+and let's re-fit without those two weird people.. 
+```{r}
+m1a <- lmer(NGV ~ character * (mode + P + M + N) + 
+            (1 + character | PID) + 
+            (1 + mode | level), 
+            data = ngv |> filter(!(PID %in% c("ppt_59","ppt_53"))))
+```
+
+Our conclusions change!  
+The significance of `P` (which is the association between psychopathy and needless violence in the cartoon condition) depends upon exclusion of these two participants. 
+I'm showing the table with Satterthwaite p-values as it's a bit quicker, but given that we have only 10 groups for the `level` random effect, it might be worth switching to KR
+```{r}
+library(sjPlot)
+tab_model(m1,m1a, df.method="satterthwaite")
+```
+
+Note that our model predictions look much better
+```{r}
+check_predictions(m1a)
+```
+
+If we look at those two people - they just didn't do much (or any) "needless game violence".  
+```{r}
+ngv |> filter(PID %in% c("ppt_59","ppt_53")) |>
+  ggplot(aes(x=character, y=NGV)) +
+  geom_jitter(height=0, width=.2) + 
+  facet_wrap(~PID)
+```
+
+Let's check for influential levels now:  
+```{r}
+inf3 <- hlm_influence(m1a,level="level")
+dotplot_diag(inf3$cooksd)
+```
+
+and for influential observations
+```{r}
+inf1 <- hlm_influence(m1a,level=1)
+dotplot_diag(inf1$cooksd)
+```
+
+`r solend()`
+<br>
+
+
+# All the data!  
+
+Below are all the datasets that we have seen across the readings and exercises, as well as a few extra ones that should be new! For each one, there is a quick explanation of the study design which also details the research aims of the project.  
+  
+Pick one of the datasets and: 
+
+1. explore the data, and do any required cleaning (most of them are clean already)
+2. conduct an analysis to address the research aims
+3. write a short description of the sample data [(see 5B #the-sample-data)](05b_writing.html#the-sample-data){target="_blank"}
+4. write a short explanation of your methods [(see 5B #the-methods)](05b_writing.html#the-methods){target="_blank"}
+5. write a short summary of your results, along with suitable visualisations and tables [(see 5B #the-results)](05b_writing.html#the-results){target="_blank"}
+6. Post some of your writing on Piazza and we can collectively discuss it!  
+
+If you like, work on this as a group - set up a google doc to collaboratively write together (it's much more fun that way!)
+
+
+## Readings 
+
+
+::: {.callout-note collapse="true"}
+#### motivation and grades in school children
+
+This dataset contains information on 900 children from 30 different schools across Scotland. The data was collected as part of a study looking at **whether education-related motivation is associated with school grades. This is expected to be different for state vs privately funded schools.**   
+All children completed an 'education motivation' questionnaire, and their end-of-year grade average has been recorded.    
+
+It is available at [https://uoepsy.github.io/data/schoolmot.csv](https://uoepsy.github.io/data/schoolmot.csv).  
+
+```{r}
+#| echo: false
+tibble(variable=names(read_csv("https://uoepsy.github.io/data/schoolmot.csv")),
+       description = c(
+         "Child's Education Motivation Score (range 0 - 10)",
+         "Funding ('state' or 'private')",
+         "Name of School that the child attends",
+         "Child's end-of-year grade average (0-100)")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/schoolmot.csv")
+
+mod1 <- lmer(grade ~ motiv * funding + 
+               (1 + motiv | schoolid), 
+             data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+::: {.callout-note collapse="true"}
+#### monkey social status and problem solving ability
+
+Our primate researchers have been busy collecting more data. They have given a sample of Rhesus Macaques various problems to solve in order to receive treats. Troops of Macaques have a complex social structure, but adult monkeys tend can be loosely categorised as having either a "dominant" or "subordinate" status. The monkeys in our sample are either adolescent monkeys, subordinate adults, or dominant adults. Each monkey attempted various problems before they got bored/distracted/full of treats. Each problems were classed as either "easy" or "difficult", and the researchers recorded whether or not the monkey solved each problem. 
+
+We're interested in **how the social status of monkeys is associated with the ability to solve problems**.  
+
+The data is available at [https://uoepsy.github.io/data/msmr_monkeystatus.csv](https://uoepsy.github.io/data/msmr_monkeystatus.csv){target="_blank"}.  
+
+```{r}
+#| echo: false
+tibble(variable=
+         names(read_csv("https://uoepsy.github.io/data/msmr_monkeystatus.csv")),
+       description = c(
+         "Social Status of monkey (adolescent, subordinate adult, or dominant adult)",
+         "Problem difficulty ('easy' vs 'difficult')",
+         "Monkey Name",
+         "Whether or not the problem was successfully solved by the monkey")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/msmr_monkeystatus.csv")
+
+# relevel difficulty
+df$difficulty <- factor(df$difficulty, 
+                        levels=c("easy","difficult"))
+
+mod1 <- glmer(solved ~ difficulty + status +
+                (1 + difficulty | monkeyID), 
+              family=binomial,
+              data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+::: {.callout-note collapse="true"}
+#### mindfulness and cognitive decline
+
+A study is interested in examining **whether engaging in mindfulness can prevent cognitive decline in older adults**. They recruit a sample of 20 participants at age 60, and administer the Addenbrooke's Cognitive Examination (ACE) every 2 years (until participants were aged 78). Half of the participants complete weekly mindfulness sessions, while the remaining participants did not.   
+
+  
+The data are available at: [https://uoepsy.github.io/data/msmr_mindfuldecline.csv](https://uoepsy.github.io/data/msmr_mindfuldecline.csv){target="_blank"}.  
+
+```{r}
+#| echo: false
+mmd <- read_csv("https://uoepsy.github.io/data/msmr_mindfuldecline.csv")
+tibble(
+  variable=names(mmd),
+  description=c("Participant Identifier",
+                "Whether the participant engages in mindfulness or not (control/mindfulness)",
+                "Study Visit Number (1 - 10)",
+                "Age (in years) at study visit",
+                "Addenbrooke's Cognitive Examination Score. Scores can range from 0 to 100",
+                "Clinical diagnosis of cognitive impairment ('imp' = impaired, 'unimp' = unimpaired)")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/msmr_mindfuldecline.csv")
+
+#recenter age
+df$ageC <- df$age-60
+
+mod1 <- lmer(ACE ~ 1 + ageC * condition + 
+               (1 + ageC | ppt), 
+             data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+
+::: {.callout-note collapse="true"}
+#### mid-life happiness slump in great apes
+
+Previous research has evidenced a notable dip in happiness for middle-aged humans. Interestingly, this phenomenon has even been observed in other primates, such as chimpanzees.  
+
+The present study is interested in examining whether the 'middle-age slump' happens to a similar extent for Orangutans as it does for Chimpanzees. 
+
+`r n_distinct(df$apeID)` apes (`r n_distinct(df$apeID[df$species=="chimp"])` Chimps and `r n_distinct(df$apeID[df$species=="orangutan"])` Orangutans) were included in the study. All apes were studied from early adulthood (10-12 years old for most great apes), and researchers administered the Happiness in Primates (HiP) scale to each participant every 3 years, up until the age of 40.  
+
+The data are available at [https://uoepsy.github.io/data/midlife_ape.csv](https://uoepsy.github.io/data/midlife_ape.csv){target="_blank"}.  
+
+The dataset has already been cleaned, and the researchers have confirmed that it includes `r n_distinct(df$apeID[df$species=="chimp"])` Chimps and `r n_distinct(df$apeID[df$species=="orangutan"])` Orangutans, and every ape has complete data (i.e. 10 rows for each ape).  
+
+```{r}
+#| echo: false
+mlape <- read_csv("https://uoepsy.github.io/data/midlife_ape.csv")
+tibble(
+  variable=names(mlape),
+  description=c("Ape's Name (all names are chosen to be unique)",
+                "Age (in years) at assessment",
+                "Species (chimp v orangutan)",
+                "Happiness in Primate Scale (range 1 to 18)",
+                "Study visit (1 to 10)")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/midlife_ape.csv")
+
+# add polynomials
+df <- df |> 
+  mutate(
+    poly1 = poly(timepoint,2,raw=F)[,1],
+    poly2 = poly(timepoint,2,raw=F)[,2]
+  )
+
+mod1 = lmer(HiP ~ 1 + (poly1 + poly2) * species +
+            (1 + poly1 + poly2 | apeID), 
+            data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+
+::: {.callout-note collapse="true"}
+#### CBD drinks and stress levels: Version 1
+
+Suppose that we conducted an experiment on a sample of 20 staff members from the Psychology department to investigate effects of CBD consumption on stress over the course of the working week. Participants were randomly allocated to one of two conditions: the control group continued as normal, and the CBD group were given one CBD drink every day. Over the course of the working week (5 days) participants stress levels were measured using a self-report questionnaire.  
+
+**Dataset:** [https://uoepsy.github.io/data/stressweek1.csv](https://uoepsy.github.io/data/stressweek1.csv){target="_blank"}.  
+
+```{r}
+#| echo: false
+psychstress <- read_csv("https://uoepsy.github.io/data/stressweek1.csv")
+tibble(
+  variable=names(psychstress),
+  description=c("Department",
+                "Participant Name",
+                "Whether or not they were allocated to the control group (N) or the CBD group (Y)",
+                "Measure used to assess stress levels",
+                "Day of the working week (1 to 5)",
+                "Stress Level (standardised)")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/stressweek1.csv")
+# re-center 'day' so the intercept is day 1
+df$day <- df$day-1 
+
+mod1 <- lmer(stress ~ 1 + day * CBD + 
+               (1 + day | pid), 
+             data = df)
+
+summary(mod1)
+```
+
+`r solend()`
+
+::: {.callout-note collapse="true"}
+#### CBD drinks and stress levels: Version 2
+
+As for previous study, but instead of a sample of 20 participants from the psychology staff, we have 240 people from various departments such as History, Philosophy, Art, etc.. 
+
+**Dataset:** [https://uoepsy.github.io/data/stressweek_nested.csv](https://uoepsy.github.io/data/stressweek_nested.csv){target="_blank"}.  
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(read_csv("https://uoepsy.github.io/data/stressweek_nested.csv")),
+  description=c("Department",
+                "Participant Name",
+                "Whether or not they were allocated to the control group (N) or the CBD group (Y)",
+                "Measure used to assess stress levels",
+                "Day of the working week (1 to 5)",
+                "Stress Level (standardised)")
+) |> gt::gt()
+```
+
+:::
+
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/stressweek_nested.csv")
+
+# re-center 'day' so the intercept is day 1
+df$day <- df$day-1 
+
+# removed day*CBD|dept to obtain convergence
+mod1 <- lmer(stress ~ 1 + day * CBD + 
+               (1 + day + CBD | dept) +
+               (1 + day | dept:pid), 
+             data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+
+::: {.callout-note collapse="true"}
+#### CBD drinks and stress levels: Version 3
+
+As for version 1 of this study (20 staff members from the Psychology department), but instead of taking a measurement _only_ on a self-report scale, we took 10 different measures every time point (cortisol levels, blood pressure, heart rate variability, various questionnaires etc).  
+
+**Dataset:** [https://uoepsy.github.io/data/stressweek_crossed.csv](https://uoepsy.github.io/data/stressweek_crossed.csv){target="_blank"}
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(read_csv("https://uoepsy.github.io/data/stressweek_crossed.csv")),
+  description=c("Department",
+                "Participant Name",
+                "Whether or not they were allocated to the control group (N) or the CBD group (Y)",
+                "Measure used to assess stress levels",
+                "Day of the working week (1 to 5)",
+                "Stress Level (standardised)")
+) |> gt::gt()
+```
+
+:::
+
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/stressweek_crossed.csv")
+
+# re-center 'day' so the intercept is day 1
+df$day <- df$day-1 
+
+# removed day*CBD|dept to obtain convergence
+mod1 <- lmer(stress ~ 1 + day * CBD + 
+                (1 + day + CBD | measure) +
+                (1 + day | pid), 
+             data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+## Labs
+
+
+::: {.callout-note collapse="true"}
+#### New Toys!
+  
+Recall the example from last semesters' USMR course, where the lectures explored linear regression with a toy dataset of how practice influences the reading age of toy characters (see [USMR Week 7 Lecture](https://uoepsy.github.io/usmr/2324/lectures/lecture06.html#/learning-to-read-1){target="_blank"}). We're going to now broaden our scope to the investigation of how practice affects reading age for **all** toys (not just Martin's Playmobil characters).  
+
+You can find a dataset at [https://uoepsy.github.io/data/toy2.csv](https://uoepsy.github.io/data/toy2.csv){target="_blank"} containing information on 129 different toy characters that come from a selection of different families/types of toy.   
+
+```{r echo=FALSE, message=FALSE,warning=FALSE}
+library(gt)
+tibble(variable=names(read_csv("https://uoepsy.github.io/data/toy2.csv")),
+       description=c("Type of Toy","Year Released","Character","Hours of practice per week","Reading Age")
+) %>% gt::gt()
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Audio interference in executive functioning
+
+This data is from a simulated study that aims to investigate the following research question: 
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+
+30 healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room. Unfortunately, lots of the tests were not administered correctly, and so not every participant has the full 15 trials worth of data.  
+
+The data is available at [https://uoepsy.github.io/data/efsdmt.csv](https://uoepsy.github.io/data/efsdmt.csv).  
+
+```{r}
+#| echo: false
+efrep <- read_csv("https://uoepsy.github.io/data/efsdmt.csv")
+tibble(variable=names(efrep),
+       description = c(
+         "Participant ID",
+         "Audio heard during the test ('no_audio', 'white_noise','music')",
+         "Whether the participant listened via speakers in the room or via noise cancelling headphones",
+         "Symbol Digit Modalities Test (SDMT) score")
+) %>% gt::gt()
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### dominance in adolescence of great apes
+
+We have data from a large sample of great apes who have been studied between the ages of 1 to 10 years old (i.e. during adolescence). Our data includes 4 species of great apes: Chimpanzees, Bonobos, Gorillas and Orangutans. Each ape has been assessed on a primate dominance scale at various ages. Data collection was not very rigorous, so apes do not have consistent assessment schedules (i.e., one may have been assessed at ages 1, 3 and 6, whereas another at ages 2 and 8).  
+
+The researchers are interested in examining how the adolescent development of dominance in great apes differs between species.  
+
+Data on the dominance scores of the apes are available at [https://uoepsy.github.io/data/msmr_apeage.csv](https://uoepsy.github.io/data/msmr_apeage.csv){target="_blank"} and the information about which species each ape is are in [https://uoepsy.github.io/data/msmr_apespecies.csv](https://uoepsy.github.io/data/msmr_apespecies.csv){target="_blank"}.  
+
+:::: {.columns}
+
+::: {.column width="45%"}
+```{r}
+#| echo: false
+#| label: tbl-spec1
+#| tbl-cap: "Data Dictionary: msmr_apespecies.csv"  
+ape_species <- read_csv("../../data/msmr_apespecies.csv")
+tibble(
+  variable = names(ape_species),
+  description = c("Ape Name","Species (Bonobo, Chimpanzee, Gorilla, Orangutan)")
+) |> gt::gt()
+```
+:::
+::: {.column width="10%"}
+
+:::
+::: {.column width="45%"}
+```{r}
+#| echo: false
+#| label: tbl-spec2
+#| tbl-cap: "Data Dictionary: msmr_apeage.csv"  
+ape_age <- read_csv("../../data/msmr_apeage.csv")
+tibble(
+  variable = names(ape_age),
+  description = c("Ape Name","Age at assessment (years)","Dominance (Z-scored)")
+) |> gt::gt()
+```
+
+:::
+::::
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### trolley problems
+
+The "Trolley Problem" is a thought experiment in moral philosophy that asks you to decide whether or not to pull a lever to divert a trolley. Pulling the lever changes the trolley direction from hitting 5 people to a track on which it will hit one person.  
+
+```{r}
+#| echo: false
+knitr::include_graphics("images/trolley.png")
+```
+
+Previous research has found that the "framing" of the problem will influence the decisions people make: 
+
+```{r}
+#| echo: false
+tribble(
+  ~`positive frame`,~`neutral frame`,~`negative frame`,
+  "5 people will be saved if you pull the lever; one person on another track will be saved if you do not pull the lever. All your actions are legal and understandable. Will you pull the lever?","5 people will be saved if you pull the lever, but another person will die. One people will be saved if you do not pull the lever, but 5 people will die. All your actions are legal and understandable. Will you pull the lever?",
+  "One person will die if you pull the lever. 5 people will die if you do not pull the lever. All your actions are legal and understandable. Will you pull the lever?"
+) |> gt::gt()
+```
+
+We conducted a study to investigate **whether the framing effects on moral judgements depends upon the stakes (i.e. the number of lives saved)**.  
+
+120 participants were recruited, and each gave answers to 12 versions of the thought experiment. For each participant, four versions followed each of the positive/neutral/negative framings described above, and for each framing, 2 would save 5 people and 2 would save 15 people.  
+
+The data are available at [https://uoepsy.github.io/data/msmr_trolley.csv](https://uoepsy.github.io/data/msmr_trolley.csv){target="_blank"}.  
+
+```{r}
+#| echo: false
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/msmr_trolley.csv")),
+  description = c(
+    "Participant ID",
+    "framing of the thought experiment (positive/neutral/negative",
+    "lives at stake in the thought experiment (5 or 15)",
+    "Whether or not the participant chose to pull the lever (1 = yes, 0 = no)")
+) |> gt::gt()
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### novel word learning
+
+```{r}
+load(url("https://uoepsy.github.io/msmr/data/nwl.RData"))
+```
+
+In the `nwl` data set (accessed using the code above), participants with aphasia are separated into two groups based on the general location of their brain lesion: anterior vs. posterior. There is data on the numbers of correct and incorrect responses participants gave in each of a series of experimental blocks. There were 7 learning blocks, immediately followed by a test. Finally, participants also completed a follow-up test.
+<br>
+Data were also collect from healthy controls. 
+<br>
+@fig-nwl shows the differences between lesion location groups in the average proportion of correct responses at each point in time (i.e., each block, test, and follow-up)
+
+```{r}
+#| label: fig-nwl
+#| echo: false
+#| fig.cap: "Differences between groups in the average proportion of correct responses at each block"
+load(url("https://uoepsy.github.io/msmr/data/nwl.RData"))
+ggplot(filter(nwl, !is.na(lesion_location)), aes(block, PropCorrect, 
+                                            color=lesion_location, 
+                                            shape=lesion_location)) +
+  #geom_line(aes(group=ID),alpha=.2) + 
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  stat_summary(data=filter(nwl, !is.na(lesion_location), block <= 7), 
+                           fun=mean, geom="line") + 
+  geom_hline(yintercept=0.5, linetype="dashed") + 
+  geom_vline(xintercept=c(7.5, 8.5), linetype="dashed") + 
+  scale_x_continuous(breaks=1:9, labels=c(1:7, "Test", "Follow-Up")) + 
+  theme_bw(base_size=10) + 
+  labs(x="Block", y="Proportion Correct", shape="Lesion\nLocation", color="Lesion\nLocation")
+```
+
+```{r}
+#| echo: false
+data.frame(
+  variable = names(nwl),
+  description = c("Whether participant is a stroke patient ('patient') or a healthy control ('control')", "Location of brain lesion: anterior vs posterior","Experimental block (1-9). Blocks 1-7 were learning blocks, immediately followed by a test in block 8. Block 9 was a follow-up test at a later point","Proportion of 30 responses in a given block that the participant got correct","Number of responses (out of 30) in a given block that the participant got correct","Number of responses (out of 30) in a given block that the participant got incorrect","Participant Identifier","Experimental phase, corresponding to experimental block(s): 'Learning', 'Immediate','Follow-up'")
+) |> gt::gt()
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Az.rda  
+  
+These data are available at [https://uoepsy.github.io/data/Az.rda](https://uoepsy.github.io/data/Az.rda). You can load the dataset using:  
+```{r}
+load(url("https://uoepsy.github.io/data/Az.rda"))
+```
+and you will find the `Az` object in your environment.  
+
+The `Az` object contains information on 30 Participants with probable Alzheimer's Disease, who completed 3 tasks over 10 time points: A memory task, and two scales investigating ability to undertake complex activities of daily living (cADL) and simple activities of daily living (sADL). Performance on all of tasks was calculated as a percentage of total possible score, thereby ranging from 0 to 100. 
+
+We're interested in *whether performance on these tasks differed at the outset of the study, and if they differed in their subsequent change in performance*.  
+
+```{r}
+#| echo: false
+tibble(
+    variable = names(Az),
+    description = c("Unique Subject Identifier","Time point of the study (1 to 10)","Task type (Memory, cADL, sADL)","Score on test (range 0 to 100)")
+) |> gt::gt()
+```
+:::
+
+::: {.callout-note collapse="true"}
+#### Psychoeducation treatment effects  
+
+```{r}
+#| include: false
+geduc = read_csv("https://uoepsy.github.io/data/msmr_gadeduc.csv")
+geduc1 = geduc |> 
+  pivot_longer(2:last_col(), names_to="visit",values_to="GAD") |>
+  mutate(
+    visit = as.numeric(gsub("visit_","",visit))
+  ) |>
+  separate(patient, into=c("therapist","group","patient"), sep="_")
+# m = lmer(GAD~visit*group+(1+visit*group|therapist)+(1+visit|therapist:patient),geduc1)
+# summary(m)
+tn = geduc1 |> group_by(therapist) |> summarise(np = n_distinct(patient))
+```
+
+This is synthetic data from a randomised controlled trial, in which `r nrow(tn)` therapists randomly assigned patients (each therapist saw between `r min(tn[,'np'])` and `r max(tn[,'np'])` patients) to a control or treatment group, and monitored their scores over time on a measure of generalised anxiety disorder (GAD7 - a 7 item questionnaire with 5 point likert scales).  
+
+The control group of patients received standard sessions offered by the therapists. 
+For the treatment group, 10 mins of each sessions was replaced with a specific psychoeducational component, and patients were given relevant tasks to complete between each session. All patients had monthly therapy sessions. Generalised Anxiety Disorder was assessed at baseline and then every visit over 4 months of sessions (5 assessments in total).  
+
+The data are available at [https://uoepsy.github.io/data/msmr_gadeduc.csv](https://uoepsy.github.io/data/msmr_gadeduc.csv){target="_blank"}
+
+You can find a data dictionary below:
+```{r}
+#| echo: false
+tibble(
+    variable = names(geduc),
+    description = c("A patient code in which the labels take the form <Therapist initials>_<group>_<patient number>.","Score on the GAD7 at baseline", 
+                    "GAD7 at 1 month assessment",
+                    "GAD7 at 2 month assessment",
+                    "GAD7 at 3 month assessment",
+                    "GAD7 at 4 month assessment"
+                    )
+)  |> gt::gt()
+```
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Test-enhanced learning  
+
+An experiment was run to conceptually replicate "test-enhanced learning" (Roediger & Karpicke, 2006): two groups of 25 participants were presented with material to learn. One group studied the material twice (`StudyStudy`), the other group studied the material once then did a test (`StudyTest`). Recall was tested immediately (one minute) after the learning session and one week later. The recall tests were composed of 175 items identified by a keyword (`Test_word`). 
+
+The critical (replication) prediction is that the `StudyStudy` group recall more items on the immediate test, but the `StudyTest` group will retain the material better and thus perform better on the 1-week follow-up test.  
+
+The following code loads the data into your R environment by creating a variable called `tel`:
+
+```{r}
+#| eval: false
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+```
+
+```{r} 
+#| echo: false
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+tibble(
+  variable=names(tel),
+  description=c("Unique Participant Identifier", "Group denoting whether the participant studied the material twice (StudyStudy), or studied it once then did a test (StudyTest)","Time of recall test ('min' = Immediate, 'week' = One week later)","Word being recalled (175 different test words)","Whether or not the word was correctly recalled","Time to recall word (milliseconds)")
+) |> gt::gt()
+```
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Vocabulary development in monolingual and bilingual children
+
+```{r}
+#| echo: false
+pvt <- read_csv("https://uoepsy.github.io/data/pvt_bilingual.csv")
+pvtsc = pvt |> count(school,child,isBilingual)
+```
+
+`r nrow(pvtsc)` children from `r length(unique(pvt$school))` schools were included in the study. Children were assessed on a yearly basis for 7 years throughout primary school on a measure of vocabulary administered in English, the Picture Vocab Test (PVT). `r sum(pvtsc$isBilingual==0)` were monolingual English speakers, and `r sum(pvtsc$isBilingual==1)` were bilingual (english + another language). 
+
+Previous research conducted on monolingual children has suggested that that scores on the PVT increase steadily up until the age of approximately 7 or 8 at which point they begin to plateau. The aim of the present study is to investigate differences in the development of vocabulary between monolingual and bilingual children.  
+
+The data are available at [https://uoepsy.github.io/data/pvt_bilingual.csv](https://uoepsy.github.io/data/pvt_bilingual.csv).  
+
+```{r}
+#| echo: false
+tibble(variable = names(pvt),
+       description = c(
+         "Child's name",
+         "School Identifier",
+         "Binary variable indicating whether the child is monolingual (0) or bilingual (1)",
+         "Age (years)",
+         "Score on the Picture Vocab Test (PVT). Scores range 0 to 60")
+) |> gt::gt()
+```
+
+:::
+
+
+## New
+
+
+::: {.callout-note collapse="true"}
+#### routine and emotion dysregulation in children
+
+**Are children with more day-to-day routine better at regulating their emotions?** A study of 200 children from 20 schools (9 private schools and 11 state schools) completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). 
+
+**DATASET:** [https://uoepsy.github.io/data/crqeds.csv](https://uoepsy.github.io/data/crqeds.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
+tibble(
+  variable=names(d3),
+  description=c("School Identifier",
+                "Emotion Dysregulation Score (range 1-6, higher values indicate more *dys*regulation of emotions)",
+                "Childhood Routine Questionnaire Score (range 0-7, higher values indicate more day-to-day routine)",
+                "School type (private / state)")
+) |> gt::gt()
+
+```
+
+:::
+
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
+
+mod1 <- lmer(EDS ~ schooltype + CRQ + 
+       (1 + CRQ | schoolid), 
+       data = df)
+
+summary(mod1)
+```
+`r solend()`
+
+
+
+
+::: {.callout-note collapse="true"}
+#### the role of mannequins in clothing purchases
+
+**Does clothing seem more attractive to shoppers when it is viewed on a model, and is this dependent on item price?** 30 participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it. Each participant saw 20 items, ranging in price from £5 to £100. 15 participants saw these items worn by a model, while the other 15 saw the items against a white background.  
+
+**DATASET:** [https://uoepsy.github.io/data/dapr3_mannequin.csv](https://uoepsy.github.io/data/dapr3_mannequin.csv)
+
+```{r}
+#| eval: false
+#| echo: false
+set.seed(15)
+N = 600
+n_groups = 30
+g = rep(1:n_groups, e = N/n_groups)      # the group identifier
+x = rep(seq(5,100,len=20),n_groups)
+b = rep(0:1,e=15)[g]
+re0 = rnorm(n_groups, sd = 1)  # random intercepts
+re  = re0[g]
+rex = rnorm(n_groups, sd = .4)  # random effects
+re_x  = rex[g]
+lp = (0 + re) + (1 + re_x)*scale(x) + (.5 * b) + (.5*scale(x)*b)
+y = rnorm(N, mean = lp, sd = 2) # create a continuous target variable
+df = data.frame(x, g=factor(g), b=b, y)
+
+clothesdf <- df |> transmute(
+  purch_rating = round(56.4+scale(y)[,1]*16.2),
+  price = round(x),
+  ppt = factor(paste0("ppt_",g)),
+  condition = ifelse(b==0,"item_only","model")
+)
+# write_csv(clothesdf, "../../data/dapr3_mannequin.csv")
+```
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+tibble(
+  variable=names(d3),
+  description=c("Purchase Rating (sliding scale 0 to 100, with higher ratings indicating greater perceived likelihood of purchase)",
+                "Price presented with item (range £5 to £100)",
+                "Participant Identifier",
+                "Whether items are seen on a model or on a white background")
+) |> gt::gt()
+
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+
+#scale price to help convergence
+#change 1 in price is now change of £10
+df$price <- df$price/10
+
+mod1 <- lmer(purch_rating ~ price*condition + 
+       (1+price|ppt), 
+       data = df)
+  
+summary(mod1)
+```
+`r solend()`
+
+
+::: {.callout-note collapse="true"}
+#### mental wellbeing across Scotland  
+
+Researchers want to study the **relationship between time spent outdoors and mental wellbeing**, across all of Scotland. They contact all the Local Authority Areas (LAAs) and ask them to collect data for them, with participants completing the Warwick-Edinburgh Mental Wellbeing Scale (WEMWBS), a self-report measure of mental health and well-being, and being asked to estimate the average number of hours they spend outdoors each week. Twenty of the Local Authority Areas provided data. 
+
+**DATASET:** [https://uoepsy.github.io/data/LAAwellbeing.csv](https://uoepsy.github.io/data/LAAwellbeing.csv)
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+tibble(
+  variable=names(d3),
+  description=c("Participant Identifier",
+                "Participant Name",
+                "Local Authority Area",
+                "Number of hours spent outdoors per week",
+                "Wellbeing score (Warwick Edinburgh Mental Wellbeing Scale). Range 15 - 75, with higher scores indicating better mental wellbeing",
+                "Population density of local authority area (number of people per square km)")
+) |> gt::gt()
+
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/LAAwellbeing.csv")
+
+mod1 <- lmer(wellbeing ~ density + outdoor_time + 
+       (1 + outdoor_time | laa), 
+       data = df) 
+
+summary(mod1)
+```
+
+easter egg: check for influential people! 
+
+`r solend()`
+
+
+::: {.callout-note collapse="true"}
+#### work patterns and mental wellbeing 
+
+The "Wellbeing in Work" dataset contains information on employee wellbeing, assessed at baseline (start of study), 12 months post, 24 months post, and 36 months post.  over the course of 36 months. 
+Participants were randomly assigned to one of three employment conditions:
+
+- control: No change to employment. Employees continue at 5 days a week, with standard allocated annual leave quota.    
+- unlimited_leave : Employees were given no limit to their annual leave, but were still expected to meet required targets as specified in their job description. 
+- fourday_week: Employees worked a 4 day week for no decrease in pay, and were still expected to meet required targets as specified in their job description.
+
+The researchers have two main questions: **Overall, did the participants' wellbeing stay the same or did it change? Did the employment condition groups differ in the how wellbeing changed over the assessment period?**     
+
+**DATASET:** [https://uoepsy.github.io/data/wellbeingwork3.rda](https://uoepsy.github.io/data/wellbeingwork3.rda)
+
+```{r}
+#| echo: false
+load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
+d3 <- wellbeingwork3
+tibble(variable=names(d3),
+       description = c(
+         "Participant ID",
+         "Timepoint (0 = baseline, 1 = 12 months, 2 = 24 months, 3 = 36 months)",
+         "Employment Condition ('control' = 5 day week, 28 days of leave. 'unlimited_leave' = 5 days a week, unlimited leave. 'fourday_week' = 4 day week, 28 days of leave)",
+         "Wellbeing score (Warwick Edinburgh Mental Wellbeing Scale). Range 15 - 75, with higher scores indicating better mental wellbeing")
+) %>% gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+load(url("https://uoepsy.github.io/data/wellbeingwork3.rda"))
+
+mod1 <- lmer(Wellbeing~TimePoint+(1+TimePoint|ID), 
+             data = wellbeingwork3)
+mod2 <- lmer(Wellbeing~TimePoint+Condition+(1+TimePoint|ID), 
+             data = wellbeingwork3)
+mod3 <- lmer(Wellbeing~TimePoint*Condition+(1+TimePoint|ID), 
+             data = wellbeingwork3)
+anova(mod1,mod2,mod3)
+
+summary(mod3)
+```
+
+
+`r solend()`
+
+
+
+::: {.callout-note collapse="true"}
+### evaluating an intervention to reduce adolescent aggressive behaviours
+
+In 2010 A US state's commissioner for education was faced with growing community concern about rising levels of adolescent antisocial behaviours. 
+
+After a series of focus groups, the commissioner approved the trialing of an intervention in which yearly Parent Management Training (PMT) group sessions were offered to the parents of a cohort of students entering 10 different high schools. Every year, the parents were asked to fill out an informant-based version of the Aggressive Behaviour Scale (ABS), measuring verbal and physical abuse, socially inappropriate behavior, and resisting care. Where possible, the same parents were followed up throughout the child's progression through high school. Alongside this, parents from a cohort of students entering 10 further high schools in the state were recruited to also complete the same informant-based ABS, but were not offered the PMT group sessions.  
+The commissioner has two main questions: **Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?**  
+
+**DATASET:** [https://uoepsy.github.io/data/abs_intervention.csv](https://uoepsy.github.io/data/abs_intervention.csv) 
+
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/abs_intervention.csv")
+tibble(variable=names(d3),
+       description = c(
+         "School Name",
+         "Participant Identifier",
+         "Age (years)",
+         "Whether or not parents attended Parent Management Training (PMT) group sessions (0 = No, 1 = Yes)",
+         "Aggressive Behaviours Scale. Measures verbal and physical abuse, socially inappropriate behavior, and resisting care. Scores range from 0 to 100, with higher scores indicating more aggressive behaviours.")
+) %>% gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+
+Check here: [https://uoepsy.github.io/dapr3/2324/lectures/dapr3_2324_05b_rq2mod.html#4 ](https://uoepsy.github.io/dapr3/2324/lectures/dapr3_2324_05b_rq2mod.html#4 ){target="_blank"}
+
+`r solend()`
+
+
+
+::: {.callout-note collapse="true"}
+#### the influence of music on driving speeds
+
+These data are simulated to represent data from a fake experiment, in which participants were asked to drive around a route in a 30mph zone. Each participant completed the route 3 times (i.e. "repeated measures"), but each time they were listening to different audio (either speech, classical music or rap music). Their average speed across the route was recorded. 
+This is a fairly simple design, that we might use to ask **"how is the type of audio being listened to associated with driving speeds?"** 
+
+The data are available at [https://uoepsy.github.io/data/drivingmusicwithin.csv](https://uoepsy.github.io/data/drivingmusicwithin.csv).  
+
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/drivingmusicwithin.csv")),
+  description = c("Participant Identifier","Avg Speed Driven on Route (mph)","Music listened to while driving (classical music / rap music / spoken word)")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/drivingmusicwithin.csv")
+```
+
+Temptation is to fit the below, but it won't work, because each pid has only 1 obs for each music, so we're overfitting
+```{r}
+#| error: true
+#| warning: true
+#| message: true
+mod1 <- lmer(speed ~ music + 
+               (1 + music | pid), 
+             data = df)
+```
+
+```{r}
+mod1 <- lmer(speed ~ music + 
+               (1 | pid), 
+             data = df)
+
+summary(mod1)
+```
+
+`r solend()`
+
+
+
+::: {.callout-note collapse="true"}
+#### CBT and stress levels
+
+These data are simulated to represent data from 50 participants, each measured at 3 different time-points (pre, during, and post) on a measure of stress. Participants were randomly allocated such that half received some cognitive behavioural therapy (CBT) treatment, and half did not. This study is interested in assessing **whether the two groups (control vs treatment) differ in how stress changes across the 3 time points**. 
+
+The data are available at [https://uoepsy.github.io/data/stressint.csv](https://uoepsy.github.io/data/stressint.csv).  
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/stressint.csv")),
+  description = c("Participant Identifier","Stress (range 0 to 100)","Time (pre/post/during)",
+                  "Whether participant is in the CBT group or control group")
+) |> gt::gt()
+```
+
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/stressint.csv")
+df$time <- factor(df$time, levels=c("Pre","During","Post"))
+```
+
+Temptation is to fit the below, but it won't work, because each pid has only 1 obs for each music, so we're overfitting
+```{r}
+#| error: true
+#| warning: true
+#| message: true
+mod1 <- lmer(stress ~ time*group + 
+               (1 + time|ppt), 
+             data = df)
+```
+
+```{r}
+mod1 <- lmer(stress ~ time*group + 
+               (1 |ppt), 
+             data = df)
+
+summary(mod1)
+```
+
+`r solend()`
+
+
+::: {.callout-note collapse="true"}
+#### erm.. I don't believe you
+
+These data are simulated to represent data from 30 participants who took part in an experiment designed to investigate **whether fluency of speech influences how believable an utterance is perceived to be**.  
+
+Each participant listened to the same 20 statements, with 10 being presented in fluent speech, and 10 being presented with a disfluency (an "erm, ..."). Fluency of the statements was counterbalanced such that 15 participants heard statements 1 to 10 as fluent and 11 to 20 as disfluent, and the remaining 15 participants heard statements 1 to 10 as disfluent, and 11 to 20 as fluent. The order of the statements presented to each participant was random. Participants rated each statement on how believable it is on a scale of 0 to 100.  
+
+The data are available at [https://uoepsy.github.io/data/erm_belief.csv](https://uoepsy.github.io/data/erm_belief.csv). 
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/erm_belief.csv")),
+  description = c("Participant Identifier","Trial number", "Statement identifier", "Condition (fluent v disfluent)", "belief rating (0-100)", "Statement")
+) |> gt::gt()
+```
+
+:::
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/erm_belief.csv")
+# make trial_n numeric
+df$trial_n <- as.numeric(gsub("trial_","",df$trial_n))
+# relevel condition:
+df$condition <- factor(df$condition, levels=c("fluent","disfluent"))
+
+# having (trial_n | ppt) doesn't converge, so simplify to:
+mod1 <- lmer(belief ~ trial_n + condition + 
+               (1 | ppt) + 
+               (1 + condition | statement), 
+             data = df)
+
+summary(mod1)
+```
+
+easter egg: plot your ranefs
+```{r}
+dotplot.ranef.mer(ranef(mod1))$statement
+```
+
+
+`r solend()`
+
+
+
+::: {.callout-note collapse="true"}
+#### domain differences in cognitive aging
+
+These data are simulated to represent a large scale international study of cognitive aging, for which data from 17 research centers has been combined. The study team are interested in **whether different cognitive domains have different trajectories as people age**. Do all cognitive domains decline at the same rate? Do some decline more steeply, and some less? The literature suggests that scores on cognitive ability are predicted by educational attainment, so they would like to control for this.  
+
+Each of the 17 research centers recruited a minimum of 14 participants (Median = 21, Range 14-29) at age 48, and recorded their level of education (in years). Participants were then tested on 5 cognitive domains: processing speed, spatial visualisation, memory, reasoning, and vocabulary. Participants were contacted for follow-up on a further 9 occasions (resulting in 10 datapoints for each participant), and at every follow-up they were tested on the same 5 cognitive domains. Follow-ups were on average 3 years apart (Mean = 3, SD = 0.8). 
+
+The data are available at [https://uoepsy.github.io/data/cogdecline.csv](https://uoepsy.github.io/data/cogdecline.csv). 
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/cogdecline.csv")),
+  description = c("Center ID","Participant Identifier","Educational attainment (years of education)","Age at visit (years)",
+                  "Score on Processing Speed domain task",
+                  "Score on Spatial Visualisation domain task",
+                  "Score on Memory domain task",
+                  "Score on Reasoning domain task",
+                  "Score on Vocabulary domain task"
+                  )
+) |> gt::gt()
+```
+
+:::
+
+`r solbegin(show=params$showme2, toggle=params$TOGGLE)`
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/cogdecline.csv")
+
+# reshape
+df <- df |> pivot_longer(processing_speed:vocabulary,
+                   names_to = "domain",
+                   values_to = "score")
+
+# recenter age and educ
+df$age <- df$age - 48
+df$educ <- df$educ - min(df$educ)
+```
+this won't converge:
+```{r}
+#| eval: false
+mod1 <- lmer(score ~ educ + age * domain + 
+               (1 + educ + age * domain | cID) + 
+               (1 + age * domain | cID:pptID),
+             data = df)
+```
+```{r}
+mod1 <- lmer(score ~ educ + age * domain + 
+               (1 | cID) + 
+               (1 + age | cID:pptID) +
+               (1 | cID:pptID:domain),
+             data = df,
+             control=lmerControl(optimizer="bobyqa"))
+
+summary(mod1)
+```
+
+
+`r solend()`
+
+
+
