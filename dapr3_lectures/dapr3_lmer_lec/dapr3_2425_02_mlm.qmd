@@ -21,8 +21,8 @@ source('_theme/theme_quarto.R')
 block1_name = "multilevel modelling<br>working with group structured data"
 block1_lecs = c("regression refresher",
                 "introducing multilevel models",
-                "more multilevel models",
                 "more complex groupings",
+                "centering, assumptions, and diagnostics",
                 "recap")
 block2_name = "factor analysis<br>working with multi-item measures"
 block2_lecs = c("PCA",
@@ -35,727 +35,11 @@ source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
 course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=2)
 ```
 
-# This week
+# This week {transition="slide"}
 
-- introduction to clustered data 
-    - what it looks like
-    - what we can do with our current tools
-- introduction to the multilevel model
+- introduction to the multilevel/mixed effects model
     - model structure
     - multilevel models in R
-
-# Clustered data
-
-## Examples of clustered data
-
-
-::::{.columns}
-:::{.column width="50%"}
-
-- children within schools  
-
-- patients within clinics  
-
-- observations within individuals  
-
-:::
-
-:::{.column width="50%"}
-![](img_sandbox/h2.png)
-:::
-::::
-
-
-## Examples of clusters of clusters
-
-::::{.columns}
-:::{.column width="50%"}
-
-- children within classrooms within schools within districts etc...  
-
-- patients within doctors within hospitals... 
-
-- time-periods within trials within individuals
-
-:::
-
-:::{.column width="50%"}
-![](img_sandbox/h3.png)
-:::
-::::
-
-:::aside
-Other relevant terms you will tend to see: "grouping structure", "levels", "hierarchies". 
-:::
-
-## Common study designs
-
-
-![](img_sandbox/lev1.png)
-
-## the impact of clustering
-
-Measurements on observational units within a given cluster are often more similar to each other than to those in other clusters.  
-
-- For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
-
-
-
-
-## the impact of clustering  
-
-::::{.columns}
-:::{.column width="50%"}
-#### why?
-
-
-Clustering is something **systematic** that our model should (arguably) take into account.  
-
-- $\varepsilon \sim N(0, \sigma) \textbf{ independently}$ 
-
-:::
-
-:::{.column width="50%" .fragment}
-#### how?
-
-Standard errors will often be smaller than they should be, meaning that:  
-
-- confidence intervals will often be too narrow 
-- $t$-statistics will often be too large  
-- $p$-values will often be misleadingly small
-
-
-:::
-::::
-
-
-## quantifying clustering {.smaller}
-
-Clustering can be expressed in terms of the expected correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
-
-
-::::{.columns}
-:::{.column width="50%"}
-
-There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
-
-<br>
-$\rho = \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\ \qquad \\\textrm{Where:} \\ \sigma^2_{b} = \textrm{variance between clusters} \\ \sigma^2_e = \textrm{variance within clusters (residual variance)} \\$
-
-:::
-
-:::{.column width="50%"}
-
-```{r echo=FALSE, fig.asp=.8, fig.align="center"}
-iccgen <- function(j,n,e,icc,coef=0){
-  v = (icc*e)/(1-icc)
-  es = e/(v+e)
-  v = if(is.infinite(v)){v=e}else{v/(v+e)}
-  npj = n/j
-  tibble(
-    j = letters[1:j],
-    zeta_j = rnorm(j,0,sqrt(v))
-  ) %>%
-    mutate(
-      e_ij = map(j, ~rnorm(npj, 0, sqrt(es)))
-    ) %>% unnest() %>%
-    mutate(
-      x = rnorm(n, 10, 5),
-      y = 5 + coef*x + zeta_j + e_ij
-    )
-}
-set.seed(3406)
-sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
-        ~iccgen(j=10,n=100,e=1,icc=.,coef=0), .id="icc") %>%
-  group_by(icc, j) %>%
-  mutate(
-    m = mean(y)
-  ) %>% ungroup
-
-ggplot(sims, aes(x=j, y=y))+
-  geom_jitter(height=0, size=2,aes(col=j))+
-  scale_y_continuous(NULL, labels=NULL)+
-  stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
-  facet_wrap(~icc)+
-  guides(col=F)+
-  labs(x="cluster")
-```
-
-
-:::
-::::
-
-
-:::aside
-Can also be interpreted as the expected correlation between two randomly drawn observations from the same group. 
-:::
-
-:::notes
-The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
-:::
-
-```{r}
-#| eval: false
-#| fig-asp: 0.8
-set.seed(875)
-sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
-        ~iccgen(j=10,n=100,e=1,icc=.,coef=.1), .id="icc")
-
-ggplot(sims, aes(x=x, y=y))+
-  geom_point(aes(col=j))+
-  geom_line(aes(col=j))+
-  facet_wrap(~icc)+
-  guides(col=F)+
-  scale_y_continuous(NULL, labels=NULL)+
-  scale_x_continuous("X", labels=NULL)
-```
-
-
-# Working with clustered data
-
-## Wide Data/Long Data
-
-
-::::{.columns}
-:::{.column width="50%"}
-__Wide Data__  
-observations are spread across columns
-
-```{r echo=FALSE}
-tibble(
-  ID = sprintf("%03d",1:4), 
-  age = rdunif(4, 18, 75),
-  trial_1 = c(10, 7.5, 12, 10.5),
-  trial_2 = c(12.5, 7, 14.5, 17),
-  trial_3 = c(18, 5, 11, 14)
-) -> wided
-wided %>% rbind(.,"...")
-```
-
-:::
-
-:::{.column width="50%"}
-__Long Data__  
-each observation of the outcome is a separate row
-
-```{r echo=FALSE}
-tibble(
-  ID = sprintf("%03d",1:4), 
-  age = rdunif(4, 18, 75),
-  trial_1 = c(10, 7.5, 12, 10.5),
-  trial_2 = c(12.5, 7, 14.5, 17),
-  trial_3 = c(18, 5, 11, 14)
-) -> wided
-pivot_longer(wided, 3:5, names_to="trial", values_to="score") -> longd
-longd %>% rbind(.,"...")
-```
-:::
-::::
-
-## Wide Data/Long Data
-
-
-```{r echo=FALSE}
-knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
-```
-
-:::aside
-Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (\\@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)
-:::
-
-##  Long Data = plots by group
-
-
-::::{.columns}
-:::{.column width="50%"}
-__`group` aesthetic__  
-
-```{r}
-#| echo: true
-#| fig-asp: .5
-ggplot(longd, aes(x=trial,y=score, group=ID))+
-  geom_point(size=4)+
-  geom_path()
-```
-
-:::
-
-:::{.column width="50%"}
-__`facet_wrap()`__  
-```{r}
-#| echo: true
-#| fig-asp: .5
-ggplot(longd, aes(x=trial,y=score))+
-  geom_point(size=4)+
-  geom_path(aes(group=1))+
-  facet_wrap(~ID)
-```
-:::
-::::
-
-## Long Data = computations by-group
-
-```{r}
-#| echo: true
-longd %>% 
-  group_by(ID) %>%
-  summarise(
-    ntrials = n_distinct(trial),
-    meanscore = mean(score),
-    sdscore = sd(score)
-  )
-```
-
-
-# Modelling clustered data with `lm()`
-
-```{r}
-#| include: false
-set.seed(7555)
-n_groups = 12
-N = n_groups*10
-g = rep(1:n_groups, e = N/n_groups)
-#x = rep(seq(-1,1,length.out=10),n_groups)
-x = rnorm(N)
-b = rbinom(n_groups,1,.5)[g]
-re0 = rnorm(n_groups, sd = 1)
-re0[1] = 2.3
-re0[11] = -1.7
-re0[9] = -3.4
-re = re0[g]
-b = rbinom(n_groups,1,plogis(scale(order(re0))))[g]
-rex = rnorm(n_groups, sd = .5)
-rex[c(3,8)] = rnorm(2,.2,1)
-rex[9] = -1.4
-re_x = rex[g]
-lp = (0 + re) + (1 + re_x) * x
-y = rnorm(N, mean = lp, sd = 1)
-x = round(x*2)#unname(unlist(by(x,g,order,simplify=T)))
-df = data.frame(x,b=factor(b), g = factor(g), y)
-df = df[-c(81,83:89),]
-df[c(97,102),"y"] <- df[c(97,102),"y"]+2
-df$x = df$x + abs(min(df$x)) + .5
-df$x = as.numeric(as.character(factor(df$x,levels=sort(unique(df$x)),
-           labels=seq(15,65,5))))
-df$y = round(50+scale(df$y)*13.3)
-df[81,"y"] = 20
-ggplot(df,aes(x=x,y=y,col=b))+geom_point()+facet_wrap(~g)
-gg = c("Dunfermline","Inverness","Glasgow","Edinburgh","Aberdeen","Dumfries",
-  "Perth","Dundee","Kirkcaldy","Paisley","Fort William","Stirling")
-d3 = df |> transmute(
-  age = x,
-  lifesat = y[,1],
-  dwelling = gg[g],
-  size = ifelse(b==1,"<100k",">100k")
-) |> sample_n(nrow(df))
-df$cluster_var = d3$dwelling
-#write_csv(d3,file="../../../data/d3lmm.csv")
-```
-
-
-<!-- ## Example data {.smaller} -->
-
-<!-- ::::{.columns} -->
-<!-- :::{.column width="50%"} -->
-<!-- > TODO   -->
-
-
-<!-- ```{r} -->
-<!-- #d3 <-  -->
-<!-- head(d3) -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- library(ICC) -->
-<!-- ICCbare(x = city, y = lifesat, data = d3) -->
-<!-- ``` -->
-<!-- ::: -->
-
-<!-- :::{.column width="50%"} -->
-<!-- ```{r echo=FALSE, fig.align="center", fig.asp=.9} -->
-<!-- ggplot(d3, aes(x=lifesat))+ -->
-<!--   geom_dotplot(dotsize=.3)+  -->
-<!--   scale_y_continuous(NULL,breaks=NULL)+ -->
-<!--   labs(x="Life Satisfaction") -> p1 -->
-<!-- ggplot(d3, aes(x=lifesat,fill=city))+ -->
-<!--   geom_dotplot()+ -->
-<!--   facet_wrap(~city)+ -->
-<!--   guides(fill=FALSE)+ -->
-<!--   scale_y_continuous(NULL,breaks=NULL)+ -->
-<!--   labs(x="Life Satisfaction")-> p2 -->
-
-<!-- p1 / p2 + plot_layout(heights=c(1,2)) -->
-<!-- ``` -->
-<!-- ::: -->
-<!-- :::: -->
-
-
-
-<!-- ## Ignore it  (v1) {.smaller} -->
-
-
-<!-- ::::{.columns} -->
-<!-- :::{.column width="50%"} -->
-<!-- __(Complete pooling)__   -->
-
-<!-- + `lm(y ~ 1, data = df)`   -->
-
-<!-- + Information from all clusters is pooled together to estimate $y$ (equivalent to `mean(df$y)`) -->
-
-<!-- ```{r} -->
-<!-- #| echo: true -->
-<!-- model <- lm(lifesat ~ 1, data = d3) -->
-<!-- ``` -->
-<!-- ```{r echo=FALSE, out.width="300px"} -->
-<!-- .pp(summary(model),l=list(c(9:12))) -->
-<!-- ``` -->
-<!-- ::: -->
-
-<!-- :::{.column width="50%"} -->
-<!-- ```{r echo=FALSE} -->
-<!-- ggplot(d3,aes(x=city,y=lifesat,col=city))+ -->
-<!--   geom_point(size=4,alpha=.3)+ -->
-<!--   guides(col=FALSE)+ -->
-<!--   geom_hline(yintercept=mean(d3$lifesat),lty="longdash") -->
-<!-- ``` -->
-<!-- ::: -->
-<!-- :::: -->
-
-<!-- ## Fixed Effects (v1) {.smaller} -->
-
-
-<!-- ::::{.columns} -->
-<!-- :::{.column width="50%"} -->
-<!-- __(No pooling)__   -->
-
-<!-- - `lm(y ~ 1 + cluster, data = df)`   -->
-
-<!-- - *Completely* partition out cluster differences in average $y$.  -->
-
-<!-- ```{r} -->
-<!-- #| echo: true -->
-<!-- model <- lm(lifesat ~ 1 + city, data = d3) -->
-<!-- ``` -->
-<!-- ```{r} -->
-<!-- cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...  ...")) -->
-<!-- ``` -->
-
-<!-- ::: -->
-
-<!-- :::{.column width="50%"} -->
-<!-- ```{r echo=FALSE} -->
-<!-- lm(lifesat ~ 1 + city, data = d3) |> -->
-<!--   broom::augment() |> -->
-<!--   ggplot(aes(x=city,y=lifesat,col=city))+ -->
-<!--   geom_point(size=4,alpha=.3)+ -->
-<!--   guides(col=FALSE)+ -->
-<!--   stat_summary(geom="point",size=7,col="black",shape="_") -->
-<!--   NULL -->
-<!-- ``` -->
-<!-- ::: -->
-<!-- :::: -->
-
-<!-- ## Fixed Effects (v1) {.smaller} -->
-
-
-<!-- ::::{.columns} -->
-<!-- :::{.column width="50%"} -->
-<!-- __(No pooling)__   -->
-
-<!-- - `lm(y ~ 1 + cluster, data = df)`   -->
-
-<!-- - *Completely* partition out cluster differences in average $y$.  -->
-
-<!-- - like separating out each clusters' data and calculating the mean $y$.   -->
-
-<!-- - prevents us from studying cluster level effects, e.g.:   -->
-<!-- ```{r} -->
-<!-- #| echo: true -->
-<!-- model <- lm(lifesat ~ 1 + city + culture, data = d3) -->
-<!-- ``` -->
-<!-- ```{r} -->
-<!-- cat(c(.pp(summary(model),l=list(c(9:14))),"...  ...\n... ...")) -->
-<!-- ``` -->
-<!-- ```{r} -->
-<!-- .pp(summary(model),l=list(c(21:23))) -->
-<!-- ``` -->
-
-
-<!-- ::: -->
-
-<!-- :::{.column width="50%"} -->
-<!-- ```{r echo=FALSE} -->
-<!-- lm(lifesat ~ 1 + city+culture, data = d3) |> -->
-<!--   broom::augment() |> -->
-<!--   ggplot(aes(x=city,y=lifesat,col=culture))+ -->
-<!--   geom_point(size=4,alpha=.3)+ -->
-<!--   guides(col=FALSE)+ -->
-<!--   stat_summary(geom="point",size=7,col="black",shape="_") -->
-<!--   NULL -->
-<!-- ``` -->
-<!-- ::: -->
-<!-- :::: -->
-
-## Example data
-
-::::{.columns}
-:::{.column width="50%"}
-> Are older people more satisfied with life? 112 people from 12 different dwellings (cities/towns) in Scotland. Information on their ages and some measure of life satisfaction.  
-
-```{r}
-#| echo: true
-d3 <- read_csv("../../../data/d3lmm.csv") 
-head(d3)
-```
-
-```{r}
-#| echo: true
-library(ICC)
-ICCbare(x = dwelling, y = lifesat, data = d3)
-```
-:::
-
-:::{.column width="50%"}
-```{r echo=FALSE, fig.align="center"}
-ggplot(d3, aes(x=age,y=lifesat))+
-  geom_point(size=4,alpha=.3)+
-  labs(x="Age",y="Life Satisfaction") -> p1
-ggplot(d3, aes(x=age,y=lifesat,fill=dwelling))+
-  geom_point(size=4,alpha=.3)+
-  facet_wrap(~dwelling)+
-  guides(fill=FALSE)+
-  labs(x="Age",y="Life Satisfaction")-> p2
-
-p1 / p2 + plot_layout(heights=c(1,2))
-```
-:::
-::::
-
-## Ignore it
-
-
-::::{.columns}
-:::{.column width="50%"}
-__(Complete pooling)__  
-
-+ `lm(y ~ 1 + x, data = df)`  
-
-+ Information from all clusters is pooled together to estimate over x  
-
-```{r}
-#| echo: true
-model <- lm(lifesat ~ 1 + age, data = d3)
-```
-```{r}
-.pp(summary(model),l=list(c(10:12)))
-```
-:::
-
-:::{.column width="50%"}
-```{r}
-lm(y ~ x, data = df) |>
-  broom::augment() |>
-  ggplot(aes(x=x,y=y))+
-  geom_point(size=4,alpha=.3)+
-  geom_smooth(method="lm")+
-  geom_smooth(method="lm",se=F,fullrange=T)+
-  geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
-  geom_segment(aes(y=y, yend = .fitted, x = x, xend = x), alpha=.2,lty="dotted")+
-  labs(x="Age",y="Life Satisfaction")+
-  xlim(0,70)+
-  NULL
-```
-:::
-::::
-
-## Ignore it
-
-
-::::{.columns}
-:::{.column width="50%"}
-__(Complete pooling)__  
-
-+ `lm(y ~ 1 + x, data = df)`  
-
-+ Information from all clusters is pooled together to estimate over x  
-
-```{r}
-#| echo: true
-model <- lm(lifesat ~ 1 + age, data = d3)
-```
-```{r}
-.pp(summary(model),l=list(c(10:12)))
-```
-
-But residuals are __not__ independent.  
-:::
-
-:::{.column width="50%"}
-```{r}
-library(ggfx)
-library(ggforce)
-df |> mutate(
-  cluster_var=gg[g],
-  f = fitted(lm(y ~ x, data = df))
-) -> pdat 
-
-ggplot(pdat,aes(x=x,y=y))+
-  with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
-  geom_point(data = filter(pdat,cluster_var %in% gg[1]),aes(col=cluster_var),size=4) + 
-  
-  geom_mark_ellipse(aes(label = cluster_var, filter = cluster_var == gg[1]),
-                    con.colour  = "black", con.cap = 0, 
-                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
-                    show.legend = FALSE) + 
-  geom_point(data = filter(pdat,cluster_var %in% gg[11]),aes(col=cluster_var),size=4) + 
-  
-  geom_mark_ellipse(aes(label = cluster_var, filter = cluster_var == gg[11]),
-                    con.colour  = "black", con.cap = 0, 
-                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
-                    show.legend = FALSE) + 
-  
-  guides(col=FALSE, alpha=FALSE)+
-  geom_smooth(method="lm",se=F,fullrange=T)+
-  geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
-  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2)+
-  xlim(0,70)+
-  labs(x="Age",y="Life Satisfaction")+
-  NULL
-```
-:::
-::::
-
-
-## Fixed Effects Models {.smaller}
-
-
-::::{.columns}
-:::{.column width="50%"}
-__(No pooling)__  
-
-- `lm(y ~ cluster + x, data = df)`  
-
-- *Completely* partition out cluster differences in average $y$. 
-
-- Treat every cluster as an independent entity.  
-
-```{r}
-#| echo: true
-model <- lm(lifesat ~ 1 + dwelling + age, data = d3)
-```
-```{r}
-cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...\n...  ..."))
-.pp(summary(model),l=list(c(23:24)))
-```
-
-:::
-
-:::{.column width="50%"}
-```{r}
-model = lm(y ~ g+x, data = df)
-df |> mutate(
-  cluster_var=gg[g],
-  f = fitted(model)
-) -> pdat 
-
-ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
-  geom_point(size=4,alpha=.3)+
-  geom_line(aes(y=f,group=cluster_var))+
-  geom_smooth(pdat |> filter(cluster_var == gg[1]), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
-  geom_point(x=0,y=coef(model)[1],size=3,aes(col=gg[1]))+
-  guides(col=FALSE) +
-  labs(x="Age",y="Life Satisfaction")+
-  xlim(0,70)+
-  NULL
-```
-:::
-::::
-
-## Fixed Effects Models {.smaller}
-
-
-::::{.columns}
-:::{.column width="50%"}
-__(No pooling)__  
-
-- `lm(y ~ cluster * x, data = df)`  
-
-- *Completely* partition out cluster differences in $y \sim x$. 
-
-- Treat every cluster as an independent entity.  
-
-```{r}
-#| echo: true
-model <- lm(lifesat ~ 1 + dwelling * age, data = d3)
-```
-```{r echo=FALSE}
-cat(c(.pp(summary(model),l=list(c(9:14))),"...  ..."))
-cat(c(.pp(summary(model),l=list(c(23:26))), "...  ..."))
-```
-
-:::
-
-:::{.column width="50%"}
-```{r echo=FALSE}
-model = lm(y ~ g*x, data = df)
-df |> mutate(
-  cluster_var=gg[g],
-  f = fitted(model)
-) -> pdat 
-
-ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
-  geom_point(size=4,alpha=.3)+
-  geom_line(aes(y=f,group=cluster_var))+
-  geom_smooth(pdat |> filter(cluster_var == gg[1]), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
-  geom_point(x=0,y=coef(model)[1],size=3,aes(col=gg[1]))+
-  guides(col=FALSE) +
-  labs(x="Age",y="Life Satisfaction")+
-  xlim(0,70)+
-  NULL
-```
-:::
-::::
-
-:::notes
-
-It doesn't matter if 99/100 clusters all show one pattern, we're happy to let cluster 100 do it's own thing.  
-
-:::
-
-
-## Fixed Effects Models {.smaller}
-
-
-::::{.columns}
-:::{.column width="50%"}
-__(No pooling)__  
-
-- `lm(y ~ cluster * x, data = df)`  
-
-- *Completely* partition out cluster differences in $y \sim x$. 
-
-- Treat every cluster as an independent entity.  
-
-- Prevents us from studying cluster level effects. 
-
-```{r}
-#| echo: true
-model <- lm(lifesat ~ 1 + dwelling * age + size, data = d3)
-```
-
-```{r}
-cat(c(.pp(summary(model),l=list(c(9:14))),"...  ...\n...  ..."))
-cat(c(.pp(summary(model),l=list(c(20:26))),"... ..."))
-```
-
-:::
-
-:::{.column width="50%"}
-```{r}
-d3 |> select(dwelling, size) |> table()
-```
-:::
-::::
 
 # Introducing the multi-level model
 
@@ -1663,7 +947,6 @@ $$
         \color{orange}{\rho_{01}} & \color{orange}{\sigma_1}
     \end{bmatrix}
 \right) \\
-& \quad \\
 & \varepsilon_{ij} \sim N(0,\sigma_\varepsilon) \\
 \end{align}
 $$
@@ -1691,6 +974,45 @@ group deviations for intercepts and slopes are normally distributed with mean of
   
 :::
 ::::
+
+## random intercepts, random slopes  
+
+```{r}
+set.seed(877)
+df = tibble(
+  g=rep(rnorm(10,0,3),e=10),
+  x=rep(0:9,10),
+  y=1+x+mean(g)+mean(g)*.1*x,
+  y1=1+x+g+mean(g)*.1*x,
+  y2=1+x+mean(g)+g*.1*x,
+  y3=1+x+g+g*.1*x,
+  yp=1+x+g+.1*g*x+rnorm(100)
+) 
+library(patchwork)
+p1 <- ggplot(df,aes(x,y,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="fixed intercept, fixed slope")
+
+p2 <- ggplot(df,aes(x,y1,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="random intercept, fixed slope")
+
+p3 <- ggplot(df,aes(x,y2,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="fixed intercept, random slope")
+
+p4 <- ggplot(df,aes(x,y3,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="random intercept, random slope")
+  
+(p1 + p2) / (p3 + p4) & theme(title = element_text(size=14))
+```
+
+
 
 
 ```{r}
@@ -1786,7 +1108,7 @@ animp1 = ggplot(anim_slopes,
   
   transition_states(f)+
   labs(title="{closest_state}")+
-  ease_aes('sine-in-out')
+  ease_aes('sine-in')
 
 
 animp2 = ggplot(anim_slopes,
@@ -1907,62 +1229,71 @@ anim_save("output_both.gif",new_gif)
 
 ## the multilevel model: partial pooling  {.smaller}
 
+
+::::{.columns}
+:::{.column width="50%"}
+
 - In a no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to the slope for cluster $i$, but nothing else.  
-    - Information from Glasgow, Edinburgh, Perth, Stirling etc doesn't influence what we think about Stirling.  
-    
+    - Information from Glasgow, Edinburgh, Perth, Dundee etc doesn't influence what we think about Stirling  
 
-## the multilevel model: partial pooling  {.smaller}
 
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
+:::
+
+:::{.column width="50%" .fragment}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma^2_b}$.  
 - clusters' contributions to the model depend on:  
-    - $\color{orange}{\sigma_b}$ relative to $\sigma_\varepsilon$
+    - $\color{orange}{\sigma^2_b}$ relative to $\sigma^2_\varepsilon$
     - the amount of data in each cluster  
-    
+
+
+:::
+::::
+
 ## the multilevel model: partial pooling  {.smaller}
 
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In a no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to the slope for cluster $i$, but nothing else.  
+    - Information from Glasgow, Edinburgh, Perth, Dundee etc doesn't influence what we think about Stirling  
+
+
+:::
+
+:::{.column width="50%"}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma^2_b}$.  
 - clusters' contributions to the model depend on:  
     - how distinct the clustering is
     - how big a cluster is
 
-## the multilevel model: partial pooling  {.smaller}
+:::{.fragment}
 
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
 - cluster specific predictions are *shrunk* towards the average depending on:  
     - how distinct the clustering is
     - how big a cluster is
+
+:::
+
+:::
+::::
+
 
 ## the multilevel model: partial pooling {.smaller}
-
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma_b}$.  
-- cluster specific predictions are *shrunk* towards the average depending on:  
-    - how distinct the clustering is
-    - how big a cluster is
 
 ![](output_both.gif){width=1000px}
 
 ## the multilevel model: partial pooling {.smaller}
 
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma}$.  
-- cluster specific predictions are *shrunk* towards the average depending on:  
-    - how distinct the clustering is
-    - how big a cluster is
-    
-
 ![](output_bothK.gif){width=1000px}
 
 ## the multilevel model: partial pooling {.smaller}
 
-- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma}$.  
-- cluster specific predictions are *shrunk* towards the average depending on:  
-    - how distinct the clustering is
-    - how big a cluster is    
-
 ![](output_bothS.gif){width=1000px}
 
 
-
-  
 ## Advantages of MLM {.smaller}
 
 Multi-level models can be used to answer multi-level questions!  
@@ -1976,8 +1307,8 @@ Q: Does handedness (L vs R) predict variation in reaction times?
 $$
 \begin{align}
 \textrm{for person }i\textrm{, observation }j \\
-\textrm{reaction time}_{ij} &= \beta_{0i} + \varepsilon_{ij} \\
-\beta_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{handedness}_i
+\textrm{reaction time}_{ij} &= b_{0i} + \varepsilon_{ij} \\
+b_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{handedness}_i
 \end{align}
 $$
 <br>
@@ -2001,8 +1332,9 @@ Q: Does being mono/bi-lingual influence childrens' grades over the duration of t
 $$
 \begin{align}
 \textrm{for child }i\textrm{, in year }j \\
-\textrm{grade}_{ij} &= \beta_{0} + \beta_{1i}\textrm{school year}_{ij} + \varepsilon_{ij} \\  
-\beta_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i
+\textrm{grade}_{ij} &= b_{0i} + b_{1i}\textrm{school year}_{ij} + \varepsilon_{ij} \\  
+b_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{bilingual}_i \\
+b_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i \\
 \end{align}
 $$
 
@@ -2010,7 +1342,34 @@ $$
 Single equation:   
 $$
 \begin{equation}
-\textrm{grade}_{ij} = \beta_{0} + (\gamma_{10} + \zeta_{1i})\cdot\textrm{school year}_{ij} + \gamma_{11}\textrm{bilingual}_i\cdot\textrm{school year}_{ij} + \varepsilon_{ij}
+\textrm{grade}_{ij} = (\gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{bilingual}_i) + (\gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i)\cdot \textrm{school year}_{ij} + \varepsilon_{ij}
+\end{equation}
+$$
+
+## Advantages of MLM {.smaller visibility="uncounted"}
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do phenomena at Level X influence __effects__ at Level Y?  
+
+__example:__  
+$n$ children's grades are recorded every year throughout school  
+Q: Does being mono/bi-lingual influence childrens' grades over the duration of their schooling?  
+
+$$
+\begin{align}
+\textrm{for child }i\textrm{, in year }j \\
+\textrm{grade}_{ij} &= b_{0i} + b_{1i}\textrm{school year}_{ij} + \varepsilon_{ij} \\  
+b_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{bilingual}_i \\
+b_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i \\
+\end{align}
+$$
+
+<br>
+Single equation:   
+$$
+\begin{equation}
+\textrm{grade}_{ij} = (\gamma_{00} + \zeta_{0i}) + \gamma_{01}\textrm{bilingual}_i + (\gamma_{10} + \zeta_{1i})\cdot \textrm{school year}_{ij} + \gamma_{11}\textrm{bilingual}_i \cdot \textrm{school year}_{ij} + \varepsilon_{ij}
 \end{equation}
 $$
 
@@ -2028,9 +1387,9 @@ Q: Do people who have higher cognitive scores at start of study show less declin
 $$
 \begin{align}
 \textrm{for person }i\textrm{, at time }j \\
-\textrm{cognition}_{ij} &= \beta_{0i} + \beta_{1i}\textrm{time}_{ij} + \varepsilon_{ij} \\
-\beta_{0i} &= \gamma_{00} + \zeta_{0i}\\
-\beta_{1i} &= \gamma_{10} + \zeta_{1i}\\
+\textrm{cognition}_{ij} &= b_{0i} + b_{1i}\textrm{time}_{ij} + \varepsilon_{ij} \\
+b_{0i} &= \gamma_{00} + \zeta_{0i}\\
+b_{1i} &= \gamma_{10} + \zeta_{1i}\\
 \end{align}
 $$
 $$
@@ -2040,8 +1399,8 @@ $$
 \left(
     \begin{bmatrix} 0 \\ 0 \end{bmatrix},
     \begin{bmatrix}
-        \sigma_0^2 & \rho \sigma_0 \sigma_1 \\
-        \rho \sigma_0 \sigma_1 & \sigma_1^2
+        \sigma_0^2 & \rho_{01} \\
+        \rho_{01} & \sigma_1^2
     \end{bmatrix}
 \right)
 \end{equation}
@@ -2054,16 +1413,17 @@ $$
 
 - **lme4** package (many others are available, but **lme4** is most popular).  
 
-- `lmer()` function.  
+<br>
 
-- syntax is similar to `lm()`, in that we specify:   
+- The `lmer()` function. syntax is similar to `lm()`, in that we specify:   
 
     __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
     
-- in `lmer()`, we add to this the random effect structure in parentheses:  
+<br>
+  
+- in `lmer()`, we have to also specify the random effect structure in parentheses:  
 
-    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__),  
-    data = __*[name of dataframe]*__, REML = __*[TRUE/FALSE]*__
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__, REML = __*[TRUE/FALSE]*__
     
     
 ```{r}
@@ -2073,66 +1433,50 @@ lmer(score ~ 1 + year + (1 + year | school), data = ...
 ```
 
 
-## eg1 (Longitudinal): Data
+## A new example
+
 
 
 ::::{.columns}
 :::{.column width="50%"}
 > In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
 
-Each participant has 10 datapoints. Participants are clusters.  
-
-:::
-
-:::{.column width="50%"}
 ```{r}
+#| echo: true
 d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
 head(d3)
 ```
-:::
-::::
-
-## eg1: Data
-
-
-::::{.columns}
-:::{.column width="50%"}
-
-> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
 
 ```{r}
-library(ICC)
-ICCbare(x=ppt, y=ACE, data=d3)
-```
-
-__Reminder:__ the Intraclass Correlation Coefficient is ratio of variance between clusters to the total variance (variance within + variance between).
-
-
-```{r echo=TRUE, fig.show='hide'}
+#| echo: true
+#| fig-show: hide
 pptplots <- 
-  ggplot(d3, aes(x = visit, y = ACE, 
-                  col = ppt)) +
-  geom_point()+
+  ggplot(d3, aes(x = visit, y = ACE, col = ppt)) +
+  geom_point() +
   facet_wrap(~ppt) + 
   guides(col = "none") +
   labs(x = "visit", y = "cognition")
 ```
-:::
 
+:::
 :::{.column width="50%"}
-```{r fig.asp=.9}
+
+```{r}
+#| echo: true
 pptplots
 ```
 
 :::
 ::::
 
-## eg1: Fitting lm
+## Fitting an lm
 
 
 ::::{.columns}
 :::{.column width="50%"}
-```{r highlight.output=c(11,12)}
+```{r}
+#| echo: true
+#| output-line-numbers: "10,11"
 lm_mod <- lm(ACE ~ 1 + visit, data = d3)
 summary(lm_mod)
 ```
@@ -2142,20 +1486,21 @@ summary(lm_mod)
 ```{r}
 #| echo: true
 pptplots + 
-  geom_line(aes(y=fitted(lm_mod)), col = "blue")
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
 ```
 
 :::
 ::::
 
 
-## eg1: Adding a random intercept
-
+## Adding a random intercept 
 
 ::::{.columns}
 :::{.column width="50%"}
 vary the intercept by participant.
-```{r highlight.output=c(13,19)}
+```{r}
+#| echo: true
+#| output-line-numbers: "13,20"
 library(lme4)
 ri_mod <- lmer(ACE ~ 1 + visit + 
                  (1 | ppt), data = d3)
@@ -2163,24 +1508,25 @@ summary(ri_mod)
 ```
 :::
 
-:::{.column width="50%" .fragment}
+:::{.column width="50%"}
 ```{r}
 #| echo: true
 pptplots + 
-  geom_line(aes(y=fitted(lm_mod)), col = "blue") + 
-  geom_line(aes(y=fitted(ri_mod)), col = "red")
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
 ```
 :::
 ::::
 
 
-## eg1: Adding a random slope
+## Adding a random slope
 
 
 ::::{.columns}
 :::{.column width="50%"}
-vary the intercept and the slope (`ACE ~ visit`) by participants
-```{r highlight.output=c(13,14,20,21)}
+vary the intercept and the slope by participant
+```{r}
+#| echo: true
+#| output-line-numbers: "14,21"
 rs_mod <- lmer(ACE ~ 1 + visit + 
                  (1 + visit | ppt), data = d3)
 summary(rs_mod)
@@ -2188,59 +1534,34 @@ summary(rs_mod)
 
 :::
 
-:::{.column width="50%" .fragment}
-```{r}
-#| echo: true
-pptplots + 
-  geom_line(aes(y=fitted(lm_mod)), col = "blue") + 
-  geom_line(aes(y=fitted(ri_mod)), col = "red") + 
-  geom_line(aes(y=fitted(rs_mod)), col = "orange")
-```
-:::
-::::
-
-## No Pooling?
-
-
-::::{.columns}
-:::{.column width="50%"}
-Why not fit a fixed effect adjustment to the slope of x for each group?  
-`lm(y ~ x * group)`?
-
-```{r}
-fe_mod <- lm(ACE ~ visit * ppt, data = d3)
-```
-
-:::
-
 :::{.column width="50%"}
 ```{r}
 #| echo: true
 pptplots + 
-  geom_line(aes(y=fitted(fe_mod)), col = "black")
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=1)
 ```
 :::
 ::::
 
-## No Pooling vs Partial Pooling
+
+## Adding a random slope
 
 
 ::::{.columns}
 :::{.column width="50%"}
-- Remember - in the no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to differences from reference cluster to cluster $i$, but nothing else.  
-Information in cluster 1 to 19 doesn't influence what the model thinks about cluster-20).  
-
-- also, lots of output!  
+vary the intercept and the slope by participant
 ```{r}
 #| echo: true
-length(coef(fe_mod))
+rs_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), data = d3)
+summary(rs_mod)
 ```
-
 
 :::
 
-:::{.column width="50%" .fragment}
-```{r echo=FALSE}
+:::{.column width="50%"}
+```{r}
+#| echo: false
 m1<-lm(ACE~visit*ppt, data = d3)
 m2<-lmer(ACE~visit + (1 + visit | ppt), data = d3)
 d3 %>% 
@@ -2251,11 +1572,75 @@ d3 %>%
   filter(ppt %in% paste0("PPT_",c(14,20,11,19))) %>%
   ggplot(., aes(x = visit)) + 
     geom_point(aes(y = ACE)) + 
-    facet_wrap(~ppt,scales="free") +
+    facet_wrap(~ppt) +
     geom_line(aes(y = lm_fit, lty="fixed effects:\ny ~ x * g",col="fixed effects:\ny ~ x * g"), lwd=1) + 
     geom_line(aes(y = rs_fit, lty="random effects:\ny ~ x + (1 + x | g)", col="random effects:\ny ~ x + (1 + x | g)"), lwd=1) +
   scale_linetype_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"=2,"random effects:\ny ~ x + (1 + x | g)"=1)) + 
   scale_color_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"="black","random effects:\ny ~ x + (1 + x | g)"="orange"))+
+  theme(legend.position="bottom")
+```
+:::
+::::
+
+## Adding a random slope
+
+
+vary the intercept and the slope by participant
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+rs_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), data = d3)
+summary(rs_mod)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+ggplot(d3, aes(x = visit, y = ACE, group = ppt)) +
+  geom_point() +
+  guides(col = "none") +
+  labs(x = "visit", y = "cognition") +
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=.5)+
+  geom_abline(intercept=fixef(rs_mod)[1],
+              slope=fixef(rs_mod)[2],col="black",
+              lwd=1)
+```
+:::
+::::
+
+
+## Asking multi-level questions!
+
+are changes in cognition (observation-level) different between conditions (participant-level)? 
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+cli_mod <- lmer(ACE ~ 1 + visit * condition + 
+                 (1 + visit | ppt), data = d3)
+summary(cli_mod)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+ggplot(d3, aes(x = visit, y = ACE, group = ppt)) +
+  geom_point() +
+  labs(x = "visit", y = "cognition") +
+  geom_line(aes(y=fitted(cli_mod), col=condition), lwd=.5,alpha=.4) +
+  geom_abline(intercept=fixef(cli_mod)[1],
+              slope=fixef(cli_mod)[2],
+              col=scales::hue_pal()(2)[1],
+              lwd=1)+
+  geom_abline(intercept=sum(fixef(cli_mod)[c(1,3)]),
+              slope=sum(fixef(cli_mod)[c(2,4)]),
+              col=scales::hue_pal()(2)[2],
+              lwd=1)+
   theme(legend.position="bottom")
 ```
 :::
@@ -2267,7 +1652,13 @@ d3 %>%
 
 ::::{.columns}
 :::{.column width="50%"}
-```{r echo=FALSE, highlight.output=c(20,21)}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "20,21"
 my_data<-read_csv("data/lme4output.csv")
 m=lmer(y ~ x + (1 + x | group), my_data)
 summary(m, correlation=F)
@@ -2287,7 +1678,13 @@ knitr::include_graphics("img_sandbox/lmer2.png")
 
 ::::{.columns}
 :::{.column width="50%"}
-```{r echo=FALSE, highlight.output=c(13,14)}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "13,14"
 my_data<-read_csv("data/lme4output.csv")
 m=lmer(y ~ x + (1 + x | group), my_data)
 summary(m, correlation=F)
@@ -2306,7 +1703,13 @@ knitr::include_graphics("img_sandbox/lmer2a.png")
 
 ::::{.columns}
 :::{.column width="50%"}
-```{r echo=FALSE, highlight.output=c(13,14,20,21)}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "13,14,20,21"
 my_data<-read_csv("data/lme4output.csv")
 m=lmer(y ~ x + (1 + x | group), my_data)
 summary(m, correlation=F)
@@ -2325,7 +1728,13 @@ knitr::include_graphics("img_sandbox/lmer3.png")
 
 ::::{.columns}
 :::{.column width="50%"}
-```{r echo=FALSE, highlight.output=c(15)}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "15"
 my_data<-read_csv("data/lme4output.csv")
 m=lmer(y ~ x + (1 + x | group), my_data)
 summary(m, correlation=F)
@@ -2344,6 +1753,11 @@ knitr::include_graphics("img_sandbox/lmer4.png")
 
 ::::{.columns}
 :::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
 ```{r echo=FALSE}
 my_data<-read_csv("data/lme4output.csv")
 model=lmer(y ~ x + (1 + x | group), my_data)
@@ -2354,11 +1768,13 @@ summary(model, correlation=F)
 :::{.column width="50%"}
 Fixed effects:  
 ```{r}
+#| echo: true
 fixef(model)
 ```
 
 Variance components:  
 ```{r}
+#| echo: true
 VarCorr(model)
 ```
 :::
@@ -2403,24 +1819,85 @@ coef = fixef + ranef
 :::
 ::::
 
-## ICC from lmer
+<!-- ## ICC from lmer -->
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- Fit an intercept-only model:   -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- #| output-line-numbers: "13,14" -->
+<!-- null_mod <- lmer(ACE ~ 1 + (1 | ppt), data = d3)  -->
+<!-- summary(null_mod) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- 2.22 / (2.22 + 2.54) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(ICC) -->
+<!-- ICCbare(x=ppt,y=ACE,data=d3) -->
+<!-- ``` -->
+
+<!-- ::: -->
+<!-- :::: -->
+
+
+
+# Summary
+
+## Summary
+
+- We can extend our linear model equation to model certain parameters as random cluster-level adjustments around a fixed center.
+
+- $\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 \; + \; b_1 \cdot{} x_{i} } + \varepsilon_i$  
+if we allow the intercept to vary by cluster, becomes:  
+$\color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij}$  
+$\color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}}$
+
+- We can express this as one equation if we prefer:
+$\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{b_{0i}}} \cdot 1 +  \color{blue}{b_{1} \cdot x_{ij}}  +  \varepsilon_{ij}$  
+
+- We can allow slopes to vary by-cluster too.  
+
+- This allows us to model cluster-level variation around the intercept ("random intercept") and around slopes ("random slope"). 
+
+- We can fit this using the **lme4** package in R
+
+## This week 
 
 
 ::::{.columns}
 :::{.column width="50%"}
-Fit an intercept-only model:  
-```{r highlight.output=c(13,14)}
-null_mod <- lmer(ACE ~ 1 + (1 | ppt), data = d3) 
-summary(null_mod)
-```
+### Tasks
+
+![](img_sandbox/readings.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete readings 
+
+<br>
+
+![](img_sandbox/labs.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Attend your lab and work together on the exercises 
+
+<br>
+
+![](img_sandbox/exam.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete the weekly quiz 
+
+
 :::
 
 :::{.column width="50%"}
-```{r}
-2.22 / (2.22 + 2.54)
-```
+### Support
 
-Note: ICC is conditional on random intercepts only (inclusion of random slopes will affect your random intercept).  
+![](img_sandbox/forum.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Piazza forum! 
+
+<br>
+
+![](img_sandbox/oh.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Office hours (see Learn page for details)
+
+
+
 :::
 ::::
-
