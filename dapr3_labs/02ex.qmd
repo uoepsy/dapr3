@@ -1,7 +1,7 @@
 ---
 title: "Week 2 Exercises: Introducing MLM"
 params: 
-    SHOW_SOLS: TRUE
+    SHOW_SOLS: FALSE
     TOGGLE: TRUE
 editor_options: 
   chunk_output_type: console
@@ -13,6 +13,7 @@ editor_options:
 source('assets/setup.R')
 library(xaringanExtra)
 library(tidyverse)
+library(lme4)
 library(patchwork)
 library(ggdist)
 xaringanExtra::use_panelset()
@@ -28,411 +29,284 @@ qcounter <- function(){
 
 
 
-# A Toy Example  
+# MLM Demonstration
+
+:::lo
+These first set of exercises are not "how to do analyses with multilevel models" - they are designed to get you thinking, and help with an understanding of how these models work.  
+:::
+
+`r qbegin(qcounter())`
+
+Recall the data from last week's exercises. Instead of looking at the roles A, B and C, we'll look in more fine grained detail at the seniority (the `rolespine` variable). This is mainly so that we have a continuous variable to work with as it makes this illustration easier.  
+
+Below is some code that reads in the data, and fits a model of the workplace-pride predicted by seniority level. Line 5 then gets the 'fitted' values from the model and adds them as a new column to the dataset, called `pred_lm`. The fitte values are what the model predicts for every individual observation.  
+
+Lines 7-10 then plot the data, split up by each department, and adds lines showing the model fitted values.  
+
+Run the code and check that you get a plot. What do you notice about the lines?  
 
 ```{r}
-#| include: false
-toyyear <- tribble(
-  ~toy_type,~year,
-  "Barbie",1959,
-  "Farm Animals",1955,
-  "Furby",1998,
-  "G.I.Joe",1964,
-  "Lego Minifigures",1979,
-  "Minecraft",2011,
-  "My Little Pony",1982,
-  "Peppa Pig",2004,
-  "Playmobil",1975,
-  "Polly Pocket",1983,
-  "Power Rangers",1993,
-  "Rugrats",1991,
-  "Scooby Doo",1969,
-  "Sock Puppets",1901,
-  "Star Wars",1977,
-  "Stretch Armstrong",1976,
-  "SuperZings",2018,
-  "Teenage Mutant Ninja Turtles",1990,
-  "Toy Story",1996,
-  "Transformers",1984
-) 
-toys_read <- read_csv("https://uoepsy.github.io/data/toyexample.csv")
+#| eval: false
+#| code-line-numbers: true
+library(tidyverse)
+jsup = read_csv("../../data/lmm_jsup.csv")
 
-toy2 <- left_join(toys_read, toyyear) |>
-  select(toy_type, year, toy, hrs_week, R_AGE) |>
-  arrange(toy_type) |>
-  mutate(
-    R_AGE = round(pmax(0,scale(R_AGE)[,1]*3 + 7))
-  ) |>
-  filter(!toy %in% c("Sock 3","Mr Sock","Progressive Sock"))
+lm_mod <- lm(wp ~ seniority, data = jsup)
+jsup$pred_lm <- predict(lm_mod)
 
-toy2[toy2$toy_type=="Sock Puppets","R_AGE"]<-c(13,1,15)
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_lm), col = "red")
+```
 
-# write_csv(toy2, "../../data/toy2.csv")
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We should get something like this:  
+```{r}
+library(tidyverse)
+jsup = read_csv("../../data/lmm_jsup.csv")
+
+lm_mod <- lm(wp ~ seniority, data = jsup)
+jsup$pred_lm <- predict(lm_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_lm), col = "red")
+```
+
+Note that the lines are exactly the same for each department. This makes total sense, because the model (which is where we've got the lines from) completely _ignores_ the department variable!  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+Below are 3 more code chunks that all 1) fit a model, then 2) add the fitted values of that model to the plot.  
+
+The first model is a 'no-pooling' approach, similar to what we did in last week's exercises - adding in `dept` as a predictor.  
+
+The second and third are multilevel models. The second fits random intercepts by-department, and the third fits random intercepts and slopes of seniority.  
+
+Cope each chunk and run through the code. Pay attention to how the lines differ.  
+
+```{r}
+#| eval: false
+#| code-fold: true
+fe_mod <- lm(wp ~ dept + seniority, data = jsup)
+jsup$pred_fe <- predict(fe_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_fe), col = "blue")
+```
+
+```{r}
+#| eval: false
+#| code-fold: true
+library(lme4)
+ri_mod <- lmer(wp ~ seniority + (1|dept), data = jsup)
+jsup$pred_ri <- predict(ri_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_ri), col = "green")
+```
+
+```{r}
+#| eval: false
+#| code-fold: true
+rs_mod <- lmer(wp ~ seniority + (1 + seniority|dept), data = jsup)
+jsup$pred_rs <- predict(rs_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_rs), col = "orange")
+```
+
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+
+The first model has an adjustment for each department (we can see this in the coefficients if we want). What this means is that the line for each department is shifted up or down. We can see that the lines are now shifted up for departments like UKSA and FSA, and down for UKSC and OFSTED: 
+```{r}
+fe_mod <- lm(wp ~ dept + seniority, data = jsup)
+jsup$pred_fe <- predict(fe_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_fe), col = "blue")
 ```
 
 
-For our first foray into the multilevel model, we're going to start with little toy example, and we're just going to ask you to plot the predictions from a) a simple linear model, b) a model with a random intercept, and c) a model with random intercepts and slopes.  
+This next one _looks_ very similar to the previous one, but it is conceptually doing something a bit different. Rather than separating out every individual department, we are modelling _a distribution_ of deviations for each department from some average.  
 
-This is to build the understanding of the structure of multilevel models. When it comes to actually building models for research purposes, it is not necessary to slowly build up the complexity in this way.  
 
-:::frame
-__Data: New Toys!__  
-  
-Recall the example from last semesters' USMR course, where the lectures explored linear regression with a toy dataset of how practice influences the reading age of toy characters (see [USMR Week 7 Lecture](https://uoepsy.github.io/usmr/2324/lectures/lecture06.html#/learning-to-read-1){target="_blank"}). We're going to now broaden our scope to the investigation of how practice affects reading age for **all** toys (not just Martin's Playmobil characters).  
+```{r}
+library(lme4)
+ri_mod <- lmer(wp ~ seniority + (1|dept), data = jsup)
+jsup$pred_ri <- predict(ri_mod)
 
-You can find a dataset at [https://uoepsy.github.io/data/toy2.csv](https://uoepsy.github.io/data/toy2.csv){target="_blank"} containing information on 129 different toy characters that come from a selection of different families/types of toy. You can see the variables in the table below^[Image sources:<br>http://tophatsasquatch.com/2012-tmnt-classics-action-figures/<br>https://www.dezeen.com/2016/02/01/barbie-dolls-fashionista-collection-mattel-new-body-types/<br>https://www.wish.com/product/5da9bc544ab36314cfa7f70c<br>https://www.worldwideshoppingmall.co.uk/toys/jumbo-farm-animals.asp<br>https://www.overstock.com/Sports-Toys/NJ-Croce-Scooby-Doo-5pc.-Bendable-Figure-Set-with-Scooby-Doo-Shaggy-Daphne-Velma-and-Fred/28534567/product.html<br>https://tvtropes.org/pmwiki/pmwiki.php/Toys/Furby<br>https://www.fun.com/toy-story-4-figure-4-pack.html<br>https://www.johnlewis.com/lego-minifigures-71027-series-20-pack/p5079461].  
-<br>  
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_ri), col = "green")
+```
 
-:::: {.columns}
-::: {.column width="45%"}
-```{r echo=FALSE, out.width="300px",fig.align="center"}
-knitr::include_graphics("images/toys.png")
+Finally, we can add in the random slopes of seniority. In this model, we are not only allowing departments to vary in their average workplace-pride, but we are also allowing them to vary in the association between seniority and workplace pride. Some departments (OFQUAL, OFSTED, ORR) have a negative association, some have a flatter association (e.g, FSA, UKSA etc).  
+
+```{r}
+rs_mod <- lmer(wp ~ seniority + (1 + seniority|dept), data = jsup)
+jsup$pred_rs <- predict(rs_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_rs), col = "orange")
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+From the previous questions you should have a model called `ri_mod`.  
+
+Below is a plot of the fitted values from that model. Rather than having a separate facet for each department as we did above, I have put them all on one plot. The thick black line is the average intercept and slope of the departments lines. 
+
+Identify the parts of the plot that correspond to A1-4 in the summary output of the model below  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+knitr::include_graphics("images/match_summ1.png")
 ```
 :::
-::: {.column width="10%"}
-:::
-::: {.column width="45%"}
-```{r echo=FALSE, message=FALSE,warning=FALSE}
-library(gt)
-tibble(variable=names(toy2),
-       description=c("Type of Toy","Year Released","Character","Hours of practice per week","Reading Age")
-) %>% gt()
-
+:::{.column width="50%"}
+```{r}
+#| echo: false
+broom.mixed::augment(ri_mod) |>
+  ggplot(aes(x=seniority, col=dept))+
+  geom_point(aes(y=wp),alpha=.5) + # observations
+  geom_line(aes(y=.fitted)) + # predictions 
+  geom_abline(intercept = fixef(ri_mod)[1], 
+              slope = fixef(ri_mod)[2], lwd=1)  # fixed effect line
 ```
 :::
 ::::
 
-:::
-
-`r qbegin(qcounter())`
-Read in the data and plot the relationship between hours-per-week practice (`hrs_week`) and reading age (`R_AGE`).  
-Facet the plot by the type of toy.  
-
-
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-"facet" is the key word here! See [1A #visualisations](01a_clustered.html#visualisations){target="_blank"}
+Choose from these options:
+
++ where the black line cuts the y axis (at x=0)  
++ the slope of the black line  
++ the standard deviation of the distances from all the individual datapoints (employees) to the line for the department in which it works.  
++ the standard deviation of the distances from all the individual department lines to the black line  
 
 :::
 
-
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-```{r}
-library(tidyverse)
-toy2 <- read_csv("https://uoepsy.github.io/data/toy2.csv")
 
-head(toy2)
-
-ggplot(toy2,aes(x=hrs_week,y=R_AGE))+
-  geom_point()+
-  facet_wrap(~toy_type)
-```
-
-`r solend()`
-
-`r qbegin(qcounter())`
-Below is the code to fit a simple linear model and produce some diagnostic plots.  
-After running the code, do you think that we have violated any assumptions?  
-```{r}
-#| eval: false
-mod1 <- lm(R_AGE ~ hrs_week, data = toy2)
-plot(mod1)
-```
-
-
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-We have violated an assumption here, and we don't need to look at the plots to realise it! As it happens, the plots don't actually look _terrible_ (the scale-location plot is a bit meh, but other than that things look okay).  
-
-The assumption we have violated is that of **independence**. This is something we know through our understanding of the sampling procedure that has led to this data. We have got a random sample of different types of toys (e.g. power-rangers, toy-story, furbies etc), and within those types, we have a random sample of characters.  
-
-But it is entirely likely that the type of toy is going to influence their reading age (i.e. farm animals might read worse than playmobil, etc).  
-
-So this is something we can't really "see" in the data - we have to *think*. What do we know about the data generating process? (i.e. the process that led to this data)
-
-```{r}
-#| eval: false
-mod1 <- lm(R_AGE ~ hrs_week, data = toy2)
-plot(mod1)
-```
+::::{.columns}
+:::{.column width="50%"}
 ```{r}
 #| echo: false
-mod1 <- lm(R_AGE ~ hrs_week, data = toy2)
-par(mfrow=c(2,2));plot(mod1);par(mfrow=c(1,1))
+knitr::include_graphics("images/match_summ1.png")
 ```
-
-`r solend()`
-
-`r qbegin(qcounter())`
-There are lots of ways in R to get predicted values for a linear model (e.g. we saw `augment()` a lot in USMR). 
-
-The simplest way is to use functions like `predict()` or `fitted()` (they do the same thing), which gives us a vector of predicted values, which we can append to our dataframe (provided we don't have missing data): 
-```{r}
-#| eval: false
-data$predictedvalues <- predict(model)
-```
-
-Add the predictions from the linear model in the previous question to the facetted plot that you created in the earlier question. How well does the model fit each type of toy?  
-`r qend()`
-`r solbegin(label="1 - add predictions to data", slabel=F,show=T, toggle=params$TOGGLE)`
-This only works because we don't have missing data (and so the length of `predict(mod1)` is the same as `nrow(toy2)`, and the predictions are in the correct order)  
-```{r}
-# add predictions to data:
-toy2$pred <- predict(mod1)
-```
-
-
-`r solend()`
-`r solbegin(label="2 - add predictions to the plot", slabel=F,show=T, toggle=params$TOGGLE)`
-```{r}
-# plot both predictions and observations:
-toy2 |>
-  ggplot(aes(x=hrs_week))+
-  geom_point(aes(y=R_AGE)) + # observations
-  geom_line(aes(y=pred)) + # predictions
-  facet_wrap(~toy_type)
-```
-`r solend()`
-
-
-`r qbegin(qcounter())`
-Load the __lme4__ package, and fit a model with random intercepts for each toy type.  
-
-Using either `predict()` again, or this time you can use `augment()` from the __broom.mixed__ package, plot the predicted values and the observations.  
-
-::: {.callout-tip collapse="true"}
-#### Hints
-
-You can see a model with a random intercept fitted in [1B# fitting-multilevel-models-in-r](01b_lmm.html#fitting-multilevel-models-in-r){target="_blank"}.  
-
 :::
-
-
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
-Here's our model, with a random intercept by toy-type:
-```{r}
-library(lme4)
-library(broom.mixed)
-
-mod2 <- lmer(R_AGE ~ 1 + hrs_week + (1 | toy_type), data = toy2)
-```
-We can use `augment()` from the __broom.mixed__ package, and which gives us the variables in the model along with things like fitted values (in the `.fitted` column)
-```{r}
-#| eval: false
-augment(mod2)
-```
+:::{.column width="50%"}
 ```{r}
 #| echo: false
-print(augment(mod2),n=5)
+broom.mixed::augment(ri_mod) |>
+  ggplot(aes(x=seniority, col=dept))+
+  geom_point(aes(y=wp),alpha=.3) + # observations
+  geom_line(aes(y=.fitted)) + # predictions 
+  geom_abline(intercept = fixef(ri_mod)[1], 
+              slope = fixef(ri_mod)[2], lwd=1)  # fixed effect line
 ```
-```{r}
-augment(mod2) |>
-  ggplot(aes(x=hrs_week))+
-  geom_point(aes(y=R_AGE)) + # observations
-  geom_line(aes(y=.fitted)) + # predictions
-  facet_wrap(~toy_type)
-```
+:::
+::::
 
-Note that the model predictions are now a lot better than they were for the single level linear model. The line has moved up for the "Scooby Doos", and down for the "Farm Animals", etc. But the lines are all still the same slope. The slope is "fixed".  
++ **A1** = the standard deviation of the distances from all the individual department lines to the black line  
++ **A2** = the standard deviation of the distances from all the individual datapoints (employees) to the line for the department in which it works. 
++ **A3** = where the black line cuts the y axis  
++ **A4** = the slope of the black line  
 
 `r solend()`
 
 
-`r qbegin(qcounter())`
-Now fit a model with random intercepts *and* slopes for each toy type. 
+`r qbegin("Optional Extra", qlabel=FALSE)`
 
-As before, plot the predicted values of this model alongside the observations
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Below is the model equation for the `ri_mod` model.  
+
+Identify the part of the equation that represents each of A1-4.  
+
+::::{.columns}
+:::{.column width="50%"}
 ```{r}
-mod3 <- lmer(R_AGE ~ 1 + hrs_week + (1 + hrs_week| toy_type), 
-             data = toy2)
-
-augment(mod3) |>
-  ggplot(aes(x=hrs_week))+
-  geom_point(aes(y=R_AGE)) + # observations
-  geom_line(aes(y=.fitted)) + # predictions
-  facet_wrap(~toy_type)
+#| echo: false
+knitr::include_graphics("images/match_summ1.png")
 ```
-
-This looks even better - the lines are at good heights and good angles for each type of toy. Why? Because we have modelled the intercept (line height) and slope of `hrs_week` (line angle) as varying across types of toy!  
-
-`r solend()`
-
-
-`r qbegin(qcounter())`
-Finally, add a `geom_smooth` to the plot from the previous question (making sure that this is has `y=R_AGE`).  
-This will add a separate linear model `lm()` line for each of the facets in the plot.  
-
-What differences (look closely!) do you notice between the predictions from the model with random intercepts and slopes, and the simple geom_smooths? 
-
-
-::: {.callout-tip collapse="true"}
-#### Hints
-
-You could try changing `col`, `lty`, and `lwd` to make things easier to see.  
-
-What we're doing here is showing to ourselves 'partial pooling' in action ([1B #partial-pooling](01b_lmm.html#partial-pooling){target="_blank"}).  
-
 :::
 
+:::{.column width="50%"}
+<div style="font-size: .7em">
 
-`r qend()`
-`r solbegin(label="1 - adding geom_smooths to the plot", slabel=F,show=T, toggle=params$TOGGLE)`
-here's the model we are using:
-```{r}
-mod3 <- lmer(R_AGE ~ 1 + hrs_week + (1 + hrs_week| toy_type), 
-             data = toy2)
-```
-
-and here is our plot:
-```{r}
-augment(mod3) |>
-  ggplot(aes(x=hrs_week))+
-  geom_point(aes(y=R_AGE)) + # observations
-  geom_line(aes(y=.fitted)) + # predictions
-  geom_smooth(aes(y=R_AGE), method=lm, se=F) + # simple smooths
-  facet_wrap(~toy_type)
-```
-`r solend()`
-`r solbegin(label="2 - why?", slabel=F,show=T, toggle=params$TOGGLE)`
-I've made it a bit clearer here by changing up the colours and  linewidths (`lwd`), and subsetting to just a select few of the toy types:  
-```{r}
-augment(mod3) |>
-  filter(toy_type %in% c("Farm Animals","Scooby Doo","Sock Puppets","Polly Pocket")) |>
-  ggplot(aes(x=hrs_week))+
-  geom_point(aes(y=R_AGE), alpha=.2) + # observations
-  geom_line(aes(y=.fitted), col="orange", lwd=1) + # predictions
-  geom_smooth(aes(y=R_AGE), method=lm, se=F, lty="dashed") + # simple smooths
-  facet_wrap(~toy_type)
-```
-For most of the toy types things look pretty similar. However, for "Sock Puppets" (only has 3 data points) the model predicted slope is shrunk back towards the average. 
-It is also possible to see this in the "Farm Animals" and "Scooby Doo" - the shrinkage is more noticeable on these because they are further away from the average. 
-
-`r solend()`
-
-
-`r qbegin(qcounter())`
-Here is the model with the random intercepts (but not random slopes) that we fitted in an earlier question.  
-
-Below is the code that produces a plot of the fitted values: 
-
-::: {.callout-note collapse="true"}
-#### A. Model Equation
-
-$$
 \begin{align}
-\text{For Toy }j\text{ of Type }i & \\
-\text{Level 1 (Toy):}& \\
-\text{R\_AGE}_{ij} &= b_{0i} + b_1 \cdot \text{hrs\_week}_{ij} + \epsilon_{ij} \\
-\text{Level 2 (Type):}& \\
+\text{For Employee }j\text{ from Dept }i & \\
+\text{Level 1 (Employee):}& \\
+\text{wp}_{ij} &= b_{0i} + b_1 \cdot \text{seniority}_{ij} + \epsilon_{ij} \\
+\text{Level 2 (Dept):}& \\
 b_{0i} &= \gamma_{00} + \zeta_{0i} \\
 \text{Where:}& \\
 \zeta_{0i} &\sim N(0,\sigma_{0}) \\
 \varepsilon &\sim N(0,\sigma_{e}) \\
 \end{align}
 
-$$  
-  
-  
-:::
-::: {.callout-note collapse="true"}
-#### B. Model output
-
-```{r}
-mod2 <- lmer(R_AGE ~ 1 + hrs_week + (1 | toy_type), 
-             data = toy2)
-summary(mod2)
-```
+</div>
 
 :::
-::: {.callout-note collapse="true"}
-#### C. Plot of fitted values
-
-```{r}
-augment(mod2) |>
-  ggplot(aes(x=hrs_week, col=toy_type))+
-  geom_point(aes(y=R_AGE),alpha=.3) + # observations
-  geom_line(aes(y=.fitted)) + # predictions 
-  geom_abline(intercept = fixef(mod2)[1], 
-              slope = fixef(mod2)[2], lwd=1) +  # fixed effect line
-  guides(col="none") + # remove legend
-  xlim(0,7) # extent to x=0
-
-```
-
-:::
-
-Match the parameters from the model equation, as well as coefficients from model output, to the corresponding points on the plot of fitted values.  
-
-:::: {.columns}
-::: {.column width="20%"}
-__Model Equation__  
-
-+ **A1:** $\sigma_{0}$   
-+ **A2:** $\sigma_{\varepsilon}$  
-+ **A3:** $\gamma_{00}$  
-+ **A4:** $b_{1}$  
-
-:::
-::: {.column width="20%"}
-__Model Output__  
-
-+ **B1:** 0.7118  
-+ **B2:** 2.698  
-+ **B3:** 1.597  
-+ **B4:** 4.2594  
-
-:::
-::: {.column width="60%"}
-__Plot of fitted values__  
-
-+ **C1:** the standard deviation of the distances from all the individual toy types lines to the black line  
-+ **C2:** where the black line cuts the y axis  
-+ **C3:** the slope of the black line  
-+ **C4:** the standard deviation of the distances from all the individual observations to the line for the toy type to which it belongs.  
-
-
-
-
-:::
-
 ::::
 
+::: {.callout-tip collapse="true"}
+#### Hints
 
+Choose from:
 
++ $\sigma_{\varepsilon}$  
++ $b_{1}$  
++ $\sigma_{0}$   
++ $\gamma_{00}$  
+
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-- A1 = B2 = C1
-- A2 = B3 = C4
-- A3 = B4 = C2
-- A4 = B1 = C3
++ **A1 =** $\sigma_{0}$   
++ **A2 =** $\sigma_{\varepsilon}$  
++ **A3 =** $\gamma_{00}$  
++ **A4 =** $b_{1}$  
+
 
 `r solend()`
-
-
-# Cross Sectional: NEW
-
-employee / department example
-
-q1 = give code to fit fe, ri, rs models and add them to the plot
-run it one by one and see how the plot changes
-
-q2 = mapping question
-
-
-
 
 <br>
 <div class="divider div-transparent div-dot"></div>
 
-# Repeated Measures: Audio Interference in Executive Functioning
+# Audio Interference in Executive Functioning (Repeated Measures)
+
+:::lo
+This next set are closer to conducting a real study. We have some data and a research question (below). The exercises will walk you through describing the data, then prompt you to think about how we might fit an appropriate model to address the research question, and finally task you with having a go at writing up what you've done.  
+:::
+
 
 ```{r}
 #| include: false
@@ -495,18 +369,18 @@ This data is from a simulated study that aims to investigate the following resea
 
 `r length(unique(efrep$PID))` healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room. Unfortunately, lots of the tests were not administered correctly, and so not every participant has the full 15 trials worth of data.  
 
-The data is available at [https://uoepsy.github.io/data/efsdmt.csv](https://uoepsy.github.io/data/efsdmt.csv).  
+The data is available at [https://uoepsy.github.io/data/lmm_ef_sdmt.csv](https://uoepsy.github.io/data/lmm_ef_sdmt.csv).  
 
 ```{r}
 #| echo: false
-efrep <- read_csv("https://uoepsy.github.io/data/efsdmt.csv")
+efrep <- read_csv("https://uoepsy.github.io/data/lmm_ef_sdmt.csv")
 tibble(variable=names(efrep),
        description = c(
          "Participant ID",
          "Audio heard during the test ('no_audio', 'white_noise','music')",
-         "Whether the participant listened via speakers in the room or via noise cancelling headphones",
+         "Whether the participant listened via speakers (S) in the room or via noise cancelling headphones (H)",
          "Symbol Digit Modalities Test (SDMT) score")
-) %>% gt()
+) %>% gt::gt()
 ```
 
 :::
@@ -527,7 +401,7 @@ Functions like `table()` and `count()` will likely be useful here.
 `r qend()`
 `r solbegin(label="1 - read in the data ", slabel=F,show=T, toggle=params$TOGGLE)`
 ```{r}
-efdat <- read_csv("https://uoepsy.github.io/data/efsdmt.csv")
+efdat <- read_csv("https://uoepsy.github.io/data/lmm_ef_sdmt.csv")
 head(efdat)
 ```
 `r solend()`
@@ -605,6 +479,9 @@ There are plenty of other ways (e.g., you could use combinations of `group_by()`
 
 
 `r qbegin(qcounter())`
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+
 Consider the following questions about the study:  
   
 - What is our outcome of interest?  
@@ -633,40 +510,13 @@ Consider the following questions about the study:
 `r solend()`
 
 `r qbegin(qcounter())`
-Calculate the ICC, using the `ICCbare()` function from the **ICC** package.  
+The multilevel model that has only an intercept (and the grouping structure) specified is sometimes referred to as the "null model" (or "intercept only model"). Because there are no predictors in the fixed effects there is just a single value (the intercept). All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either 'variance between groups' or 'residual variance'. This means we can just use those estimates to calculate the ICC.  
 
-How much of the variation in SDMT scores is attributable to participant level differences?  
-
-
-::: {.callout-tip collapse="true"}
-#### Hints
-
-See [1A #icc](01a_clustered.html#icc---quantifying-clustering-in-an-outcome-variable){target="_blank"}, or look up the help documentation for `?ICCbare()`.  
-
-:::
-
-  
-
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-`r (ICC::ICCbare(x = PID, y = SDMT, data = efdat)[[1]]*100) |> round()`% of the variance in SDMT scores is attributable to participant level differences.  
-```{r}
-library(ICC)
-ICCbare(x = PID, y = SDMT, data = efdat)
-```
-`r solend()`
-
-`r qbegin(qcounter())`
-The multilevel model that has only an intercept (and the grouping structure) specified is sometimes referred to as the "null model" (or "intercept only model").  
-Because there are no predictors in the fixed effects there is just a single value (the intercept). All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either 'variance between groups' or 'residual variance'. This means we can just use those estimates to calculate the ICC.  
-
-For our executive functioning study, fit the null model use the output to calculate the ICC.  
-Compare it to the answer from the previous question (it should be pretty close!)
+For our executive functioning study, fit the null model use the output to calculate the ICC. Compare it to the answer you get from `ICCbare()` (it should be pretty close).  
 
 
 ::: {.callout-tip collapse="true"}
 #### Hints
-
 
 ```{r}
 #| echo: false
@@ -696,8 +546,11 @@ rr = as.data.frame(VarCorr(nullmod))[,4]
 
 $\frac{`r round(rr[1],2)`}{`r round(rr[1],2)`+`r round(rr[2],2)`} = `r round(rr[1]/sum(rr),2)`$, or `r round(rr[1]/sum(rr),2)*100`% of the variance in SDMT scores is explained by participant differences.  
 
-This matches (closely enough) with the `ICCbare()` function from the previous question! 
-
+This matches (closely enough) with the `ICCbare()` function: 
+```{r}
+library(ICC)
+ICCbare(x = PID, y = SDMT, data = efdat)
+```
 `r solend()`
 
 `r qbegin(qcounter())`
@@ -707,7 +560,7 @@ Make factors and set the reference levels of the `audio` and `headphones` variab
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-Can't remember about setting factors and reference levels? Check back to USMR materials!  
+Can't remember about setting factors and reference levels? Check back to DAPR2!    
 
 :::
 
@@ -720,7 +573,7 @@ Can't remember about setting factors and reference levels? Check back to USMR ma
 efdat <- efdat %>%
   mutate(
     audio = fct_relevel(factor(audio), "no_audio"),
-    headphones = fct_relevel(factor(headphones), "speakers")
+    headphones = fct_relevel(factor(headphones), "S")
   )
 ```
 
@@ -740,9 +593,19 @@ $$
 $$
 
 
-1. Just like the `lm()`s we have used in USMR, think about what we want to _test_. This should provide the outcome and the structure of our fixed effects.  
+1. Just like the `lm()`s we have used in the past, think about what we want to _test_. This should provide the outcome and the structure of our fixed effects.  
 2. Think about how the observations are clustered/grouped. This should tell us how to specify the grouping structure in the random effects.  
 3. Think about which slopes (i.e. which terms in our fixed effects) could feasibly vary between the clusters. This provides you with what to put in as random slopes.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Make sure to read about multilevel modesl and how to fit them in [2: MLM #fitting-multilevel-models-in-r](https://uoepsy.github.io/lmm/02_lmm.html#fitting-multilevel-models-in-r){target="_blank"}.  
+
+:::
+
+
 
 `r qend()`
 `r solbegin(label="1 - fixed effects", slabel=F,show=T, toggle=params$TOGGLE)`
@@ -803,7 +666,7 @@ Why can we fit `(1 + audio | PID)` but not `(1 + headphones | PID)`, or both `(1
 Remember that `y ~ ... + (x | g)` is saying "the slope of y~x varies by g".  
 Such a sentence only makes sense if each "the slope of y~x" is defined for every (or most) groups.  
 
-For the `headphones` predictor, every participant is _either_ in the "speakers" condition _or_ the "anc_headphones" condition.  
+For the `headphones` predictor, every participant is _either_ in the "S" (speakers) condition _or_ the "H" (headphones) condition.  
 This means that "the effect of headphones on SDMT" _doesn't exist_ for any single participant! This means it makes no sense to try and think of the effect as 'varying by participant'.  
 
 Compare this to the `audio` predictor, for the effect _does_ exist for a single given participant, therefore it is possible to think of it as being different for different participants (e.g. PPT_30's performance improves with white noise, but PPT_16's performance does not).  
@@ -844,8 +707,8 @@ Personally, I would rather this is not the case, so I often opt to fit specific 
 
 If we want to go down the model comparison route, we just need to isolate the relevant part(s) of the model that we are interested in.  
 
-Remember, as we saw in USMR, model comparison is sometimes a useful way of testing a _set_ of coefficients. For instance, in this example the interaction involves estimating _two_ terms: 
-`audiomusic:headphonesanc_headphones` and `audiowhite_noise:headphonesanc_headphones`.  
+Remember, model comparison is sometimes a useful way of testing a _set_ of coefficients. For instance, in this example the interaction involves estimating _two_ terms: 
+`audiomusic:headphonesH` and `audiowhite_noise:headphonesH`.  
 
 To test the interaction as a whole, we can create a model without the interaction, and then compare it. The `SATmodcomp()` function from the __pbkrtest__ package provides a way of conducting an F test with the same Satterthwaite method of approximating the degrees of freedom:  
   
@@ -878,13 +741,30 @@ summary(sdmt_mod)
 
 `r qbegin(qcounter())`
 
-We've already seen in the example with the toys (above) that we can visualise the fitted values (model predictions) using things like `augment()` from the __broom.mixed__ package. But these were plotting all the cluster-specific values (i.e. our random effects), and what we are really interested in are the estimates of (and uncertainty around) our fixed effects.  
+We've already seen in the example with the with the UK civil service employees (above) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are really interested in are the estimates of (and uncertainty around) our *fixed effects* (i.e. estimates for clusters *on average*)  
 
 Using tools like the __effects__ package can provide us with the values of the outcome across levels of a specific fixed predictor (holding other predictors at their mean).   
 
+This should get you started:  
+```{r}
+#| eval: false
+library(effects)
+effect(term = "audio*headphones", mod = sdmt_mod) |>
+  as.data.frame()
+```
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You can see the effects package in [2: the multilevel model #a-more-complex-model](https://uoepsy.github.io/lmm/02_lmm.html?panelset_001=plot#a-more-complex-model){target="_blank"}.  
+
+:::
+
+
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
 ```{r}
 library(effects)
 effect(term = "audio*headphones", mod = sdmt_mod) |>
@@ -901,6 +781,25 @@ effect(term = "audio*headphones", mod = sdmt_mod) |>
 `r qbegin(qcounter())`
 Now we have some p-values and a plot, try to create a short write-up of the analysis and results.   
 
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Think about the principles that have guided you during write-ups thus far. 
+
+The aim in writing a statistical report should be that a reader is able to more or less replicate your analyses **without** referring to your analysis code. Furthermore, it should be able for a reader to understand and replicate your work _even if they use something other than R_. This requires detailing all of the steps you took in conducting the analysis, but without simply referring to R code.   
+
+
+- Provide a description of the sample that is used in the analysis, and any steps that you took to get this sample (i.e. data cleaning/removal)
+- Describe the model/test and how it addresses the research question. What is the structure of the model, and how did you get to this model? *(You don't need a fancy model equation, you can describe in words!)*. 
+- Present (visually and numerically) the key results of the coefficient tests or model comparisons, and explain what these mean in the context of the research question (this could be things like practical significance of the effect size, and the group-level variability in the effects). 
+
+
+:::
+
+
+
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
@@ -916,14 +815,17 @@ res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
 ```
 
 :::int
-SDMT scores were modelled using linear mixed effects regression, with fixed effects of audio-type (no audio/white noise/music, treatment coded with no audio as the reference level), audio delivery (speakers/ANC-headphones, treatment coded with speakers as the reference level) and their interaction. Participant-level random intercepts and random slopes of audio-type were also included. The model was fitted using the **lme4** package in R, and estimated with restricted estimation maximum likelihood (REML). Denominator degrees of freedom for all tests were approximated using the Satterthwaite method.  
+SDMT scores were modelled using linear mixed effects regression, with fixed effects of audio-type (no audio/white noise/music, treatment coded with no audio as the reference level), audio delivery (speakers vs ANC-headphones, treatment coded with speakers as the reference level) and their interaction. Participant-level random intercepts and random slopes of audio-type were also included. The inclusion of the interaction term between audio-type and audio-delivery was used to address the question of whether the interference of different audio on executive function depends on whether it is heard via noise-cancelling headphones. A model comparison was conducted between the full model and a restricted model that was identical to the full model with the exception that the interaction term was excluded. Models were fitted using the **lme4** package in R, and estimated with restricted estimation maximum likelihood (REML). Denominator degrees of freedom for all comparisons and tests were approximated using the Satterthwaite method.  
 
 Inclusion of the interaction between headphones and audio-type was found to improve model fit ($F(2, 26.9) = 11.05, p < .001$), suggesting that the interference of different types of audio on executive functioning is dependent upon whether the audio is presented through ANC-headphones or through speakers.  
-Participants not wearing headphones and presented with no audio scored on average `r res[1,2]` on the SDMT. Listening to music via speakers was associated with lower scores ($b = `r res[2,2]`, t(`r res[2,8]`)=`r res[2,7]`, p `r res[2,9]`$) compared to no audio. White noise played via speakers was not associated with a difference in performance on the SDMT compared to no audio.  
 
-Without any audio playing, wearing ANC-headphones was associated with higher SDMT scores compared to no headphones ($b = `r res[4,2]`, t(`r res[4,8]`)=`r res[4,7]`, p `r res[4,9]`$). This difference between headphones and speakers was also evident when listening to white-noise ($b = `r res[6,2]`, t(`r res[6,8]`)=`r res[6,7]`, p `r res[6,9]`$). The apparent detrimental influence of music was not found to differ depending on whether headphones were worn ($b = `r res[5,2]`, p `r res[5,9]`$). 
+Participants not wearing headphones and presented with no audio scored on average `r res[1,2]` on the SDMT. For participants without headphones, listening to music via speakers was associated with lower scores compared to no audio ($b = `r res[2,2]`, t(`r res[2,8]`)=`r res[2,7]`, p `r res[2,9]`$), but there was no significant difference between white noise and no audio.   
 
-These results suggest that while music appears to interfere with executive functioning (resulting in lower SDMT scores) regardless of whether it is heard through headphones or speakers, listening to white noise may actually improve executive functioning, but only when presented via headphones. Furthermore, there appears to be benefits for executive functioning from wearing ANC-headphones even when not-listening to audio, perhaps due to the noise cancellation. The pattern of findings are displayed in @fig-efplot.  
+With no audio playing, wearing ANC-headphones was associated with higher SDMT scores compared to those wearing no headphones ($b = `r res[4,2]`, t(`r res[4,8]`)=`r res[4,7]`, p `r res[4,9]`$).
+
+The apparent detrimental effect of music on SDMT scores was not significantly different in the headphones condition compared to the no-headphones condition ($b = `r res[5,2]`, t(`r res[5,8]`)=`r res[5,7]`, p `r res[5,9]`$). Compared to those listening through speakers, white noise was associated with a greater increase in scores over no audio, when listening via ANC-heaphones ($b = `r res[6,2]`, t(`r res[6,8]`)=`r res[6,7]`, p `r res[6,9]`$).  
+
+These results suggest that music appears to interfere with executive functioning (lower SDMT scores) compared to listening to no audio, and this is not dependent upon whether is heard through headphones or speakers. When listening via speakers, white noise was not associated with differences in executive functioning compared to no audio, but this was different for those listening via headphones, in which white noise saw a greater increase in performance. Furthermore, there appear to be benefits for executive functioning from wearing ANC-headphones even when not-listening to audio, perhaps due to the noise cancellation. The pattern of findings are displayed in @fig-efplot.  
 
 
 ```{r}
@@ -945,12 +847,402 @@ ggplot(efdat, aes(x=audio,y=SDMT,col=headphones))+
 <br>
 <div class="divider div-transparent div-dot"></div>
 
-# Longitudinal: Dominance in Great Apes
+# Extra: Dominance in Great Apes! (longitudinal)
+
+:::lo
+Here we have some extra exercises for you to practice with. There's a bit more data cleaning involved, so we've made some of the solutions immediately available. Don't worry if some of the functions are new to you - try play around with them to get a sense of how they work.  
+
+
+:::
+
+
+:::frame
+__Data: lmm_apespecies.csv__ & __lmm_apeage.csv__  
+
+We have data from a large sample of great apes who have been studied between the ages of 1 to 10 years old (i.e. during adolescence). Our data includes 4 species of great apes: Chimpanzees, Bonobos, Gorillas and Orangutans. Each ape has been assessed on a primate dominance scale at various ages. Data collection was not very rigorous, so apes do not have consistent assessment schedules (i.e., one may have been assessed at ages 1, 3 and 6, whereas another at ages 2 and 8).  
+
+The researchers are interested in examining how the adolescent development of dominance in great apes differs between species.  
+
+Data on the dominance scores of the apes are available at [https://uoepsy.github.io/data/lmm_apeage.csv](https://uoepsy.github.io/data/lmm_apeage.csv){target="_blank"} and the information about which species each ape is are in [https://uoepsy.github.io/data/lmm_apespecies.csv](https://uoepsy.github.io/data/lmm_apespecies.csv){target="_blank"}.  
+
+:::: {.columns}
+
+::: {.column width="45%"}
+```{r}
+#| echo: false
+#| label: tbl-spec1
+#| tbl-cap: "Data Dictionary: lmm_apespecies.csv"  
+ape_species <- read_csv("../../data/lmm_apespecies.csv")
+tibble(
+  variable = names(ape_species),
+  description = c("Ape Name","Species (Bonobo, Chimpanzee, Gorilla, Orangutan)")
+) |> gt::gt()
+```
+:::
+::: {.column width="10%"}
+
+:::
+::: {.column width="45%"}
+```{r}
+#| echo: false
+#| label: tbl-spec2
+#| tbl-cap: "Data Dictionary: lmm_apeage.csv"  
+ape_age <- read_csv("../../data/lmm_apeage.csv")
+tibble(
+  variable = names(ape_age),
+  description = c("Ape Name","Age at assessment (years)","Dominance (Z-scored)")
+) |> gt::gt()
+```
+
+:::
+::::
+
+:::
 
 
 
 
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Read in the data and check over it. Do any relevant cleaning/wrangling that might be necessary.   
+
+`r qend()`
+`r solbegin(label="1 - reading and joining", slabel=F,show=T, toggle=params$TOGGLE)`
+We'll read in both datasets, and then join them together. 
+```{r}
+library(tidyverse)
+library(lme4)
+ape_species <- read_csv("https://uoepsy.github.io/data/lmm_apespecies.csv")
+ape_age <- read_csv("https://uoepsy.github.io/data/lmm_apeage.csv")
+```
+Sometimes is handy to check that all our participants are in both datasets:
+```{r}
+# are all the apes in ape_age also in ape_species?
+all(ape_age$ape %in% ape_species$ape)
+# and vice versa?
+all(ape_species$ape %in% ape_age$ape)
+```
+Let's join them:  
+```{r}
+apedat <- full_join(ape_age, ape_species)
+head(apedat)
+```
+`r solend()`
+`r solbegin(label="2 - identifying issues", slabel=F,show=T, toggle=params$TOGGLE)`
+
+First off, we can see that we've got some weird typos. Some apes have been identified as "gorrila" but it is actually spelled "gorilla".  
+Also, we've got people using two alternatives for the chimps: "chimp" and "chimpanzee". We'll need to combine those.  
+```{r}
+table(apedat$species)
+```
 
 
+Age looks like it has some weird values (possibly "-99"?), and there are possibly a few outliers in the dominance variable. Given that dominance is standardised, it is _extremely_ unlikely that we would see values around 20.. They're not "impossible", but they're so incredibly unlikely that I'd be more comfortable assuming they are typos: 
+```{r echo=c(2,3)}
+par(mfrow=c(2,1))
+hist(apedat$age, breaks=20)
+hist(apedat$dominance, breaks=20)
+par(mfrow=c(1,1))
+```
+
+Just to see what the most extreme values of dominance are:  
+```{r}
+# show the biggest 5 absolute values in dominance variable
+sort(abs(apedat$dominance), decreasing = TRUE)[1:5]
+```
+
+`r solend()`
+`r solbegin(label="3 - cleaning up", slabel=F,show=T, toggle=params$TOGGLE)`
 
 
+```{r}
+
+apedat <- apedat |> 
+  mutate(
+    # fix species typos
+    species = case_when(
+      species %in% c("chimp","chimpanzee") ~ "chimp",
+      species %in% c("gorilla","gorrila") ~ "gorilla",
+      TRUE ~ species
+    )
+  ) |>
+    filter(
+      # get rid of ages -99
+      age > 0, 
+      # keep when dominance is between -5 and 5 
+      # (5 here is a slightly arbitrary choice, but you can see from
+      # our checks that this will only exclude the two extreme datapoints
+      # that are 21.2 and 19.4
+      (dominance < 5 & dominance > -5) 
+    )
+
+```
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+How is this data structure "hierarchical" (or "clustered")? What are our level 1 units, and what are our level 2 units?     
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We have a random sample of $\underbrace{\text{timepoints}}_{\text{level 1}}$ from a random sample of $\underbrace{\text{apes}}_{\text{level 2}}$.  
+
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+For how many apes do we have data? How many of each species?  
+How many datapoints does each ape have?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We've seen this last week too - counting the different levels in our data. There are lots of ways to do these things - functions like `count()`, `summary()`, `n_distinct()`, `table()`, `mean()`, `min()` etc. See [1: Clustered Data #determining-sample-sizes](https://uoepsy.github.io/lmm/01_clustered.html#determining-sample-sizes){target="_blank"}
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We have `r length(unique(apedat$ape))` apes in our dataset:  
+```{r}
+n_distinct(apedat$ape)
+```
+
+Here's how many of each species:  
+```{r}
+apedat |> 
+  group_by(species) |>
+  summarise(
+   n_apes = n_distinct(ape) 
+  )
+```
+
+Let's create a table of how many observations for each ape, and then we can create a table _from_ that table, to show how many apes have 2 datapoints, how many have 3, 4, and so on:  
+```{r}
+table(apedat$ape) |>
+  table() |>
+  barplot()
+```
+
+`r solend()`
+
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Make a plot to show how dominance changes as apes get older.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You might be tempted to use `facet_wrap(~ape)` here, but we have too many apes! The `group` aesthetic will probably help instead!
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here's a line for each ape, and a facet for each species:  
+```{r}
+ggplot(apedat, aes(x = age, y = dominance, col = species))+
+  geom_line(aes(group = ape)) + 
+  facet_wrap(~species) + 
+  guides(col="none")
+```
+
+It's kind of hard to see the trend for each ape with the lines, so instead let's plot points, and then make a separate little linear model for each ape:  
+
+```{r}
+ggplot(apedat, aes(x = age, y = dominance, col = species))+
+  geom_point(alpha=.1) +
+  stat_smooth(aes(group=ape),geom="line",method=lm,se=F,alpha=.5) +
+  facet_wrap(~species) + 
+  guides(col="none")
+```
+
+`r solend()`
+
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Recenter the `age` variable on 1, which is the youngest ages that we've got data on for any of our species.   
+
+Then fit a model that estimates the differences between primate species in how dominance changes over time.  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+apedat$age <- apedat$age-1 
+
+m.full <- lmer(dominance ~ 1 + age * species + (1 + age | ape), data = apedat)
+```
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+__*Do*__ primate species differ in the growth of dominance?  
+Perform an appropriate test/comparison.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This is asking about the `age*species` interaction, which in our model is represented by 3 parameters. To assess the overall question, it might make more sense to do a model comparison.  
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+m.int <- lmer(dominance ~ 1 + age + species + (1 + age | ape), data = apedat)
+m.full <- lmer(dominance ~ 1 + age * species + (1 + age | ape), data = apedat)
+
+anova(m.int, m.full)
+```
+
+
+```{r}
+#| echo: false
+res = anova(m.int, m.full)
+
+```
+
+:::int
+
+Species differ in how dominance changes over adolescence ($\chi^2(`r res[2,7]`) = `r round(res[2,6],2)`, p = `r format.pval(res[2,8],eps=.001,digits=1)`$).  
+
+:::
+
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Below is code that creates a plot of the average model predicted values for each age.^[This is like taking `predict()` from the model, and then then grouping by `age`, and calculating the mean of those predictions. However, we can do this more easily using `augment()` and then some fancy `stat_summary()` in ggplot]
+
+Before you run the code - do you expect to see straight lines? (remember, not every ape is measured at age 2, or age 3, etc).  
+
+```{r}
+#| eval: false
+library(broom.mixed)
+
+augment(m.full) |>
+  ggplot(aes(age,dominance, color=species)) +
+  # the point ranges are our observations
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  # the lines are the average of our predictions  
+  stat_summary(aes(y=.fitted, linetype=species), fun=mean, geom="line")
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Averaging fitted values would give us straight lines _if_ every ape had data at all ages, but in our study we have some apes with only 2 data points, and each ape has different set of ages (e.g., one ape might be measured at age 3, 6, and 10, another ape might be at ages 2 and 16).  
+
+So the average prediction of orangutans at age 10 might be based on only 3 orangutans, whereas the average prediction of orangutans might be based on 20 orangutans. 
+
+```{r}
+library(broom.mixed)
+augment(m.full) |>
+ggplot(aes(age,dominance, color=species)) +
+  # the point ranges are our observations
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  # the lines are the average of our predictions  
+  stat_summary(aes(y=.fitted, linetype=species), fun=mean, geom="line")
+```
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Plot the model based fixed effects.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This should get you started:  
+```{r}
+#| eval: false
+library(effects)
+effect(term = "age*species", mod = m.full) |>
+  as.data.frame() |>
+  ggplot( 
+    ...
+    ...
+```
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here's my attempt:  
+```{r}
+library(effects)
+effect(term = "age*species", mod = m.full) |>
+  as.data.frame() |>
+  ggplot(aes(x=age+1,y=fit,col=species))+
+  geom_line(lwd=1)+
+  geom_ribbon(aes(ymin=lower,ymax=upper,fill=species),col=NA,alpha=.3) +  
+  scale_color_manual(values=c("grey30","black","grey50","darkorange")) +
+  scale_fill_manual(values=c("grey30","black","grey50","darkorange")) +
+  facet_wrap(~species) + 
+  guides(col="none",fill="none") +
+  labs(x="Age (years)")
+  
+```
+
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Interpret each of the fixed effects from the model (you might also want to get some p-values or confidence intervals).  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Each of the estimates should correspond to part of our plot from the previous question.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Let's get some confidence intervals:  
+```{r}
+confint(m.full, parm = "beta_")
+```
+
+
+```{r}
+#| echo: false
+cis = confint(m.full, method="profile",
+        parm = "beta_")
+sign = ifelse(cis[,1]>0|cis[,2]<0,1,0)
+
+tidy(m.full) |>
+  filter(effect=="fixed") |>
+  transmute(term, est=round(estimate,2),
+            CI = paste0("[",round(cis[,1],2),", ",round(cis[,2],2),"]")) |>
+  mutate(
+    CI = ifelse(sign,paste0(CI,"*"),CI)
+  ) |> 
+  mutate(
+    interpretation = c(
+      "estimated dominance of 1 year old bonobos (at left hand side of plot, bonobo line is lower than 0)",
+      "estimated change in dominance score for every year older a bonobo gets (slope of bonobo line)",
+      "estimated difference in dominance scores at age 1 between bonobos and chimps (at left hand side of plot, chimp line is higher than bonobo line)",
+      "estimated difference in dominance scores at age 1 between bonobos and gorillas (at left hand side of plot, gorilla line is higher than bonobo line)",
+      "no significant difference in dominance scores at age 1 between bonobos and orangutans (at the left hand side of our plot, orangutan line is similar height to bonobo line)",
+      "no significant difference between chimps and bonobos in the change in dominance for every year older (slope of chimp line is similar to slope of bonobo line)",
+      "no significant difference between gorillas and bonobos in the change in dominance for every year older (slope of gorilla line is similar to slope of bonobo line)",
+      "estimated difference between orangutans and bonobos in the change in dominance for every year older (slope of orangutan line is less steep than slope of bonobo line)"
+    )
+  ) |> gt::gt()
+```
+
+
+`r solend()`

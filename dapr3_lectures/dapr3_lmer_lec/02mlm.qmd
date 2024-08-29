@@ -1,0 +1,1960 @@
+---
+title: "Multi-level Models"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+
+# Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c("PCA",
+                "EFA",
+                "EFA 2",
+                "CFA",
+                "CFA 2")
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=2)
+```
+
+# This week {transition="slide"}
+
+- introduction to the multilevel/mixed effects model
+    - model structure
+    - multilevel models in R
+
+# Introducing the multi-level model
+
+## Terminology
+
+```{r}
+#| eval: false
+tribble(
+  ~word, ~freq,
+  "multi-level model", 154000 + 31300,
+  "hierarchical linear model", 24000,
+  "mixed-effect model", 56500 + 191000,
+  "mixed model", 1500000,
+  "random coefficient model", 11200+6920,
+  "random-effect model", 101000 + 501000,
+  "random parameter model", 2140 + 1460,
+  "random-intercept model", 17100 + 2930, 
+  "variance components model", 6210 + 5560,
+  "partial pooling", 5120,
+  "mixed error-component model", 62,
+  "random slope model", 4010 + 1620,
+  "panel data model", 55400,
+  "latent curve model", 1520,
+  "growth curve model", 18400
+) -> mlmname
+
+
+#mlmname$freq[mlmname$freq > 100000] <- c(75000,85000, 110000,80000,95000)*1.5
+
+#wordcloud2(mlmname, shape="diamond", size=.4)
+library(wordcloud)
+wordcloud(words = mlmname$word, freq = mlmname$freq, random.order=FALSE,
+          min.freq=1,
+          scale=c(4,.5),rot.per=0,
+          fixed.asp=T,
+          #ordered.colors=T,
+          colors="#88B04B")
+```
+
+```{r}
+#| echo: false
+#| fig-cap: "(size weighted by hits on google scholar)"
+#| fig-asp: .9
+#| label: wordcloud
+knitr::include_graphics("img_sandbox/mlmname.png")
+```
+
+## single level regression
+
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j \\
+\quad \\
+& \text{    } \\
+& \color{red}{y_j} = \color{blue}{b_0 \cdot{} 1 \; + \; b_1 \cdot{} x_{j} } + \varepsilon_j \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$,  
+<br>
+their value of $\color{red}{y}$ =  
+&nbsp;&nbsp;some number ($\color{blue}{b_0}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_j$  
+
+:::
+::::
+
+## multi-level regression
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+  
+:::
+::::
+
+## multi-level regression
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+
+:::
+::::
+
+
+## multi-level regression {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+& \color{orange}{\zeta_{0i}} \sim N(0, \color{orange}{\sigma_0}) \\
+& \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+<br><br>
+We are now assuming $\color{orange}{\zeta_0}$ and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\color{orange}{\sigma_0^2}$ and $\sigma_\varepsilon^2$ respectively.  
+  
+:::
+::::
+
+## multi-level (mixed-effects) regression
+
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
+
+
+::::{.columns}
+:::{.column width="60%" style="float:left;"}
+
+$$
+\begin{align}
+& \color{red}{y_{ij}} = \overbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}^{\color{blue}{b_{0i}}} \cdot 1 + \color{blue}{b_{1} \cdot x_{ij}}  +  \varepsilon_{ij} \\
+& \quad \\
+& \color{orange}{\zeta_{0i}} \sim N(0, \sigma_0) \\
+& \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
+\end{align}
+$$
+
+:::
+:::{.column width="40%" style="font-size: 70%;color:#999999"}
+<br><br>
+The intercept $\color{blue}{b_{0i}}$ is a "mix" of two things: 
+
+- the fixed number $\gamma_{00}$
+- group deviations $\color{orange}{\zeta_{0i}}$
+
+:::
+::::
+
+:::aside
+**other notation to be aware of**  
+
+- Many people use the symbol $u$ as the random part - i.e. in place of $\zeta$  
+
+- Sometimes people use $b_{00}$ as the fixed part - i.e. instead of $\gamma_{00}$  
+
+- In various resources, you are likely to see $\alpha$ used to denote the intercept instead of $b_0$  
+
+:::
+
+# Building up the idea
+
+## back to our example {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+> Are older people more satisfied with life? 112 people from 12 different dwellings (cities/towns) in Scotland. Information on their ages and some measure of life satisfaction.  
+
+```{r}
+#| echo: true
+d3 <- read_csv("../../../data/lmm_lifesatscot.csv") 
+head(d3)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+ggplot(d3,aes(x=age,y=lifesat))+
+  geom_point(size=4,alpha=.3)+
+  facet_wrap(~dwelling)
+```
+
+:::
+::::
+
+## estimate the differences {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+the fixed effects approach:  
+
+```{r}
+#| echo: true
+#| output-line-numbers: "11,23"
+mod <- lm(lifesat ~ 1 + dwelling + age, data = d3)
+summary(mod)
+```
+
+:::
+:::{.column width="50%"}
+```{r}
+library(ggforce)
+library(ggfx)
+femod = lm(lifesat~1+dwelling+age,d3 |> mutate(age=age/10))
+basep = ggplot(d3 |> mutate(age=age/10), 
+               aes(x=age,y=lifesat))+
+  geom_point(size=3,alpha=.2,aes(col=dwelling)) +
+  guides(col="none")+
+  geom_vline(xintercept=0,lty="dashed")+
+  scale_x_continuous(limits=c(-1,7),breaks=c(0:6),labels=seq(0,60,10))+
+  scale_y_continuous(limits=c(-10,85),breaks=c(0,20,40,60,80))
+
+plotlabs = tibble(dwelling=unique(d3$dwelling),age=6,x=6)
+plotlabs$y = predict(femod, newdata=plotlabs)
+
+plotlines = 
+  expand_grid(dwelling=unique(d3$dwelling),age=0:6) %>%
+  mutate(
+    .fitted = predict(femod, newdata = .)
+  )
+  
+basep + 
+  with_blur(geom_line(data = broom::augment(femod), aes(y=.fitted,group=dwelling),alpha=.3),sigma=2) + 
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_line(data = plotlines[plotlines$dwelling=="Aberdeen",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Aberd",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue")+
+  geom_point(aes(x=0,y=coef(femod)[1]),size=3,col="blue")
+```
+
+:::
+::::
+
+
+## estimate the differences {.smaller visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+the fixed effects approach:  
+
+```{r}
+#| echo: true
+#| output-line-numbers: "11,17"
+mod <- lm(lifesat ~ 1 + dwelling + age, data = d3)
+summary(mod)
+```
+
+
+:::
+
+:::{.column width="50%"}
+```{r}
+twoplot = plotlines |> filter(grepl("Aberd|Glasg",dwelling),age==1)
+
+basep + 
+  with_blur(geom_line(data = broom::augment(femod), aes(y=.fitted,group=dwelling),alpha=.3),sigma=2) + 
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_point(aes(x=0,y=coef(femod)[1]),size=3,col="blue") +
+  geom_line(data = plotlines[plotlines$dwelling=="Aberdeen",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Aberd",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue")+
+  geom_line(data = plotlines[plotlines$dwelling=="Glasgow",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Glasgow",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue") +
+  geom_line(data = twoplot,
+               aes(x=age,y=.fitted),col="blue",lty="dashed")+
+  annotate("text",x=1,y=mean(twoplot$.fitted),
+           label=expression(beta["dwellingGlasgow"]),size=8,
+           hjust=0,col="blue")
+```
+
+:::
+::::
+
+## estimate the differences {.smaller visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+the fixed effects approach:  
+
+```{r}
+#| echo: true
+#| output-line-numbers: "11,12"
+mod <- lm(lifesat ~ 1 + dwelling + age, data = d3)
+summary(mod)
+```
+
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+twoplot = plotlines |> filter(grepl("Aberd|Dumfrie",dwelling),age==2)
+
+basep + 
+  with_blur(geom_line(data = broom::augment(femod), aes(y=.fitted,group=dwelling),alpha=.3),sigma=2) + 
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_point(aes(x=0,y=coef(femod)[1]),size=3,col="blue") +
+  geom_line(data = plotlines[plotlines$dwelling=="Aberdeen",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Aberd",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue")+
+  geom_line(data = plotlines[plotlines$dwelling=="Dumfries",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Dumfries",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue") +
+  geom_line(data = twoplot,
+               aes(x=age,y=.fitted),col="blue",lty="dashed")+
+  annotate("text",x=2,y=mean(twoplot$.fitted),
+           label=expression(beta["dwellingDumfries"]),size=8,
+           hjust=0,col="blue")
+```
+
+:::
+::::
+
+
+## estimate the differences {.smaller visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+the fixed effects approach:  
+
+```{r}
+#| echo: true
+#| output-line-numbers: "11,22"
+mod <- lm(lifesat ~ 1 + dwelling + age, data = d3)
+summary(mod)
+```
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+twoplot = plotlines |> filter(grepl("Aberd|Stirl",dwelling),age==2)
+
+basep + 
+  with_blur(geom_line(data = broom::augment(femod), aes(y=.fitted,group=dwelling),alpha=.3),sigma=2) + 
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_point(aes(x=0,y=coef(femod)[1]),size=3,col="blue") +
+  geom_line(data = plotlines[plotlines$dwelling=="Aberdeen",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Aberd",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue")+
+  geom_line(data = plotlines[plotlines$dwelling=="Stirling",], aes(y=.fitted,group=dwelling),col="blue") +
+  geom_label(data=plotlabs[grepl("Stirling",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="blue") +
+  geom_line(data = twoplot,
+               aes(x=age,y=.fitted),col="blue",lty="dashed")+
+  annotate("text",x=2,y=mean(twoplot$.fitted),
+           label=expression(beta["dwellingStirling"]),size=8,
+           hjust=0,col="blue")
+```
+
+:::
+::::
+## deviations from an average 
+
+::::{.columns}
+:::{.column width="50%"}
+
+Group deviations from an overall average
+
+:::
+
+:::{.column width="50%"}
+```{r}
+library(lme4)
+rimod = lmer(lifesat~1+age+(1|dwelling),d3 |> mutate(age=age/10))
+femod = lm(lifesat~1+age+dwelling,d3 |> mutate(age=age/10), 
+           contrasts=list(dwelling="contr.sum"))
+
+gnums = tibble(dwelling=rownames(as.data.frame(coef(rimod)$dwelling))) |>
+  mutate(g=1:n())
+
+plotlines = 
+  expand_grid(dwelling=unique(d3$dwelling),age=0:6) %>%
+  mutate(
+    x=age,
+    .fitted = predict(femod, newdata = .)
+  ) |> left_join(gnums)
+plotlabs = tibble(dwelling=unique(d3$dwelling),age=6,x=6)
+plotlabs$y = predict(femod, newdata=plotlabs)
+
+specg = plotlines |> filter(g==12) |>
+  mutate(f = coef(femod)[1])
+
+basep + 
+  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.3),sigma=2) + 
+  geom_abline(intercept=coef(femod)[1],slope=coef(femod)['age'],
+              lwd=1,col="#a41ae4") +
+  geom_point(x=0,y=coef(femod)[1],size=3,col="#a41ae4")+
+  
+  geom_line(data = specg,lwd=1,
+            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
+  geom_curve(
+    data=specg[1,],
+    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
+    curvature=.2,lwd=1
+  ) +
+  annotate("text",x=-.1,y=mean(unlist(specg[1,c(4,6)])),
+           label=expression("d"["Strlng"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_label(data=plotlabs[grepl("Stirling",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="darkorange3")+
+  guides(col="none")
+```
+:::
+::::
+
+## deviations from an average {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+
+Group deviations from an overall average
+
+:::
+
+:::{.column width="50%"}
+```{r}
+specg = plotlines |> filter(g==1) |>
+  mutate(f = coef(femod)[1])
+
+basep + 
+  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.3),sigma=2) + 
+  geom_abline(intercept=coef(femod)[1],slope=coef(femod)['age'],
+              lwd=1,col="#a41ae4") +
+  geom_point(x=0,y=coef(femod)[1],size=3,col="#a41ae4")+
+  
+  geom_line(data = specg,lwd=1,
+            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
+  geom_curve(
+    data=specg[1,],
+    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
+    curvature=-.2,lwd=1
+  ) +
+  annotate("text",x=-.1,y=mean(unlist(specg[1,c(4,6)])),
+           label=expression("d"["Abdn"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_label(data=plotlabs[grepl("Aberde",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="darkorange3")+
+  guides(col="none")
+```
+:::
+::::
+
+## deviations from an average {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+
+Group deviations from an overall average
+
+:::
+
+:::{.column width="50%"}
+```{r}
+specg = plotlines |> filter(g==7) |>
+  mutate(f = coef(femod)[1])
+
+basep + 
+  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.3),sigma=2) + 
+  geom_abline(intercept=coef(femod)[1],slope=coef(femod)['age'],
+              lwd=1,col="#a41ae4") +
+  geom_point(x=0,y=coef(femod)[1],size=3,col="#a41ae4")+
+  
+  geom_line(data = specg,lwd=1,
+            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
+  geom_curve(
+    data=specg[1,],
+    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
+    curvature=.2,lwd=1
+  ) +
+  annotate("text",x=-.1,y=mean(unlist(specg[1,c(4,6)])),
+           label=expression("d"["Glsgw"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_label(data=plotlabs[grepl("Glasg",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="darkorange3")+
+  guides(col="none")
+```
+:::
+::::
+
+## the multilevel model: a model of models
+
+
+::::{.columns}
+:::{.column width="50%"}
+modelling group-level variability, rather than estimating group differences. 
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+library(lme4)
+library(ggside)
+library(ggdist)
+library(distributional)
+rimod = lmer(lifesat~1+age+(1|dwelling),d3 |> mutate(age=age/10))
+
+plotlabs = tibble(dwelling=unique(d3$dwelling),age=6,x=6)
+plotlabs$y = predict(rimod, newdata=plotlabs)
+
+plotlines = 
+  as.data.frame(coef(rimod)$dwelling) |> 
+  rownames_to_column() |>
+  mutate(
+    g = 1:n(),
+    data = map2(`(Intercept)`,age, ~tibble(x = 0:6, .fitted = ..1 + ..2*(0:6)))
+  ) |> unnest(data)
+
+basep + 
+  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.2), sigma=2) + 
+  stat_eye(side="left",
+           data=tibble(age=-1,lifesat=fixef(rimod)[1]),
+           aes(x=0,ydist=dist_normal(fixef(rimod)[1],sqrt(VarCorr(rimod)[[1]][1]))), 
+           alpha=.3, fill="#a41ae4")+
+  geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)[2], lwd=1,col="#a41ae4")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]-sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]+sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1, alpha=.5) +
+  annotate("text",x=-.1,y=17,
+           label=expression(sigma["0"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_point(data=tibble(age=0,lifesat=fixef(rimod)[1]), col="#a41ae4",size=3)+
+  annotate("text",x=.5,y=fixef(rimod)[1],
+           label=expression(gamma["00"]),size=8,
+           hjust=0,vjust=1.2,col="#a41ae4",parse=TRUE)+
+  geom_segment(aes(x=0,xend=.5,y=fixef(rimod)[1], yend=fixef(rimod)[1]-2),col="#a41ae4",lwd=.3)
+```
+:::
+::::
+
+
+## the multilevel model
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+& \color{orange}{\zeta_{0i}} \sim N(0,\color{orange}{\sigma_0}) \\
+& \varepsilon_{ij} \sim N(0,\sigma_\varepsilon) \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+basep + 
+  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.2), sigma=2) + 
+  stat_eye(side="left",
+           data=tibble(age=-1,lifesat=fixef(rimod)[1]),
+           aes(x=0,ydist=dist_normal(fixef(rimod)[1],sqrt(VarCorr(rimod)[[1]][1]))), 
+           alpha=.3, fill="#a41ae4")+
+  geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)[2], lwd=1,col="#a41ae4")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]-sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]+sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1, alpha=.5) +
+  annotate("text",x=-.1,y=17,
+           label=expression(sigma["0"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_point(data=tibble(age=0,lifesat=fixef(rimod)[1]), col="#a41ae4",size=3)+
+  annotate("text",x=.5,y=fixef(rimod)[1],
+           label=expression(gamma["00"]),size=8,
+           hjust=0,vjust=1.2,col="#a41ae4",parse=TRUE)+
+  geom_segment(aes(x=0,xend=.5,y=fixef(rimod)[1], yend=fixef(rimod)[1]-2),col="#a41ae4",lwd=.2)
+```
+
+:::
+::::
+
+
+## the multilevel model {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in }\textbf{Edinburgh} \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{Edb,j}} = \color{blue}{b_{0Edb} \cdot 1 + b_{1} \cdot x_{Edb,j}} + \varepsilon_{Edb,j} \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0Edb}} = \gamma_{00} + \color{orange}{\zeta_{0Edb}} \\
+\quad \\
+& \color{orange}{\zeta_{0i}} \sim N(0,\color{orange}{\sigma_0}) \\
+& \varepsilon_{ij} \sim N(0,\sigma_\varepsilon) \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+specg = plotlines |> filter(g==5) |>
+  mutate(f = fixef(rimod)[1])
+
+basep + 
+  with_blur(geom_line(data = plotlines, aes(x=x,y=.fitted,group=g),alpha=.2), sigma=2) + 
+  stat_eye(side="left",
+           data=tibble(age=-1,lifesat=fixef(rimod)[1]),
+           aes(x=0,ydist=dist_normal(fixef(rimod)[1],sqrt(VarCorr(rimod)[[1]][1]))), 
+           alpha=.3, fill="#a41ae4")+
+  geom_abline(intercept=fixef(rimod)[1],slope=fixef(rimod)[2], lwd=1,col="#a41ae4")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]-sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=1) +
+  geom_segment(x=0,xend=0,y=fixef(rimod)[1],
+               yend=fixef(rimod)[1]+sqrt(VarCorr(rimod)[[1]][1]),
+               col="darkorange3",lwd=.2) +
+  annotate("text",x=-.1,y=17,
+           label=expression(sigma["0"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_point(data=tibble(age=0,lifesat=fixef(rimod)[1]), col="#a41ae4",size=3)+
+  annotate("text",x=.5,y=fixef(rimod)[1],
+           label=expression(gamma["00"]),size=8,
+           hjust=0,vjust=1.2,col="#a41ae4",parse=TRUE)+
+  geom_segment(aes(x=0,xend=.5,y=fixef(rimod)[1], yend=fixef(rimod)[1]-2),col="#a41ae4", lwd=.2)+
+  geom_line(data = specg,lwd=1,
+            aes(x=x,y=.fitted,group=g),alpha=1,col="darkorange3") +
+  geom_curve(
+    data=specg[1,],
+    aes(x=0,xend=0,y=.fitted,yend=f),col="darkorange3",
+    curvature=.6,lwd=1
+  ) +
+  annotate("text",x=-.1,y=mean(unlist(specg[1,c(6,7)])),
+           label=expression(zeta["0Edb"]),size=8,
+           hjust=1,col="darkorange3")+
+  geom_text(data=plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3)+
+  geom_label(data=plotlabs[grepl("Edinb",plotlabs$dwelling),],
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,col="darkorange3")
+```
+
+:::
+::::
+
+## fixed and random {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+$$
+\begin{align}
+& \text{Level 1:} \\ 
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 +} \overbrace{\color{blue}{b_{1}}}^{\textrm{fixed}} \color{blue}{ \cdot x_{ij}} + \varepsilon_{ij} \\ 
+& \text{Level 2:} \\ & \color{blue}{b_{0i}} = \underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}} \\ 
+\quad \\ 
+\end{align}
+$$
+
+:::
+
+:::{.column width="50%"}
+
+$$
+\color{red}{y_{ij}} = (\underbrace{\gamma_{00}}_{\textrm{fixed}} + \color{orange}{\underbrace{\zeta_{0i}}_{\textrm{random}}}) \cdot 1 + \underbrace{b_1}_{\textrm{fixed}} \cdot x_{ij} + \varepsilon_{ij} \\
+$$
+
+:::
+::::
+
+The $\color{orange}{\zeta}$ components also get termed the "random effects" part of the model, Hence names like "random effects model", etc.
+
+$\color{orange}{\zeta_i}$ is "random" because considered a random sample from larger population such that $\color{orange}{\zeta_{0i}} \sim N(0, \color{orange}{\sigma^2_0})$. 
+
+
+## fixed and random {.smaller}
+
+**Should variable `g` be fixed or random?**  
+
+<br><br>
+
+|  | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ | 
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed<br>$y\,\sim\,~\,...\, +\, g$  | Same groups would be used   |    The groups used  |
+| Random<br>$y\,\sim\,...\,+\,(\,... |\,g)$ | Different groups would be used   | A population from which the groups used are just a (random) sample |
+
+:::{.aside}
+If we only have a very small number of groups, estimating variance components may be unstable, and partialling out group-differences as fixed effects *may* be preferable. 
+:::
+
+## random intercepts
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+
+:::
+::::
+
+## random slopes
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+\end{align}
+$$
+
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount **for group $i$** ($\color{blue}{b_{1i}}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+group $i$'s slope ($\color{blue}{b_{1i}}$) =  
+&nbsp;&nbsp;the slope for the average of the population of groups ($\gamma_{10}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{1i}}$) from $\gamma_{10}$  
+  
+:::
+::::
+
+## random slopes  
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+& \qquad \\
+& \qquad \\
+& \begin{bmatrix} \color{orange}{\zeta_{0i}} \\ \color{orange}{\zeta_{1i}} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \color{orange}{\sigma_0} & \color{orange}{\rho_{01}} \\
+        \color{orange}{\rho_{01}} & \color{orange}{\sigma_1}
+    \end{bmatrix}
+\right) \\
+& \varepsilon_{ij} \sim N(0,\sigma_\varepsilon) \\
+\end{align}
+$$
+
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount **for group $i$** ($\color{blue}{b_{1i}}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+group $i$'s slope ($\color{blue}{b_{1i}}$) =  
+&nbsp;&nbsp;the slope for the average of the population of groups ($\gamma_{10}$)  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{1i}}$) from $\gamma_{10}$  
+<br>
+group deviations for intercepts and slopes are normally distributed with mean of 0 and standard deviations of $\color{orange}{\sigma_0}$ and $\color{orange}{\sigma_1}$ respectively, and with a correlation of $\color{orange}{\rho_{01}}$. 
+  
+:::
+::::
+
+## random intercepts, random slopes  
+
+```{r}
+set.seed(877)
+df = tibble(
+  g=rep(rnorm(10,0,3),e=10),
+  x=rep(0:9,10),
+  y=1+x+mean(g)+mean(g)*.1*x,
+  y1=1+x+g+mean(g)*.1*x,
+  y2=1+x+mean(g)+g*.1*x,
+  y3=1+x+g+g*.1*x,
+  yp=1+x+g+.1*g*x+rnorm(100)
+) 
+library(patchwork)
+p1 <- ggplot(df,aes(x,y,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="fixed intercept, fixed slope")
+
+p2 <- ggplot(df,aes(x,y1,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="random intercept, fixed slope")
+
+p3 <- ggplot(df,aes(x,y2,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="fixed intercept, random slope")
+
+p4 <- ggplot(df,aes(x,y3,group=g))+
+  geom_point(aes(y=yp),alpha=.1,size=3)+
+  geom_line(size=.75)+
+  labs(title="random intercept, random slope")
+  
+(p1 + p2) / (p3 + p4) & theme(title = element_text(size=14))
+```
+
+
+
+
+```{r}
+#| eval: false
+library(gganimate)
+femod = lm(lifesat~1+age*dwelling,d3 |> mutate(age=age/10))
+rimod = lmer(lifesat~1+age+(1+age|dwelling),d3 |> mutate(age=age/10))
+
+plotlabs = tibble(dwelling=unique(d3$dwelling),age=7,x=7)
+plotlabs$y = predict(rimod, newdata=plotlabs)
+
+plotlines = 
+  as.data.frame(coef(rimod)$dwelling) |> 
+  rownames_to_column() |>
+  mutate(
+    g = 1:n(),
+    data = map2(`(Intercept)`,age, ~tibble(x = 0:7, .fitted = ..1 + ..2*(0:7)))
+  ) |> unnest(data)
+
+plotlinesF = 
+  expand_grid(dwelling=unique(d3$dwelling),age=0:7) %>%
+  mutate(
+    x=age,
+    .fitted = predict(femod, newdata = .)
+  )
+
+anim_plotlines = bind_rows(
+  plotlines |> mutate(dwelling=rowname) |>
+    select(dwelling,g,x,.fitted) |> mutate(f = "partial pooling"),
+  plotlinesF |> select(dwelling,x,.fitted) |> mutate(f = "no pooling")
+) |> group_by(dwelling) |>
+  mutate(g=mean(g,na.rm=T)) |> ungroup()
+
+plotlabsF = tibble(dwelling=unique(d3$dwelling),age=7,x=7)
+plotlabsF$y = predict(femod, newdata=plotlabsF)
+anim_plotlabs = bind_rows(plotlabs |> mutate(f="partial pooling"),
+                          plotlabsF |> mutate(f="no pooling"))
+
+anim_dist = tibble(age=-1,lifesat=fixef(rimod)[1],
+       x=0,m=c(mean(plotlinesF$.fitted[plotlinesF$x==0]),
+               fixef(rimod)[1]),
+       s=c(1e3,sqrt(VarCorr(rimod)[[1]][1])),
+       f = c("no pooling", "partial pooling")
+)
+
+anim_slopes = bind_rows(
+  full_join(
+  plotlinesF |> filter(age==0) |> 
+    transmute(dwelling,intercept=.fitted),
+  marginaleffects::avg_slopes(femod,variables="age", by="dwelling") |>
+    as_tibble() |> transmute(dwelling, slope=estimate,f="no pooling"),  
+  ),
+  
+  as.data.frame(coef(rimod)$dwelling) |> 
+  rownames_to_column() |>
+  transmute(dwelling=rowname,g = 1:n(),
+            intercept=`(Intercept)`,slope = age,f="partial pooling")
+) |> arrange(f,dwelling)
+
+anim_slopedist = tibble(
+  m = c(mean(marginaleffects::avg_slopes(femod,variables="age",
+                            by="dwelling")$estimate),
+        fixef(rimod)['age']),
+  s = c(1e3,sqrt(VarCorr(rimod)[[1]][2,2])),
+  f = c("no pooling", "partial pooling")
+)
+
+animp1 = ggplot(anim_slopes,
+                aes(x=intercept))+
+  geom_density(col=NA)+
+  scale_x_continuous(NULL, limits=c(-10,85),breaks=c(0,20,40,60,80),
+                     labels=NULL) +
+  scale_y_continuous("density", limits=c(-1,0),breaks=c(-1,0))+
+  geom_rug(sides="t",aes(col=dwelling),lwd=1)+
+  guides(col="none",alpha="none")+
+  geom_text(aes(y=0,label=dwelling),size=5,
+            angle=0,hjust=1, alpha=.1)+
+  #
+  # geom_text(aes(y=0,label=dwelling, col=dwelling,
+  #               alpha=factor(dwelling=="Stirling")),size=5,
+  #           angle=0,hjust=1)+
+  #
+  stat_eye(side="left",
+           data=anim_dist,
+           aes(x=0,y=0,xdist=dist_normal(m,s)), 
+           alpha=.3, fill="#a41ae4")+
+  theme(axis.title.y = element_text(colour="white"),
+        axis.text.x = element_text(colour="white"),
+        title = element_text(color="white"),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank())+
+  coord_flip()+
+  
+  transition_states(f)+
+  labs(title="{closest_state}")+
+  ease_aes('sine-in')
+
+
+animp2 = ggplot(anim_slopes,
+                aes(x=slope))+
+  geom_density(col=NA)+
+  scale_x_continuous(NULL,limits=c(-11,15),labels=NULL)+
+  scale_y_continuous("dens",limits=c(-1,0),breaks=c(-1,0),
+                     labels=NULL)+
+  geom_rug(sides="t",aes(col=dwelling),lwd=1)+
+  guides(col="none",alpha="none")+
+  geom_text(aes(y=0,label=dwelling),size=5,
+            angle=90,hjust=1, alpha=.1)+
+  #
+  # geom_text(aes(y=0,label=dwelling, col=dwelling,
+  #               alpha=factor(dwelling=="Stirling")),size=5,
+  #           angle=90,hjust=1)+
+  #
+  stat_eye(side="left",
+           data=anim_slopedist,
+           aes(x=0,y=0,xdist=dist_normal(m,s)), 
+           alpha=.3, fill="#a41ae4")+
+  theme(axis.title.y = element_text(colour="white"),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank())+
+  transition_states(f)+
+  ease_aes('sine-in-out')
+#anim_save("output2.gif",animp2) 
+
+animp3 = ggplot(anim_slopes,
+                aes(x=slope,y=intercept))+
+  scale_x_continuous(limits=c(-11,15))+
+  scale_y_continuous(limits=c(-10,85),breaks=c(0,20,40,60,80)) +
+  guides(col="none",alpha="none")+
+  geom_text(aes(label=dwelling),size=5,
+            angle=0,hjust=0, alpha=.3)+
+  geom_rug(aes(col=dwelling),lwd=1)+
+  #
+  # geom_text(aes(label=dwelling, col=dwelling,
+  #               alpha=factor(dwelling=="Stirling")),size=5,
+  #           angle=0,hjust=0)+
+  #
+  theme(title = element_text(color="white")) +
+  transition_states(f)+
+  labs(title="{closest_state}")+
+  ease_aes('sine-in-out')
+# anim_save("output3.gif",animp3) 
+
+
+animp = ggplot(d3 |> mutate(age=age/10), 
+               aes(x=age,y=lifesat))+
+  geom_point(size=3,alpha=.2,aes(col=dwelling)) +
+  guides(col="none")+
+  geom_vline(xintercept=0,lty="dashed")+
+  scale_x_continuous(limits=c(-1,8),breaks=c(0:7),labels=seq(0,70,10))+
+  scale_y_continuous(limits=c(-10,85),breaks=c(0,20,40,60,80)) +
+  with_blur(geom_line(data = anim_plotlines,
+                      aes(x=x,y=.fitted,group=g),alpha=.2), sigma=2) + 
+  geom_point(data = anim_plotlines[anim_plotlines$x==0,],
+             aes(x=x,y=.fitted,col=dwelling),shape="_",size=8)+
+  #
+  # geom_line(data = anim_plotlines |> filter(dwelling=="Stirling"),
+  #           aes(x=x,y=.fitted,group=g,col=dwelling), lty="dashed",size=1) +
+  # geom_point(data = d3 |> filter(dwelling=="Stirling") |>
+  #              mutate(age=age/10),
+  #           aes(x=age,y=lifesat,col=dwelling),size=4) +
+  # geom_label(data=anim_plotlabs |> filter(dwelling=="Stirling"),
+  #            aes(x=x,y=y,label=dwelling,col=dwelling),
+  #            hjust=0) +
+  #
+  geom_text(data=anim_plotlabs,
+             aes(x=x,y=y,label=dwelling),
+             hjust=0,alpha=.3) +
+  stat_eye(side="left",
+           data=anim_dist,
+           aes(x=x,ydist=dist_normal(m,s)), 
+           alpha=.3, fill="#a41ae4")+
+  
+  transition_states(f)+
+  labs(title="{closest_state}")+
+  ease_aes('sine-in-out')
+  
+#anim_save("output.gif",animp)
+
+library(magick)
+# a_gif = animate(animp, width=240,height=240)
+# b_gif = animate(animp2, width=150,height=240)
+# a_mgif <- image_read(a_gif)
+# b_mgif <- image_read(b_gif)
+
+a_mgif = animate(animp, nframes = 100, width=600,height=600,
+                 renderer = magick_renderer(loop = FALSE))
+b_mgif = animate(animp1, nframes = 100, width=150, height=300,
+                 renderer = magick_renderer(loop = FALSE))
+c_mgif = animate(animp2, nframes = 100, width=300, height=300,
+                 renderer = magick_renderer(loop = FALSE))
+d_mgif = animate(animp3, nframes = 100, width=300, height=300,
+                 renderer = magick_renderer(loop = FALSE))
+
+new_gif <- image_append(c(a_mgif[1], 
+                          image_append(c(b_mgif[1],
+                                         image_blank(150,300,color="white")),
+                                       stack=TRUE),
+                          image_append(c(d_mgif[1], c_mgif[1]), stack=TRUE)))
+
+
+for(i in 2:100){
+  combined <- image_append(c(a_mgif[i], 
+                          image_append(c(b_mgif[i],
+                                         image_blank(150,300,color="white")),
+                                       stack=TRUE),
+                          image_append(c(d_mgif[i], c_mgif[i]), stack=TRUE)))
+  new_gif <- c(new_gif, combined)
+}
+anim_save("output_both.gif",new_gif)
+
+
+```
+
+## the multilevel model: partial pooling  {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In a no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to the slope for cluster $i$, but nothing else.  
+    - Information from Glasgow, Edinburgh, Perth, Dundee etc doesn't influence what we think about Stirling  
+
+
+:::
+
+:::{.column width="50%" .fragment}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma^2_b}$.  
+- clusters' contributions to the model depend on:  
+    - $\color{orange}{\sigma^2_b}$ relative to $\sigma^2_\varepsilon$
+    - the amount of data in each cluster  
+
+
+:::
+::::
+
+## the multilevel model: partial pooling  {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In a no-pooling approach, information is not combined in anyway (data from cluster $i$ contributes to the slope for cluster $i$, but nothing else.  
+    - Information from Glasgow, Edinburgh, Perth, Dundee etc doesn't influence what we think about Stirling  
+
+
+:::
+
+:::{.column width="50%"}
+
+- In the multilevel model, we model group deviations as normally distributed with a variance of $\color{orange}{\sigma^2_b}$.  
+- clusters' contributions to the model depend on:  
+    - how distinct the clustering is
+    - how big a cluster is
+
+:::{.fragment}
+
+- cluster specific predictions are *shrunk* towards the average depending on:  
+    - how distinct the clustering is
+    - how big a cluster is
+
+:::
+
+:::
+::::
+
+
+## the multilevel model: partial pooling {.smaller}
+
+![](output_both.gif){width=1000px}
+
+## the multilevel model: partial pooling {.smaller}
+
+![](output_bothK.gif){width=1000px}
+
+## the multilevel model: partial pooling {.smaller}
+
+![](output_bothS.gif){width=1000px}
+
+
+## Advantages of MLM {.smaller}
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do phenomena at Level X predict __outcomes__ at Level Y?  
+
+__example:__  
+$n$ participants, each completes reaction time task multiple times.  
+Q: Does handedness (L vs R) predict variation in reaction times?  
+
+$$
+\begin{align}
+\textrm{for person }i\textrm{, observation }j \\
+\textrm{reaction time}_{ij} &= b_{0i} + \varepsilon_{ij} \\
+b_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{handedness}_i
+\end{align}
+$$
+<br>
+Single equation:  
+$$
+\begin{equation}
+\textrm{reaction time}_{ij} = (\gamma_{00} + \zeta_{0i}) + \gamma_{01}\textrm{handedness}_i + \varepsilon_{ij}
+\end{equation}
+$$
+
+## Advantages of MLM {.smaller}
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do phenomena at Level X influence __effects__ at Level Y?  
+
+__example:__  
+$n$ children's grades are recorded every year throughout school  
+Q: Does being mono/bi-lingual influence childrens' grades over the duration of their schooling?  
+
+$$
+\begin{align}
+\textrm{for child }i\textrm{, in year }j \\
+\textrm{grade}_{ij} &= b_{0i} + b_{1i}\textrm{school year}_{ij} + \varepsilon_{ij} \\  
+b_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{bilingual}_i \\
+b_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i \\
+\end{align}
+$$
+
+<br>
+Single equation:   
+$$
+\begin{equation}
+\textrm{grade}_{ij} = (\gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{bilingual}_i) + (\gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i)\cdot \textrm{school year}_{ij} + \varepsilon_{ij}
+\end{equation}
+$$
+
+## Advantages of MLM {.smaller visibility="uncounted"}
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do phenomena at Level X influence __effects__ at Level Y?  
+
+__example:__  
+$n$ children's grades are recorded every year throughout school  
+Q: Does being mono/bi-lingual influence childrens' grades over the duration of their schooling?  
+
+$$
+\begin{align}
+\textrm{for child }i\textrm{, in year }j \\
+\textrm{grade}_{ij} &= b_{0i} + b_{1i}\textrm{school year}_{ij} + \varepsilon_{ij} \\  
+b_{0i} &= \gamma_{00} + \zeta_{0i} + \gamma_{01}\textrm{bilingual}_i \\
+b_{1i} &= \gamma_{10} + \zeta_{1i} + \gamma_{11}\textrm{bilingual}_i \\
+\end{align}
+$$
+
+<br>
+Single equation:   
+$$
+\begin{equation}
+\textrm{grade}_{ij} = (\gamma_{00} + \zeta_{0i}) + \gamma_{01}\textrm{bilingual}_i + (\gamma_{10} + \zeta_{1i})\cdot \textrm{school year}_{ij} + \gamma_{11}\textrm{bilingual}_i \cdot \textrm{school year}_{ij} + \varepsilon_{ij}
+\end{equation}
+$$
+
+
+## Advantages of MLM {.smaller}
+
+Multi-level models can be used to answer multi-level questions!  
+<br><br>
+Do random variances covary?  
+
+__example:__  
+$n$ participants' cognitive ability is measured across time.  
+Q: Do people who have higher cognitive scores at start of study show less decline over the study period than those who have lower scores?  
+
+$$
+\begin{align}
+\textrm{for person }i\textrm{, at time }j \\
+\textrm{cognition}_{ij} &= b_{0i} + b_{1i}\textrm{time}_{ij} + \varepsilon_{ij} \\
+b_{0i} &= \gamma_{00} + \zeta_{0i}\\
+b_{1i} &= \gamma_{10} + \zeta_{1i}\\
+\end{align}
+$$
+$$
+\begin{equation}
+\begin{bmatrix} \zeta_{0i} \\ \zeta_{1i} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \sigma_0^2 & \rho_{01} \\
+        \rho_{01} & \sigma_1^2
+    \end{bmatrix}
+\right)
+\end{equation}
+$$
+
+
+# Multi-level models in R
+
+## The lme4 package {.smaller}
+
+- **lme4** package (many others are available, but **lme4** is most popular).  
+
+<br>
+
+- The `lmer()` function. syntax is similar to `lm()`, in that we specify:   
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__, data = __*[name of dataframe]*__
+    
+<br>
+  
+- in `lmer()`, we have to also specify the random effect structure in parentheses:  
+
+    __*[outcome variable]*__ ~ __*[explanatory variables]*__ + (__*[vary this]*__ | __*[by this grouping variable]*__), data = __*[name of dataframe]*__, REML = __*[TRUE/FALSE]*__
+    
+
+
+## A new example
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+> In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78.  
+
+```{r}
+#| echo: true
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+head(d3)
+```
+
+```{r}
+#| echo: true
+#| fig-show: hide
+pptplots <- 
+  ggplot(d3, aes(x = visit, y = ACE, col = ppt)) +
+  geom_point() +
+  facet_wrap(~ppt) + 
+  guides(col = "none") +
+  labs(x = "visit", y = "cognition")
+```
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+pptplots
+```
+
+:::
+::::
+
+## Fitting an lm
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| output-line-numbers: "10,11"
+lm_mod <- lm(ACE ~ 1 + visit, data = d3)
+summary(lm_mod)
+```
+:::
+
+:::{.column width="50%" .fragment}
+```{r}
+#| echo: true
+pptplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
+```
+
+:::
+::::
+
+
+## random intercept 
+
+::::{.columns}
+:::{.column width="50%"}
+vary the intercept by participant.
+```{r}
+#| echo: true
+#| output-line-numbers: "13,20"
+library(lme4)
+ri_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 | ppt), data = d3)
+summary(ri_mod)
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+pptplots + 
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
+```
+:::
+::::
+
+
+## random intercepts and slopes
+
+
+::::{.columns}
+:::{.column width="50%"}
+vary the intercept and the slope by participant
+```{r}
+#| echo: true
+#| output-line-numbers: "14,21"
+library(lme4)
+rs_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), data = d3)
+summary(rs_mod)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+pptplots + 
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=1)
+```
+:::
+::::
+
+
+## random intercepts and slopes
+
+
+::::{.columns}
+:::{.column width="50%"}
+vary the intercept and the slope by participant
+```{r}
+#| echo: true
+library(lme4)
+rs_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), data = d3)
+summary(rs_mod)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+m1<-lm(ACE~visit*ppt, data = d3)
+m2<-lmer(ACE~visit + (1 + visit | ppt), data = d3)
+d3 %>% 
+  mutate(
+    lm_fit = fitted(m1),
+    rs_fit = fitted(m2)
+  ) %>%
+  filter(ppt %in% paste0("PPT_",c(14,20,11,19))) %>%
+  ggplot(., aes(x = visit)) + 
+    geom_point(aes(y = ACE)) + 
+    facet_wrap(~ppt) +
+    geom_line(aes(y = lm_fit, lty="fixed effects:\ny ~ x * g",col="fixed effects:\ny ~ x * g"), lwd=1) + 
+    geom_line(aes(y = rs_fit, lty="random effects:\ny ~ x + (1 + x | g)", col="random effects:\ny ~ x + (1 + x | g)"), lwd=1) +
+  scale_linetype_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"=2,"random effects:\ny ~ x + (1 + x | g)"=1)) + 
+  scale_color_manual("model fitted values",values = c("fixed effects:\ny ~ x * g"="black","random effects:\ny ~ x + (1 + x | g)"="orange"))+
+  theme(legend.position="bottom")
+```
+:::
+::::
+
+## random intercepts and slopes
+
+vary the intercept and the slope by participant
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+library(lme4)
+rs_mod <- lmer(ACE ~ 1 + visit + 
+                 (1 + visit | ppt), data = d3)
+summary(rs_mod)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+ggplot(d3, aes(x = visit, y = ACE, group = ppt)) +
+  geom_point() +
+  guides(col = "none") +
+  labs(x = "visit", y = "cognition") +
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=.5)+
+  geom_abline(intercept=fixef(rs_mod)[1],
+              slope=fixef(rs_mod)[2],col="black",
+              lwd=1)
+```
+
+:::
+::::
+
+
+## Asking multi-level questions!
+
+are changes in cognition (observation-level) different between conditions (participant-level)? 
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+cli_mod <- lmer(ACE ~ 1 + visit * condition + 
+                 (1 + visit | ppt), data = d3)
+summary(cli_mod)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+ggplot(d3, aes(x = visit, y = ACE, group = ppt)) +
+  geom_point() +
+  labs(x = "visit", y = "cognition") +
+  geom_line(aes(y=fitted(cli_mod), col=condition), lwd=.5,alpha=.4) +
+  geom_abline(intercept=fixef(cli_mod)[1],
+              slope=fixef(cli_mod)[2],
+              col=scales::hue_pal()(2)[1],
+              lwd=1)+
+  geom_abline(intercept=sum(fixef(cli_mod)[c(1,3)]),
+              slope=sum(fixef(cli_mod)[c(2,4)]),
+              col=scales::hue_pal()(2)[2],
+              lwd=1)+
+  theme(legend.position="bottom")
+```
+:::
+::::
+
+
+## lmer output
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "20,21"
+my_data<-read_csv("data/lme4output.csv")
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+knitr::include_graphics("img_sandbox/lmer2.png")
+```
+:::
+::::
+
+
+## lmer output
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "13,14"
+my_data<-read_csv("data/lme4output.csv")
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+knitr::include_graphics("img_sandbox/lmer2a.png")
+```
+:::
+::::
+
+## lmer output
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "13,14,20,21"
+my_data<-read_csv("data/lme4output.csv")
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+knitr::include_graphics("img_sandbox/lmer3.png")
+```
+:::
+::::
+
+## lmer output
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r}
+#| output-line-numbers: "15"
+my_data<-read_csv("data/lme4output.csv")
+m=lmer(y ~ x + (1 + x | group), my_data)
+summary(m, correlation=F)
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+knitr::include_graphics("img_sandbox/lmer4.png")
+```
+:::
+::::
+
+## Model Parameters
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+summary(model)
+```
+```{r echo=FALSE}
+my_data<-read_csv("data/lme4output.csv")
+model=lmer(y ~ x + (1 + x | group), my_data)
+summary(model, correlation=F)
+```
+:::
+
+:::{.column width="50%"}
+Fixed effects:  
+```{r}
+#| echo: true
+fixef(model)
+```
+
+Variance components:  
+```{r}
+#| echo: true
+VarCorr(model)
+```
+:::
+::::
+
+## Model Predictions: ranef, coef
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r echo=FALSE}
+my_data<-read_csv("data/lme4output.csv") |> mutate(group=gsub("school","cluster_",group))
+model=lmer(y ~ x + (1 + x | group), my_data)
+summary(model, correlation=F)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+ranef(model)
+```
+```{r echo=F}
+head(ranef(model)$group %>% round(.,4), 5L) %>% rbind(.,"...") -> op
+row.names(op)[6] <- "..."
+op
+```
+```{r}
+#| eval: false
+#| echo: true
+coef(model)
+```
+```{r echo=F}
+head(coef(model)$group %>% round(.,4), 5L) %>% rbind(.,"...") -> op
+row.names(op)[6] <- "..."
+op
+```
+
+coef = fixef + ranef
+:::
+::::
+
+<!-- ## ICC from lmer -->
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- Fit an intercept-only model:   -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- #| output-line-numbers: "13,14" -->
+<!-- null_mod <- lmer(ACE ~ 1 + (1 | ppt), data = d3)  -->
+<!-- summary(null_mod) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- 2.22 / (2.22 + 2.54) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(ICC) -->
+<!-- ICCbare(x=ppt,y=ACE,data=d3) -->
+<!-- ``` -->
+
+<!-- ::: -->
+<!-- :::: -->
+
+## Model Performance
+
+
+::::{.columns}
+:::{.column width="50%"}
+#### R-squared
+
+- Marginal $R^2$: considers only the variance of the fixed effects (without the random effects)  
+- Conditional $R^2$: considers both the fixed and random effects
+
+```{r}
+#| echo: true
+library(performance)
+r2(model)
+```
+
+:::
+
+:::{.column width="50%"}
+#### Information Criterion
+
+(only useful for comparing models)
+
+```{r}
+#| echo: true
+AIC(model)
+
+BIC(model)
+```
+
+:::
+::::
+
+## Inference
+
+- Degrees of freedom for multilevel models is not clear 
+- Lots and lots of different methods 
+
+:::{.fragment}
+  
+```{r}
+#| echo: true
+library(lmerTest) # overwrites the lmer() function
+model <- lmer(y ~ x + (1 + x | group), my_data)
+summary(model)
+```
+
+:::
+
+## Inference
+
+- Degrees of freedom for multilevel models is not clear 
+- Lots and lots of different methods 
+
+```{r}
+#| echo: true
+restricted_model <- lmer(y ~ 1 + (1 + x | group), my_data)
+model <- lmer(y ~ 1 + x + (1 + x | group), my_data)
+anova(restricted_model, model) # likelihood ratio test
+```
+
+
+# Summary {background-color="white"}
+
+- We can extend our linear model equation to model certain parameters as random cluster-level adjustments around a fixed center.
+
+- $\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 \; + \; b_1 \cdot{} x_{i} } + \varepsilon_i$  
+if we allow the intercept to vary by cluster, becomes:  
+$\color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij}$  
+$\color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}}$
+
+- We can express this as one equation if we prefer:
+$\color{red}{y_{ij}} = \underbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}_{\color{blue}{b_{0i}}} \cdot 1 +  \color{blue}{b_{1} \cdot x_{ij}}  +  \varepsilon_{ij}$  
+
+- We can allow slopes to vary by-cluster too.  
+
+- This allows us to model cluster-level variation around the intercept ("random intercepts") and around slopes ("random slopes"). 
+
+- We can fit this using the **lme4** package in R
+
+## This week 
+
+
+::::{.columns}
+:::{.column width="50%"}
+### Tasks
+
+![](img_sandbox/readings.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete readings 
+
+<br>
+
+![](img_sandbox/labs.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Attend your lab and work together on the exercises 
+
+<br>
+
+![](img_sandbox/exam.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+### Support
+
+![](img_sandbox/forum.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Piazza forum! 
+
+<br>
+
+![](img_sandbox/oh.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Office hours (see Learn page for details)
+
+
+
+:::
+::::

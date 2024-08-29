@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
     message = FALSE, 
     warning = FALSE,
     fig.align = 'center',
-    out.width = '80%'
+    out.width = '100%'
 )
 options(digits=3)
 

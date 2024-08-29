@@ -46,12 +46,12 @@ update_geom_defaults("line",list(size=2))
 
 knitr::opts_chunk$set(dev.args = list(bg="transparent"))
 
-options(digits=3,scipen=8)
+options(digits=3,scipen=3)
 
 
 knitr::opts_chunk$set(
   fig.asp=.8,
-  tidy=TRUE,
+  #tidy=TRUE,
   tidy.opts=list(width.cutoff=70, arrow=TRUE, indent=2, args.newline=TRUE)
 )
 knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)

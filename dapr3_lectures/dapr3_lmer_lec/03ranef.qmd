@@ -1,0 +1,1086 @@
+---
+title: "Random Effect Structures & Model Building"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+library(lme4)
+source('_theme/theme_quarto.R')
+```
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex grouping structures",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c("reducing many variables to a smaller number of dimensions (PCA)",
+                "identifying underlying constructs (EFA)",
+                "more on underlying constructs (EFA)",
+                "CFA",
+                "CFA 2")
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=3)
+```
+
+# This week {transition="slide"}
+
+TODO
+    
+# Random Effect Structures
+
+## Grouping structures so far... 
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- children within schools
+
+- people within areas
+
+- trials within participants
+
+- timepoint within participants
+
+- nurses within hospitals
+
+- and probably some others...
+
+:::
+
+:::{.column width="50%"}
+
+:::
+::::
+
+## Look at your data! Read the study design!
+
+::::{.columns}
+:::{.column width="50%"}
+
+**observations within clusters**  
+
+when data is in long format:  
+
+- rows of data grouped by values of group identifier `g`
+
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+set.seed(245)
+tibble::tibble(
+  `g     ` = rep(1:6,e=3),
+  `x     ` = round(runif(18,0,10)),
+  y = round(rnorm(18,5,1),1)
+) |> 
+  rbind("...") |>
+  dplyr::mutate(across(1:2,~paste0(.,"     "))) |>
+  as.data.frame() |> 
+  print(row.names=FALSE)
+```
+
+
+
+:::
+::::
+
+## Adding more levels!  
+
+::::{.columns}
+:::{.column width="50%"}
+
+**observations within clusters _within higher clusters_**  
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g2`, which are in turn grouped by values of higher-level group identifier `g1`
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+set.seed(245)
+tibble::tibble(
+  `g1    ` = rep(1:2,e=9),
+  `g2    ` = rep(1:6,e=3),
+  `x     ` = round(runif(18,0,10)),
+  y = round(rnorm(18,5,1),1)
+) |> 
+  rbind("...") |>
+  dplyr::mutate(across(1:3,~paste0(.,"     "))) |>
+  as.data.frame() |> 
+  print(row.names=FALSE)
+```
+
+:::
+::::
+
+## Adding more levels!  
+
+::::{.columns}
+:::{.column width="50%"}
+
+**observations within clusters _and within some other clusters_**
+
+when data is in long format: 
+
+- rows of data grouped by values of group identifier `g`, but are also grouped by values of a group identifier `gg`
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+set.seed(245)
+tibble::tibble(
+  `gg    ` = rep(1:3,6),
+  `g     ` = rep(1:6,e=3),
+  `x     ` = round(runif(18,0,10)),
+  y = round(rnorm(18,5,1),1)
+) |> 
+  rbind("...") |>
+  dplyr::mutate(across(1:3,~paste0(.,"     "))) |>
+  as.data.frame() |> 
+  print(row.names=FALSE)
+```
+
+:::
+::::
+
+## Nested Structures
+
+The things in a cluster belong __only__ to that cluster.  
+
+```{r}
+#| out-width: "450px"
+#| echo: false
+#| fig-align: "center"
+knitr::include_graphics("https://media.gettyimages.com/id/657783001/photo/mallard-ducklings.jpg?s=2048x2048&w=gi&k=20&c=0kXqa1ss4W5kqSe5PsrK-2zy3UAkYbTnDLfqUckPzJ8=")
+```
+
+## Nested Structures {visibility="uncounted"}
+
+The things in a cluster belong __only__ to that cluster.  
+
+```{r}
+#| echo: false
+#| fig-align: "center"
+knitr::include_graphics("img_sandbox/structure_nestednew.png")
+```
+
+<center>
+
+**`(1 | school) + (1 | class:school)`**
+
+</center>
+
+:::aside
+
+- the order doesn't matter, so this is also fine: **`(1 | school) + (1 | school:class)`**
+- we can use **`(1 | school/class)`** as shorthand, but it is often preferable to separate them out (allowing different random effects for schools vs for children)
+
+:::
+
+## Nested Structures - labels!  
+
+The things in a cluster belong __only__ to that cluster.  
+
+```{r}
+#| echo: false
+#| fig-align: "center"
+knitr::include_graphics("img_sandbox/structure_nestedlabnew.png")
+```
+
+<center>
+
+**`(1 | school) + (1 | class:school)`**
+
+</center>
+
+:::aside
+
+- If labels are unique, `class:school` is the same as `class`, meaning that the two below are equivalent:  
+    - **`(1 | school) + (1 | class:school)`**
+    - **`(1 | school) + (1 | class)`**
+
+:::
+
+
+
+## Example 1
+ 
+::::{.columns}
+:::{.column width="50%"}
+
+One study site recruits 20 participants.  
+Each participant has 10 datapoints.  
+
+```{r}
+#| echo: true
+d3 <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv")
+```
+```{r}
+#| echo: false
+rbind(
+  d3[1:4,],
+  "...",
+d3[d3$condition=="mindfulness",][1:4,]) |> as.data.frame() |>
+  print(row.names=FALSE)
+```
+```{r}
+#| eval: false
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| eval: false
+... + (1 + ... | ppt)
+```
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv")
+ggplot(d3, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7)+
+  theme(legend.position = "bottom")
+```
+
+:::
+::::
+
+## Nested Example
+
+
+::::{.columns}
+:::{.column width="50%"}
+14 study sites each recruit c20 participants.  
+Each participant has 10 datapoints.  
+
+```{r}
+#| echo: true
+d3full <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldeclineFULL.csv")
+```
+```{r}
+#| echo: false
+rbind(
+  d3full[338:343,],
+  "...",
+  "...",
+  d3full[956:959,],
+  "..."
+) |> as.data.frame() |> print(row.names=FALSE)
+```
+```{r}
+#| eval: false
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| eval: false
+... + (1 + ... | sitename) + (1 + ... | ppt:sitename)
+```
+
+```{r}
+#| echo: false
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)+
+  theme(legend.position = "bottom")
+```
+
+:::
+::::
+
+
+## Crossed Structures
+
+Not nested? ==> "crossed"
+
+```{r}
+#| echo: false
+#| fig-align: "center"
+knitr::include_graphics("img_sandbox/structure_crossednew.png")
+```
+
+<center>
+
+**`(1 | subject) + (1 | task)`**  
+
+</center>
+
+## Crossed Example
+
+
+::::{.columns}
+:::{.column width="50%"}
+TODO
+
+:::
+
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## "Random Effects"
+
+$$
+\text{... + }\underbrace{\text{(random intercept + random slopes | grouping structure)}}_{\text{random effects}}
+$$
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+People use different phrasings...   
+
+- when referring to random slopes:
+  - "random effects of x for/by g"  
+  - "by-g random effects of/for x"  
+- when referring to random intercept:
+  - "random effect for g"
+  - "by-g random intercepts"
+  
+common definition: "allow ___ to vary by g"
+
+:::
+
+:::{.column width="50%"}
+
+<!-- __Nested__   -->
+<!-- ```{r} -->
+<!-- #| eval: false -->
+<!-- #| echo: true -->
+<!-- ... + (1 + ... | g1 ) + (1 + ... | g2:g1) -->
+<!-- ``` -->
+
+<!-- __Crossed__   -->
+<!-- ```{r} -->
+<!-- #| eval: false -->
+<!-- #| echo: true -->
+<!-- ... + (1 + ... | g1 ) + (1 + ... | g2) -->
+<!-- ``` -->
+
+:::
+::::
+
+## Random Effects Revisited (2) 
+
+**Should variable `g` be fixed or random?**  
+
+<br><br>
+
+|  | Repetition: <br> _If the experiment were repeated:_ | Desired inference: <br> _The conclusions refer to:_ | 
+|----------------|--------------------------------------------------|----------------------------------------------------|
+| Fixed<br>$y\,\sim\,~\,...\, +\, g$  | Same groups would be used   |    The groups used  |
+| Random<br>$y\,\sim\,...\,+\,(\,... |\,g)$ | Different groups would be used   | A population from which the groups used are just a (random) sample |
+
+:::{.aside}
+If we only have a very small number of groups, estimating variance components may be unstable, and partialling out group-differences as fixed effects *may* be preferable. 
+:::
+
+## Random Effects Revisited (3)
+
+**I have  `y ~ 1 + x + (1 | g)` should I include by-g random slope of x?**  
+<br>
+
+
+::::{.columns}
+:::{.column width="50%" .fragment}
+
+if `x` is a variable for which values differ **between** groups, then we can't model the `y~x` slope varying between groups.  
+
+:::
+
+:::{.column width="50%" .fragment}
+
+if `x` is a variable for which values differ **within** groups, then the `y~x` slope might vary from one group to another.  
+
+- including `(1 + x| g)` gives better estimate of the uncertainty in the fixed effect of `x`.  
+    - important to include especially if `x` is the thing we're interested in!
+  
+:::
+::::
+
+:::{.fragment}
+<br>
+
+_"Ultimately, the random effect structure one uses in an analysis encodes the assumptions that one makes about how sampling units [e.g. participants] vary, and the structure of dependency that this variation creates in one’s data."_
+:::
+
+
+## Example 1
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+d3 <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv")
+ggplot(d3, aes(x=visit,y=ACE,col=condition))+
+  geom_point()+
+  facet_wrap(~ppt)
+```
+:::
+
+:::{.column width="50%" .incremental}
+
+- multiple observations from each participant  
+`(1 | ppt)`
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design. This *could* (quite likely) be different for different ppts!  
+`(visit | ppt)`
+
+- for a single ppt, the slope of `ACE ~ condition` is not observed in our study design (each ppt is *either* one condition *or* the other).  
+~~`(condition | ppt)`~~ makes no sense
+
+:::
+::::
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(ACE ~ 1 + visit * condition + ???  
+```
+:::
+
+:::{.column width="50%" .fragment}
+```{r}
+#| eval: false
+#| echo: true
+lmer(ACE ~ 1 + visit + condition + 
+       (1 + visit | ppt), data)
+```
+:::
+::::
+
+
+## Nested example
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+d3full <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldeclineFULL.csv")
+ggplot(d3full, aes(x=visit, y=ACE))+
+  geom_line(aes(group=ppt, col=condition), alpha=.7) +
+  facet_wrap(~sitename)
+```
+:::
+
+:::{.column style="width:50%;font-size:70%" .incremental}
+
+- multiple observations from each participant:  
+`(1 | ppt)`
+
+- multiple participants nested within study sites:  
+`(1 | sitename) + (1 | ppt:sitename)`
+
+- for a single ppt, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | ppt)`
+- for a single study site, the slope of `ACE ~ visit` exists in our study design:  
+`(visit | sitename)`
+
+- for a single ppt, the slope of `ACE ~ condition` does not exist in our study design:  
+~~`(condition | ppt)`~~
+- for a single study site, the slope of `ACE ~ condition` exists in our study design:  
+`(condition | sitename)`
+
+:::
+::::
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(ACE ~ 1 + visit * condition + ???  
+```
+:::
+:::{.column width="50%" .fragment}
+```{r}
+#| eval: false
+#| echo: true
+lmer(ACE ~ 1 + visit * condition + 
+      (1 + visit * condition | sitename ) + 
+      (1 + visit | ppt:sitename), data)
+```
+:::
+::::
+
+
+## Crossed Example
+
+TODO
+
+
+## The poke in the eye
+
+- Sometimes a model is too complex to be supported by the data
+
+- Balancing act between simplifying our model while preserving attribution of variance to various sources  
+
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+<br><br>
+Convergence Warnings:  
+```
+warning(s): Model failed to converge with max|grad| = 0.041777 (tol = 0.002, component 1) (and others)
+```
+<br>
+Singular Fits:  
+```
+message(s): boundary (singular) fit: see help('isSingular')
+```
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/1stderiv.png)
+
+<!-- Aim:   -->
+<!-- find the values for the unknown parameters that maximize the probability of obtaining the observed data.   -->
+
+<!-- How:   -->
+<!-- Algorithms that move around an n-dimensional 'likelihood' surface to find the top.   -->
+
+<!--   - likelihood = $P(\text{data} | \text{parameter values})$ -->
+
+:::
+::::
+
+
+
+## underfitting and overfitting
+
+::::{.columns}
+:::{.column width="50%"}
+**Accurately representing the world**  
+
+Aim: random effect structure that fully reflects our understanding of how things can vary, given the study design.  
+
+  
+
+(trickier with observational data in which you could argue that _everything_ will vary)
+
+:::
+
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## underfitting and overfitting 
+
+:::{.incremental}
+**Practical issues with fitting models**  
+
+in our sample, some things will not vary _enough_ to fit `x|g`  
+
+- predictors on different scales
+  - e.g. `millimeters|g` vs `kilometers|g`
+      - can be fixed with scaling  
+- not enough groups in `g`
+  - fit `+g` instead of `(1|g)`
+- not enough variance in `y~x` between groups
+    - model estimation can hit boundaries
+        - variance $\nleqq 0$
+        - correlation $\ngeqq 1$ and $\nleqq -1$)  
+  
+:::
+
+
+# Model Building
+
+
+<!-- ## A note on model estimation -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+
+<!-- - For standard linear models, we can calculate the parameters using a *closed form solution*. -->
+
+<!-- - Multilevel models are complex - we *estimate* all the parameters using an iterative procedure like Maximum Likelihood Estimation (MLE). -->
+
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+
+<!-- ::: -->
+<!-- :::: -->
+
+
+<!-- ## A note on model estimation: MLE -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+
+
+
+<!-- ::: -->
+<!-- :::: -->
+
+
+<!-- ## A note on model estimation: MLE {visibility="uncounted"} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+
+<!-- Aim:   -->
+<!-- find the values for the unknown parameters that maximize the probability of obtaining the observed data.   -->
+
+<!-- How:   -->
+<!-- Algorithms that move around an n-dimensional 'likelihood' surface to find the top.   -->
+
+<!--   - likelihood = $P(\text{data} | \text{parameter values})$ -->
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+
+<!-- ![](img_sandbox/multisurftb.png) -->
+
+<!-- ::: -->
+<!-- :::: -->
+
+
+<!-- ## A note on model estimation: ML vs REML -->
+
+<!-- lmer(*outcome-variable* ~ *explanatory-variables* + (*vary-this* | *by-these-groups*), <br>&nbsp;&nbsp;&nbsp;data = *dataframe*, __REML = *TRUE/FALSE*__) -->
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __Maximum Likelihood__   -->
+
+<!-- The standard MLE procedure for multilevel models treats the fixed effects as _known_ when estimating the variance components at each iteration.   -->
+
+<!-- This can lead to biased estimates of variance components (esp. for small samples). -->
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- __Restricted Maximum Likelihood (REML)__ -->
+
+<!-- REML is the default in `lmer()` and separates the estimation of the fixed and random parts. it estimates the variance components _first_.   -->
+
+<!-- This leads to less biased estimates of the variance components. Better for small samples (and will converge with ML with $n \rightarrow \infty$).  -->
+<!-- ::: -->
+<!-- :::: -->
+
+<!-- ![](img_sandbox/mlreml.png) -->
+
+<!-- :::{.aside} -->
+<!-- (Image from from McNeish 2017: https://doi.org/10.1080/00273171.2017.1344538 ) -->
+<!-- :::: -->
+
+
+<!-- ## model convergence -->
+
+<!-- **Don't report results from a model that doesn't converge. You will probably not be able to trust the estimates.**    -->
+
+<!-- - Check model specification! Do your random effects make sense?   -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+
+<!-- - Try a different optimiser, adjust the max iterations, or the stopping tolerances   -->
+
+<!-- - Try **all** optimisers at once! `summary(allFit(model))` -->
+<!--   - look for the 'messages' -->
+<!--   - for those optimisers that successfully converge, compare estimates.   -->
+
+<!-- *This probably won't help. In most cases, it is just that our model is too complex to fit to our available data.* -->
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+
+<!-- ![](img_sandbox/tolerance.png) -->
+
+<!-- ::: -->
+<!-- :::: -->
+
+
+
+## Maximal Structures 
+
+"maximal model" = the most complex random effect structure supported by the design
+
+- everything that _can_ be modelled as a random effect is included
+
+- requires sufficient variance at all levels (for both intercepts and slopes where relevant). Which is often not the case.  
+
+
+14 Study sites, each with c18 ppts, each with approx 10 observations
+```{r}
+#| echo: true
+d3full <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldeclineFULL.csv")
+```
+```{r}
+#| echo: true
+#| message: true
+#| warning: true
+#| error: true
+maxmodelfull <- lmer(ACE ~ visit * condition + 
+                   (1 + visit * condition | sitename) +
+                   (1 + visit | sitename:ppt), 
+                 data = d3full)
+```
+
+```{r}
+#| echo: true
+isSingular(maxmodelfull)
+```
+
+
+
+## Deciding on the optimal random effect structure
+
+::::{.columns}
+:::{.column width="50%"}
+**Keep it maximal**   
+
+1. Start with maximal model  
+2. Remove random effects with least variance until model converges (see Barr et al., 2013)
+
+:::
+
+:::{.column width="50%"}
+**Selection based**  
+
+Use a criterion for model selection (e.g. LRT, AIC, BIC) to choose a random effect structure that is supported by the data (see Matsuchek et al., 2017)
+
+:::
+::::
+
+
+::::{.columns .fragment}
+:::{.column width="50%"}
+
+- risk of overfitting
+
+:::
+
+:::{.column width="50%"}
+
+- lots of different ways (e.g., backwards/forwards, criteria for determining order of incl/exclusion, $\alpha$ adjustments, etc)
+- implemented in the **buildmer** package
+
+:::
+::::
+
+
+:::{.fragment}
+<center>**No right answer**</center>
+:::
+
+:::{.aside}
+
+Barr, D. J., Levy, R., Scheepers, C., & Tily, H. J. (2013). Random effects structure for confirmatory hypothesis testing: Keep it maximal. Journal of memory and language, 68(3), 255-278.  
+Matuschek, H., Kliegl, R., Vasishth, S., Baayen, H., & Bates, D. (2017). Balancing Type I error and power in linear mixed models. Journal of memory and language, 94, 305-315.  
+
+:::
+
+
+## how to simplify
+
+
+::::{.columns}
+:::{.column width="60%"}
+```{r}
+#| echo: true
+# to extract random effects
+VarCorr(maxmodelfull)
+```
+
+:::
+
+:::{.column width="40%"}
+One thing at a time!  
+
+:::{.fragment}
+Look for:
+
+- Variances/standard deviations of 0 (or very small, e.g. `3.56e-05`)
+- Correlations of -1 or 1 
+
+:::
+
+:::
+::::
+
+
+## how to simplify (2)
+
+::::{.columns}
+:::{.column width="60%"}
+```{r}
+#| echo: true
+# to extract random effects
+VarCorr(maxmodelfull)
+```
+```{r}
+#| echo: true
+model_simp1 <- lmer(ACE ~ visit * condition + 
+                   (1 + visit + condition | sitename) +
+                   (1 + visit | sitename:ppt), 
+                 data = d3full)
+VarCorr(model_simp1)
+```
+
+:::
+
+:::{.column width="40%"}
+One thing at a time!  
+
+- Consider removing most complex random effects first.
+
+`(1 + x1 * x2 | g)`<br>
+&emsp;&emsp;&darr;<br>
+`(1 + x1 + x2 | g)`<br>
+
+- Categorical predictors with >2 levels are "more complex" (they require more parameters than a single slope for a continuous predictor).  
+
+:::
+::::
+
+## how to simplify (3)
+
+
+::::{.columns}
+:::{.column width="60%"}
+```{r}
+#| echo: true
+# to extract random effects
+VarCorr(model_simp1)
+```
+
+:::
+
+:::{.column width="40%"}
+One thing at a time!  
+
+- If multiple levels of nesting, you'll have fewer groups as you go up the levels (fewer groups to be able to fit things to).  
+- depending on what the groups _are_, you might expect less variability in effects at certain levels 
+    - e.g. I might expect people to vary a lot in their cognitive trajectories, but study-sites to vary less
+
+
+:::
+::::
+
+
+```{r eval=FALSE, echo=FALSE}
+sim1COR = function(seed=NULL){
+  if(!is.null(seed)){set.seed(seed)}
+  z0 = runif(1,.4,1.4)
+  z1 = runif(1,.1,.4)
+  e = runif(1,.8,1.7)
+  b0 = rnorm(1,0,.2)
+  b1 = rnorm(1,-1,.3)
+  b2 = 0
+  b3 = rnorm(1,.5,.3)
+  n_groups = round(runif(1,15,25)) # n ppt
+  if(n_groups %% 2 == 1){n_groups = n_groups+1}
+  N = n_groups*10
+  g = rep(1:n_groups, e = N/n_groups)      # the group identifier
+  x = rnorm(N)                             # an observation level continuous variable
+  x = rep(0:9,n_groups)
+  #b = rbinom(n_groups, size = 1, prob=.5)  # a cluster level categorical variable
+  b = rep(0:1,e=n_groups/2)
+  b = b[g]
+  re0 = rnorm(n_groups, sd = z0)  # random effects
+  re  = re0[g]
+  rex = rnorm(n_groups, mean = 2*re0, sd = z1)  # random effects
+  re_x  = rex[g]
+  lp = (b0 + re) + (b1 + re_x)*x + (b2)*b + (b3)*b*x 
+  y = rnorm(N, mean = lp, sd = 1)               # create a continuous target variable
+  y_bin = rbinom(N, size = 1, prob = plogis(lp))    #- create a binary target variable
+  data.frame(x, b, y, y_bin, g = factor(g))
+}
+sim1COR(seed=6767) |> mutate(
+  age = 60+x*2,
+  visit = x,
+  ACE = round(84+(scale(y)[,1]*2),1),
+  imp = ifelse(y_bin==1,"unimp","imp"),
+  condition = ifelse(b==1,"mindfulness","control"),
+  ppt = paste0("PPT_",g)
+) |>
+  select(ppt, condition, visit, age, ACE,imp) -> d3COR
+#save(d3COR, file="data/d3COR.Rdata")
+```
+
+## how to simplify (4)
+
+__removing correlations between random effects__  
+
+```{r}
+#| echo: false
+load("data/d3COR.Rdata")
+cordat <- d3COR |>
+  transmute(
+    x=visit,y=ACE,group=ppt,b=condition
+  )
+```
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+mod <- lmer(y ~ 1 + x * b + 
+              (1 + x | group), data = cordat)
+VarCorr(mod)
+
+plot(ranef(mod)$g)
+```
+:::
+:::{.column width="50%" .fragment}
+```{r}
+#| echo: true
+modzc <- lmer(y ~ 1 + x * b + 
+              (1 + x || group), data = cordat)
+VarCorr(modzc)
+plot(ranef(modzc)$g)
+```
+
+:::
+::::
+
+:::{.notes}
+in certain designs, you might consider there to be no theoretical justification for there to be a correlation between random effects.  
+however, you have to be careful and this should only be done if your predictor is on a ratio scale - so if it has a meaningful zero. 
+this is for the slghtly complicated reason that the zero correlation model is sensitive to shifts in the predictor. so our estimates from a model with a zero correlation parameter will change slightly as we shift our predictor.
+:::
+
+
+## how to simplify (5)
+
+::::{.columns}
+:::{.column width="60%"}
+```{r}
+mydata = read_csv("https://uoepsy.github.io/lmm/lmmpcademo.csv")|> mutate(
+  hospital = gl(4,100),
+  patient = g,
+  dosage = x1,
+  length_stay = x3,
+  bp = y
+)
+
+```
+
+```{r}
+#| echo: true
+modl <- lmer(bp ~ dosage + length_stay + 
+      (1 + dosage + length_stay  | hospital) + 
+      (1 + dosage + length_stay  | patient:hospital),
+    data = mydata) 
+VarCorr(modl)
+```
+
+:::
+
+:::{.column width="40%"}
+One thing at a time!  
+
+- You will be faced with _subjective_ choices  
+  - which simplification can you most easily accept?  
+
+- Important: be transparent about decisions made, explain reasoning if necessary. 
+
+
+:::
+::::
+
+
+# Summary {background-color="white"}
+
+- random effect structures can get complicated quite quickly
+
+- there may multiple ways in things can be clustered.  
+  - clusters can themselves be clustered (**nesting**). 
+  - we can have different ways of clustering the same things (**crossed**)
+
+- the maximal random effect structure is the most complex structure we can fit to the data. 
+    - it often leads to problems with model convergence
+    
+- building `lmer`s is a balancing act between accounting for different sources of variation and attempting to fitting a model that can be supported by our data.  
+
+## This week 
+
+
+::::{.columns}
+:::{.column width="50%"}
+### Tasks
+
+![](img_sandbox/readings.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete readings 
+
+<br>
+
+![](img_sandbox/labs.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Attend your lab and work together on the exercises 
+
+<br>
+
+![](img_sandbox/exam.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+### Support
+
+![](img_sandbox/forum.svg){width=60px style="margin:0;position:fixed;margin-left:-60px"} Piazza forum! 
+
+<br>
+
+![](img_sandbox/oh.png){width=60px style="margin:0;position:fixed;margin-left:-60px"} Office hours (see Learn page for details)
+
+
+
+:::
+::::
+
+
+
