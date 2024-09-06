@@ -1,5 +1,5 @@
 ---
-title: "Week 3 Exercises: Nested and Crossed Structures"
+title: "W3 Exercises: Nested and Crossed Structures"
 params: 
     SHOW_SOLS: TRUE
     TOGGLE: TRUE
@@ -54,14 +54,14 @@ simm2<-function(seed=NULL,b0=0,b1=1,b2=1,z0=1,z1=1,e=1){
   data.frame(x, b=factor(b), g=factor(g), y)
 }
 eseed = round(runif(1,1e3,1e6))
-set.seed(645533)
+set.seed(929918)
 big = tibble(
     school = 1:30,
     int = rnorm(30,20,1),
     sl = rnorm(30,-.3,.5),
     intr = rnorm(30,-1,.5),
-    z0 = runif(30,.5,1),
-    z1 = runif(30,.5,1),
+    z0 = runif(30,.5,1.5),
+    z1 = runif(30,.5,1.5),
     e = runif(30,.5,1)
   )
   big = big |> mutate(
@@ -76,15 +76,20 @@ big = tibble(
 
 tnames = unique(replicate(100,paste0(sample(LETTERS,2),collapse="")))
   
-big |> transmute(
+big <- big |> transmute(
     therapist = tnames[school],
     group = ifelse(b==0,"Control","Treatment"),
     patient = pmap_chr(list(therapist,group,g),~paste(..1,..2,..3,sep="_")),
     visit = x,
     GAD = pmin(35,pmax(7,round(y)+5))
-  ) |> select(patient,visit,GAD) |>
+  ) 
+
+big |> select(patient,visit,GAD) |>
   pivot_wider(names_from=visit,values_from=GAD, names_prefix="visit_") |>
-  write_csv(file="../../data/msmr_gadeduc.csv")
+  write_csv(file="../../data/lmm_gadeduc.csv")
+
+
+
 
 ```
 
@@ -95,7 +100,7 @@ __Data: gadeduc.csv__
 
 ```{r}
 #| include: false
-geduc = read_csv("https://uoepsy.github.io/data/msmr_gadeduc.csv")
+geduc = read_csv("https://uoepsy.github.io/data/lmm_gadeduc.csv")
 geduc1 = geduc |> 
   pivot_longer(2:last_col(), names_to="visit",values_to="GAD") |>
   mutate(
@@ -112,13 +117,13 @@ This is synthetic data from a randomised controlled trial, in which `r nrow(tn)`
 The control group of patients received standard sessions offered by the therapists. 
 For the treatment group, 10 mins of each sessions was replaced with a specific psychoeducational component, and patients were given relevant tasks to complete between each session. All patients had monthly therapy sessions. Generalised Anxiety Disorder was assessed at baseline and then every visit over 4 months of sessions (5 assessments in total).  
 
-The data are available at [https://uoepsy.github.io/data/msmr_gadeduc.csv](https://uoepsy.github.io/data/msmr_gadeduc.csv){target="_blank"}
+The data are available at [https://uoepsy.github.io/data/lmm_gadeduc.csv](https://uoepsy.github.io/data/lmm_gadeduc.csv){target="_blank"}
 
 You can find a data dictionary below:
 ```{r}
 #| echo: false
-#| label: tbl-msmr_gadeduc.csv
-#| tbl-cap: "Data Dictionary: msmr_gadeduc.csv"
+#| label: tbl-lmm_gadeduc.csv
+#| tbl-cap: "Data Dictionary: lmm_gadeduc.csv"
 tibble(
     variable = names(geduc),
     description = c("A patient code in which the labels take the form <Therapist initials>_<group>_<patient number>.","Score on the GAD7 at baseline", 
@@ -154,7 +159,7 @@ Can you get it into a format that is ready for modelling?
 `r solbegin(label="1 - reshaping", slabel=F,show=T, toggle=params$TOGGLE)`
 Here's the data. We have one row per patient, but we have multiple observations for each patient across the columns..  
 ```{r}
-geduc = read_csv("../../data/msmr_gadeduc.csv")
+geduc = read_csv("https://uoepsy.github.io/data/lmm_gadeduc.csv")
 head(geduc)
 ```
 
@@ -223,7 +228,7 @@ ggplot(geduc_long, aes(x = visit, y = GAD, col = group)) +
 ```
 
 Let's split this up by therapist, so we can see the averages across each therapist's set of patients.  
-There's clear variability between therapists in how well the treatment worked. For instance, the therapists `PT` and `GI` don't seem to have much difference between their groups of patients.
+There's clear variability between therapists in how well the treatment worked. For instance, the therapists `EU` and `OD` don't seem to have much difference between their groups of patients.
 ```{r}
 #| out-width: "100%"
 ggplot(geduc_long, aes(x = visit, y = GAD, col = group)) +
@@ -256,7 +261,7 @@ lmer(GAD ~ visit * group + ...
 
 We have multiple observations for each of the `r sum(tn$np)` patients, and those patients are nested within `r nrow(tn)` therapists.  
 
-Note that in our data, the patient variable does not uniquely specify the individual patients. i.e. patient "1" from therapist "OT" is a different person from patient "1" from therapist "ND". To correctly group the observations into different patients (and not 'patient numbers'), we need to have `therapist:patient`.  
+Note that in our data, the patient variable does not uniquely specify the individual patients. i.e. patient "1" from therapist "AO" is a different person from patient "1" from therapist "BJ". To correctly group the observations into different patients (and not 'patient numbers'), we need to have `therapist:patient`.  
 
 So we capture therapist-level differences in `( ... | therapist)` and the patients-within-therapist-level differences in `( ... | therapist:patient)`:  
 
@@ -340,17 +345,18 @@ Let's suppose that I don't want the psychoeducation treatment, I just want the s
 #### Hints
 
 `dotplot.ranef.mer()` might help here!  
+You can read about `ranef` in [Chapter 2 #making-model-predictions](https://uoepsy.github.io/lmm/02_lmm.html#making-model-predictions){target="_blank"}.  
 
 :::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-It would be best to go to one of the therapists `WG`, `EQ`, or `EI`...  
+It would be best to go to one of the therapists `SZ`, `YS`, or `IT`...  
 
 Why? These therapists all have the most negative slope of visit:  
 
 ```{r}
-#| fig-height: 5
+#| fig-height: 6
 dotplot.ranef.mer(ranef(mod1))$therapist
 ```
 
@@ -383,6 +389,7 @@ broom.mixed::augment(mod1) |>
 #### Hints
 
 - you can get the patient-specific lines using `augment()` from the __broom.mixed__ package, and the fixed effects estimates using the __effects__ package. 
+- remember that the "patient" column doesn't group observations into unique patients. 
 - remember you can pull multiple datasets into ggplot:  
 ```{r}
 #| eval: false
@@ -390,13 +397,35 @@ ggplot(data = dataset1, aes(x=x,y=y)) +
   geom_point() + # points from dataset1
   geom_line(data = dataset2) # lines from dataset2
 ```
+- see more in [Chapter 2 #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}
 
 
 :::
 
 
 `r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+`r solbegin(label="1 - the relevant parts", slabel=F,show=T, toggle=params$TOGGLE)`
+
+The __effects__ package will give us the fixed effect estimates: 
+```{r}
+library(effects)
+library(broom.mixed)
+effplot <- effect("visit*group",mod1) |>
+  as.data.frame()
+```
+
+We want to get the fitted values for each patient. We can get fitted values using `augment()`. But the `patient` variable doesn't capture the _unique_ patients, it just captures their numbers (which aren't unique to each therapist).  
+So we can create a new column called `upatient` which pastes together the therapists initials and the patient numbers
+
+```{r}
+augment(mod1) |> 
+  mutate(
+    upatient = paste0(therapist,patient),
+    .after = patient # place the column next to the patient col
+  )
+```
+`r solend()`
+`r solbegin(label="2 - constructing the plot", slabel=F,show=T, toggle=params$TOGGLE)`
 
 ```{r}
 library(effects)
@@ -406,7 +435,8 @@ effplot <- effect("visit*group",mod1) |>
 
 augment(mod1) |> 
   mutate(
-    upatient = paste0(therapist,patient)
+    upatient = paste0(therapist,patient),
+    .after = patient # place the column next to the patient col
   ) |>
   ggplot(aes(x=visit,y=.fitted,col=group))+
   stat_summary(geom="line", aes(group=upatient,col=group), alpha=.1)+
@@ -417,10 +447,309 @@ augment(mod1) |>
 
 `r solend()`
 
+<br>
+<div class="divider div-transparent div-dot"></div>
 
-<br><br>
+# Jokes
 
-# TODO NEW crossed design
+```{r}
+#| eval: false
+#| echo: false
+#set.seed()
+jokeid = read_csv("data/laughlab_jokes.csv")
+
+set.seed(123)
+n_groups = 90
+N = n_groups * nrow(jokeid)
+g = rep(1:n_groups, e = nrow(jokeid))
+b = rbinom(n_groups,1,.5)[g]
+b = unlist(lapply(1:n_groups, \(x) sample(rep(0:1,e=15))))
+j = rep(1:nrow(jokeid), n_groups)
+
+g.re0 = rnorm(n_groups,0,8)[g]
+g.re = MASS::mvrnorm(n_groups, mu = c(0,0), Sigma = matrix(c(8,1,1,3),nrow=2))
+g.re0 = g.re[,1][g]
+g.reb = g.re[,2][g]
+
+j.re = MASS::mvrnorm(nrow(jokeid), mu = c(0,0), Sigma = matrix(c(5,2,2,5),nrow=2))
+j.re0 = j.re[,1][j]
+j.reb = j.re[,2][j]
+b0 = runif(1,30,55)
+b1 = runif(1,1,3)
+lp = b0 + g.re0 + j.re0 +
+  (b1 + j.reb + g.reb)*b
+y = rnorm(N, mean = lp, sd = 6)
+#y_bin = rbinom(N, size = 1, prob = plogis(lp))
+df=data.frame(g = factor(g),j = factor(j),b,y)
+
+df = left_join(df,
+          left_join(jokeid, 
+                    tibble(
+                      rank = order(j.re[,1],decreasing = TRUE),
+                      j = factor(1:30)
+                      )
+          ) |> dplyr::select(joke, j)
+)
+
+ggplot(df,aes(x=b,y=y,group=g))+
+  geom_point(alpha=.1,size=.5)+
+  stat_summary(geom="pointrange",position=position_dodge(width=.2))
+  
+
+lm(y~b,df)
+m = lmer(y~1+b+(1|g)+(1+b|j),df)
+summary(m)
+
+
+names(df)
+
+laughs <- df |> transmute(
+  ppt = paste0("PPTID",g),
+  joke_label = joke,
+  joke_id = j,
+  delivery = case_when(
+    b == 0 ~ "audio",
+    b == 1 ~ "video"
+  ),
+  rating = round(y)
+)
+
+write_csv(laughs, "../../data/lmm_laughs.csv")
+```
+
+:::frame
+__Data: lmm_laughs.csv__  
+
+```{r}
+#| include: false
+laughs <- read_csv("https://uoepsy.github.io/data/lmm_laughs.csv")
+```
+
+These data are simulated to imitate an experiment that investigates the effect of visual non-verbal communication (i.e. gestures, facial expressions) on joke appreciation. 
+`r n_distinct(laughs$ppt)` Participants took part in the experiment, in which they each rated how funny they found a set of `r n_distinct(laughs$joke_id)` jokes. For each participant, the order of these `r n_distinct(laughs$joke_id)` jokes was randomly set for each run of the experiment. For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video. This meant that each participant saw `r n_distinct(laughs$ppt)/2` jokes with video and `r n_distinct(laughs$ppt)/2` without, and each joke would be presented in with video roughly half of the times it was seen.  
+
+The researchers want to investigate whether the delivery (audio/audiovideo) of jokes is associated with differences in humour-ratings.  
+
+
+```{r}
+#| echo: false
+#| label: tbl-laughdict
+#| tbl-cap: "Data Dictionary: lmm_laughs.csv"
+tibble(
+  variable = names(laughs),
+  description = c("Participant Identification Number",
+                  "Joke presented",
+                  "Joke Identification Number",
+                  "Experimental manipulation: whether joke was presented in audio-only ('audio') or in audiovideo ('video')",
+                  "Humour rating chosen on a slider from 0 to 100")
+) |> gt::gt()
+```
+
+
+
+:::
+
+
+
+`r qbegin(qcounter())`
+Prior to getting hold of any data or anything, we should be able to write out the structure of our ideal "maximal" model.  
+
+Can you do so?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Don't know where to start? Try following the steps in [Chapter 8 #maximal-model](https://uoepsy.github.io/lmm/08_modelbuilding.html#maximal-model){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We want to estimate the effect of delivery on humour rating of jokes:  
+`rating ~ delivery`  
+
+We have 30 observations for each participant. Participants are just another sampling unit here.  
+`rating ~ delivery + (1 | ppt)`  
+
+We have 90 observations for each joke. We're not interested in specific jokes here, so we can think of these as a random set of experimental items that we might choose differently next time we conduct an experiment to assess delivery~rating:
+`rating ~ delivery + (1 | ppt) + (1 | joke_id)`  
+
+Participants each see 15 jokes without video, and 15 with. The `delivery` variable is *"within"* participant. Some participants might respond a lot to having video whereas some might not rate jokes any differently. The effect of delivery on rating might be *vary by participant*:  
+`rating ~ delivery + (1 + delivery | ppt) + (1 | joke_id)`  
+
+Each joke is presented both with and without the video. Some jokes might really benefit from gestures and facial expressions, whereas some might not. The effect of delivery on rating might be *vary by joke*:  
+`rating ~ delivery + (1 + delivery | ppt) + (1 + delivery | joke_id)`  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Read in and clean the data (if necessary).  
+
+Create some plots showing: 
+
+1. the average rating for audio vs audio+video for each joke
+2. the average rating for audio vs audio+video for each participant
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- you could use `facet_wrap`, or even `stat_summary`!  
+- you might want to use `joke_id`, rather than `joke_label` (the labels are very long!)
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Here is one using `facet_wrap`:
+```{r}
+ggplot(laughs, aes(x = delivery, y = rating)) +
+  geom_boxplot()+
+  facet_wrap(~joke_id)
+```
+
+And one using `stat_summary()` for participants: 
+```{r}
+ggplot(laughs, aes(x = delivery, y = rating)) +
+  stat_summary(geom="pointrange", aes(group = ppt),
+               position = position_dodge(width=.2))+
+  stat_summary(geom="line", aes(group = ppt),
+               position = position_dodge(width=.2))
+
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Fit an appropriate model to address the research aims of the study. 
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This should be the one you came up with a couple of questions ago!
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+mod <- lmer(rating ~ delivery + 
+              (1 + delivery | joke_id) +
+              (1 + delivery| ppt), data = laughs)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Which joke is funniest when presented just in audio? For which joke does the video make the most difference to ratings?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+These can all be answered by examining the random effects with `ranef()`.  
+See [Chapter 2 #making-model-predictions](https://uoepsy.github.io/lmm/02_lmm.html#making-model-predictions){target="_blank"}.  
+
+If you're using `joke_id`, can you find out the actual joke that these correspond to?
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+ranef(mod)$joke_id |>
+  filter(`(Intercept)` == max(`(Intercept)`))
+```
+Joke 19 is the funniest apparently! (not sure I agree)
+
+Lots of ways to find what the joke actually is. Here is one way:
+```{r}
+laughs |> count(joke_id, joke_label) |>
+  filter(joke_id==19) |>
+  pull(joke_label)
+```
+
+
+```{r}
+ranef(mod)$joke_id |>
+  filter(deliveryvideo == max(deliveryvideo))
+```
+Joke 28 has the most benefit of video. The joke itself is a bit weird.. maybe the video really helped!  
+```{r}
+laughs |> count(joke_id, joke_label) |>
+  filter(joke_id==28) |>
+  pull(joke_label)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Do jokes that are rated funnier when presented in audio-only tend to also benefit more from the addition of video?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Think careful about this question. The random effects show us that jokes vary in their intercepts (ratings in audio-only) and in their effects of delivery (the random slopes). We want to know if these are related..  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+VarCorr(mod)
+```
+It's the correlation here that tell us - jokes rated higher in the audio-only tend to have a bigger effect of the video. 
+
+We can see this in a plot if we like. Here every dot is a joke, and the x-axis shows whether it is above or below the average rating for audio-only (the intercept). The y-axis shows whether it is above or below the average effect of video. 
+```{r}
+plot(ranef(mod)$joke)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Create a plot of the estimated effect of video on humour-ratings. Try to plot not only the fixed effects, but the raw data too.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See e.g. [Chapter 2 #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+library(effects)
+
+plotdatf <- effect("delivery",mod) |>
+  as.data.frame()
+
+ggplot(data = laughs, aes(x = delivery)) +
+  geom_jitter(aes(y = rating), width = .1, height = 0, alpha = .1) +
+  geom_pointrange(data = plotdatf,
+                  aes(y = fit, ymin = lower, ymax = upper),
+                  position=position_nudge(x=.2))
+```
+
+`r solend()`
+
+
+
+
+<br>
+<div class="divider div-transparent div-dot"></div>
 
 # Test Enhanced Learning
 
@@ -429,7 +758,9 @@ __Data: Test-enhanced learning__
 
 An experiment was run to conceptually replicate "test-enhanced learning" (Roediger & Karpicke, 2006): two groups of 25 participants were presented with material to learn. One group studied the material twice (`StudyStudy`), the other group studied the material once then did a test (`StudyTest`). Recall was tested immediately (one minute) after the learning session and one week later. The recall tests were composed of 175 items identified by a keyword (`Test_word`). 
 
-The critical (replication) prediction is that the `StudyStudy` group recall more items on the immediate test, but the `StudyTest` group will retain the material better and thus perform better on the 1-week follow-up test.  
+The critical (replication) prediction is that the `StudyStudy` group perform better on the immediate test, but the `StudyTest` group will retain the material better and thus perform better on the 1-week follow-up test.  
+
+Test performance is measured as the speed taken to correctly recall a given word.  
 
 The following code loads the data into your R environment by creating a variable called `tel`:
 
@@ -453,228 +784,142 @@ tibble(
 
 :::
 
-
 `r qbegin(qcounter())`
-Load and plot the data. Does it look like the effect was replicated?  
+Here is the beginning of our modelling. 
 
-> The critical (replication) prediction is that the `StudyStudy` group recall more items on the immediate test, but the `StudyTest` group will retain the material better and thus perform better on the 1-week follow-up test.  
+```{r}
+#| code-fold: true
+#| eval: false
+# load in the data
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
 
+# performance is measured by time taken to *correctly*
+# recall a word.
+# so we're going to have to discard all the incorrects:
+tel <- tel |> filter(Correct == 1)
 
-::: {.callout-tip collapse="true"}
-#### Hints
+# preliminary plot
+# makes it look like studytest are better at immediate (contrary to prediction)
+# both groups get slower from immediate > week, 
+# but studystudy slows more than studytest
+ggplot(tel, aes(x = Delay, y = Rtime, col = Group)) + 
+  stat_summary(geom="pointrange")
 
-We can actually look at this from a couple of different angles. The most obvious option is to take successful learning as "correctly recalling" an item. This means we take the `Correct` variable as our outcome.  
-
-Note we also have `Rtime` - the "time-to-recall" of an item. This could also work as an outcome, but note that it also includes the time it took participants to provide an incorrect response too. If this was your own project, you may well want to provide analyses of `Correct`, and then also of the time-taken, but on the subset of correctly recalled items.  
-
-:::
-
+mmod <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay * Group | Test_word),
+             data=tel)
+```
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-```{r}
-load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
-
-ggplot(tel, aes(Delay, Correct, col=Group)) + 
-  stat_summary(fun.data=mean_se, geom="pointrange")+
-  theme_light()
-```
-
-That looks like test-enhanced learning to me!  
-
-
-`r solend()`
-
-`r qbegin(qcounter())`
-
-Test the critical hypothesis using a mixed-effects model.  
-
-Fit the maximal random effect structure supported by the experimental design. Simplify the random effect structure until you reach a model that converges.  
-
-__Note:__ Some of the models you attempt here might take time to fit. This is normal, and you can cancel the estimation at any time by pressing the escape key.  
-I suggest that you write your initial model, set it running, and then look at the first solution to see if it converged for me. You can assume that if it didn't work for me, it also won't work for you. I've shown the random effects for each model, in case it helps in deciding your next step.  
-
-::: {.callout-tip collapse="true"}
-#### Hints
-
-What we're aiming to do here is to follow [Barr et al.'s](https://doi.org/10.1016/j.jml.2012.11.001) advice of defining our maximal model and then removing only the terms to allow a non-singular fit.  
-
-+ What kind of model will you use? What is our outcome? is it binary, or continuous? 
-+ We can expect variability across subjects (some people are better at learning than others) and across items (some of the recall items are harder than others). How should this be represented in the random effects?
-
+:::imp
+This is what _I_ did. You might do something else!  
 :::
 
-`r qend()` 
-`r solbegin(label="1 - maximal model", slabel=F,show=T, toggle=params$TOGGLE)`
-
 ```{r}
-#| echo: false
-# save(mod1,mod2,mod3,mod4,file="data/telmodels.Rdata")
-load("data/telmodels.Rdata")
-```
+#| include: false
+# load in the data
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
 
-We have a __crossed__ random effect structure here. Each participant was tested on every word, and each word was seen by every participant.  
+# performance is measured by time taken to *correctly*
+# recall a word.
+# so we're going to have to discard all the incorrects:
+tel <- tel |> filter(Correct == 1)
 
-Subjects were tested at both the `min` and `week`, so `Delay|Subject_ID` can be included (some people might retain the items better than others).  
-Likewise the words were seen at both `min` and `week`, and some words might be more easy to retain than others (`Delay|Test_word`).  
+# preliminary plot
+# makes it look like studytest are better at immediate (contrary to prediction)
+# both groups get slower from immediate > week, 
+# but studystudy slows more than studytest
+ggplot(tel, aes(x = Delay, y = Rtime, col = Group)) + 
+  stat_summary(geom="pointrange")
 
-The participants are in either one group or another, so we can't have `Group|Subject_ID`. However, the words were seen by people in both groups, so we _can_ have `Group|Test_word`.  
-
-This one took my computer about 6 minutes.  
-```{r}
-#| eval: false
-mod1 <- glmer(Correct ~ Delay*Group +
+mmod <- lmer(Rtime ~ Delay*Group +
              (1 + Delay | Subject_ID) +
              (1 + Delay * Group | Test_word),
-             family=binomial, data=tel)
+             data=tel)
 ```
-<p style="color:red;font-size:.8em">
-Warning message:<br>
-In checkConv(attr(opt, "derivs"), opt\$par, ctrl = control\$checkConv,  :<br>
-  Model failed to converge with max|grad| = 0.0184773 (tol = 0.002, component 1)
-</p>
 
+
+First I removed the interaction from the random effects
 ```{r}
+#| message: true
+mod1 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay + Group | Test_word),
+             data=tel)
+```
+This model is a singular fit, suggesting it needs further simplification.
+The variance covariance matrix of the random effects isn't giving us many pointers.. 
+```{r}
+# examine vcov
 VarCorr(mod1)
 ```
 
-`r solend()`
-`r solbegin(label="2 - Removing Delay*Group|Test_word", slabel=F,show=T, toggle=params$TOGGLE)`
-
-Lets remove the interaction in the by-word random effects.  
-This one took about 5 minutes...
+Next I removed the correlations between all random effects. This is not a model that I want to end up with, but it sometimes helps to make clearer to us which random effect terms are not contributing as much as others. 
 ```{r}
-#| eval: false
-mod2 <- glmer(Correct ~ Delay*Group +
-             (1 + Delay | Subject_ID) +
-             (1 + Delay + Group | Test_word),
-             family=binomial, data=tel)
-```
-<p style="color:red;font-size:.8em">
-Warning message:<br>
-In checkConv(attr(opt, "derivs"), opt\$par, ctrl = control\$checkConv,  :<br>
-  Model failed to converge with max|grad| = 0.00887744 (tol = 0.002, component 1)
-</p>
-
-```{r}
+#| message: true
+mod2 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay || Subject_ID) +
+             (1 + Delay + Group || Test_word),
+             data=tel)
 VarCorr(mod2)
 ```
 
-`r solend()`
-`r solbegin(label="3 - Removing Group|Test_word", slabel=F,show=T, toggle=params$TOGGLE)`
+You might note that we still do have random effect correlations in `mod2`, despite us using `||` to indicate that we didn't want to estimate them! This is because the `||` syntax removes correlations between the random effect terms, but not _within_ the levels of a categorical term! 
 
-We still have a singular fit here. Thinking about the study, if we are going to remove __one__ of the by-testword random effects (`Delay` or `Group`), which one do we consider to be more theoretically justified? Is the effect of Delay likely to vary by test-words? More so than the effect of group is likely to vary by test-words?  
-Quite possibly - it's reasonable to think that some words will be more easily retained over a week than others, but I can't come up with a reason to think why `StudyTest` vs `StudyStudy` would have a different effect for some words than others.  
+In this case, it looks like `Delay|Test_word` is actually capturing fairly little variance in our outcome in comparison to the other terms.  
 
-Let's remove the by-testword random effect of group. 
+So let's put back our correlations but remove `Delay|Test_word`:
 ```{r}
-#| eval: false
-mod3 <- glmer(Correct ~ Delay*Group +
+mod3 <- lmer(Rtime ~ Delay*Group +
              (1 + Delay | Subject_ID) +
-             (1 + Delay | Test_word),
-             family=binomial, data=tel)
-```
-
-This one converges! But we still have a correlation of -1.  
-Why did we not get a warning message?  
-```{r}
+             (1 + Group | Test_word),
+             data=tel)
 VarCorr(mod3)
 ```
-
-The `isSingular()` function allows us to check for when a model is close to singularity (i.e. on the boundary of the feasible parameter space):  
+We get no warning messages! Hooray! But we **do** see a correlation being estimated as -1.00. Let's perform the extra check for singular-fit:
 ```{r}
-isSingular(mod3)
+isSingular(mod2)
 ```
+All looks good there. 
 
-This suggests that we're fine! However, note that this function has a tolerance, which is by default set to 1e-4, or 0.0001. Change this to 1e-3, and it indicates a problem.  
-```{r}
-isSingular(mod3, tol=1e-3)
-```
-
-So we're kind of in a grey area that suggests we are close to overfitting here, so it might be worth continuing to simplify.  
-
-
-`r solend()`
-`r solbegin(label="4 - Removing Delay|Test_word", slabel=F,show=T, toggle=params$TOGGLE)`
+We could do a couple of things here for robustness checks. For instance, in `mod3a` below I remove Group|Test_word (which is the one with the correlation of -1).  In `mod3b`, I move `Group|Test_word` on to the right hand side of the random effects (thereby removing the correlation, see [Chapter 8 #simplifying-random-effect-structures](08_modelbuilding.html#simplifying-random-effect-structures){target="_blank"}.  
 
 ```{r}
-#| eval: false
-mod4 <- glmer(Correct ~ Delay*Group +
+# remove Group|Test_word
+mod3a <- lmer(Rtime ~ Delay*Group +
              (1 + Delay | Subject_ID) +
-             (1 | Test_word),
-             family=binomial, data=tel)
-```
-Even when we raise the tolerance here, we're still fine:  
-```{r}
-isSingular(mod4, tol=1e-3)
-```
-And here's our random effects: 
-```{r}
-VarCorr(mod4)
+             (1 | Test_word), 
+             data=tel)
+# move Group|Test_word onto the RHS
+mod3b <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 | Test_word) + 
+             (1 | Test_word:Group),
+             data=tel)
 ```
 
-`r solend()`
-`r solbegin(label="5 - Comparisons", slabel=F,show=T, toggle=params$TOGGLE)`
+The reason for this is to just check how estimates of fixed effects and their standard errors differ across these models. More often than not, this simply provides us with reassurance that the removal of random effects hasn't actually had too much of an impact on anything we're going to conduct inferences on. If they differ a lot, then we have a lot more to discuss!  
 
-In the process of getting to our final model, we've just fitted quite a few models that didn't converge. We definitely don't want to do anything with these models (i.e. we shouldn't report them or use them in model comparisons etc).  
-
-However, it can sometimes be useful to just check how estimates of fixed effects and their standard errors differ across these models. More often than not, this simply provides us with reassurance that the removal of random effects hasn't actually had too much of an impact on anything we're going to conduct inferences on.  
-
-For instance, in all these models, the fixed effects estimates are all pretty similar, suggesting that they've all found similar estimates of these parameters which have been largely invariant to our refinement of the random effects.  
-
+Here are the fixed effects from each model:  
 ```{r}
 #| echo: false
 bind_rows(
- broom.mixed::tidy(mod1) |> filter(effect=="fixed") |> mutate(mod="mod1"), 
- broom.mixed::tidy(mod2) |> filter(effect=="fixed") |> mutate(mod="mod2"), 
  broom.mixed::tidy(mod3) |> filter(effect=="fixed") |> mutate(mod="mod3"), 
- broom.mixed::tidy(mod4) |> filter(effect=="fixed") |> mutate(mod="mod4")
+ broom.mixed::tidy(mod3a) |> filter(effect=="fixed") |> mutate(mod="mod3a"), 
+ broom.mixed::tidy(mod3b) |> filter(effect=="fixed") |> mutate(mod="mod3b")
 ) |> transmute(mod,term,
-               estimate = paste0(round(estimate,3), " (",round(std.error,3),")")) |>
+               estimate = paste0(round(estimate,2), " (",round(std.error,2),")")) |>
   pivot_wider(values_from=estimate,names_from=mod) |> gt::gt()
 ```
 
-`r solend()` 
+In all these models, the fixed effects estimates are all pretty similar, suggesting that they've all found similar estimates of these parameters which have been largely invariant to our refinement of the random effects. This makes me feel better - there's less worry that our final conclusions are going to be influenced by specifics of incl/exclusion of one of these random effect terms. 
 
-
-
-`r qbegin(qcounter())`
-Create a plot of the predicted probabilities and uncertainty for each of the `Delay * Group` combinations.  
-`r qend()`
-`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
-```{r}
-library(effects)
-effplot <- effect("Delay:Group", mod4) |>
-  as.data.frame()
-
-ggplot(effplot, aes(Delay, fit, color=Group)) + 
-  geom_pointrange(aes(ymax=upper, ymin=lower), 
-                  position=position_dodge(width = 0.2))+
-  theme_classic() # just for a change :)
-```
+I would probably settle on `mod3` (with an explicit note about the correlation of -1) or `mod3b` (the structure of which is a bit more difficult/complicated to explain). Either way I would want to mention that `mod3a` (removal of `Group|Test_word` altogether) finds the same pattern of results.
 
 `r solend()`
 
-
-`r qbegin(qcounter())`
-
-Here are odds ratios for our model:  
-```{r}
-#| code-fold: true
-# cbind combines columns
-cbind(
-  # the odds ratios:
-  OR = exp(fixef(mod4)), 
-  # the CIs:
-  exp(confint(mod4, method="Wald", parm="beta_"))
-)
-```
-
-What should we do with this information? How should we apply test-enhanced learning to learning R and statistics?  
-`r qend()` 
-`r solbegin(show=TRUE, toggle=params$TOGGLE)`
-We'll get the benefits of test-enhanced learning if we try these exercises before looking at any of the solutions that are visible! If we don't test ourselves, we're more likely to forget it in the long run.  
-`r solend()` 
+ 
 

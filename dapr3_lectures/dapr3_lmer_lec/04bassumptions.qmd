@@ -1,4 +1,1736 @@
 ---
-title: "Title"
+title: "Assumptions, Diagnostics, and Centering"
+editor_options: 
+  chunk_output_type: console
 ---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex grouping structures",
+                "assumptions, diagnostics, and centering",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c("reducing many variables to a smaller number of dimensions (PCA)",
+                "identifying underlying constructs (EFA)",
+                "more on underlying constructs (EFA)",
+                "CFA",
+                "CFA 2")
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=4)
+```
+
+# This week {transition="slide"}
+
+- Assumptions of multilevel models
+  - some suggestions when things look awry
+- Case Diagnostics
+  - what if results are dependent on a small set of influential observations/clusters?
+- Centering predictors in multilevel models
+    
+
+# Assumptions 
+
+## Assumptions in LM
+
+
+::::{.columns}
+:::{.column width="50%"}
+#### The general idea
+
+- $\varepsilon_i \sim N(0,\sigma^2)$ iid
+- "zero mean and constant variance"
+
+```{r}
+#| echo: false
+#| fig-asp: .7
+set.seed(20)
+tibble(
+  fitted_values = 1:1000,
+  residuals = rnorm(1000,0,20)
+) -> plotdat
+
+bb = seq(0,975,10)
+map_dbl(bb, ~filter(plotdat, between(fitted_values, ., .+10)) %>% summarise(s=sd(residuals)) %>% pull(s)) %>% 
+cbind(fitted_values = bb + 5, sd = .) %>%
+  cbind(., m = map_dbl(bb, ~filter(plotdat, between(fitted_values, ., .+10)) %>% summarise(m = mean(residuals)) %>% pull(m))) %>% as_tibble %>% mutate(
+    u = m + sd*2,
+    l = m - sd*2
+  ) -> prib
+
+
+ggplot(plotdat, aes(x=fitted_values, y=residuals))+
+  geom_point(alpha=.3) + 
+  geom_smooth(se=F)+
+  geom_smooth(data=prib, inherit.aes = F,
+              aes(x=fitted_values,y=u), alpha=.3, se=F, lty="dashed", col="darkorange")+
+  geom_smooth(data=prib, inherit.aes = F,
+              aes(x=fitted_values,y=l), alpha=.3, se=F, lty="dashed", col="darkorange")+
+  theme(axis.text = element_blank())
+```
+:::
+
+:::{.column width="50%"}
+#### Recipe book
+
++ **L**inearity
++ **I**ndependence
++ **N**ormality
++ **E**qual Variances
+:::
+::::
+
+
+
+## Question: What's different in MLM?
+
+### Answer: Not much!  
+
+- General idea is unchanged: error is random  
+
+- But we now have residuals at multiple levels! 
+Random effects can be viewed as residuals at another level.  
+
+## Resids
+
+```{r}
+#| echo: false
+#| fig-align: "left"
+#| fig-asp: .5
+knitr::include_graphics("img_sandbox/Slide1.PNG")
+```
+
+## Resids (2)
+
+```{r}
+#| echo: false
+#| fig-align: "left"
+#| fig-asp: .5
+knitr::include_graphics("img_sandbox/Slide2.PNG")
+```
+
+## Resids (3)
+
+```{r}
+#| echo: false
+#| fig-align: "left"
+#| fig-asp: .5
+knitr::include_graphics("img_sandbox/Slide3.PNG")
+```
+
+## Random effects as level 2 residuals
+
+```{r}
+#| echo: false
+#| fig-align: "left"
+#| fig-asp: .5
+knitr::include_graphics("img_sandbox/lmmwodot.png")
+```
+
+
+## Random effects as level 2 residuals {visibility="uncounted"}
+
+```{r}
+#| echo: false
+#| fig-align: "left"
+#| fig-asp: .5
+knitr::include_graphics("img_sandbox/lmmwdot.png")
+```
+
+## Random effects as level 2 residuals
+
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\ 
+\quad \\ 
+& \text{Level 1:} \\ 
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ 
+& \text{Level 2:} \\ 
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ 
+& \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ 
+\quad \\ 
+& \varepsilon, \, \color{orange}{\zeta_0}, \, \text{ and } \, \color{orange}{\zeta_1}\text{ are all assumed to be normally distributed with mean 0.}
+\end{align}
+$$
+
+
+## Random effects as level 2 residuals {visibility="uncounted"}
+<!-- > 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night. -->
+```{r}
+#| echo: false
+library(sjPlot)
+library(lme4)
+crq <- read_csv("https://uoepsy.github.io/data/crqdata.csv")
+crq %>% mutate(
+  y = emot_dysreg,
+  x1 = crq,
+  x2 = int, 
+  x3 = age, 
+  cluster = gsub("school","cluster",schoolid)
+) %>% filter(!schoolid %in% c("school6","school15", "school17")) -> df
+full_model<-lmer(y ~ x1 * x2 + x3 + (1 + x1 | cluster), data = df)
+model <- full_model
+pp <- plot_model(full_model, type = "diag")
+```
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+$\varepsilon$  
+`resid(model)`  
+mean zero, constant variance  
+<br><br>
+```{r}
+#| echo: false
+#| fig-asp: .5
+#| out-width: "400px"
+pp[[1]]
+```
+:::
+
+:::{.column width="50%"}
+$\color{orange}{\zeta}$  
+`ranef(model)`  
+mean zero, constant variance  
+
+```{r}
+#| echo: false
+#| fig-asp: .5
+#| out-width: "400px"
+pp[[2]]
+```
+:::
+::::
+
+
+## Assumption Plots: Residuals vs Fitted
+
+```{r}
+#| fig-asp: .6
+plot(model, type=c("p","smooth"))
+```
+
+## Assumption Plots: qqplots
+
+```{r}
+#| fig-asp: .6
+qqnorm(resid(model))
+qqline(resid(model))
+```
+
+## Assumption Plots: Scale-Location
+
+```{r}
+#| fig-asp: .6
+plot(model, 
+     form = sqrt(abs(resid(.))) ~ fitted(.),
+     type = c("p","smooth"))
+```
+
+
+## Assumption Plots: Scale-Location {visibility="uncounted"}
+
+```{r}
+#| fig-asp: .6
+plot(model, 
+     form = sqrt(abs(resid(.))) ~ fitted(.) | cluster,
+     type = c("p"))
+```
+
+## Assumption Plots: Ranefs
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r echo=TRUE,fig.asp=.7, echo=c(2:5)}
+par(mfrow=c(1,2))
+qqnorm(ranef(model)$cluster[,1])
+qqline(ranef(model)$cluster[,1])
+qqnorm(ranef(model)$cluster[,2])
+qqline(ranef(model)$cluster[,2])
+par(mfrow=c(1,1))
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+rans <- as.data.frame(ranef(model)$cluster)
+
+ggplot(rans, aes(sample = `(Intercept)`)) + 
+  stat_qq() + stat_qq_line() +
+  labs(title="random intercept")
+
+ggplot(rans, aes(sample = x1)) + 
+  stat_qq() + stat_qq_line()
+  labs(title="random slope")
+```
+```{r}
+#| echo: false
+#| fig-asp: .4
+rans <- as.data.frame(ranef(model)$cluster)
+ggplot(rans, aes(sample = `(Intercept)`)) + 
+  stat_qq() + stat_qq_line() +
+  labs(title="random intercept") + 
+ggplot(rans, aes(sample = x1)) + 
+  stat_qq() + stat_qq_line()+
+  labs(title="random slope")
+```
+
+:::
+::::
+
+## for a quick check
+
+```{r}
+#| echo: true
+performance::check_model(model)
+```
+
+# Troubleshooting
+
+## Our Data
+
+```{r}
+#| echo: false
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+_In a study examining how cognition changes over time, a sample of 20 participants took the Addenbrooke's Cognitive Examination (ACE) every 2 years from age 60 to age 78._  
+
+<small>Each participant has 10 datapoints. Participants are clusters.</small>  
+
+```{r}
+#| echo: true
+d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mindfuldecline.csv")
+head(d3)
+```
+
+```{r}
+#| echo: true
+library(ICC)
+ICCbare(x = ppt, y = ACE, data = d3)
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| fig-align: "center"
+#| fig-asp: .9
+library(ggExtra)
+library(patchwork)
+p <- ggplot(d3[d3$condition=="control",], aes(x=visit, y=ACE, col=ppt)) + 
+  geom_point()+geom_smooth(method="lm",se=F)+
+  guides(col="none")+
+  labs(title="Control")
+p1 <- ggplot(d3[d3$condition=="mindfulness",], aes(x=visit, y=ACE, col=ppt)) + 
+  geom_point()+geom_smooth(method="lm",se=F)+
+  guides(col="none")+
+  labs(title="Mindfulness")
+gridExtra::grid.arrange(
+ggMarginal(p, type="boxplot", margins="y"),
+ggMarginal(p1, type="boxplot", margins="y"),
+nrow=1
+)
+```
+:::
+::::
+
+## When things look wrong
+
+```{r}
+#| echo: true
+mymodel <- lmer(ACE ~ visit * condition + (1 | ppt), data = d3)
+performance::check_model(mymodel)
+```
+
+## When things look wrong
+
+__Model mis-specification?__  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mymodel <- lmer(ACE ~ visit * condition +
+                  (1 | ppt), data = d3)
+```
+
+```{r}
+#| echo: false
+#| fig-asp: .6
+mymodel <- lmer(ACE ~ visit * condition +
+                  (1 | ppt), data = d3)
+performance::check_model(mymodel, check = c("linearity","homogeneity"))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mymodel <- lmer(ACE ~ visit * condition +
+                  (1 + visit | ppt), data = d3)
+```
+
+```{r}
+#| echo: false
+#| fig-asp: .6
+mymodel <- lmer(ACE ~ visit * condition + 
+                  (1 + visit | ppt), data = d3)
+performance::check_model(mymodel, check = c("linearity","homogeneity"))
+```
+:::
+::::
+
+## When things look wrong
+__Transformations?__  
+
+- Transforming your outcome variable may help to satisfy model assumptions
+
+  - log(y)
+  - 1/y
+  - sqrt(y)
+  - forecast::BoxCox(y)
+
+
+## When things look wrong
+__Transformations?__   
+
+```{r}
+#| include: false
+set.seed(1166050148)
+d = c()
+for(i in 1:10){
+  x=rnorm(rdunif(1,6,12), 0, 1)
+  g=sample(0:1,1)
+  xmat=cbind(1,x,g)
+  lp = xmat %*% c(rnorm(1,10,2), rnorm(1,2,2), 1)
+  d = rbind(d, cbind(xmat, lp, i))
+}
+df <- as_tibble(d[,2:5])
+names(df) <- c("x1","g","y","cluster")
+df$y <- df$y + sn::rsn(nrow(df),0,30,50)
+df<-df[-c(37,47, 65, 68, 82 ), ]
+```
+
+- Transforming your outcome variable may help to satisfy model assumptions
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(y ~ x1 + g + 
+       (1 | cluster), df)
+```
+```{r}
+#| echo: false
+#| fig-asp: .5
+model <- lmer(y ~ x1 + g + (1  | cluster), df)
+pp <- plot_model(model, type = "diag")
+ggplot(df, aes(x=y)) + geom_histogram() +
+pp[[1]] & theme(text = element_text(size=12))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + 
+       (1 | cluster), df)
+```
+```{r}
+#| echo: false
+#| fig-asp: .5
+model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+pp <- plot_model(model, type = "diag")
+ggplot(df, aes(x=forecast::BoxCox(y,lambda="auto"))) + geom_histogram() +
+pp[[1]] & theme(text = element_text(size=12))
+```
+:::
+::::
+
+
+## When things look wrong {visibility="uncounted"}
+__Transformations?__  
+
+- Transforming your outcome variable may help to satisfy model assumptions **but it comes at the expense of interpretability.**  
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(y ~ x1 + g + 
+       (1 | cluster), df)
+```
+```{r}
+#| echo: false
+model <- lmer(y ~ x1 + g + (1 | cluster), df)
+fixef(model)
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + 
+       (1 | cluster), df)
+```
+```{r}
+#| echo: false
+model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+fixef(model)
+```
+:::
+::::
+
+
+
+<!-- # When things look wrong -->
+<!-- ### __robustlmm__ -->
+
+
+<!-- ```{r eval=FALSE} -->
+<!-- mymodel <- lmer(ACE ~ visit * condition + (1 | ppt), data = d3) -->
+<!-- summary(mymodel)$coefficients -->
+<!-- ``` -->
+
+<!-- ```{r eval=FALSE} -->
+<!-- library(robustlmm) -->
+<!-- mymodelr <- rlmer(ACE ~ visit * condition + (1 | ppt), data = d3) -->
+<!-- summary(mymodelr)$coefficients -->
+<!-- ``` -->
+
+
+## When things look wrong
+__Bootstrap?__  
+
+basic idea: 
+
+1. do many many times:  
+    &ensp;a. take a sample (e.g. sample with replacement from your data, or simulated from your model parameters)  
+    &ensp;b. fit the model to the sample  
+2. then:  
+    &ensp;a. based on all the models fitted in step 1, obtain a distribution of parameter estimate of interest.  
+    &ensp;b. based on the bootstrap distribution from 2a, compute a confidence interval for estimate.  
+    &ensp;c. celebrate  
+
+## When things look wrong
+__Bootstrapping is not a panacea.__  
+
+- If we're worrying because our errors are slightly non-normal or heteroskedastic, _and if we have a large sample size_, then bootstrapping might be a good choice. 
+- If there are issues in mis-specification (e.g the effect is non-linear and we're estimating it as linear), bootstrapping won't help us.  
+
+## Bootstrap: What do we (re)sample?
+
+- resample based on the estimated distributions of parameters?  
+    - assumes explanatory variables are fixed, model specification and the distributions (e.g. $\zeta \sim N(0,\sigma_{\zeta})$ and $\varepsilon \sim N(0,\sigma_{\varepsilon})$) are correct.  
+- resample residuals  
+    - $y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}$
+    - assumes explanatory variables are fixed, and model specification is correct. 
+- resample cases
+    - **minimal** assumptions - that we have correctly specified the hierarchical structure of data
+    - **But** do we resample:
+        - observations?
+        - clusters?
+        - both?
+
+## Case Bootstrap
+
+```{r}
+#| echo: true
+mymodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+library(lmeresampler)
+# resample only the people, not their observations: 
+mymodelBScase <- bootstrap(mymodel, .f = fixef, 
+                           type = "case", B = 1000, 
+                           resample = c(TRUE, FALSE))
+summary(mymodelBScase)
+```
+```{r}
+#| echo: false
+library(lmeresampler)
+load("data/bsdata.Rdata")
+summary(mymodelBScase)
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+confint(mymodelBScase, type = "perc")
+```
+:::
+::::
+
+:::aside
+<br><br>  <br><br>For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
+For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11 ]
+:::
+
+## Case Bootstrap
+
+
+```{r}
+#| echo: true
+mymodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
+```
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+library(lmeresampler)
+# resample only the people, not their observations: 
+mymodelBScase <- bootstrap(mymodel, .f = fixef, 
+                           type = "case", B = 1000, 
+                           resample = c(TRUE, FALSE))
+summary(mymodelBScase)
+```
+```{r}
+#| echo: false
+library(lmeresampler)
+load("data/bsdata.Rdata")
+summary(mymodelBScase)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+plot(mymodelBScase, "visit*conditionmindfulness")
+```
+:::
+::::
+
+
+# Interim Summary
+
+- Our assumptions for multi-level models are similar to that of a standard linear model in that we are concerned with the our residuals
+  - in the multi-level case, we have residuals are multiple levels. 
+  
+- When assumptions appear violated, there are various courses of action to consider. 
+  - primarily, we should think about whether our model makes theoretical sense
+  
+- Resampling methods (e.g. Bootstrapping) can __sometimes__ be used to obtain confidence intervals and bias-corrected estimates of model parameters. 
+  - There are various forms of the bootstrap, with varying assumptions. 
+
+
+# Case Diagnostics
+
+## Influence
+
+Just like standard `lm()`, observations can have unduly high influence on our model through a combination of high leverage and outlyingness. 
+
+```{r}
+#| echo: false
+#| fig-width: 12
+#| fig-asp: .3
+#| fig-align: "center"
+set.seed(18)
+tibble(
+  x = rnorm(20),
+  y = 2*x + rnorm(20,0,.3)
+) -> df
+loo = coef(lm(y~x,df))
+df[21,]<-cbind(4,8)
+ggplot(df,aes(x=x,y=y))+geom_point(alpha=.5)+
+  theme_minimal()+
+  geom_abline(intercept=loo[1],slope=loo[2], lty="dotted", lwd=1)+
+  scale_y_continuous(limits=c(-3,8))+
+  scale_x_continuous(limits=c(-2,4))+
+  geom_point(x=4,y=8,size=2,col="red")+
+  geom_smooth(method="lm",se=F) +
+  labs(title="not outlying, high leverage") -> p1
+
+df[21,]<-cbind(0,6)
+ggplot(df,aes(x=x,y=y))+geom_point(alpha=.5)+
+  theme_minimal()+
+  geom_abline(intercept=loo[1],slope=loo[2], lty="dotted", lwd=1)+
+  scale_y_continuous(NULL,limits=c(-3,8))+
+  scale_x_continuous(limits=c(-2,4))+
+  geom_point(x=0,y=6,size=2,col="red")+
+  geom_smooth(method="lm",se=F) +
+  labs(title="high outlier, low leverage") -> p2
+
+df[21,]<-cbind(4,0)
+ggplot(df,aes(x=x,y=y))+geom_point(alpha=.5)+
+  theme_minimal()+
+  geom_abline(intercept=loo[1],slope=loo[2], lty="dotted", lwd=1)+
+  scale_y_continuous(NULL, limits=c(-3,8))+
+  scale_x_continuous(limits=c(-2,4))+
+  geom_point(x=4,y=0,size=2,col="red")+
+  geom_smooth(method="lm",se=F) +
+  labs(title="high outlier, high leverage") -> p3
+
+p1 + p2 + p3
+
+```
+
+
+## but we have multiple levels...
+
+- Both observations (level 1 units) __and__ clusters (level 2+ units) can be influential. 
+
+- several packages, but current recommendations are **HLMdiag:** http://aloy.github.io/HLMdiag/index.html and **influence.ME**.  
+
+
+## Level 1 influential points
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| fig-asp: .5
+mymodel <- lmer(ACE ~ visit * condition + 
+                  (1 + visit | ppt), data = d3)
+qqnorm(resid(mymodel))
+qqline(resid(mymodel))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+library(HLMdiag)
+infl1 <- hlm_influence(mymodel, level = 1)
+names(infl1)
+infl1
+```
+:::
+::::
+
+## Level 1 influential points
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| fig-asp: .5
+mymodel <- lmer(ACE ~ visit * condition + 
+                  (1 + visit | ppt), data = d3)
+qqnorm(resid(mymodel))
+qqline(resid(mymodel))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| fig-asp: .7
+library(HLMdiag)
+infl1 <- hlm_influence(mymodel, level = 1)
+dotplot_diag(infl1$cooksd, cutoff = "internal")
+```
+:::
+::::
+
+
+
+## Level 2 influential clusters
+
+```{r}
+#| eval: false
+#| echo: true
+infl2 <- hlm_influence(mymodel, level = "ppt")
+dotplot_diag(infl2$cooksd, cutoff = "internal", index=infl2$ppt)
+```
+```{r}
+#| echo: false
+#| fig-asp: .6
+infl2 <- hlm_influence(mymodel, level = "ppt")
+dotplot_diag(infl2$cooksd, cutoff = 0.2, index=infl2$ppt) +
+  scale_y_continuous(limits=c(0,.35))
+```
+
+
+## What to do?
+
+- In this context (observations within participants), I would be inclined to focus on level-2 (participant) influence _first_, and only then look at the influence of individual observations.  
+
+- It's worth looking into PPT_2 a bit further. 
+
+- `mdffits` is a measure of multivariate "difference in fixed effects"
+```{r}
+#| echo: true
+infl2 %>% arrange(desc(mdffits))
+```
+
+## What to do?
+
+- In this context (observations within participants), I would be inclined to focus on level-2 (participant) influence _first_, and only then look at the influence of individual observations.  
+
+- It's worth looking into PPT_2 a bit further. 
+
+- examine fixed effects upon deletion of this participant
+```{r}
+#| echo: true
+deleted_ppt <- case_delete(mymodel, level = "ppt", type = "fixef", delete = c("PPT_2"))
+cbind(deleted_ppt$fixef.original, deleted_ppt$fixef.delete)
+```
+
+## Sensitivity Analysis?
+
+Would our conclusions change if we excluded these schools?  
+
+```{r}
+#| eval: false
+#| echo: true
+mymodel_rm2 <- 
+  lmer(ACE ~ visit * condition + 
+         (1 + visit | ppt), 
+       data = d3 %>% filter(!ppt %in% c("PPT_2")))
+
+mymodel_rm2BS <- bootstrap(mymodel_rm2, .f = fixef, 
+                           type = "case", B = 1000, 
+                           resample = c(TRUE, FALSE))
+
+confint(mymodel_rm2BS, type = "perc")
+```
+
+# Interim Summary
+
+- Influence can be exerted by individual observations and higher lever groups of observations  
+  - e.g. by children and by schools, or by individual trials and by participants.   
+  
+- We can get measures of influence at different levels, and consider how estimates and conclusions might change when certain observations (or groups) are excluded
+
+- If in doubt, conduct a sensitivity analysis: how do your conclusions change depending upon whether you include/exclude? 
+
+# Centering
+
+## Centering
+
+::::{.columns}
+:::{.column width="50%"}
+Suppose we have a variable for which the mean is 100.  
+```{r echo=FALSE, fig.asp=.8}
+set.seed(57)
+dat <- tibble(
+  iq = 100+(scale(rnorm(200,100,15))[,1]*15)
+)
+dat$iq2 = dat$iq-100
+dat$iq3 = dat$iq-120
+dat$iq4 = (dat$iq-100)/15
+ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=99.5,xmax=100.5, fill="red")+
+  labs(x="IQ")
+```
+:::
+
+:::{.column width="50%"}
+We can re-center this so that the mean becomes zero:
+```{r echo=FALSE,fig.asp=.8}
+ggplot(dat, aes(x=iq2))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=-0.5,xmax=0.5, fill="red")+
+  geom_vline(xintercept=0)+
+  labs(x="IQ - 100")
+```
+
+
+:::
+::::
+
+## Centering {visibility="uncounted"}
+
+
+::::{.columns}
+:::{.column width="50%"}
+Suppose we have a variable for which the mean is 100.  
+```{r echo=FALSE,fig.asp=.8}
+ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=99.5,xmax=100.5, fill="red")+
+  labs(x="IQ")
+```
+:::
+
+:::{.column width="50%"}
+We can re-center this so that _any_ value becomes zero:
+```{r echo=FALSE,fig.asp=.8}
+ggplot(dat, aes(x=iq3))+geom_histogram(binwidth = 2)+
+  geom_vline(xintercept=0)+
+  geom_rect(ymin=0,ymax=1, xmin=-19.5,xmax=-20.5, fill="red")+
+  labs(x="IQ - 120")
+```
+:::
+::::
+
+## Scaling
+
+
+::::{.columns}
+:::{.column width="50%"}
+Suppose we have a variable for which the mean is 100.  
+The standard deviation is 15
+```{r echo=FALSE, fig.asp=.8}
+ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
+  geom_rect(ymin=0,ymax=1, xmin=99.5,xmax=100.5, fill="red")+
+  labs(x="IQ")
+```
+:::
+
+:::{.column width="50%"}
+We can scale this so that a change in 1 is equivalent to a change in 1 standard deviation:
+
+```{r echo=FALSE, fig.asp=.8}
+ggplot(dat, aes(x=iq4))+geom_histogram(binwidth = (2/15))+
+  geom_rect(ymin=0,ymax=1, xmin=-0.5/15,xmax=0.5/15, fill="red")+
+  geom_vline(xintercept=0)+
+  labs(x="(IQ - 100) / 15")
+```
+:::
+::::
+
+## Centering predictors in LM
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r include=F}
+library(lme4)
+set.seed(934)
+df <- tibble(
+  x = rnorm(200,4,1),
+  y = pmax(0.1,.3+.5*x + rnorm(200))
+)
+```
+
+```{r}
+#| echo: true
+m1 <- lm(y~x,data=df)
+m2 <- lm(y~scale(x, center=T,scale=F),data=df)
+m3 <- lm(y~scale(x, center=T,scale=T),data=df)
+m4 <- lm(y~I(x-5), data=df)
+```
+
+:::{.fragment fragment-index=1}
+```{r}
+#| echo: true
+anova(m1,m2,m3,m4)
+```
+:::
+
+:::
+
+:::{.column width="50%" .fragment fragment-index=1}
+```{r echo=FALSE, fig.align="center"}
+set.seed(934)
+df <- tibble(
+  x = rnorm(200,4,1),
+  y = pmax(0.1,.3+.5*x + rnorm(200))
+)
+
+mod = lm(y~x,df)
+p1 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=0,xend=0,y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=max(df$x),y=0,yend=0)+
+  geom_point(data=tibble(x=0,y=coef(mod)[1]),size=4)+
+  labs(title="Raw X")+
+  scale_x_continuous(limits=c(0,7),breaks=0:7)
+
+mod = lm(y~scale(x,scale=F),df)
+p2 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=mean(df$x),xend=mean(df$x),y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=max(df$x),y=0,yend=0)+
+  geom_point(data=tibble(x=mean(df$x),y=coef(mod)[1]),size=4)+
+  scale_x_continuous(limits=c(0,7),breaks=map_dbl(seq(4,-4), ~mean(df$x)-.),
+                     labels=seq(-4,4))+
+  labs(title="Mean centered X")
+  
+  
+mod = lm(y~scale(x),df)
+p3 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=mean(df$x),xend=mean(df$x),y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=30,y=0,yend=0)+
+  geom_point(data=tibble(x=mean(df$x),y=coef(mod)[1]),size=4)+
+  scale_x_continuous(limits=c(0,7),
+                     breaks=c(mean(df$x)-(2*sd(df$x)), mean(df$x)-sd(df$x), 
+                              mean(df$x), 
+                              mean(df$x)+sd(df$x), mean(df$x)+(2*sd(df$x))),
+                     labels=c(-2,-1,0,1,2))+
+  labs(title="Scaled X")
+
+
+
+mod = lm(y~x,df %>% mutate(x=x-5))
+p4 = ggplot(df, aes(x=x,y=y))+geom_point()+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",fullrange=T,lty="dotted")+
+  #ylim(0,max(df$y))+
+  geom_segment(x=5,xend=5,y=0,yend=max(df$y))+
+  geom_segment(x=0,xend=30,y=0,yend=0)+
+  geom_point(data=tibble(x=5,y=coef(mod)[1]),size=4)+
+  scale_x_continuous(limits=c(0,7),breaks=0:7, labels=c(0:7)-5)+
+  labs(title="x-5")
+p1 + p2 + p3 + p4 
+```
+:::
+::::
+
+
+## Big Fish Little Fish
+
+```{r eval=FALSE, echo=FALSE}
+set.seed(667)
+doit<-1
+while(doit){
+  df<-as.data.frame(c())
+  Ngroups = round(rnorm(1,10,0))
+  NperGroup = rdunif(Ngroups, 10, 20)
+  N = sum(NperGroup)
+  dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+  xxm = rnorm(Ngroups,0,1)
+  xxm = rdunif(Ngroups, 2, 10)
+  xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+  xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+  #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+  xx = xxm+xgc 
+  l2p = sample(1:4, Ngroups, replace=T)
+  l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+  
+  e = rnorm(N, sd = 1)
+    
+  y = 0 +
+      dd[igs,1]+
+      -3*xxm+
+      2*xgc + 
+      dd[igs,2]*xgc +
+      0*l2p +
+      e
+  d = data.frame(y,xxm,xgc,igs,l2p)
+  df<-rbind(df,d)
+  
+  lmer(y ~ xxm + xgc + l2p + (1+xgc | igs), data =df,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  
+  if(!isSingular(m)){
+    doit <- 0
+  }
+}
+
+df %>% transmute(
+  pond = paste0("pond_",igs),
+  tyoe = l2p,
+  self_esteem = round(3+scale(y)[,1]*.6,2),
+  fish_weight = round(31+scale(xxm+xgc)[,1]*11),
+) -> bflp
+write.csv(bflp, "../../uoepsy/data/bflp.csv", row.names=F)
+```
+
+```{r echo=FALSE, fig.asp=.7, fig.align="center"}
+bflp <- read_csv("https://uoepsy.github.io/data/bflp.csv")
+library(ggforce)
+library(ggfx)
+ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
+  geom_point()+
+  #geom_line(aes(group=pond))+
+  geom_smooth(method="lm")+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  geom_mark_ellipse(aes(label = "BIG FISH",filter = fish_weight > 60),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  geom_mark_ellipse(aes(label = "LITTLE FISH",filter = fish_weight == 5),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  geom_mark_ellipse(aes(label = "MEDIUM FISH", filter = (pond == "pond_6" & fish_weight==34)),con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  ylim(1,5)
+```
+
+data available at https://uoepsy.github.io/data/bflp.csv  
+
+## Things are different with multi-level data 
+
+```{r echo=FALSE, fig.asp=.7, fig.align="center"}
+ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
+  with_blur(geom_point(),sigma=3)+
+  with_blur(geom_line(aes(group=pond),alpha=.5),sigma=3)+
+  geom_point(data=filter(bflp, pond=="pond_6"))+
+  geom_line(data=filter(bflp, pond=="pond_6"))+
+  #geom_smooth(method="lm")+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  with_blur(geom_mark_ellipse(aes(label = "BIG FISH",filter = fish_weight > 60),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE),sigma=3)+
+  with_blur(geom_mark_ellipse(aes(label = "LITTLE FISH",filter = fish_weight == 5),
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE),sigma=3)+
+  geom_mark_ellipse(aes(label = "BIG FISH, LITTLE POND", filter = (pond == "pond_6" & fish_weight==34)),con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE)+
+  ylim(1,5)
+```
+
+## Multiple means
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+__Grand mean__
+
+```{r echo=FALSE, fig.asp=.8}
+ggplot(bflp, aes(x=fish_weight, y=self_esteem, col=pond))+
+  geom_point(alpha=.4)+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")+
+  geom_vline(xintercept=mean(bflp$fish_weight),lty="dotted", lwd=1)
+```
+:::
+
+:::{.column width="50%"}
+__Group means__
+
+```{r echo=FALSE, fig.asp=.8}
+bflp %>% group_by(pond) %>% summarise(s=sd(fish_weight), fish_weight = mean(fish_weight), self_esteem = mean(self_esteem)) %>% ungroup -> sdff
+ggplot(bflp, aes(x=fish_weight, y=self_esteem, group=pond, col=pond))+
+  geom_point(alpha=.4)+
+  geom_point(data=sdff,size=4)+
+  #geom_errorbarh(data=sdff,aes(xmin=fish_weight-(2*s), xmax=fish_weight+(2*s)))+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+:::
+::::
+
+## Group-mean centering
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+
+<center>__ $x_{ij} - \bar{x}_i$ __</center><br>
+```{r echo=FALSE}
+bflp %>% group_by(pond) %>%
+  mutate(
+    xbar = mean(fish_weight),
+    xbari = fish_weight - mean(fish_weight)
+  ) -> bflpdat
+ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
+  geom_point()+
+  geom_line(aes(group=pond), alpha=.2)+
+  geom_vline(xintercept=0, lty="dotted",lwd=1)+
+  labs(x="Fish weight difference from pond average (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+:::
+
+:::{.column width="50%"}
+
+:::
+::::
+
+## Group-mean centering
+
+```{r include=FALSE}
+bflp %>% group_by(pond) %>% summarise(s=sd(fish_weight), fish_weight = mean(fish_weight), self_esteem = mean(self_esteem)) %>% ungroup -> sdff
+
+bind_rows(
+  sdff %>% mutate(t=0),
+  sdff %>% mutate(t=1,fish_weight=0)) -> sdff
+
+bind_rows(bflp %>% mutate(t=0),
+          bflp %>% group_by(pond) %>% 
+            mutate(m=mean(fish_weight),fish_weight=fish_weight-m, t=1) %>% ungroup
+) -> bflpa
+```
+```{r eval=FALSE, include=FALSE}
+library(gganimate)
+ggplot(bflpa, aes(x=fish_weight, y=self_esteem,color=pond)) +
+  geom_point(alpha=.7)+
+  geom_line(aes(group=pond), alpha=.1)+
+  geom_point(data=sdff,size=4)+
+  #geom_errorbarh(data=sdff,aes(x=0,xmin=0-(2*s), xmax=0+(2*s)), alpha=.5)+
+  labs(x="Fish weight",y="Self Esteem Scale (1-5)")+
+  guides(color="none") +
+  transition_states(t) -> p
+
+anim_save("img_sandbox/center.gif", p)
+```
+<br>
+```{r echo=FALSE, fig.align="center"}
+knitr::include_graphics("img_sandbox/center.gif")
+```
+
+## Group-mean centering
+
+
+::::{.columns}
+:::{.column width="50%"}
+<center>__ $x_{ij} - \bar{x}_i$ __</center><br>
+```{r echo=FALSE}
+bflp %>% group_by(pond) %>%
+  mutate(
+    xbar = mean(fish_weight),
+    xbari = fish_weight - mean(fish_weight)
+  ) -> bflpdat
+ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
+  geom_point()+
+  geom_line(aes(group=pond), alpha=.2)+
+  geom_vline(xintercept=0, lty="dotted",lwd=1)+
+  labs(x="Fish weight difference from pond average (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+:::
+
+:::{.column width="50%"}
+<center>__ $\bar{x}_i$ __</center><br>
+```{r echo=FALSE}
+ggplot(bflpdat, aes(x=xbar, y=self_esteem,color=pond)) +
+  stat_summary(geom="pointrange")+
+  #geom_point(alpha=.4)+
+  #geom_line(aes(group=patient), alpha=.4)+
+  labs(x="Pond Average fish weight (kg)",y="Self Esteem Scale (1-5)")+
+  guides(color="none")
+```
+:::
+::::
+
+
+## Disaggregating within & between
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+**RE model**  
+$$
+\begin{align}
+y_{ij} &= \beta_{0i} + \beta_{1}(x_j) + \varepsilon_{ij} \\
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}
+$$
+
+
+```{r}
+mod_re <- lmer(self_esteem ~ fish_weight + 
+              (1 | pond), data=bflp)
+```
+
+:::
+
+:::{.column width="50%"}
+**Within-between model**  
+$$
+\begin{align}
+y_{ij} &= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}
+$$
+
+```{r}
+#| echo: true
+bflp <- 
+  bflp %>% group_by(pond) %>%
+    mutate(
+      fw_pondm = mean(fish_weight),
+      fw_pondc = fish_weight - mean(fish_weight)
+    ) %>% ungroup
+
+mod_wb <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+              (1 | pond), data=bflp)
+fixef(mod_wb)
+```
+:::
+::::
+
+## Disaggregating within & between
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.8, fig.align="center"}
+broom.mixed::augment(mod_wb) %>%
+  ggplot(.,aes(x=fw_pondm, y=self_esteem, group=pond))+
+  geom_point() + #geom_line(alpha=.2) +
+  geom_abline(intercept=fixef(mod_wb)[1], slope=fixef(mod_wb)[2]) -> p1
+
+broom.mixed::augment(mod_wb) %>%
+  ggplot(.,aes(x=fw_pondc, y=self_esteem, group=pond))+
+  geom_point() + #geom_line(alpha=.2) +
+  geom_abline(intercept=fixef(mod_wb)[1]+(fixef(mod_wb)[2]*mean(bflp$fw_pondm)), slope=fixef(mod_wb)[3]) -> p2
+
+broom.mixed::augment(mod_wb) %>%
+  ggplot(.,aes(x=fw_pondc + fw_pondm, y=.fitted, group=pond))+
+  geom_point() + geom_line(alpha=.2) -> p3
+
+(p1+p2)/p3
+```
+:::
+
+:::{.column width="50%"}
+**Within-between model**  
+$$
+\begin{align}
+y_{ij} &= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+... \\
+\end{align}
+$$
+
+```{r}
+#| echo: true
+bflp <- 
+  bflp %>% group_by(pond) %>%
+    mutate(
+      fw_pondm = mean(fish_weight),
+      fw_pondc = fish_weight - mean(fish_weight)
+    ) %>% ungroup
+
+mod_wb <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+              (1 | pond), data=bflp)
+fixef(mod_wb)
+```
+:::
+::::
+
+## A more realistic example
+
+```{r eval=FALSE, echo=FALSE}
+library(lme4)
+set.seed(77)
+doit<-1
+while(doit){
+  Ngroup2s = 10
+  dd2<-MASS::mvrnorm(n=Ngroup2s, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  cor(dd2)
+  i = 2
+  df<-as.data.frame(c())
+  for(i in 1:Ngroup2s){
+    Ngroups = round(rnorm(1,10,0))
+    Nxgroups = 2
+    
+    #NperGroup = rep(Nxgroups*nrep,Ngroups)
+    NperGroup = rdunif(Ngroups, 5, 10)*Nxgroups
+    N = sum(NperGroup)
+    
+    dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddb<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddx<-MASS::mvrnorm(n=Nxgroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    
+    igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+    xgs = map(1:Ngroups, ~rep(1:Nxgroups,NperGroup[.]/Nxgroups)) %>% unlist
+    #x = map(1:Ngroups, ~rep(1:NperGroup[.],Nxgroups)) %>% unlist
+    xxm = rnorm(Ngroups,50,10)
+    xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+    xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+    #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+    xx = xxm+xgc 
+    
+    l2p = sample(0:1, Ngroups, replace=T)
+    l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+    
+    l3p = i %% 2
+    e = rnorm(N, sd = 15)
+    
+    y = 0 +
+      dd[igs,1]+
+      dd2[i,1]+
+      #ddx[xgs, 1] + 
+      -3*xxm+
+      #-.05*(xx2 %in% c(1,2,4))*xgc+
+      +4*xgc + 
+      dd[igs,2]*xgc +
+      #ddb[igs,2]*xxm + 
+      1*dd2[i,2]*xxm +
+      -3*l2p*xgc +
+      2*l3p +
+      e
+    d = data.frame(y,xxm,xgc,igs,xgs,i, l2p,l3p)
+    #ggplot(d,aes(x=x,y=y,group=factor(igs)))+facet_wrap(~xgs)+geom_path()
+    d$ng2 = i
+    df<-rbind(df,d)
+  }
+  df %>% filter(xgs == 1) %>%
+  lmer(y ~ xxm + xgc + l2p + l3p + (1+xgc | ng2/igs), data =.,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  t3 = attributes(VarCorr(m)[[2]])$stddev
+  t4 = attributes(VarCorr(m)[[2]])$correlation
+  
+  if(!isSingular(m) & all(t1 != 0) & !(t2[lower.tri(t2)] %in% c(0,1,-1)) & all(t3 != 0) & !(t4[lower.tri(t4)] %in% c(0,1,-1)) ){
+    doit <- 0
+  }
+}
+
+df %>% filter(xgs==1) %>% transmute(
+  alcunits = round(8+(scale(y)[,1]*4)),
+  gad = xxm + xgc,
+  gad = round(8+(scale(gad)[,1]*3)),
+  center = ng2,
+  ppt = igs,
+  group = l2p,
+  urb_rural = l3p
+) %>% filter(center %in% c(2:5,8)) %>% 
+  mutate(center=paste0("C",center),
+         ppt = paste0("C",center,"_",ppt)) -> alcgad
+write.csv(alcgad, "../../uoepsy/data/alcgad.csv", row.names=F)
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+A research study investigates how anxiety is associated with drinking habits. Data was collected from 50 participants. Researchers administered the generalised anxiety disorder (GAD-7) questionnaire to measure levels of anxiety over the past week, and collected information on the units of alcohol participants had consumed within the week. Each participant was observed on 10 different occasions. 
+:::
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.7}
+alcgad <- read_csv("https://uoepsy.github.io/data/alcgad.csv") %>% mutate(interv = group)
+ggplot(alcgad, aes(x=gad, y=alcunits,color=factor(ppt))) +
+  geom_point(alpha=.4)+
+  labs(x="Generalised Anxiety Disorder (GAD-7)",y="Units of Alcohol in previous 7 days")+
+  guides(color="none")
+```
+
+data available at https://uoepsy.github.io/data/alcgad.csv 
+:::
+::::
+
+## A more realistic example
+
+
+::::{.columns}
+:::{.column width="50%"}
+Is being more anxious (than you usually are) associated with higher consumption of alcohol?
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.8}
+alcgad %>% group_by(ppt) %>% mutate(gadm=mean(gad),gadmc=gad-gadm) %>%
+ggplot(., aes(x=gadmc, y=alcunits)) +
+  geom_point(alpha=.4)+
+  labs(x="Generalised Anxiety Disorder (GAD-7)\n relative to participant average",y="Units of Alcohol in previous 7 days")+
+  geom_smooth(method="lm",se=F)+
+  guides(color="none")
+```
+:::
+::::
+
+## A more realistic example
+
+
+::::{.columns}
+:::{.column width="50%"}
+Is being generally more nervous (relative to others) associated with higher consumption of alcohol?
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.8}
+alcgad %>% group_by(ppt) %>% mutate(gadm=mean(gad),gadmc=gad-gadm) %>%
+ggplot(., aes(x=gadm, y=alcunits)) +
+  geom_smooth(method="lm",se=F)+
+  stat_summary(aes(group=ppt),geom="pointrange")+
+  labs(x="Generalised Anxiety Disorder (GAD-7)\nparticipant average",y="Units of Alcohol in previous 7 days")+
+  guides(color="none")
+```
+:::
+::::
+
+
+
+## Modelling within & between effects
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+alcgad <- 
+  alcgad %>% group_by(ppt) %>% 
+  mutate(
+    gadm=mean(gad),
+    gadmc=gad-gadm
+  )
+alcmod <- lmer(alcunits ~ gadm + gadmc + 
+                 (1 + gadmc | ppt), 
+               data=alcgad,
+               control=lmerControl(optimizer = "bobyqa"))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+summary(alcmod)
+```
+:::
+::::
+
+## Modelling within & between interactions
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+alcmod <- lmer(alcunits ~ (gadm + gadmc)*interv + 
+                 (1 | ppt), 
+               data=alcgad,
+               control=lmerControl(optimizer = "bobyqa"))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+summary(alcmod)
+```
+:::
+::::
+
+## within? between? a bit of both?
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+alcmod2 <- lmer(alcunits ~ gad + (1 | ppt), 
+                data=alcgad,
+                control=lmerControl(optimizer = "bobyqa"))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+summary(alcmod2)
+```
+:::
+::::
+
+
+## Within & Between effects
+
+```{r include=FALSE}
+library(lme4)
+set.seed(86)
+doit<-1
+while(doit){
+  Ngroup2s = 10
+  dd2<-MASS::mvrnorm(n=Ngroup2s, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+  cor(dd2)
+  i = 2
+  df<-as.data.frame(c())
+  for(i in 1:Ngroup2s){
+    Ngroups = round(rnorm(1,10,0))
+    Nxgroups = 2
+    
+    #NperGroup = rep(Nxgroups*nrep,Ngroups)
+    NperGroup = rdunif(Ngroups, 5, 10)*Nxgroups
+    N = sum(NperGroup)
+    
+    dd<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddb<-MASS::mvrnorm(n=Ngroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    ddx<-MASS::mvrnorm(n=Nxgroups, mu = c(0,0), Sigma = matrix(c(1,0,0,1),byrow = T, nrow=2))
+    
+    igs = map(seq_along(NperGroup), ~rep(.,NperGroup[.])) %>% unlist
+    xgs = map(1:Ngroups, ~rep(1:Nxgroups,NperGroup[.]/Nxgroups)) %>% unlist
+    #x = map(1:Ngroups, ~rep(1:NperGroup[.],Nxgroups)) %>% unlist
+    xxm = rnorm(Ngroups,50,10)
+    xxm = map(1:Ngroups, ~rep(xxm[.], NperGroup[.])) %>% unlist
+    xgc = map(1:Ngroups, ~rnorm(NperGroup[.], 0, 3)) %>% unlist
+    #xx = map(1:Ngroups, ~rep(rnorm(1,3,.6), NperGroup[.]))%>% unlist
+    xx = xxm+xgc 
+    
+    l2p = sample(1:4, Ngroups, replace=T, prob = c(.2,.5,.3,.1))
+    l2p = map(1:Ngroups, ~rep(l2p[.], NperGroup[.])) %>% unlist
+    
+    l3p = i %% 2
+    e = rnorm(N, sd = 15)
+    
+    y = 0 +
+      dd[igs,1]+
+      dd2[i,1]+
+      #ddx[xgs, 1] + 
+      -5*xxm+
+      #-.05*(xx2 %in% c(1,2,4))*xgc+
+      -6*xgc + 
+      dd[igs,2]*xgc +
+      #ddb[igs,2]*xxm + 
+      1*dd2[i,2]*xxm +
+      -3*l2p + 
+      2*l3p +
+      e
+    d = data.frame(y,xxm,xgc,igs,xgs,i, l2p,l3p)
+    #ggplot(d,aes(x=x,y=y,group=factor(igs)))+facet_wrap(~xgs)+geom_path()
+    d$ng2 = i
+    df<-rbind(df,d)
+  }
+  df %>% filter(xgs == 1) %>%
+  lmer(y ~ xxm + xgc + l2p + l3p + (1+xgc | ng2/igs), data =.,
+       control=lmerControl(optimizer = "bobyqa")) -> m 
+  print(VarCorr(m))
+  t1 = attributes(VarCorr(m)[[1]])$stddev
+  t2 = attributes(VarCorr(m)[[1]])$correlation
+  t3 = attributes(VarCorr(m)[[2]])$stddev
+  t4 = attributes(VarCorr(m)[[2]])$correlation
+  
+  if(!isSingular(m) & all(t1 != 0) & !(t2[lower.tri(t2)] %in% c(0,1,-1)) & all(t3 != 0) & !(t4[lower.tri(t4)] %in% c(0,1,-1)) ){
+    doit <- 0
+  }
+}
+
+df %>% filter(xgs==1) %>% transmute(
+  tgu = 8+(scale(y)[,1]*4),
+  phys = round(xxm + xgc),
+  hospital = ng2,
+  patient = igs,
+  prioritylevel = l2p,
+  private = l3p
+) %>% filter(hospital%in%c(5,6)) %>% 
+  mutate(hospital=paste0("Hospital_",hospital),
+patient = paste0(hospital,patient))-> tgudat
+
+ggplot(tgudat, aes(x=phys, y=tgu,color=patient)) +
+  geom_point(alpha=.4)+
+  geom_smooth(aes(group=patient), method="lm",se=F,alpha=.4)+
+  labs(x="Daily amount of Physiotherapy\n(minutes)", y="Time Get up and Go test (seconds)")+
+  guides(color="none") -> p1
+
+ggplot(bflp, aes(x=fish_weight, y=self_esteem))+
+  geom_point()+
+  geom_smooth(aes(group=pond),method="lm",se=F,alpha=.4)+
+  labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
+  ylim(1,5) -> p2
+
+ggplot(alcgad, aes(x=gad, y=alcunits,color=factor(ppt))) +
+  geom_point(alpha=.4)+
+  geom_smooth(aes(group=ppt), method="lm",se=F,alpha=.4)+
+  labs(x="Generalised Anxiety Disorder (GAD-7)",y="Units of Alcohol in previous 7 days")+
+  guides(color="none") -> p3
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.8}
+p2
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.8}
+p3
+```
+:::
+::::
+
+## Within & Between effects
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r echo=FALSE, fig.asp=.8}
+p1
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+tgudat %>% group_by(patient) %>% mutate(physm= mean(phys),physc = phys-physm) %>% ungroup %>%
+ggplot(., aes(x=physc, y=tgu,color=patient)) +
+  geom_point()+
+  geom_line(aes(group=patient), alpha=.4)+
+  #geom_smooth(method="lm",se=F,alpha=.1)+
+  labs(x="Daily amount of Physiotherapy\n(minutes relative to patient average)", y="TUG")+
+  guides(color="none") ->p1
+
+tgudat %>% group_by(patient) %>% mutate(physm= mean(phys),physc = phys-physm) %>% ungroup %>%
+ggplot(., aes(x=physm, y=tgu,color=patient)) +
+  #geom_point(alpha=.4)+
+  #geom_line(aes(group=patient), alpha=.4)+
+  stat_summary(geom="pointrange")+
+  labs(x="Average daily amount of Physiotherapy\n(minutes)", y="TUG")+
+  guides(color="none") -> p2
+p1 / p2
+```
+:::
+::::
+
+## When do we need to think about it?  
+
+When we have a predictor $x$ that varies _within_ a cluster  
+
+and 
+
+When clusters have different average levels of $x$. This typically only happens when $x$ is *observed* (vs manipulated as part of study)
+  
+and
+
+When our question concerns $x$. (if $x$ is just a covariate, no need).  
+
+
+## Summary
+
+- Applying the same linear transformation to a predictor (e.g. grand-mean centering, or standardising) makes __no difference__ to our model or significance tests
+  - but it may change the meaning and/or interpretation of our parameters
+
+- When data are clustered, we can apply group-level transformations, e.g. __group-mean centering.__ 
+
+- Group-mean centering our predictors allows us to disaggregate __within__ from __between__ effects.  
+  - allowing us to ask the theoretical questions that we are actually interested in
+
 

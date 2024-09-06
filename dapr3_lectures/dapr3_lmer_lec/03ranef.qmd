@@ -37,7 +37,8 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=3)
 
 # This week {transition="slide"}
 
-TODO
+- More complicated grouping structures  
+- Model Building - how to simplify random effect structures for models that don't converge
     
 # Random Effect Structures
 
@@ -340,14 +341,97 @@ knitr::include_graphics("img_sandbox/structure_crossednew.png")
 
 ## Crossed Example
 
+```{r}
+#| include: false
+eseed = round(runif(1,1e3,1e7))
+set.seed(eseed)
+set.seed(234)
+
+n_groups = 20
+n_items = 10
+N = n_groups * n_items
+g = rep(1:n_groups, e = n_items)
+j = rep(1:n_items, n_groups)
+b = rep(0:1,n_groups/2)[g]
+w = c(rep(rep(0:1,e=n_items/2),n_groups/2),rep(rep(1:0,e=n_items/2),n_groups/2))
+
+
+
+g.re = MASS::mvrnorm(n_groups, mu = c(0,0), Sigma = matrix(c(8,1,1,3),nrow=2))
+g.re0 = g.re[,1][g]
+g.reb = g.re[,2][g]
+
+j.re = MASS::mvrnorm(n_items, mu = c(0,0), Sigma = matrix(c(2,.6,.6,1),nrow=2))
+j.re0 = j.re[,1][j]
+j.reb = j.re[,2][j]
+
+b0 = 0
+bb = 1
+bw = 2
+bwb = -1
+
+lp = b0 + g.re0 + j.re0 + (bw + g.reb + j.reb)*w + (bb)*b + (bwb)*b*w
+y = rnorm(N, mean = lp, sd = 1)
+#y_bin = rbinom(N, size = 1, prob = plogis(lp))
+df=data.frame(g,j,w,b,y)
+
+library(lme4)
+m = lmer(y~w*b+(1+w|g)+(1+b*w|j),df)
+summary(m)
+
+df = df |> transmute(
+  ppt = paste0("ppt_",formatC(g,digits=1,flag="0")),
+  task = paste0("task_",formatC(j,digits=1,flag="0")),
+  condition = ifelse(w==0,"A","B"),
+  group = ifelse(b==0,"1","2"),
+  score = round((y+10)*10)/10
+)
+```
+
 
 ::::{.columns}
-:::{.column width="50%"}
-TODO
+:::{.column style="width:50%;font-size:70%"}
+Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
+
+
+```{r}
+#| echo: false
+rbind(
+  df[c(1:2),],
+  "...",
+  df[c(6:7),],
+  "...",
+  "...",
+  df[c(11:12),],
+  "...",
+  df[c(16:17),],
+  "...",
+  "...",
+  df[c(101:102),],
+  "...",
+  df[c(106:107),],
+  "..."
+) |> as.data.frame() |> print(row.names=FALSE)
+```
 
 :::
 
 :::{.column width="50%"}
+
+
+```{r}
+#| eval: false
+... + (1 + ... | participant) + (1 + ... | task)
+```
+
+```{r}
+#| echo: false
+ggplot(df,aes(x = condition, y = score, col = task)) +
+  geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
+  facet_wrap(group~ppt) +
+  labs(title="participants")+
+  scale_color_viridis_d(option = "C")
+```
 
 :::
 ::::
@@ -541,8 +625,110 @@ lmer(ACE ~ 1 + visit * condition +
 
 ## Crossed Example
 
-TODO
 
+::::{.columns}
+:::{.column style="width:50%;font-size:70%"}
+Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
+
+```{r}
+#| out-height: "325px"
+ggplot(df,aes(x = condition, y = score, col = group)) +
+  geom_boxplot() +
+  facet_wrap(~ppt) +
+  labs(title="participants")
+```
+
+:::
+
+:::{.column style="width:50%;font-size:70%" .incremental}
+
+- multiple observations from each participants:  
+`(1 | ppt)`
+
+- participants are observed in each condition - the effect of condition could be different for participant 1 vs participant 2  
+`(condition | ppt)`
+
+- participants are observed in *either* group 1 or group 2. The effect of group is not defined for a single participant:  
+~~`(condition | ppt)`~~
+
+:::
+::::
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(score ~ condition * group + ???  
+```
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## Crossed Example
+
+
+::::{.columns}
+:::{.column style="width:50%;font-size:70%"}
+Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
+
+```{r}
+#| out-height: "325px"
+ggplot(df,aes(x = condition, y = score, col=group)) +
+  geom_boxplot() +
+  facet_wrap(~task) +
+  labs(title="tasks")
+```
+
+:::
+
+:::{.column style="width:50%;font-size:70%"}
+
+- multiple observations from each participants:  
+`(1 | ppt)`
+
+- participants are observed in each condition - the effect of condition could be different for participant 1 vs participant 2  
+`(condition | ppt)`
+
+- participants are observed in *either* group 1 or group 2. The effect of group is not defined for a single participant:  
+~~`(condition | ppt)`~~
+
+- multiple observations of each task (not nested within ppts):  
+`(1 | task)`
+
+:::{.incremental}
+
+- tasks are completed by people in each group - the effect of group could be different for task 1 vs task 2:  
+`(group | task)`  
+
+- tasks in each condition are completed by both groups. How group effects interact with condition effects could be different for task 1 vs 2:  
+`(group * condition | task)`
+
+:::
+
+:::
+::::
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(score ~ condition * group + ???  
+```
+:::
+:::{.column width="50%" .fragment}
+```{r}
+#| eval: false
+#| echo: true
+lmer(score ~ condition * group +
+      (1 + condition | ppt ) + 
+      (1 + condition * group | task), data)
+```
+:::
+::::
 
 ## The poke in the eye
 
@@ -808,7 +994,6 @@ Use a criterion for model selection (e.g. LRT, AIC, BIC) to choose a random effe
 :::{.column width="50%"}
 
 - lots of different ways (e.g., backwards/forwards, criteria for determining order of incl/exclusion, $\alpha$ adjustments, etc)
-- implemented in the **buildmer** package
 
 :::
 ::::
@@ -970,16 +1155,17 @@ cordat <- d3COR |>
 :::{.column width="50%"}
 ```{r}
 #| echo: true
+#| out-height: "350px"
 mod <- lmer(y ~ 1 + x * b + 
               (1 + x | group), data = cordat)
 VarCorr(mod)
-
 plot(ranef(mod)$g)
 ```
 :::
 :::{.column width="50%" .fragment}
 ```{r}
 #| echo: true
+#| out-height: "350px"
 modzc <- lmer(y ~ 1 + x * b + 
               (1 + x || group), data = cordat)
 VarCorr(modzc)
