@@ -2077,14 +2077,14 @@ model <- lm(lifesat ~ 1 + age, data = d3)
 
 :::{.column width="50%"}
 ```{r}
-lm(y ~ x, data = df) |>
+lm(lifesat ~ age, data = d3) |>
   broom::augment() |>
-  ggplot(aes(x=x,y=y))+
+  ggplot(aes(x=age,y=lifesat))+
   geom_point(size=4,alpha=.3)+
   geom_smooth(method="lm")+
   geom_smooth(method="lm",se=F,fullrange=T)+
   geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
-  geom_segment(aes(y=y, yend = .fitted, x = x, xend = x), alpha=.2,lty="dotted")+
+  geom_segment(aes(y=lifesat, yend = .fitted, x = age, xend = age), alpha=.2,lty="dotted")+
   labs(x="Age",y="Life Satisfaction")+
   xlim(0,70)+
   NULL
@@ -2178,17 +2178,18 @@ cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...\n...  ..."))
 
 :::{.column width="50%"}
 ```{r}
-model = lm(y ~ g+x, data = df)
-df |> mutate(
-  cluster_var=gg[g],
-  f = fitted(model)
-) -> pdat 
+broom::augment(model) |>
+  mutate(
+    cluster_var = dwelling,
+    f = .fitted,
+    x=age,y=lifesat
+  ) -> pdat
 
 ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
   geom_point(size=4,alpha=.3)+
   geom_line(aes(y=f,group=cluster_var))+
-  geom_smooth(pdat |> filter(cluster_var == gg[1]), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
-  geom_point(x=0,y=coef(model)[1],size=3,aes(col=gg[1]))+
+  geom_smooth(pdat |> filter(cluster_var == "Aberdeen"), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
+  geom_point(x=0,y=coef(model)[1],size=3,aes(col="Aberdeen"))+
   guides(col=FALSE) +
   labs(x="Age",y="Life Satisfaction")+
   xlim(0,70)+
@@ -2224,17 +2225,18 @@ cat(c(.pp(summary(model),l=list(c(23:26))), "...  ..."))
 
 :::{.column width="50%"}
 ```{r echo=FALSE}
-model = lm(y ~ g*x, data = df)
-df |> mutate(
-  cluster_var=gg[g],
-  f = fitted(model)
-) -> pdat 
+broom::augment(model) |>
+  mutate(
+    cluster_var = dwelling,
+    f = .fitted,
+    x=age,y=lifesat
+  ) -> pdat
 
 ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
   geom_point(size=4,alpha=.3)+
   geom_line(aes(y=f,group=cluster_var))+
-  geom_smooth(pdat |> filter(cluster_var == gg[1]), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
-  geom_point(x=0,y=coef(model)[1],size=3,aes(col=gg[1]))+
+  geom_smooth(pdat |> filter(cluster_var == "Aberdeen"), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
+  geom_point(x=0,y=coef(model)[1],size=3,aes(col="Aberdeen"))+
   guides(col=FALSE) +
   labs(x="Age",y="Life Satisfaction")+
   xlim(0,70)+
