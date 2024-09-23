@@ -1,51 +1,13 @@
 library(tidyverse)
 library(lme4)
-# observational data ----
-eff_seed <- sample(1:2^15, 1)
-print(sprintf("Seed for session: %s", eff_seed))
-set.seed(eff_seed)
-set.seed(22874)
-n_groups = 20
-N = n_groups*7
-g = rep(1:n_groups, e = N/n_groups)
-xg = rep(runif(n_groups, 3, 6), e = 7)
-xd = rnorm(N,0,2)
-ag = round(runif(n_groups,25,60))
-a = rep(ag,e=7)
-bw = rep(rbinom(n_groups,1,plogis(scale(a))),e=7)
-re0 = rnorm(n_groups, sd = 3)
-re = re0[g]
-rex = rnorm(n_groups, sd = 1)
-re_x = rex[g]
-lp = (0 + re) + .35*a + (.9*bw) + 10*xg+  (1.5 + re_x) * xd +1.2*bw*xd 
-y = rnorm(N, mean = lp, sd = 2.6)
-y_bin = rbinom(N, size = 1, prob = plogis(lp))
-df = data.frame(x=round(xd+xg), g = factor(g), a,bw, y, y_bin)
-print(sprintf("Seed for session: %s", eff_seed))
-df = df |> transmute(
-  ncoffees = pmax(0,x),
-  caff = x*80,
-  pid = map_chr(g,~paste0("person",LETTERS[.])),
-  age = a,
-  sugar = factor(bw),
-  stress = round(scale(y)[,1]*13.4 + 28.4),
-  anx = y_bin
-) |> group_by(pid) |>
-  mutate(
-    ncoffees_g = mean(ncoffees),
-    ncoffees_d = ncoffees - mean(ncoffees)
-  )
-ggplot(df,aes(x=ncoffees,y=stress,group=pid,col=sugar))+
-  geom_point()+geom_smooth(method=lm,se=F)
-obsdf = df
-
-lmer(stress~ 1 + age + (ncoffees_g + ncoffees_d)*sugar + (1 + ncoffees_d | pid), data = obsdf) |> summary()
-
+pets = read_csv("https://uoepsy.github.io/data/pets_seattle.csv") |>
+  filter(species=="Dog")
+  
 # main data ----
 eff_seed <- sample(1:2^15, 1)
 print(sprintf("Seed for session: %s", eff_seed))
 set.seed(eff_seed)
-set.seed(8453)
+set.seed(9373)
 n_groups = 20
 N = n_groups*7
 g = rep(1:n_groups, e = N/n_groups)
@@ -54,12 +16,12 @@ ag = round(runif(n_groups,25,60))
 a = rep(ag,e=7)
 bw = rep(rbinom(n_groups,1,plogis(scale(a))),e=7)
 
-re0 = rnorm(n_groups, sd = 3)
+re0 = rnorm(n_groups, sd = 10)
 re = re0[g]
-rex = rnorm(n_groups, sd = 1)
+rex = rnorm(n_groups, sd = 3)
 re_x = rex[g]
-lp = (0 + re) + .35*a + (.9 *bw) +  (1.5 + re_x) * x +1.2*bw*x 
-y = rnorm(N, mean = lp, sd = 3.6)
+lp = (0 + re) + 0*a + (.9 *bw) -  (3 + re_x) * x +1.2*bw*x 
+y = rnorm(N, mean = lp, sd = 7.6)
 y_bin = rbinom(N, size = 1, prob = plogis(lp))
 df = data.frame(x, g = factor(g), a,bw, y, y_bin)
 
@@ -71,33 +33,51 @@ df = data.frame(x, g = factor(g), a,bw, y, y_bin)
 # sjPlot::tab_model(lmer(y~1+x+(1+x|g),df),
 #                   lmer(y~1+bw*x+(1+x|g),df),
 #                   lmer(y~1+a + bw*x+(1+x|g),df))
-pidnames = c("Holly","Tom","Bérengère","Umberto","Hannah","Josiah","Zachary","Steve","Graham","Sarah","Cristina","Jasna","Robert","Daniel","Aja","Martin","Hugh","Monica","Emma","John")
+
+#read_csv("https://uoepsy.github.io/data/pets_seattle.csv")
+
+pidnames = c("Shadow","Shell","Dan","Dudley","Nico",
+             "George","Maia","Dougal","Rufus","Dozer",
+             "Jura","Isla","Sika","Rosie","Sox",
+             "Nellie","Pippin","Loki","Sonika","Summer",
+             "Bobby","Newt","Norman","Henry","Molly"
+             )
 
 
 df = df |> transmute(
-  ncoffees = x,
-  caff = x*80,
-  pid = map_chr(g,~pidnames[.]),
-  age = a,
-  sugar = factor(bw),
-  stress = round(scale(y)[,1]*13.4 + 28.4),
-  anx = y_bin
-)
-set.seed(38)
-quickdf <- df |> group_by(pid) |>
-  slice_sample(n = 1)
-# summarise(
-#   RT = round(mean(RT)),
-#   age = mean(age),
-#   milk = first(milk)
-# ) |> mutate(ncoffees = round(RT*-.01 + rnorm(n(),0,2)), 
-#             ncoffees = ncoffees + abs(min(ncoffees)),
-#             caff = ncoffees*80
-# )
+  attempt_nr = x,
+  #caff = x*80,
+  did = map_chr(g,~pidnames[.]),
+  # age = a,
+  age = factor(bw, levels=c("0","1"), labels=c("puppy","adult")),
+  comptime = round(scale(y)[,1]*10.3 + 39.4)
+  #stress = round(scale(y)[,1]*13.4 + 28.4),
+  #anx = y_bin
+) |>
+  mutate(
+    comptime = case_when(
+      did=="Rufus" ~ comptime + -1.5*attempt_nr,
+      TRUE~comptime
+    )
+  )
 
-df = df |> select(pid,age,ncoffees,caff,sugar,stress)
-quickdf = quickdf |> select(pid,age,ncoffees,caff,sugar,stress)
-obsdf = obsdf |> select(pid,age,ncoffees,caff,sugar,stress)
+
+m = lmer(comptime ~ attempt_nr * age + (1 + attempt_nr | did), df)
+
+summary(m)
+dotplot.ranef.mer(ranef(m))
+ggplot(df,aes(x=attempt_nr,y=comptime,col=age))+
+  geom_point()+
+  facet_wrap(~did)
+
+
+set.seed(38)
+quickdf <- df |> group_by(did) |>
+  slice_sample(n = 1)
+
+df = df |> select(did,age,attempt_nr,comptime)
+quickdf = quickdf |> select(did,age,attempt_nr,comptime)
+
 
 # nested data ---- 
 
@@ -110,105 +90,138 @@ simg2 = function(dd){
   a = rep(ag,e=7)
   bw = rep(rbinom(n_groups,1,plogis(scale(a))),e=7)
   
-  re0 = rnorm(n_groups, sd = 3)
+  re0 = rnorm(n_groups, sd = 10)
   re = re0[g]
-  rex = rnorm(n_groups, sd = 2)
+  rex = rnorm(n_groups, sd = 3)
   re_x = rex[g]
-  lp = (rnorm(1,0,2) + re) + .35*a + (.9 *bw) +  (rnorm(1,1,2) + re_x) * x + runif(1,0,1.4)*bw*x 
-  y = rnorm(N, mean = lp, sd = 3.6)
+  
+  bb0 = rnorm(1,0,2)
+  bbx = rnorm(1,2.5,.5)
+  bbxb = runif(1,0,.7)
+  lp = (bb0 + re) + 0*a + (.9 *bw) - 
+    (bbx + re_x) * x + bbxb*bw*x
+
+  y = rnorm(N, mean = lp, sd = 7.6)
   y_bin = rbinom(N, size = 1, prob = plogis(lp))
   df = data.frame(x, g = factor(g), a,bw, y, y_bin)
   df |> transmute(
-    dept = dd,
-    ncoffees = x,
-    caff = x*80,
-    g = map_chr(g,~paste0(dd,"_",.)),
-    age = a,
-    sugar = factor(bw),
-    stress = round(scale(y)[,1]*13.4 + 28.4),
-    anx = y_bin
+    breed = dd,
+    attempt_nr = x,
+    #caff = x*80,
+    #did = map_chr(g,~pidnames[.]),
+    g = g,
+    # age = a,
+    age = factor(bw, levels=c("0","1"), labels=c("puppy","adult")),
+    y = y,
+    #comptime = round(scale(y)[,1]*10.3 + 39.4)
+    #stress = round(scale(y)[,1]*13.4 + 28.4),
+    #anx = y_bin
   )
 }
-set.seed(042)
 
-df_nest <- map_dfr(c("LEL","Phil","Math","Sociology","Health & Social Science"),~simg2(.))
+eseed = round(runif(1,1e3,1e5))
+set.seed(eseed)
+set.seed(65003)
 
-df_nest <- df_nest |> group_by(g) |>
-  mutate(pid = randomNames::randomNames(1, which.names="first",
-                                        ethnicity=sample(1:6, 1, prob=c(.01,.1,.1,.1,.59,.1))))
+unique(pets$primary_breed)
+breeds = c("Whippet","Retreiver","Corgi","Lurcher",
+  "Alsation","Border Collie","Spaniel","Dachshund","Visla","Terrier","Staffordshire Terrier")
 
-df_nest <- bind_rows(
-  df |> mutate(dept="Psych", g=pid),
-  ungroup(df_nest) #|> select(-g,-anx)
-)
-
-tochange = df_nest |> group_by(dept, pid) |> summarise(n=n(),age=first(age)) |>
-  filter(n>7) |> ungroup() |> 
+df_nest <- map_dfr(breeds,~simg2(.)) |> 
   mutate(
-    newnames = randomNames::randomNames(n(), which.names="first",
-                                        ethnicity=sample(1:6, 1, prob=c(.01,.1,.1,.1,.59,.1)))
+    comptime = round(scale(y)[,1]*10.3 + 39.4)
+  ) |> 
+  group_by(breed, g) |>
+  mutate(
+    did = sample(unique(pets$animals_name),1)
+  ) |>
+  ungroup()
+
+
+left_join(
+  df, 
+  tibble(
+    did=sort(unique(df$did)),
+    breed=c("Border Collie","Lurcher","Staffordshire Terrier",
+            "Retreiver","Whippet","Retreiver","Retreiver","Alsation",
+            "Retreiver","Border Collie","Visla","Terrier","Spaniel",
+            "Visla","Alsation","Border Collie","Retreiver","Alsation","Lurcher","Retreiver")  
   )
-df_nest <- left_join(
-  df_nest,
-  tochange |> select(-n)
 ) |>
-  mutate(
-    pid = case_when(
-      !is.na(newnames) ~ newnames,
-      TRUE ~ pid
-    )
-  ) |> select(-g,-anx,-newnames)
+  bind_rows(df_nest) |>
+  arrange(breed,did,attempt_nr) |> 
+  select(-g) -> df_nest
 
-df_nest |> count(dept, pid) |> filter(n>7)  
+df_nest |> count(breed, did) |> filter(n>7)  
 
-mnest = lmer(stress ~ 1+age+ncoffees*sugar + 
-               (1+ncoffees|dept:pid)+
-               (1|dept),
+mnest = lmer(comptime ~ 1+attempt_nr * age + 
+               (1+attempt_nr|breed:did)+
+               (1+attempt_nr+age|breed),
              data=df_nest)
 
 VarCorr(mnest)
+dotplot.ranef.mer(ranef(mnest))
+summary(mnest)$coefficients
 # save(df_nest, file="dfnest.Rdata")
 # load("dfnest.Rdata")
 # crossed data ---- 
+
 simcross = function(t,b,bb){
   df |>
     mutate(
-      task = t,
-      stress = round(stress + rnorm(n(),b,5) + ncoffees*bb)
+      trick = t,
+      comptime = round(comptime + rnorm(n(),b,5) + attempt_nr*bb)
     )
 }
 set.seed(235)
 df_cross <- pmap_dfr(list(
-  paste0("task",1:10),
+  c("walk backwards","shake head","bow","crawl","jump",
+    "ring bell","speak","wave","close door","tidy up"),
   rnorm(10,0,4),
-  rnorm(10,0,3)
+  rnorm(10,-4,3)
 ),~simcross(..1,..2,..3)) |>
-  arrange(pid, ncoffees,task)
+  arrange(did, attempt_nr,trick)
+
+
+mcross = lmer(comptime ~ 1+attempt_nr * age + 
+                 (1+attempt_nr|did)+
+                 (1+attempt_nr|trick),
+               data=df_cross)
+
+VarCorr(mcross)
+dotplot.ranef.mer(ranef(mcross))
 
 
 
 #### tidy data -----
+quick_new_trick = quickdf |> transmute(DOG=did, isOld=age,trainingdays=attempt_nr,tricktime=comptime)
 
-psychRT = df
-psychRT_quick = quickdf
-uoeRT = df_nest
-psychRT_tasks = df_cross
-psych_OBS = obsdf
-
-save(psychRT, psychRT_quick, uoeRT, psych_OBS, psychRT_tasks, file="dapr3_liveRs.RData")
-s
-
-
-
+new_trick = df |> transmute(DOG=did, isOld=age,trainingdays=attempt_nr,
+                            tricktime=comptime)
+new_trick_dogbreeds = df_nest |> transmute(BREED=breed,DOG=did, 
+                                isOld=age,trainingdays=attempt_nr,
+                                tricktime=comptime)
+many_new_tricks = df_cross |> transmute(DOG=did, isOld=age,
+                                        trainingdays=attempt_nr,
+                                        trick,tricktime=comptime)
 
 
+lmer(tricktime ~ trainingdays * isOld + (1+trainingdays|DOG), 
+     data = new_trick) |> summary()
+
+lmer(tricktime ~ trainingdays * isOld + 
+       (1+trainingdays|BREED)+
+       (1+trainingdays|BREED:DOG), 
+     data = new_trick_dogbreeds) |> summary()
+
+lmer(tricktime ~ trainingdays * isOld + 
+       (1+trainingdays|DOG)+
+       (1+trainingdays|trick), 
+     data = many_new_tricks) |> summary()
 
 
-
-
-
-
-
+save(new_trick, new_trick_dogbreeds, many_new_tricks,
+     quick_new_trick, file="dapr3_liveR_newtricks.RData")
 
 
 
@@ -221,53 +234,49 @@ s
 
 # week 1 ----
 
-lm(RT ~ ncoffees, quickdf) |> summary()
-ggplot(quickdf, aes(x=ncoffees, y=RT))+
-  geom_point() +
-  geom_smooth(method=lm,se=F)+
-  geom_label(aes(label=pid),hjust=0,position=position_nudge(x=.1))
-
-head(quickdf)
-head(df, 15L)
-
-
-ggplot(df, aes(x=ncoffees, y=RT))+
+ggplot(new_trick, aes(x=trainingdays, y=tricktime))+
   geom_point() +
   geom_smooth(method=lm,se=F) +
-  geom_label(data=filter(df,pid=="Josiah"),
-             aes(label=pid),hjust=0,
+  geom_label(data=filter(new_trick,DOG=="Dougal"),
+             aes(label=DOG),hjust=0,
+             position=position_nudge(x=.1))+
+  geom_label(data=filter(new_trick,DOG=="Rufus"),
+             aes(label=DOG),hjust=0,
              position=position_nudge(x=.1))
 
 # counting sample sizes:
-nrow(df)
-df |> count(pid) |>
-  nrow()
+nrow(new_trick)
+new_trick |> count(DOG) |>
+  summary()
 
 library(ICC)
-ICCbare(pid,RT,df)
-
-lm(RT ~ ncoffees, df) |> summary()
-
-
+ICCbare(DOG, tricktime, new_trick)
 
 # week 2 ----
+lmer(tricktime ~ trainingdays + (1+trainingdays|DOG), 
+     data = new_trick) |> 
+  summary()
 
-lmer(RT~ 1 + age + ncoffees + (1 + ncoffees | pid), data = df) |> summary()
-lmer(RT~ 1 + age + ncoffees * milk + (1 + ncoffees | pid), data = df) |> summary()
-lmer(RT~ 1 + age + ncoffees * milk + (1 + age| pid), data = df) |> summary()
-lmer(RT~ 1 + age + ncoffees * milk + (1 + milk | pid), data = df) |> summary()
+lmer(tricktime ~ trainingdays * isOld + (1+trainingdays|DOG), 
+     data = new_trick) |> 
+  summary()
+
+lmer(tricktime ~ trainingdays * isOld + (1+trainingdays + isOld|DOG), 
+     data = new_trick) |> 
+  summary()
+
+
 
 library(lattice)
-xyplot(RT~age|pid,data=df)
-xyplot(RT~milk|pid,data=df)
+xyplot(tricktime~trainingdays|DOG, data= new_trick)
 #compare with:
-xyplot(RT~ncoffees|pid,data=df)
-xyplot(RT~ncoffees|pid,data=df, type=c("p","r"))
+xyplot(tricktime~isOld|DOG, data= new_trick)
 
 # warning. it needs thought.. 
 # you shouldn't be able to fit this model, but you can.
-mm = lmer(RT~ 1 + milk + (0 + milk | pid), data = df)
-summary(mm)
+lmer(tricktime ~ trainingdays * isOld + (1 + isOld|DOG), 
+     data = new_trick) |> 
+  summary()
 # the estimates in the variance components are not what you think
 
 
