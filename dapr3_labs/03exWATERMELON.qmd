@@ -1,0 +1,925 @@
+---
+title: "W3 Exercises: Nested and Crossed Structures"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(ggdist)
+library(lme4)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+
+
+# Psychoeducation Treatment Effects
+
+```{r}
+#| eval: false
+#| echo: false
+simm2<-function(seed=NULL,b0=0,b1=1,b2=1,z0=1,z1=1,e=1){
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  n_groups = round(runif(1,1,15))*2
+  npg = 5
+  g = rep(1:n_groups, e = 5)      # the group identifier
+  x = rep(0:4,n_groups)
+  b = rep(0:1,e=n_groups/2)
+  b = b[g]
+  re0 = rnorm(n_groups, sd = z0)  # random intercepts
+  re  = re0[g]
+  rex = rnorm(n_groups, sd = z1)  # random effects
+  re_x  = rex[g]
+  lp = (b0 + re) + (b1 + re_x)*x + b2*x*b 
+  y = rnorm(length(g), mean = lp, sd = e) # create a continuous target variable
+  # y_bin = rbinom(N, size = 1, prob = plogis(lp)) # create a binary target variable
+  data.frame(x, b=factor(b), g=factor(g), y)
+}
+eseed = round(runif(1,1e3,1e6))
+set.seed(929918)
+big = tibble(
+    school = 1:30,
+    int = rnorm(30,20,1),
+    sl = rnorm(30,-.3,.5),
+    intr = rnorm(30,-1,.5),
+    z0 = runif(30,.5,1.5),
+    z1 = runif(30,.5,1.5),
+    e = runif(30,.5,1)
+  )
+  big = big |> mutate(
+    data = pmap(list(int,sl,intr,z0,z1,e), ~simm2(b0=..1,b1=..2,b2=..3,z0=..4,z1=..5,e=..6))
+  ) |> unnest(data)
+
+  # m = lmer(round(y)~x*b+(1+x*b|school)+(1+x|school:g),big)
+  # broom.mixed::augment(m) |>
+  #   ggplot(aes(x=x,y=.fitted,col=factor(b)))+
+  #   geom_point(aes(y=`round(y)`))+
+  #   geom_line(aes(group=interaction(school,g)))
+
+tnames = unique(replicate(100,paste0(sample(LETTERS,2),collapse="")))
+  
+big <- big |> transmute(
+    therapist = tnames[school],
+    group = ifelse(b==0,"Control","Treatment"),
+    patient = pmap_chr(list(therapist,group,g),~paste(..1,..2,..3,sep="_")),
+    visit = x,
+    GAD = pmin(35,pmax(7,round(y)+5))
+  ) 
+
+big |> select(patient,visit,GAD) |>
+  pivot_wider(names_from=visit,values_from=GAD, names_prefix="visit_") |>
+  write_csv(file="../../data/lmm_gadeduc.csv")
+
+
+
+
+```
+
+
+
+:::frame
+__Data: gadeduc.csv__
+
+```{r}
+#| include: false
+geduc = read_csv("https://uoepsy.github.io/data/lmm_gadeduc.csv")
+geduc1 = geduc |> 
+  pivot_longer(2:last_col(), names_to="visit",values_to="GAD") |>
+  mutate(
+    visit = as.numeric(gsub("visit_","",visit))
+  ) |>
+  separate(patient, into=c("therapist","group","patient"), sep="_")
+# m = lmer(GAD~visit*group+(1+visit*group|therapist)+(1+visit|therapist:patient),geduc1)
+# summary(m)
+tn = geduc1 |> group_by(therapist) |> summarise(np = n_distinct(patient))
+```
+
+This is synthetic data from a randomised controlled trial, in which `r nrow(tn)` therapists randomly assigned patients (each therapist saw between `r min(tn[,'np'])` and `r max(tn[,'np'])` patients) to a control or treatment group, and monitored their scores over time on a measure of generalised anxiety disorder (GAD7 - a 7 item questionnaire with 5 point likert scales).  
+
+The control group of patients received standard sessions offered by the therapists. 
+For the treatment group, 10 mins of each sessions was replaced with a specific psychoeducational component, and patients were given relevant tasks to complete between each session. All patients had monthly therapy sessions. Generalised Anxiety Disorder was assessed at baseline and then every visit over 4 months of sessions (5 assessments in total).  
+
+The data are available at [https://uoepsy.github.io/data/lmm_gadeduc.csv](https://uoepsy.github.io/data/lmm_gadeduc.csv){target="_blank"}
+
+You can find a data dictionary below:
+```{r}
+#| echo: false
+#| label: tbl-lmm_gadeduc.csv
+#| tbl-cap: "Data Dictionary: lmm_gadeduc.csv"
+tibble(
+    variable = names(geduc),
+    description = c("A patient code in which the labels take the form <Therapist initials>_<group>_<patient number>.","Score on the GAD7 at baseline", 
+                    "GAD7 at 1 month assessment",
+                    "GAD7 at 2 month assessment",
+                    "GAD7 at 3 month assessment",
+                    "GAD7 at 4 month assessment"
+                    )
+)  |>
+    kableExtra::kbl() |>
+    kableExtra::kable_styling(full_width = FALSE)
+```
+
+:::
+
+
+`r qbegin(qcounter())`
+Uh-oh... these data aren't in the same shape as the other datasets we've been giving you..  
+
+Can you get it into a format that is ready for modelling?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- It's wide, and we want it long.  
+- Once it's long. "visit_0", "visit_1",.. needs to become the numbers 0, 1, ...
+- One variable (`patient`) contains lots of information that we want to separate out. There's a handy function in the __tidyverse__ called `separate()`, check out the help docs!  
+
+:::
+
+
+`r qend()`
+`r solbegin(label="1 - reshaping", slabel=F,show=T, toggle=params$TOGGLE)`
+Here's the data. We have one row per patient, but we have multiple observations for each patient across the columns..  
+```{r}
+geduc = read_csv("https://uoepsy.github.io/data/lmm_gadeduc.csv")
+head(geduc)
+```
+
+We can make it long by taking the all the columns from `visit_0` to `visit_4` and shoving their values into one variable, and keeping the name of the column they come from as another variable:  
+```{r}
+geduc |> 
+  pivot_longer(2:last_col(), names_to="visit",values_to="GAD")
+```
+
+
+`r solend()`
+`r solbegin(label="2 - time is numeric", slabel=F,show=T, toggle=params$TOGGLE)`
+Now we know how to get our data long, we need to sort out our time variable (`visit`) and make it into numbers.  
+We can replace all occurrences of the string `"visit_"` with nothingness `""`, and then convert them to numeric.  
+
+```{r}
+geduc |> 
+  pivot_longer(2:last_col(), names_to="visit",values_to="GAD") |>
+  mutate(
+    visit = as.numeric(gsub("visit_","",visit))
+  ) 
+```
+
+
+`r solend()`
+`r solbegin(label="3 - splitting up the patient variable", slabel=F,show=T, toggle=params$TOGGLE)`
+Finally, we need to sort out the `patient` variable. It contains 3 bits of information that we will want to have separated out. It has the therapist (their initials), then the group (treatment or control), and then the patient number. These are all separated by an underscore "_".  
+
+The `separate()` function takes a column and separates it into several things (as many things as we give it), splitting them by some user defined separator such as an underscore:  
+```{r}
+geduc_long <- geduc |> 
+  pivot_longer(2:last_col(), names_to="visit",values_to="GAD") |>
+  mutate(
+    visit = as.numeric(gsub("visit_","",visit))
+  ) |>
+  separate(patient, into=c("therapist","group","patient"), sep="_")
+```
+
+And we're ready to go!  
+```{r}
+geduc_long
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Visualise the data. Does it look like the treatment had an effect?  
+Does it look like it worked for every therapist?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- remember, `stat_summary()` is very useful for aggregating data inside a plot.  
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Here's the overall picture. The average score on the GAD7 at each visit gets more and more different between the two groups. The treatment looks effective.. 
+```{r}
+ggplot(geduc_long, aes(x = visit, y = GAD, col = group)) +
+  stat_summary(geom="pointrange")
+```
+
+Let's split this up by therapist, so we can see the averages across each therapist's set of patients.  
+There's clear variability between therapists in how well the treatment worked. For instance, the therapists `EU` and `OD` don't seem to have much difference between their groups of patients.
+```{r}
+#| out-width: "100%"
+ggplot(geduc_long, aes(x = visit, y = GAD, col = group)) +
+  stat_summary(geom="pointrange") +
+  facet_wrap(~therapist)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Fit a model to test if the psychoeducational treatment is associated with greater improvement in anxiety over time.  
+`r qend()`
+`r solbegin(label="1 - fixed effects", slabel=F,show=T, toggle=params$TOGGLE)`
+
+We want to know if how anxiety (`GAD`) changes over time (`visit`) is different between treatment and control (`group`).  
+
+Hopefully this should hopefully come as no surprise^[if it does, head back to where we learned about interactions in the single level regressions `lm()`. It's just the same here.] - it's an interaction!  
+
+
+```{r}
+#| eval: false
+lmer(GAD ~ visit * group + ...
+       ...
+     data = geduc_long)
+```
+
+`r solend()`
+`r solbegin(label="2 - grouping structure", slabel=F,show=T, toggle=params$TOGGLE)`
+
+We have multiple observations for each of the `r sum(tn$np)` patients, and those patients are nested within `r nrow(tn)` therapists.  
+
+Note that in our data, the patient variable does not uniquely specify the individual patients. i.e. patient "1" from therapist "AO" is a different person from patient "1" from therapist "BJ". To correctly group the observations into different patients (and not 'patient numbers'), we need to have `therapist:patient`.  
+
+So we capture therapist-level differences in `( ... | therapist)` and the patients-within-therapist-level differences in `( ... | therapist:patient)`:  
+
+```{r}
+#| eval: false
+lmer(GAD ~ visit * group + ...
+       ( ... | therapist) + 
+       ( ... | therapist:patient),
+     data = geduc_long)
+```
+
+
+`r solend()`
+`r solbegin(label="3 - random effects", slabel=F,show=T, toggle=params$TOGGLE)`
+
+Note that each patient can change differently in their anxiety levels over time - i.e. the slope of `visit` could vary by participant.  
+
+Likewise, some therapists could have patients who change differently from patients from another therapist, so `visit|therapist` can be included.  
+
+Each patient is in one of the two groups - they're _either_ treatment _or_ control. So we can't say that "differences in anxiety due to treatment varies between patients", because for any one patient the "difference in anxiety due to treatment" is not defined in our study design.  
+
+However, therapists see multiple different patients, some of which are in the treatment group, and some of which are in the control group. So the treatment effect _could_ be different for different therapists!  
+
+```{r}
+mod1 <- lmer(GAD ~ visit*group + 
+               (1+visit*group|therapist)+
+               (1+visit|therapist:patient),
+             geduc_long)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+For each of the models below, what is wrong with the random effect structure?  
+
+```{r}
+#| eval: false
+modelA <- lmer(GAD ~ visit*group + 
+               (1+visit*group|therapist)+
+               (1+visit|patient),
+             geduc_long)
+```
+
+```{r}
+#| eval: false
+modelB <- lmer(GAD ~ visit*group + 
+               (1+visit*group|therapist/patient),
+             geduc_long)
+```
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+#| eval: false
+modelA <- lmer(GAD ~ visit*group + 
+               (1+visit*group|therapist)+
+               (1+visit|patient),
+             geduc_long)
+```
+
+The `patient` variable doesn't capture the different patients _within_ therapists, so this actually fits crossed random effects and treats all data where `patient==1` as from the same group (even if this includes several different patients' worth of data from different therapists!)
+
+```{r}
+#| eval: false
+modelB <- lmer(GAD ~ visit*group + 
+               (1+visit*group|therapist/patient),
+             geduc_long)
+```
+
+Using the `/` here means we have the same random slopes fitted for therapists and for patients-within-therapists. but the effect of group can't vary by patient, so this doesn't work. hence why we need to split them up into `(...|therapist)+(...|therapist:patient)`.  
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Let's suppose that I don't want the psychoeducation treatment, I just want the standard therapy sessions that the 'Control' group received. Which therapist should I go to?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+`dotplot.ranef.mer()` might help here!  
+You can read about `ranef` in [Chapter 2 #making-model-predictions](https://uoepsy.github.io/lmm/02_lmm.html#making-model-predictions){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+It would be best to go to one of the therapists `SZ`, `YS`, or `IT`...  
+
+Why? These therapists all have the most negative slope of visit:  
+
+```{r}
+#| fig-height: 6
+dotplot.ranef.mer(ranef(mod1))$therapist
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Recreate this plot.  
+
+The faint lines represent the model estimated lines for each patient. The points and ranges represent our fixed effect estimates and their uncertainty.  
+
+```{r} 
+#| echo: false
+effplot <- effects::effect("visit*group",mod1) |>
+  as.data.frame()
+
+broom.mixed::augment(mod1) |> 
+  mutate(
+    upatient = paste0(therapist,patient)
+  ) |>
+  ggplot(aes(x=visit,y=.fitted,col=group))+
+  stat_summary(geom="line", aes(group=upatient,col=group), alpha=.1)+
+  geom_pointrange(data=effplot, aes(y=fit,ymin=lower,ymax=upper,col=group))+
+  labs(x="- Month -",y="GAD7")
+
+```
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- you can get the patient-specific lines using `augment()` from the __broom.mixed__ package, and the fixed effects estimates using the __effects__ package. 
+- remember that the "patient" column doesn't group observations into unique patients. 
+- remember you can pull multiple datasets into ggplot:  
+```{r}
+#| eval: false
+ggplot(data = dataset1, aes(x=x,y=y)) + 
+  geom_point() + # points from dataset1
+  geom_line(data = dataset2) # lines from dataset2
+```
+- see more in [Chapter 2 #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}
+
+
+:::
+
+
+`r qend()`
+`r solbegin(label="1 - the relevant parts", slabel=F,show=T, toggle=params$TOGGLE)`
+
+The __effects__ package will give us the fixed effect estimates: 
+```{r}
+library(effects)
+library(broom.mixed)
+effplot <- effect("visit*group",mod1) |>
+  as.data.frame()
+```
+
+We want to get the fitted values for each patient. We can get fitted values using `augment()`. But the `patient` variable doesn't capture the _unique_ patients, it just captures their numbers (which aren't unique to each therapist).  
+So we can create a new column called `upatient` which pastes together the therapists initials and the patient numbers
+
+```{r}
+augment(mod1) |> 
+  mutate(
+    upatient = paste0(therapist,patient),
+    .after = patient # place the column next to the patient col
+  )
+```
+`r solend()`
+`r solbegin(label="2 - constructing the plot", slabel=F,show=T, toggle=params$TOGGLE)`
+
+```{r}
+library(effects)
+library(broom.mixed)
+effplot <- effect("visit*group",mod1) |>
+  as.data.frame()
+
+augment(mod1) |> 
+  mutate(
+    upatient = paste0(therapist,patient),
+    .after = patient # place the column next to the patient col
+  ) |>
+  ggplot(aes(x=visit,y=.fitted,col=group))+
+  stat_summary(geom="line", aes(group=upatient,col=group), alpha=.1)+
+  geom_pointrange(data=effplot, aes(y=fit,ymin=lower,ymax=upper,col=group))+
+  labs(x="- Month -",y="GAD7")
+```
+
+
+`r solend()`
+
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+# Jokes
+
+```{r}
+#| eval: false
+#| echo: false
+#set.seed()
+jokeid = read_csv("data/laughlab_jokes.csv")
+
+set.seed(123)
+n_groups = 90
+N = n_groups * nrow(jokeid)
+g = rep(1:n_groups, e = nrow(jokeid))
+b = rbinom(n_groups,1,.5)[g]
+b = unlist(lapply(1:n_groups, \(x) sample(rep(0:1,e=15))))
+j = rep(1:nrow(jokeid), n_groups)
+
+g.re0 = rnorm(n_groups,0,8)[g]
+g.re = MASS::mvrnorm(n_groups, mu = c(0,0), Sigma = matrix(c(8,1,1,3),nrow=2))
+g.re0 = g.re[,1][g]
+g.reb = g.re[,2][g]
+
+j.re = MASS::mvrnorm(nrow(jokeid), mu = c(0,0), Sigma = matrix(c(5,2,2,5),nrow=2))
+j.re0 = j.re[,1][j]
+j.reb = j.re[,2][j]
+b0 = runif(1,30,55)
+b1 = runif(1,1,3)
+lp = b0 + g.re0 + j.re0 +
+  (b1 + j.reb + g.reb)*b
+y = rnorm(N, mean = lp, sd = 6)
+#y_bin = rbinom(N, size = 1, prob = plogis(lp))
+df=data.frame(g = factor(g),j = factor(j),b,y)
+
+df = left_join(df,
+          left_join(jokeid, 
+                    tibble(
+                      rank = order(j.re[,1],decreasing = TRUE),
+                      j = factor(1:30)
+                      )
+          ) |> dplyr::select(joke, j)
+)
+
+ggplot(df,aes(x=b,y=y,group=g))+
+  geom_point(alpha=.1,size=.5)+
+  stat_summary(geom="pointrange",position=position_dodge(width=.2))
+  
+
+lm(y~b,df)
+m = lmer(y~1+b+(1|g)+(1+b|j),df)
+summary(m)
+
+
+names(df)
+
+laughs <- df |> transmute(
+  ppt = paste0("PPTID",g),
+  joke_label = joke,
+  joke_id = j,
+  delivery = case_when(
+    b == 0 ~ "audio",
+    b == 1 ~ "video"
+  ),
+  rating = round(y)
+)
+
+write_csv(laughs, "../../data/lmm_laughs.csv")
+```
+
+:::frame
+__Data: lmm_laughs.csv__  
+
+```{r}
+#| include: false
+laughs <- read_csv("https://uoepsy.github.io/data/lmm_laughs.csv")
+```
+
+These data are simulated to imitate an experiment that investigates the effect of visual non-verbal communication (i.e. gestures, facial expressions) on joke appreciation. 
+`r n_distinct(laughs$ppt)` Participants took part in the experiment, in which they each rated how funny they found a set of `r n_distinct(laughs$joke_id)` jokes. For each participant, the order of these `r n_distinct(laughs$joke_id)` jokes was randomly set for each run of the experiment. For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video. This meant that each participant saw `r n_distinct(laughs$ppt)/2` jokes with video and `r n_distinct(laughs$ppt)/2` without, and each joke would be presented in with video roughly half of the times it was seen.  
+
+The researchers want to investigate whether the delivery (audio/audiovideo) of jokes is associated with differences in humour-ratings.  
+
+
+```{r}
+#| echo: false
+#| label: tbl-laughdict
+#| tbl-cap: "Data Dictionary: lmm_laughs.csv"
+tibble(
+  variable = names(laughs),
+  description = c("Participant Identification Number",
+                  "Joke presented",
+                  "Joke Identification Number",
+                  "Experimental manipulation: whether joke was presented in audio-only ('audio') or in audiovideo ('video')",
+                  "Humour rating chosen on a slider from 0 to 100")
+) |> gt::gt()
+```
+
+
+
+:::
+
+
+
+`r qbegin(qcounter())`
+Prior to getting hold of any data or anything, we should be able to write out the structure of our ideal "maximal" model.  
+
+Can you do so?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Don't know where to start? Try following the steps in [Chapter 8 #maximal-model](https://uoepsy.github.io/lmm/08_modelbuilding.html#maximal-model){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We want to estimate the effect of delivery on humour rating of jokes:  
+`rating ~ delivery`  
+
+We have 30 observations for each participant. Participants are just another sampling unit here.  
+`rating ~ delivery + (1 | ppt)`  
+
+We have 90 observations for each joke. We're not interested in specific jokes here, so we can think of these as a random set of experimental items that we might choose differently next time we conduct an experiment to assess delivery~rating:
+`rating ~ delivery + (1 | ppt) + (1 | joke_id)`  
+
+Participants each see 15 jokes without video, and 15 with. The `delivery` variable is *"within"* participant. Some participants might respond a lot to having video whereas some might not rate jokes any differently. The effect of delivery on rating might be *vary by participant*:  
+`rating ~ delivery + (1 + delivery | ppt) + (1 | joke_id)`  
+
+Each joke is presented both with and without the video. Some jokes might really benefit from gestures and facial expressions, whereas some might not. The effect of delivery on rating might be *vary by joke*:  
+`rating ~ delivery + (1 + delivery | ppt) + (1 + delivery | joke_id)`  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Read in and clean the data (if necessary).  
+
+Create some plots showing: 
+
+1. the average rating for audio vs audio+video for each joke
+2. the average rating for audio vs audio+video for each participant
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- you could use `facet_wrap`, or even `stat_summary`!  
+- you might want to use `joke_id`, rather than `joke_label` (the labels are very long!)
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Here is one using `facet_wrap`:
+```{r}
+ggplot(laughs, aes(x = delivery, y = rating)) +
+  geom_boxplot()+
+  facet_wrap(~joke_id)
+```
+
+And one using `stat_summary()` for participants: 
+```{r}
+ggplot(laughs, aes(x = delivery, y = rating)) +
+  stat_summary(geom="pointrange", aes(group = ppt),
+               position = position_dodge(width=.2))+
+  stat_summary(geom="line", aes(group = ppt),
+               position = position_dodge(width=.2))
+
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Fit an appropriate model to address the research aims of the study. 
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This should be the one you came up with a couple of questions ago!
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+mod <- lmer(rating ~ delivery + 
+              (1 + delivery | joke_id) +
+              (1 + delivery| ppt), data = laughs)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Which joke is funniest when presented just in audio? For which joke does the video make the most difference to ratings?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+These can all be answered by examining the random effects with `ranef()`.  
+See [Chapter 2 #making-model-predictions](https://uoepsy.github.io/lmm/02_lmm.html#making-model-predictions){target="_blank"}.  
+
+If you're using `joke_id`, can you find out the actual joke that these correspond to?
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+ranef(mod)$joke_id |>
+  filter(`(Intercept)` == max(`(Intercept)`))
+```
+Joke 19 is the funniest apparently! (not sure I agree)
+
+Lots of ways to find what the joke actually is. Here is one way:
+```{r}
+laughs |> count(joke_id, joke_label) |>
+  filter(joke_id==19) |>
+  pull(joke_label)
+```
+
+
+```{r}
+ranef(mod)$joke_id |>
+  filter(deliveryvideo == max(deliveryvideo))
+```
+Joke 28 has the most benefit of video. The joke itself is a bit weird.. maybe the video really helped!  
+```{r}
+laughs |> count(joke_id, joke_label) |>
+  filter(joke_id==28) |>
+  pull(joke_label)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Do jokes that are rated funnier when presented in audio-only tend to also benefit more from the addition of video?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Think careful about this question. The random effects show us that jokes vary in their intercepts (ratings in audio-only) and in their effects of delivery (the random slopes). We want to know if these are related..  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+VarCorr(mod)
+```
+It's the correlation here that tell us - jokes rated higher in the audio-only tend to have a bigger effect of the video. 
+
+We can see this in a plot if we like. Here every dot is a joke, and the x-axis shows whether it is above or below the average rating for audio-only (the intercept). The y-axis shows whether it is above or below the average effect of video. 
+```{r}
+plot(ranef(mod)$joke)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Create a plot of the estimated effect of video on humour-ratings. Try to plot not only the fixed effects, but the raw data too.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See e.g. [Chapter 2 #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+library(effects)
+
+plotdatf <- effect("delivery",mod) |>
+  as.data.frame()
+
+ggplot(data = laughs, aes(x = delivery)) +
+  geom_jitter(aes(y = rating), width = .1, height = 0, alpha = .1) +
+  geom_pointrange(data = plotdatf,
+                  aes(y = fit, ymin = lower, ymax = upper),
+                  position=position_nudge(x=.2))
+```
+
+`r solend()`
+
+
+
+
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+# Test Enhanced Learning
+
+:::frame
+__Data: Test-enhanced learning__  
+
+An experiment was run to conceptually replicate "test-enhanced learning" (Roediger & Karpicke, 2006): two groups of 25 participants were presented with material to learn. One group studied the material twice (`StudyStudy`), the other group studied the material once then did a test (`StudyTest`). Recall was tested immediately (one minute) after the learning session and one week later. The recall tests were composed of 175 items identified by a keyword (`Test_word`). 
+
+The critical (replication) prediction is that the `StudyStudy` group perform better on the immediate test, but the `StudyTest` group will retain the material better and thus perform better on the 1-week follow-up test.  
+
+Test performance is measured as the speed taken to correctly recall a given word.  
+
+The following code loads the data into your R environment by creating a variable called `tel`:
+
+```{r}
+#| eval: false
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+```
+
+```{r} 
+#| echo: false
+#| label: tbl-teldict
+#| tbl-cap: "Data Dictionary: testenhancedlearning.Rdata"
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+tibble(
+  variable=names(tel),
+  description=c("Unique Participant Identifier", "Group denoting whether the participant studied the material twice (StudyStudy), or studied it once then did a test (StudyTest)","Time of recall test ('min' = Immediate, 'week' = One week later)","Word being recalled (175 different test words)","Whether or not the word was correctly recalled","Time to recall word (milliseconds)")
+) |>
+    kableExtra::kbl() |>
+    kableExtra::kable_styling(full_width = FALSE)
+```
+
+:::
+
+`r qbegin(qcounter())`
+Here is the beginning of our modelling. 
+
+```{r}
+#| code-fold: true
+#| eval: false
+# load in the data
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+
+# performance is measured by time taken to *correctly*
+# recall a word.
+# so we're going to have to discard all the incorrects:
+tel <- tel |> filter(Correct == 1)
+
+# preliminary plot
+# makes it look like studytest are better at immediate (contrary to prediction)
+# both groups get slower from immediate > week, 
+# but studystudy slows more than studytest
+ggplot(tel, aes(x = Delay, y = Rtime, col = Group)) + 
+  stat_summary(geom="pointrange")
+
+mmod <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay * Group | Test_word),
+             data=tel)
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+:::imp
+This is what _I_ did. You might do something else!  
+:::
+
+```{r}
+#| include: false
+# load in the data
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+
+# performance is measured by time taken to *correctly*
+# recall a word.
+# so we're going to have to discard all the incorrects:
+tel <- tel |> filter(Correct == 1)
+
+# preliminary plot
+# makes it look like studytest are better at immediate (contrary to prediction)
+# both groups get slower from immediate > week, 
+# but studystudy slows more than studytest
+ggplot(tel, aes(x = Delay, y = Rtime, col = Group)) + 
+  stat_summary(geom="pointrange")
+
+mmod <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay * Group | Test_word),
+             data=tel)
+```
+
+
+First I removed the interaction from the random effects
+```{r}
+#| message: true
+mod1 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Delay + Group | Test_word),
+             data=tel)
+```
+This model is a singular fit, suggesting it needs further simplification.
+The variance covariance matrix of the random effects isn't giving us many pointers.. 
+```{r}
+# examine vcov
+VarCorr(mod1)
+```
+
+Next I removed the correlations between all random effects. This is not a model that I want to end up with, but it sometimes helps to make clearer to us which random effect terms are not contributing as much as others. 
+```{r}
+#| message: true
+mod2 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay || Subject_ID) +
+             (1 + Delay + Group || Test_word),
+             data=tel)
+VarCorr(mod2)
+```
+
+You might note that we still do have random effect correlations in `mod2`, despite us using `||` to indicate that we didn't want to estimate them! This is because the `||` syntax removes correlations between the random effect terms, but not _within_ the levels of a categorical term! 
+
+In this case, it looks like `Delay|Test_word` is actually capturing fairly little variance in our outcome in comparison to the other terms.  
+
+So let's put back our correlations but remove `Delay|Test_word`:
+```{r}
+mod3 <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 + Group | Test_word),
+             data=tel)
+VarCorr(mod3)
+```
+We get no warning messages! Hooray! But we **do** see a correlation being estimated as -1.00. Let's perform the extra check for singular-fit:
+```{r}
+isSingular(mod2)
+```
+All looks good there. 
+
+We could do a couple of things here for robustness checks. For instance, in `mod3a` below I remove Group|Test_word (which is the one with the correlation of -1).  In `mod3b`, I move `Group|Test_word` on to the right hand side of the random effects (thereby removing the correlation, see [Chapter 8 #simplifying-random-effect-structures](08_modelbuilding.html#simplifying-random-effect-structures){target="_blank"}.  
+
+```{r}
+# remove Group|Test_word
+mod3a <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 | Test_word), 
+             data=tel)
+# move Group|Test_word onto the RHS
+mod3b <- lmer(Rtime ~ Delay*Group +
+             (1 + Delay | Subject_ID) +
+             (1 | Test_word) + 
+             (1 | Test_word:Group),
+             data=tel)
+```
+
+The reason for this is to just check how estimates of fixed effects and their standard errors differ across these models. More often than not, this simply provides us with reassurance that the removal of random effects hasn't actually had too much of an impact on anything we're going to conduct inferences on. If they differ a lot, then we have a lot more to discuss!  
+
+Here are the fixed effects from each model:  
+```{r}
+#| echo: false
+bind_rows(
+ broom.mixed::tidy(mod3) |> filter(effect=="fixed") |> mutate(mod="mod3"), 
+ broom.mixed::tidy(mod3a) |> filter(effect=="fixed") |> mutate(mod="mod3a"), 
+ broom.mixed::tidy(mod3b) |> filter(effect=="fixed") |> mutate(mod="mod3b")
+) |> transmute(mod,term,
+               estimate = paste0(round(estimate,2), " (",round(std.error,2),")")) |>
+  pivot_wider(values_from=estimate,names_from=mod) |> gt::gt()
+```
+
+In all these models, the fixed effects estimates are all pretty similar, suggesting that they've all found similar estimates of these parameters which have been largely invariant to our refinement of the random effects. This makes me feel better - there's less worry that our final conclusions are going to be influenced by specifics of incl/exclusion of one of these random effect terms. 
+
+I would probably settle on `mod3` (with an explicit note about the correlation of -1) or `mod3b` (the structure of which is a bit more difficult/complicated to explain). Either way I would want to mention that `mod3a` (removal of `Group|Test_word` altogether) finds the same pattern of results.
+
+`r solend()`
+
+ 
+
