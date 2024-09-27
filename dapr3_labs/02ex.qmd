@@ -1,7 +1,7 @@
 ---
 title: "W2 Exercises: Introducing MLM"
 params: 
-    SHOW_SOLS: FALSE
+    SHOW_SOLS: TRUE
     TOGGLE: TRUE
 editor_options: 
   chunk_output_type: console
@@ -815,6 +815,8 @@ res = as.data.frame(parameters::model_parameters(sdmt_mod, ci_method="s"))
 res[,c(2,3,5,6,7,8)] <- apply(res[,c(2,3,5,6,7,8)], 2, function(x) round(x, 2))
 res[,9] <- format.pval(res[,9],eps=.001,digits=2)
 res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
+
+res2 = as.data.frame(VarCorr(sdmt_mod)) |> mutate(sdcor = round(sdcor,2))
 ```
 
 :::int
@@ -825,8 +827,9 @@ Inclusion of the interaction between headphones and audio-type was found to impr
 Participants not wearing headphones and presented with no audio scored on average `r res[1,2]` on the SDMT. For participants without headphones, listening to music via speakers was associated with lower scores compared to no audio ($b = `r res[2,2]`, t(`r res[2,8]`)=`r res[2,7]`, p `r res[2,9]`$), but there was no significant difference between white noise and no audio.   
 
 With no audio playing, wearing ANC-headphones was associated with higher SDMT scores compared to those wearing no headphones ($b = `r res[4,2]`, t(`r res[4,8]`)=`r res[4,7]`, p `r res[4,9]`$).
-
 The apparent detrimental effect of music on SDMT scores was not significantly different in the headphones condition compared to the no-headphones condition ($b = `r res[5,2]`, t(`r res[5,8]`)=`r res[5,7]`, p `r res[5,9]`$). Compared to those listening through speakers, white noise was associated with a greater increase in scores over no audio, when listening via ANC-heaphones ($b = `r res[6,2]`, t(`r res[6,8]`)=`r res[6,7]`, p `r res[6,9]`$).  
+
+There was considerable variability in baseline (i.e. no-audio) SDMT scores across participants (SD = `r res2[1,5]`), with participants also varying in the effects of music (SD = `r res2[2,5]`) and of white-noise (SD = `r res2[3,5]`). A weak negative correlation (`r res2[5,5]`) between participant-level intercepts and effects of white-noise indicated that people who score higher in the no-audio condition are affected more the presence of white-noise. A similar weak negative correlation (`r res2[6,5]`) between music and white-noise effects suggests participants who were more affected by one type of audio tended to be also be more affected by the other.
 
 These results suggest that music appears to interfere with executive functioning (lower SDMT scores) compared to listening to no audio, and this is not dependent upon whether is heard through headphones or speakers. When listening via speakers, white noise was not associated with differences in executive functioning compared to no audio, but this was different for those listening via headphones, in which white noise saw a greater increase in performance. Furthermore, there appear to be benefits for executive functioning from wearing ANC-headphones even when not-listening to audio, perhaps due to the noise cancellation. The pattern of findings are displayed in @fig-efplot.  
 
@@ -844,6 +847,14 @@ ggplot(efdat, aes(x=audio,y=SDMT,col=headphones))+
                   aes(y=fit,ymin=lower,ymax=upper),
                   size=1,lwd=1) 
 ```
+
+```{r}
+#| echo: false
+sjPlot::tab_model(sdmt_mod,df.method="satterthwaite",
+                  show.ci=F,show.stat=T,show.df=T)
+```
+
+
 :::
 `r solend()`
 
