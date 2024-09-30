@@ -526,10 +526,11 @@ laughs <- read_csv("https://uoepsy.github.io/data/lmm_laughs.csv")
 ```
 
 These data are simulated to imitate an experiment that investigates the effect of visual non-verbal communication (i.e. gestures, facial expressions) on joke appreciation. 
-`r n_distinct(laughs$ppt)` Participants took part in the experiment, in which they each rated how funny they found a set of `r n_distinct(laughs$joke_id)` jokes. For each participant, the order of these `r n_distinct(laughs$joke_id)` jokes was randomly set for each run of the experiment. For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video. This meant that each participant saw `r n_distinct(laughs$ppt)/2` jokes with video and `r n_distinct(laughs$ppt)/2` without, and each joke would be presented in with video roughly half of the times it was seen.  
+`r n_distinct(laughs$ppt)` Participants took part in the experiment, in which they each rated how funny they found a set of `r n_distinct(laughs$joke_id)` jokes. For each participant, the order of these `r n_distinct(laughs$joke_id)` jokes was randomly set for each run of the experiment. For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video. This meant that each participant saw `r n_distinct(laughs$joke_id)/2` jokes with video and `r n_distinct(laughs$joke_id)/2` without, and each joke would be presented in with video roughly half of the times it was seen.  
 
 The researchers want to investigate whether the delivery (audio/audiovideo) of jokes is associated with differences in humour-ratings.  
 
+Data are available at [https://uoepsy.github.io/data/lmm_laughs.csv](https://uoepsy.github.io/data/lmm_laughs.csv){target="_blank"}
 
 ```{r}
 #| echo: false
@@ -664,9 +665,9 @@ If you're using `joke_id`, can you find out the actual joke that these correspon
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
-ranef(mod)$joke_id |>
-  filter(`(Intercept)` == max(`(Intercept)`))
+dotplot.ranef.mer(ranef(mod))$joke_id
 ```
+
 Joke 19 is the funniest apparently! (not sure I agree)
 
 Lots of ways to find what the joke actually is. Here is one way:
@@ -677,11 +678,15 @@ laughs |> count(joke_id, joke_label) |>
 ```
 
 
+And from the plot above, Joke 28 has the most benefit of video. 
+We can quickly check this with something like:  
 ```{r}
 ranef(mod)$joke_id |>
   filter(deliveryvideo == max(deliveryvideo))
 ```
-Joke 28 has the most benefit of video. The joke itself is a bit weird.. maybe the video really helped!  
+
+The joke itself is a bit weird.. maybe the video really helped!  
+
 ```{r}
 laughs |> count(joke_id, joke_label) |>
   filter(joke_id==28) |>
@@ -751,7 +756,7 @@ ggplot(data = laughs, aes(x = delivery)) +
 <br>
 <div class="divider div-transparent div-dot"></div>
 
-# Test Enhanced Learning
+# Extra: Test Enhanced Learning
 
 :::frame
 __Data: Test-enhanced learning__  
@@ -857,59 +862,37 @@ The variance covariance matrix of the random effects isn't giving us many pointe
 VarCorr(mod1)
 ```
 
-Next I removed the correlations between all random effects. This is not a model that I want to end up with, but it sometimes helps to make clearer to us which random effect terms are not contributing as much as others. 
+There are various things we _could_ try here. See [Chapter 8 #simplifying-random-effect-structures](https://uoepsy.github.io/lmm/08_modelbuilding.html#simplifying-random-effect-structures){target="_blank"} for some of the more in-depth options.  
+
+However, sometimes it is simplest just to trial & error the removal of different possible terms. 
+Here we are removing `Delay|Test_word` and removing `Delay|Subject_ID`:  
 ```{r}
 #| message: true
-mod2 <- lmer(Rtime ~ Delay*Group +
-             (1 + Delay || Subject_ID) +
-             (1 + Delay + Group || Test_word),
-             data=tel)
-VarCorr(mod2)
-```
-
-You might note that we still do have random effect correlations in `mod2`, despite us using `||` to indicate that we didn't want to estimate them! This is because the `||` syntax removes correlations between the random effect terms, but not _within_ the levels of a categorical term! 
-
-In this case, it looks like `Delay|Test_word` is actually capturing fairly little variance in our outcome in comparison to the other terms.  
-
-So let's put back our correlations but remove `Delay|Test_word`:
-```{r}
-mod3 <- lmer(Rtime ~ Delay*Group +
+mod2a <- lmer(Rtime ~ Delay*Group +
              (1 + Delay | Subject_ID) +
              (1 + Group | Test_word),
              data=tel)
-VarCorr(mod3)
+mod2b <- lmer(Rtime ~ Delay*Group +
+             (1 | Subject_ID) +
+             (1 + Delay + Group | Test_word),
+             data=tel)
 ```
-We get no warning messages! Hooray! But we **do** see a correlation being estimated as -1.00. Let's perform the extra check for singular-fit:
+The second model is a singular fit, but the first one is not. 
+Just for safety, let's check:
 ```{r}
-isSingular(mod2)
+isSingular(mod2a)
 ```
 All looks good there. 
 
-We could do a couple of things here for robustness checks. For instance, in `mod3a` below I remove Group|Test_word (which is the one with the correlation of -1).  In `mod3b`, I move `Group|Test_word` on to the right hand side of the random effects (thereby removing the correlation, see [Chapter 8 #simplifying-random-effect-structures](08_modelbuilding.html#simplifying-random-effect-structures){target="_blank"}.  
-
-```{r}
-# remove Group|Test_word
-mod3a <- lmer(Rtime ~ Delay*Group +
-             (1 + Delay | Subject_ID) +
-             (1 | Test_word), 
-             data=tel)
-# move Group|Test_word onto the RHS
-mod3b <- lmer(Rtime ~ Delay*Group +
-             (1 + Delay | Subject_ID) +
-             (1 | Test_word) + 
-             (1 | Test_word:Group),
-             data=tel)
-```
-
-The reason for this is to just check how estimates of fixed effects and their standard errors differ across these models. More often than not, this simply provides us with reassurance that the removal of random effects hasn't actually had too much of an impact on anything we're going to conduct inferences on. If they differ a lot, then we have a lot more to discuss!  
+Sometimes it can be useful to check how estimates of fixed effects and their standard errors differ across possible candidate models with different random effect structures. More often than not, this simply provides us with reassurance that the removal of random effects hasn't actually had too much of an impact on anything we're going to conduct inferences on. If they differ a lot, then we have a lot more to discuss!  
 
 Here are the fixed effects from each model:  
 ```{r}
 #| echo: false
 bind_rows(
- broom.mixed::tidy(mod3) |> filter(effect=="fixed") |> mutate(mod="mod3"), 
- broom.mixed::tidy(mod3a) |> filter(effect=="fixed") |> mutate(mod="mod3a"), 
- broom.mixed::tidy(mod3b) |> filter(effect=="fixed") |> mutate(mod="mod3b")
+  broom.mixed::tidy(mod1) |> filter(effect=="fixed") |> mutate(mod="mod1"), 
+ broom.mixed::tidy(mod2a) |> filter(effect=="fixed") |> mutate(mod="mod2a"), 
+ broom.mixed::tidy(mod2b) |> filter(effect=="fixed") |> mutate(mod="mod2b")
 ) |> transmute(mod,term,
                estimate = paste0(round(estimate,2), " (",round(std.error,2),")")) |>
   pivot_wider(values_from=estimate,names_from=mod) |> gt::gt()
@@ -917,7 +900,7 @@ bind_rows(
 
 In all these models, the fixed effects estimates are all pretty similar, suggesting that they've all found similar estimates of these parameters which have been largely invariant to our refinement of the random effects. This makes me feel better - there's less worry that our final conclusions are going to be influenced by specifics of incl/exclusion of one of these random effect terms. 
 
-I would probably settle on `mod3` (with an explicit note about the correlation of -1) or `mod3b` (the structure of which is a bit more difficult/complicated to explain). Either way I would want to mention that `mod3a` (removal of `Group|Test_word` altogether) finds the same pattern of results.
+I would definitely settle on `mod2a` because that is the one that converges, but we can add a footnote if we wanted, to mention that `mod2b` finds the same pattern of results.  
 
 `r solend()`
 
