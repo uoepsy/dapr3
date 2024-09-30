@@ -13,10 +13,22 @@ ggplot(new_trick_dogbreeds, aes(x=trainingdays,y=tricktime,col=isOld))+
   stat_smooth(method=lm)+
   facet_wrap(~BREED)
 
-lmer(tricktime ~ trainingdays * isOld + 
-       (1 + trainingdays * isOld | BREED) + 
-       (1 + trainingdays | DOG:BREED),
+mm = lmer(tricktime ~ trainingdays * isOld + 
+       (1 + trainingdays * isOld | BREED),
      data = new_trick_dogbreeds)
+
+broom.mixed::augment(mm) |>
+ggplot(aes(x=trainingdays,y=.fitted,col=isOld))+
+  stat_smooth(method=lm)+
+  facet_wrap(~BREED)
+
+
+
+
+lmer(tricktime ~ trainingdays * isOld + 
+       (1 + trainingdays + isOld | BREED) + 
+       (1 + trainingdays | DOG:BREED),
+     data = new_trick_dogbreeds) |> summary()
 
 
 # many tricks

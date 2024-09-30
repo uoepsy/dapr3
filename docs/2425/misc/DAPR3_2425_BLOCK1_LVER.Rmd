@@ -95,9 +95,98 @@ summary(badmod2)
 ```
 
 
+# Week 3
+
+## last week  
+
+```{r}
+head(new_trick)
+```
+
+
+```{r}
+mod <- lmer(tricktime ~ trainingdays * isOld + 
+              (1 + trainingdays | DOG),
+            data = new_trick)
+summary(mod)
+```
+
+```{r}
+library(effects)
+effect("trainingdays*isOld", mod) |>
+  as.data.frame() |>
+  ggplot(aes(x=trainingdays, y=fit, col=isOld))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lower,ymax=upper,fill=isOld),
+              alpha=.3)
+```
+
+```{r}
+library(broom.mixed)
+augment(mod) |>
+  ggplot(aes(x=trainingdays,y=.fitted,
+             col=isOld, group=DOG))+
+  geom_line()
+```
+
+```{r}
+efplot <- effect("trainingdays*isOld", mod) |>
+  as.data.frame() 
+
+augment(mod) |>
+  ggplot(aes(x=trainingdays,y=.fitted,
+             col=isOld))+
+  geom_line(aes(group=DOG),alpha=.3) +
+  geom_line(data = efplot, aes(y=fit))+
+  geom_ribbon(data = efplot, 
+              aes(y=fit,ymin=lower,ymax=upper,
+                  fill=isOld),
+              alpha=.3)
+```
+
+
+
 # many breeds
 
 
+```{r}
+head(new_trick_dogbreeds)
+```
+
+
+
+```{r}
+ggplot(new_trick_dogbreeds, aes(x=trainingdays, y=tricktime,col=isOld))+
+  stat_summary(geom="line")+
+  facet_wrap(~BREED)
+
+mod <- lmer(tricktime ~ trainingdays * isOld +
+              (1 + trainingdays + isOld | BREED) + 
+              (1 + trainingdays | BREED:DOG),
+            data = new_trick_dogbreeds)
+summary(mod)
+
+VarCorr(mod)
+
+mod2 <- lmer(tricktime ~ trainingdays * isOld +
+              (1 + trainingdays | BREED) + 
+              (1 + trainingdays | BREED:DOG),
+            data = new_trick_dogbreeds)
+summary(mod2)
+
+
+```
 
 
 # many tasks
+
+```{r}
+
+mod3 <- lmer(tricktime ~ trainingdays * isOld +
+              (1 + trainingdays + isOld | trick) + 
+              (1 + trainingdays | DOG),
+            data = many_new_tricks)
+dotplot.ranef.mer(ranef(mod3))
+
+```
+
