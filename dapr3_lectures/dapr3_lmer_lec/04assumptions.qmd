@@ -558,6 +558,8 @@ __Bootstrapping is not a panacea.__
 
 ## Bootstrap: What do we (re)sample?
 
+:::{.incremental}
+
 - resample based on the estimated distributions of parameters?  
     - assumes explanatory variables are fixed, model specification and the distributions (e.g. $\zeta \sim N(0,\sigma_{\zeta})$ and $\varepsilon \sim N(0,\sigma_{\varepsilon})$) are correct.  
 - resample residuals  
@@ -569,6 +571,8 @@ __Bootstrapping is not a panacea.__
         - observations?
         - clusters?
         - both?
+
+:::
 
 ## Case Bootstrap
 
@@ -598,7 +602,7 @@ summary(mymodelBScase)
 ```
 :::
 
-:::{.column width="50%"}
+:::{.column width="50%" .fragment}
 ```{r}
 #| echo: true
 confint(mymodelBScase, type = "perc")
@@ -651,14 +655,18 @@ plot(mymodelBScase, "visit*conditionmindfulness")
 
 # Interim Summary
 
-- Our assumptions for multi-level models are similar to that of a standard linear model in that we are concerned with the our residuals
-  - in the multi-level case, we have residuals are multiple levels. 
+:::{.incremental}
+
+- Our assumptions for multilevel models are similar to the standard linear model - it's about our *residuals*  
+  - random effects are another level of residual
   
-- When assumptions appear violated, there are various courses of action to consider. 
-  - primarily, we should think about whether our model makes theoretical sense
+- Use plots to prod and probe your model.  
+
+- When things look off...
+    - first course of action = THINK model specification
+    - only then (if desired) consider things like transformations, bootstrap etc.  
   
-- Resampling methods (e.g. Bootstrapping) can __sometimes__ be used to obtain confidence intervals and bias-corrected estimates of model parameters. 
-  - There are various forms of the bootstrap, with varying assumptions. 
+:::
 
 
 # Case Diagnostics
@@ -717,14 +725,14 @@ p1 + p2 + p3
 
 - Both observations (level 1 units) __and__ clusters (level 2+ units) can be influential. 
 
-- several packages, but current recommendations are **HLMdiag:** http://aloy.github.io/HLMdiag/index.html and **influence.ME**.  
+- several packages, but current recommendations are **HLMdiag** and **influence.ME**.  
 
 
 ## Level 1 influential points
 
 
 ::::{.columns}
-:::{.column width="50%"}
+:::{.column width="40%"}
 ```{r}
 #| echo: true
 #| fig-asp: .5
@@ -735,7 +743,7 @@ qqline(resid(mymodel))
 ```
 :::
 
-:::{.column width="50%"}
+:::{.column width="60%"}
 ```{r}
 #| echo: true
 library(HLMdiag)
@@ -750,7 +758,7 @@ infl1
 
 
 ::::{.columns}
-:::{.column width="50%"}
+:::{.column width="40%"}
 ```{r}
 #| echo: true
 #| fig-asp: .5
@@ -761,7 +769,7 @@ qqline(resid(mymodel))
 ```
 :::
 
-:::{.column width="50%"}
+:::{.column width="60%"}
 ```{r}
 #| echo: true
 #| fig-asp: .7
@@ -818,22 +826,33 @@ cbind(deleted_ppt$fixef.original, deleted_ppt$fixef.delete)
 
 ## Sensitivity Analysis?
 
-Would our conclusions change if we excluded these schools?  
+Would our conclusions change if we excluded these participants?  
 
+
+::::{.columns}
+:::{.column width="50%"}
 ```{r}
-#| eval: false
+#| echo: true
+mymodel <- 
+  lmer(ACE ~ visit * condition + 
+         (1 + visit | ppt), 
+       data = d3)
+summary(mymodel)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
 #| echo: true
 mymodel_rm2 <- 
   lmer(ACE ~ visit * condition + 
          (1 + visit | ppt), 
        data = d3 %>% filter(!ppt %in% c("PPT_2")))
-
-mymodel_rm2BS <- bootstrap(mymodel_rm2, .f = fixef, 
-                           type = "case", B = 1000, 
-                           resample = c(TRUE, FALSE))
-
-confint(mymodel_rm2BS, type = "perc")
+summary(mymodel_rm2)
 ```
+:::
+::::
 
 # Interim Summary
 
@@ -1241,9 +1260,10 @@ ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
   labs(x="Fish weight difference from pond average (kg)",y="Self Esteem Scale (1-5)")+
   guides(color="none")
 ```
-:::
 
-:::{.column width="50%" incremental}
+:::
+:::{.column width="50%" .fragment}
+
 <center> __$\bar{x}_i$__ </center><br>
 
 ```{r}
@@ -1342,8 +1362,8 @@ broom.mixed::augment(mod_wb) %>%
 **Within-between model**  
 $$
 \begin{align}
-y_{ij} &= \beta_{0i} + \beta_{1}(\bar{x}_i) + \beta_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
-\beta_{0i} &= \gamma_{00} + \zeta_{0i} \\
+y_{ij} &= b_{0i} + b_{1}(\bar{x}_i) + b_2(x_{ij} - \bar{x}_i)+ \varepsilon_{ij} \\
+b_{0i} &= \gamma_{00} + \zeta_{0i} \\
 ... \\
 \end{align}
 $$
@@ -1754,7 +1774,7 @@ alcmod <- lmer(alcunits ~ (gadm + gadmc)*intervention +
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-summary(alcmod)
+summary(alcmod, corr=FALSE)
 ```
 :::
 ::::
