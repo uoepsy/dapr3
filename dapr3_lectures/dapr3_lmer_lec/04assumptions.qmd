@@ -43,6 +43,7 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=4)
 - Case Diagnostics
   - what if results are dependent on a small set of influential observations/clusters?
 - Centering predictors in multilevel models
+  - what does "changing 1 in x" actually mean?
     
 
 # Assumptions 
@@ -98,7 +99,7 @@ ggplot(plotdat, aes(x=fitted_values, y=residuals))+
 
 
 
-## Question: What's different in MLM?
+## What's different in MLM?
 
 ### Answer: Not much!  
 
@@ -155,20 +156,42 @@ knitr::include_graphics("img_sandbox/lmmwdot.png")
 
 ## Random effects as level 2 residuals
 
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+
 $$
 \begin{align}
-& \text{for observation }j\text{ in group }i \\ 
-\quad \\ 
-& \text{Level 1:} \\ 
-& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\ 
-& \text{Level 2:} \\ 
-& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\ 
-& \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\ 
-\quad \\ 
-& \varepsilon, \, \color{orange}{\zeta_0}, \, \text{ and } \, \color{orange}{\zeta_1}\text{ are all assumed to be normally distributed with mean 0.}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1i} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+& \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
+& \qquad \\
+& \qquad \\
+& \begin{bmatrix} \color{orange}{\zeta_{0i}} \\ \color{orange}{\zeta_{1i}} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \color{orange}{\sigma_0} & \color{orange}{\rho_{01}} \\
+        \color{orange}{\rho_{01}} & \color{orange}{\sigma_1}
+    \end{bmatrix}
+\right) \\
+& \varepsilon_{ij} \sim N(0,\sigma_\varepsilon) \\
 \end{align}
 $$
 
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+
+:::
+::::
 
 ## Random effects as level 2 residuals {visibility="uncounted"}
 <!-- > 200 pupils from 20 schools completed a survey containing the Emotion Dysregulation Scale (EDS) and the Child Routines Questionnaire (CRQ). Eight of the schools were taking part in an initiative to specifically teach emotion regulation as part of the curriculum. Data were also gathered regarding the average hours each child slept per night. -->
@@ -310,9 +333,18 @@ ggplot(rans, aes(sample = x1)) +
 performance::check_model(model)
 ```
 
+## posterior predictions
+
+```{r}
+#| echo: true
+performance::check_predictions(model)
+```
+
+
+
 # Troubleshooting
 
-## Our Data
+## Same old study {.smaller}
 
 ```{r}
 #| echo: false
@@ -346,24 +378,16 @@ ICCbare(x = ppt, y = ACE, data = d3)
 #| fig-asp: .9
 library(ggExtra)
 library(patchwork)
-p <- ggplot(d3[d3$condition=="control",], aes(x=visit, y=ACE, col=ppt)) + 
-  geom_point()+geom_smooth(method="lm",se=F)+
+ggplot(d3, aes(x=visit, y=ACE, col=condition)) + 
+  geom_point()+
+  geom_path(aes(group=ppt))+
   guides(col="none")+
-  labs(title="Control")
-p1 <- ggplot(d3[d3$condition=="mindfulness",], aes(x=visit, y=ACE, col=ppt)) + 
-  geom_point()+geom_smooth(method="lm",se=F)+
-  guides(col="none")+
-  labs(title="Mindfulness")
-gridExtra::grid.arrange(
-ggMarginal(p, type="boxplot", margins="y"),
-ggMarginal(p1, type="boxplot", margins="y"),
-nrow=1
-)
+  facet_wrap(~condition)
 ```
 :::
 ::::
 
-## When things look wrong
+## Model mis-specification
 
 ```{r}
 #| echo: true
@@ -371,9 +395,7 @@ mymodel <- lmer(ACE ~ visit * condition + (1 | ppt), data = d3)
 performance::check_model(mymodel)
 ```
 
-## When things look wrong
-
-__Model mis-specification?__  
+## Model mis-specification
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -411,10 +433,10 @@ performance::check_model(mymodel, check = c("linearity","homogeneity"))
 :::
 ::::
 
-## When things look wrong
-__Transformations?__  
+## Modelling a different form of relation
+__Transformations__  
 
-- Transforming your outcome variable may help to satisfy model assumptions
+- Transforming your outcome variable may result in a model with better looking assumption plots
 
   - log(y)
   - 1/y
@@ -422,8 +444,7 @@ __Transformations?__
   - forecast::BoxCox(y)
 
 
-## When things look wrong
-__Transformations?__   
+## Modelling a different form of relation
 
 ```{r}
 #| include: false
@@ -483,7 +504,7 @@ pp[[1]] & theme(text = element_text(size=12))
 ::::
 
 
-## When things look wrong {visibility="uncounted"}
+## Modelling a different form of relation {visibility="uncounted"}
 __Transformations?__  
 
 - Transforming your outcome variable may help to satisfy model assumptions **but it comes at the expense of interpretability.**  
@@ -537,7 +558,7 @@ fixef(model)
 <!-- ``` -->
 
 
-## When things look wrong
+## Making fewer assumptions?
 __Bootstrap?__  
 
 basic idea: 
@@ -550,124 +571,79 @@ basic idea:
     &ensp;b. based on the bootstrap distribution from 2a, compute a confidence interval for estimate.  
     &ensp;c. celebrate  
 
-## When things look wrong
-__Bootstrapping is not a panacea.__  
 
-- If we're worrying because our errors are slightly non-normal or heteroskedastic, _and if we have a large sample size_, then bootstrapping might be a good choice. 
-- If there are issues in mis-specification (e.g the effect is non-linear and we're estimating it as linear), bootstrapping won't help us.  
+
+## Making fewer assumptions?
+__Bootstrapping is not a panacea.__   
+
+If we're worrying because our errors are a little non-normal or heteroskedastic, and if we have a large sample size, then bootstrapping can let us relax these assumptions.  
+
+The "garbage in garbage out" principle applies - a &#128169 sample or a &#128169 model isn't saved by bootstrapping.  
+
+
 
 ## Bootstrap: What do we (re)sample?
 
-:::{.incremental}
-
 - resample based on the estimated distributions of parameters?  
     - assumes explanatory variables are fixed, model specification and the distributions (e.g. $\zeta \sim N(0,\sigma_{\zeta})$ and $\varepsilon \sim N(0,\sigma_{\varepsilon})$) are correct.  
+
+:::{.fragment}
+    
 - resample residuals  
-    - $y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}$
+    <!-- - $y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}$ -->
     - assumes explanatory variables are fixed, and model specification is correct. 
+    
+:::
+:::{.fragment}
+    
 - resample cases
-    - **minimal** assumptions - that we have correctly specified the hierarchical structure of data
+    - minimal assumptions - that we have correctly specified the hierarchical structure of data
     - **But** do we resample:
-        - observations?
-        - clusters?
-        - both?
+        - observations? clusters? both?
 
 :::
 
 ## Case Bootstrap
 
 ```{r}
-#| echo: true
-mymodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
-```
-
-
-::::{.columns}
-:::{.column width="50%"}
-```{r}
 #| eval: false
 #| echo: true
+mymodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
+
 library(lmeresampler)
 # resample only the people, not their observations: 
 mymodelBScase <- bootstrap(mymodel, .f = fixef, 
                            type = "case", B = 1000, 
                            resample = c(TRUE, FALSE))
-summary(mymodelBScase)
 ```
 ```{r}
 #| echo: false
 library(lmeresampler)
 load("data/bsdata.Rdata")
-summary(mymodelBScase)
+#summary(mymodelBScase)
 ```
-:::
 
-:::{.column width="50%" .fragment}
+::::{.columns .fragment}
+:::{.column width="60%"}
 ```{r}
 #| echo: true
 confint(mymodelBScase, type = "perc")
 ```
-:::
-::::
 
-:::aside
-<br><br>  <br><br>For a nice how-to guide on the **lmeresampler** package, see http://aloy.github.io/lmeresampler/articles/lmeresampler-vignette.html.  
-For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11 ]
+:::{style="font-size: .6em"}
+For a discussion of different bootstrap methods for multilevel models, see Leeden R.., Meijer E., Busing F.M. (2008) Resampling Multilevel Models. In: Leeuw J.., Meijer E. (eds) Handbook of Multilevel Analysis. Springer, New York, NY. DOI: 10.1007/978-0-387-73186-5_11
 :::
 
-## Case Bootstrap
-
-
-```{r}
-#| echo: true
-mymodel <- lmer(ACE ~ visit * condition + (1 + visit | ppt), data = d3)
-```
-
-::::{.columns}
-:::{.column width="50%"}
-```{r}
-#| eval: false
-#| echo: true
-library(lmeresampler)
-# resample only the people, not their observations: 
-mymodelBScase <- bootstrap(mymodel, .f = fixef, 
-                           type = "case", B = 1000, 
-                           resample = c(TRUE, FALSE))
-summary(mymodelBScase)
-```
-```{r}
-#| echo: false
-library(lmeresampler)
-load("data/bsdata.Rdata")
-summary(mymodelBScase)
-```
-
 :::
-
-:::{.column width="50%"}
+:::{.column width="40%"}
 ```{r}
 #| echo: true
+#| fig-height: 4
 plot(mymodelBScase, "visit*conditionmindfulness")
 ```
+
 :::
 ::::
-
-
-# Interim Summary
-
-:::{.incremental}
-
-- Our assumptions for multilevel models are similar to the standard linear model - it's about our *residuals*  
-  - random effects are another level of residual
-  
-- Use plots to prod and probe your model.  
-
-- When things look off...
-    - first course of action = THINK model specification
-    - only then (if desired) consider things like transformations, bootstrap etc.  
-  
-:::
-
 
 # Case Diagnostics
 
@@ -856,12 +832,26 @@ summary(mymodel_rm2)
 
 # Interim Summary
 
-- Influence can be exerted by individual observations and higher lever groups of observations  
-  - e.g. by children and by schools, or by individual trials and by participants.   
-  
-- We can get measures of influence at different levels, and consider how estimates and conclusions might change when certain observations (or groups) are excluded
+# Interim Summary
 
-- If in doubt, conduct a sensitivity analysis: how do your conclusions change depending upon whether you include/exclude? 
+:::{.incremental}
+
+- Our assumptions for multilevel models are similar to the standard linear model - it's about our *residuals*  
+    - random effects are another level of residual
+  
+- "Influence" on models is exerted by both observations and clusters  
+  
+- Use plots and diagnostics to prod and probe your model.  
+
+- first course of action should always be to THINK (i.e., about model specification)
+    - only then (if desired) consider things like transformations, bootstrap etc.  
+    
+- If in doubt, consider a sensitivity analysis: how do your conclusions change depending upon decisions you have made.   
+
+  
+:::
+
+
 
 # Centering
 
