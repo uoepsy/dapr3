@@ -12,9 +12,9 @@ color_blender <-
       blend_colors(x, y, alpha)
 theme_quarto <- function (text_color = color_text,
                           background_color = color_bg,
-                          text_font_size = 30,
+                          text_font_size = 24,
                           accent_color = color_base,
-                          title_font_size = 30) {
+                          title_font_size = 24) {
   blend <- color_blender(text_color, background_color)
   ggplot2::theme(
     line = ggplot2::element_line(color = blend(0.2)),
