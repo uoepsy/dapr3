@@ -171,7 +171,6 @@ $$
 & \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
 & \color{blue}{b_{1i}} = \gamma_{10} + \color{orange}{\zeta_{1i}} \\
 & \qquad \\
-& \qquad \\
 & \begin{bmatrix} \color{orange}{\zeta_{0i}} \\ \color{orange}{\zeta_{1i}} \end{bmatrix}
 \sim N
 \left(
@@ -219,7 +218,7 @@ pp <- plot_model(full_model, type = "diag")
 $\varepsilon$  
 `resid(model)`  
 mean zero, constant variance  
-<br><br>
+
 ```{r}
 #| echo: false
 #| fig-asp: .5
@@ -286,6 +285,7 @@ plot(model,
 
 ::::{.columns}
 :::{.column width="50%"}
+__base__  
 ```{r echo=TRUE,fig.asp=.7, echo=c(2:5)}
 par(mfrow=c(1,2))
 qqnorm(ranef(model)$cluster[,1])
@@ -298,6 +298,7 @@ par(mfrow=c(1,1))
 :::
 
 :::{.column width="50%"}
+__ggplot__  
 ```{r}
 #| eval: false
 #| echo: true
@@ -339,6 +340,34 @@ performance::check_model(model)
 #| echo: true
 performance::check_predictions(model)
 ```
+
+## !?!?!?!
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+![](img_sandbox/truth.png)
+
+:::
+
+:::{.column width="50%"}
+<br><br>
+
+Assumptions are not *either* "violated" *or* "not violated".  
+
+<br> 
+
+Assumptions are the things *we* assume when 'using' a model.  
+
+  - the question is whether we (given our plots etc) are happy to assume these things
+
+
+:::
+::::
+
+
+
 
 
 
@@ -415,7 +444,7 @@ performance::check_model(mymodel, check = c("linearity","homogeneity"))
 ```
 :::
 
-:::{.column width="50%"}
+:::{.column width="50%" .fragment}
 ```{r}
 #| echo: true
 #| eval: false
@@ -452,18 +481,19 @@ set.seed(1166050148)
 d = c()
 for(i in 1:10){
   x=rnorm(rdunif(1,6,12), 0, 1)
-  g=sample(0:1,1)
-  xmat=cbind(1,x,g)
+  c=sample(0:1,1)
+  xmat=cbind(1,x,c)
   lp = xmat %*% c(rnorm(1,10,2), rnorm(1,2,2), 1)
   d = rbind(d, cbind(xmat, lp, i))
 }
 df <- as_tibble(d[,2:5])
-names(df) <- c("x1","g","y","cluster")
+names(df) <- c("x1","c","y","cluster")
 df$y <- df$y + sn::rsn(nrow(df),0,30,50)
 df<-df[-c(37,47, 65, 68, 82 ), ]
 ```
+__Transformations__
 
-- Transforming your outcome variable may help to satisfy model assumptions
+- Transforming your outcome variable may result in a model with better looking assumption plots
 
 
 
@@ -472,16 +502,16 @@ df<-df[-c(37,47, 65, 68, 82 ), ]
 ```{r}
 #| eval: false
 #| echo: true
-lmer(y ~ x1 + g + 
+lmer(y ~ x1 + c + 
        (1 | cluster), df)
 ```
 ```{r}
 #| echo: false
 #| fig-asp: .5
-model <- lmer(y ~ x1 + g + (1  | cluster), df)
-pp <- plot_model(model, type = "diag")
-ggplot(df, aes(x=y)) + geom_histogram() +
-pp[[1]] & theme(text = element_text(size=12))
+model <- lmer(y ~ x1 + c + (1  | cluster), df)
+ggplot(df, aes(x=resid(model))) + geom_histogram() +
+  ggplot(broom.mixed::augment(model), aes(sample = .resid)) + 
+  stat_qq() + stat_qq_line()
 ```
 :::
 
@@ -489,16 +519,17 @@ pp[[1]] & theme(text = element_text(size=12))
 ```{r}
 #| eval: false
 #| echo: true
-lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + 
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + c + 
        (1 | cluster), df)
 ```
 ```{r}
 #| echo: false
 #| fig-asp: .5
-model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + c + (1 | cluster), df)
 pp <- plot_model(model, type = "diag")
-ggplot(df, aes(x=forecast::BoxCox(y,lambda="auto"))) + geom_histogram() +
-pp[[1]] & theme(text = element_text(size=12))
+ggplot(df, aes(x=resid(model))) + geom_histogram() + 
+  ggplot(broom.mixed::augment(model), aes(sample = .resid)) + 
+  stat_qq() + stat_qq_line()
 ```
 :::
 ::::
@@ -507,7 +538,7 @@ pp[[1]] & theme(text = element_text(size=12))
 ## Modelling a different form of relation {visibility="uncounted"}
 __Transformations?__  
 
-- Transforming your outcome variable may help to satisfy model assumptions **but it comes at the expense of interpretability.**  
+- Transforming will often come at the expense of **interpretability.**  
 
 
 ::::{.columns}
@@ -515,12 +546,12 @@ __Transformations?__
 ```{r}
 #| eval: false
 #| echo: true
-lmer(y ~ x1 + g + 
+lmer(y ~ x1 + c + 
        (1 | cluster), df)
 ```
 ```{r}
 #| echo: false
-model <- lmer(y ~ x1 + g + (1 | cluster), df)
+model <- lmer(y ~ x1 + c + (1 | cluster), df)
 fixef(model)
 ```
 :::
@@ -529,12 +560,12 @@ fixef(model)
 ```{r}
 #| eval: false
 #| echo: true
-lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + 
+lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + c + 
        (1 | cluster), df)
 ```
 ```{r}
 #| echo: false
-model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + g + (1 | cluster), df)
+model <- lmer(forecast::BoxCox(y,lambda="auto") ~ x1 + c + (1 | cluster), df)
 fixef(model)
 ```
 :::
@@ -578,33 +609,40 @@ __Bootstrapping is not a panacea.__
 
 If we're worrying because our errors are a little non-normal or heteroskedastic, and if we have a large sample size, then bootstrapping can let us relax these assumptions.  
 
-The "garbage in garbage out" principle applies - a &#128169 sample or a &#128169 model isn't saved by bootstrapping.  
+<br>
+
+&#128169; The "garbage in garbage out" principle always applies
+
+- unrepresentative samples and misspecified models aren't made any better by bootstrapping.  
 
 
 
 ## Bootstrap: What do we (re)sample?
 
 - resample based on the estimated distributions of parameters?  
-    - assumes explanatory variables are fixed, model specification and the distributions (e.g. $\zeta \sim N(0,\sigma_{\zeta})$ and $\varepsilon \sim N(0,\sigma_{\varepsilon})$) are correct.  
+    - explanatory variables fixed
+    - model specification
+    - distributions (e.g. $\zeta \sim N(0,\sigma_{\zeta}),\,\, \varepsilon \sim N(0,\sigma_{\varepsilon})$)
 
 :::{.fragment}
     
 - resample residuals  
     <!-- - $y* = \hat{y} + \hat{\varepsilon}_{\textrm{sampled with replacement}}$ -->
-    - assumes explanatory variables are fixed, and model specification is correct. 
+    - explanatory variables fixed
+    - model specification
     
 :::
 :::{.fragment}
     
 - resample cases
-    - minimal assumptions - that we have correctly specified the hierarchical structure of data
-    - **But** do we resample:
-        - observations? clusters? both?
+    - model specification
+        - **But** do we resample observations? clusters? both?
 
 :::
 
 ## Case Bootstrap
 
+**NOT IMPLEMENTED FOR CROSSED STRUCTURES**  
 ```{r}
 #| eval: false
 #| echo: true
@@ -714,16 +752,17 @@ p1 + p2 + p3
 #| fig-asp: .5
 mymodel <- lmer(ACE ~ visit * condition + 
                   (1 + visit | ppt), data = d3)
-qqnorm(resid(mymodel))
-qqline(resid(mymodel))
+
+
+library(HLMdiag)
+infl1 <- hlm_influence(mymodel, level = 1)
+infl2 <- hlm_influence(mymodel, level = "ppt")
 ```
 :::
 
 :::{.column width="60%"}
 ```{r}
 #| echo: true
-library(HLMdiag)
-infl1 <- hlm_influence(mymodel, level = 1)
 names(infl1)
 infl1
 ```
@@ -740,8 +779,11 @@ infl1
 #| fig-asp: .5
 mymodel <- lmer(ACE ~ visit * condition + 
                   (1 + visit | ppt), data = d3)
-qqnorm(resid(mymodel))
-qqline(resid(mymodel))
+
+
+library(HLMdiag)
+infl1 <- hlm_influence(mymodel, level = 1)
+infl2 <- hlm_influence(mymodel, level = "ppt")
 ```
 :::
 
@@ -749,8 +791,6 @@ qqline(resid(mymodel))
 ```{r}
 #| echo: true
 #| fig-asp: .7
-library(HLMdiag)
-infl1 <- hlm_influence(mymodel, level = 1)
 dotplot_diag(infl1$cooksd, cutoff = "internal")
 ```
 :::
@@ -760,50 +800,97 @@ dotplot_diag(infl1$cooksd, cutoff = "internal")
 
 ## Level 2 influential clusters
 
+::::{.columns}
+:::{.column width="40%"}
+```{r}
+#| echo: true
+#| fig-asp: .5
+mymodel <- lmer(ACE ~ visit * condition + 
+                  (1 + visit | ppt), data = d3)
+
+
+library(HLMdiag)
+infl1 <- hlm_influence(mymodel, level = 1)
+infl2 <- hlm_influence(mymodel, level = "ppt")
+```
+:::
+
+:::{.column width="60%"}
 ```{r}
 #| eval: false
 #| echo: true
-infl2 <- hlm_influence(mymodel, level = "ppt")
 dotplot_diag(infl2$cooksd, cutoff = "internal", index=infl2$ppt)
 ```
 ```{r}
-#| echo: false
-#| fig-asp: .6
-infl2 <- hlm_influence(mymodel, level = "ppt")
-dotplot_diag(infl2$cooksd, cutoff = 0.2, index=infl2$ppt) +
-  scale_y_continuous(limits=c(0,.35))
+#| echo: true
+#| fig-asp: .7
+dotplot_diag(infl2$cooksd, cutoff = 0.201, index=infl2$ppt)
 ```
+:::
+::::
 
 
-## What to do?
 
-- In this context (observations within participants), I would be inclined to focus on level-2 (participant) influence _first_, and only then look at the influence of individual observations.  
+
+
+## The process will depend on the design
+
+- In this context (observations within participants) - it makes sense to think about level-2 (participant) _first_.  
 
 - It's worth looking into PPT_2 a bit further. 
 
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+infl2 |> arrange(desc(cooksd)) |>
+  head()
+```
+
+:::
+
+:::{.column width="50%"}
 - `mdffits` is a measure of multivariate "difference in fixed effects"
 ```{r}
 #| echo: true
-infl2 %>% arrange(desc(mdffits))
+infl2 |> arrange(desc(mdffits)) |>
+  head()
 ```
 
-## What to do?
+:::
+::::
 
-- In this context (observations within participants), I would be inclined to focus on level-2 (participant) influence _first_, and only then look at the influence of individual observations.  
 
-- It's worth looking into PPT_2 a bit further. 
+## Sensitivity Analysis
 
-- examine fixed effects upon deletion of this participant
+"What would happen to my conclusions & estimates if I ... "
+
 ```{r}
 #| echo: true
 deleted_ppt <- case_delete(mymodel, level = "ppt", type = "fixef", delete = c("PPT_2"))
-cbind(deleted_ppt$fixef.original, deleted_ppt$fixef.delete)
 ```
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+deleted_ppt$fixef.original
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+deleted_ppt$fixef.delete
+```
+:::
+::::
+
 
 ## Sensitivity Analysis?
 
-Would our conclusions change if we excluded these participants?  
-
+"What would happen to my conclusions & estimates if I ... "
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -824,15 +911,14 @@ summary(mymodel)
 mymodel_rm2 <- 
   lmer(ACE ~ visit * condition + 
          (1 + visit | ppt), 
-       data = d3 %>% filter(!ppt %in% c("PPT_2")))
+       data = d3 |> filter(!ppt %in% c("PPT_2")))
 summary(mymodel_rm2)
 ```
 :::
 ::::
 
-# Interim Summary
 
-# Interim Summary
+# Interim Summary {background-color="white"}
 
 :::{.incremental}
 
@@ -1034,7 +1120,7 @@ p3 = ggplot(df, aes(x=x,y=y))+geom_point()+
 
 
 
-mod = lm(y~x,df %>% mutate(x=x-5))
+mod = lm(y~x,df |> mutate(x=x-5))
 p4 = ggplot(df, aes(x=x,y=y))+geom_point()+
   geom_smooth(method="lm")+
   geom_smooth(method="lm",fullrange=T,lty="dotted")+
@@ -1097,7 +1183,7 @@ while(doit){
   }
 }
 
-df %>% transmute(
+df |> transmute(
   pond = paste0("pond_",igs),
   tyoe = l2p,
   self_esteem = round(3+scale(y)[,1]*.6,2),
@@ -1168,7 +1254,7 @@ __Grand mean__
 #| echo: false
 #| fig-asp: .8
 ggplot(bflp, aes(x=fish_weight, y=self_esteem, col=pond))+
-  geom_point(alpha=.4)+
+  geom_point(alpha=.7)+
   labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
   guides(color="none")+
   geom_vline(xintercept=mean(bflp$fish_weight),lty="dotted", lwd=1)
@@ -1183,7 +1269,7 @@ __Group means__
 #| fig-asp: .8
 bflp %>% group_by(pond) %>% summarise(s=sd(fish_weight), fish_weight = mean(fish_weight), self_esteem = mean(self_esteem)) %>% ungroup -> sdff
 ggplot(bflp, aes(x=fish_weight, y=self_esteem, group=pond, col=pond))+
-  geom_point(alpha=.4)+
+  geom_point(alpha=.7)+
   geom_point(data=sdff,size=4)+
   #geom_errorbarh(data=sdff,aes(xmin=fish_weight-(2*s), xmax=fish_weight+(2*s)))+
   labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
@@ -1220,7 +1306,7 @@ ggplot(bflpa, aes(x=fish_weight, y=self_esteem,color=pond)) +
   guides(color="none") +
   transition_states(t) -> p
 
-anim_save("img_sandbox/center.gif", p)
+anim_save("img_sandbox/center1.gif", p)
 ```
 <br>
 ```{r}
@@ -1308,11 +1394,11 @@ $$
 ```{r}
 #| echo: true
 bflp <- 
-  bflp %>% group_by(pond) %>%
+  bflp |> group_by(pond) |>
     mutate(
       fw_pondm = mean(fish_weight),
       fw_pondc = fish_weight - mean(fish_weight)
-    ) %>% ungroup
+    ) |> ungroup()
 
 mod_wb <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
               (1 | pond), data=bflp)
@@ -1361,11 +1447,11 @@ $$
 ```{r}
 #| echo: true
 bflp <- 
-  bflp %>% group_by(pond) %>%
+  bflp |> group_by(pond) |>
     mutate(
       fw_pondm = mean(fish_weight),
       fw_pondc = fish_weight - mean(fish_weight)
-    ) %>% ungroup
+    ) |> ungroup()
 
 mod_wb <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
               (1 | pond), data=bflp)
@@ -1487,6 +1573,8 @@ data available at https://uoepsy.github.io/data/lmm_alcgad.csv
 
 ::::{.columns}
 :::{.column width="50%"}
+__The Within Question__  
+
 Is being more anxious (than you usually are) associated with higher consumption of alcohol?
 :::
 
@@ -1520,6 +1608,8 @@ alcgad %>% group_by(ppt) %>% mutate(gadm=mean(gad),gadmc=gad-gadm) |>
 
 ::::{.columns}
 :::{.column width="50%"}
+__The Between Question__  
+
 Is being generally more anxious (relative to others) associated with higher consumption of alcohol?
 :::
 
@@ -1547,15 +1637,15 @@ ggplot(., aes(x=gadm, y=alcunits)) +
 ```{r}
 #| echo: true
 alcgad <- 
-  alcgad %>% group_by(ppt) %>% 
+  alcgad |> group_by(ppt) |>
   mutate(
     gadm=mean(gad),
     gadmc=gad-gadm
-  )
+  ) |> ungroup()
+
 alcmod <- lmer(alcunits ~ gadm + gadmc + 
                  (1 + gadmc | ppt), 
-               data=alcgad,
-               control=lmerControl(optimizer = "bobyqa"))
+               data=alcgad)
 ```
 :::
 
@@ -1577,8 +1667,7 @@ summary(alcmod)
 ```{r}
 #| echo: true
 alcmod2 <- lmer(alcunits ~ gad + (1 + gad | ppt), 
-                data=alcgad,
-                control=lmerControl(optimizer = "bobyqa"))
+                data=alcgad)
 ```
 :::
 
@@ -1754,43 +1843,47 @@ p1 / p2
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-alcmod <- lmer(alcunits ~ (gadm + gadmc)*intervention + 
+alcmod.int <- lmer(alcunits ~ (gadm + gadmc)*intervention + 
                  (1 | ppt), 
-               data=alcgad,
-               control=lmerControl(optimizer = "bobyqa"))
+               data=alcgad)
 ```
 :::
 
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-summary(alcmod, corr=FALSE)
+summary(alcmod.int, corr=FALSE)
 ```
 :::
 ::::
 
-## When do we need to think about it?  
+## When does it matter?  
 
 When we have a predictor $x$ that varies _within_ a cluster  
 
 and 
 
-When clusters have different average levels of $x$. This typically only happens when $x$ is *observed* (vs manipulated as part of study)
+When clusters have different average levels of $x$. This typically only happens when $x$ is *observed* (as opposed to when it is manipulated as part of an experiment)
   
 and
 
 When our question concerns $x$. (if $x$ is just a covariate, no need).  
 
 
-## Summary
+# Summary {background-color="white"}
+
+:::{.incremental}
 
 - Applying the same linear transformation to a predictor (e.g. grand-mean centering, or standardising) makes __no difference__ to our model or significance tests
-  - but it may change the meaning and/or interpretation of our parameters
+  - it changes what we "get out" (i.e. intercept changes place, slopes change units).  
 
 - When data are clustered, we can apply group-level transformations, e.g. __group-mean centering.__ 
 
 - Group-mean centering our predictors allows us to disaggregate __within__ from __between__ effects.  
   - allowing us to ask the theoretical questions that we are actually interested in
+
+
+:::
 
 
 ## This week 
