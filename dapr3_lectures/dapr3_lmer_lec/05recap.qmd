@@ -21,7 +21,6 @@ source('_theme/theme_quarto.R')
 # Course Overview
 
 ```{r}
-#| eval: false
 #| results: "asis"
 block1_name = "multilevel modelling<br>working with group structured data"
 block1_lecs = c("regression refresher",
@@ -163,26 +162,14 @@ head(absint)
 :::
 ::::
 
-
-## Outcome and Fixed Effects  
+## Question to Model
 
 > Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
 
 (g)lmer(outcome ~ fixed effects + (random effects | grouping structure), family = ...)
 
-::::{.columns}
-:::{.column width="50%"}
-- What are we interested in explaining/predicting?  
-:::
 
-:::{.column width="50%"}
-
-:::
-::::
-
-
-
-## Outcome and Fixed Effects  
+## Outcome
 
 > Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
 
@@ -207,7 +194,7 @@ ggplot(absint, aes(x=ABS))+
 :::
 ::::
 
-## Outcome and Fixed Effects  
+## Fixed Effects  
 
 > Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
 
@@ -350,14 +337,22 @@ head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round
 
 :::
 
-:::{.column width="50%" .fragment}
+:::{.column width="50%"}
 
 ```{r}
 #| echo: true
-nrow(absint)
-absint |> 
-  mutate(schoolppt = interaction(schoolid,ppt)) |>
-  summarise(across(everything(), n_distinct))
+#| eval: false
+table(absint$schoolid, absint$ppt)
+```
+
+```
+                                 1 2 3 4 5 6 7 8 ...
+  Blue River High School         8 8 8 8 8 8 8 8 ...
+  Central Grammar School         8 8 8 8 8 8 8 8 ...
+  Central High                   8 8 8 8 8 8 8 8 ...
+  Clearwater Charter School      8 8 8 8 8 8 8 8 ...
+  Clearwater School of Fine Arts 8 8 8 8 8 8 8 8 ...
+  ...                            . . . . . . . . ...
 ```
 
 :::
@@ -388,7 +383,10 @@ absint |>
 
 ```{r}
 #| echo: true
-table(absint$schoolid, absint$ppt)
+nrow(absint)
+absint |> 
+  mutate(schoolppt = interaction(schoolid,ppt)) |>
+  summarise(across(everything(), n_distinct))
 ```
 
 :::
@@ -739,43 +737,69 @@ dotplot_diag(l3$cooksd) + labs(title="Cook's D: School")
 
 ## Inference
 
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
 
 ::::{.columns}
-:::{.column width="50%"}
+:::{.column width="30%"}
+__Options__  
 
-- Model comparison
+- Model comparison 
 
-- Parameter estimates
-
+- Parameters
 
 :::
 
-:::{.column width="50%"}
+:::{.column width="70%" style="font-size: .7em"}
+__Methods__  
 
-- df approximations
-  `parameters::model_parameterS(model, ci_method="kr")`
-  `pbkrtest::KRmodcomp(model2,model1)`
-- Likelihood Ratio Tests  
-  `anova(model1, model2, ...)`
-- Bootstrap
-  - parametric bootstrap
-    `pbkrtest::PBmodcomp()` and `confint(method="boot")`
-  - case bootstrap
-    `lmeresampler::bootstrap(model, type = "case", resample = c(....))`
-    
+- satterthwaite df:  
+    - `lmerTest::lmer()` and `pbkrtest::SATmodcomp(model2,model1)`
+- likelihood ratio tests: 
+    - `anova(model1, model2, ...)`
+
+:::{style="opacity: .5"}
+
+- kenward-rogers df
+- likelihood profile confidence intervals
+- parametric bootstrap
+- residual bootstrap
+- case bootstrap
+
+:::
+
 :::
 ::::
 
 
+
+
 ## Inference
 
-> **Research Questions**  
-> 1. Does the presentation of aggressive behaviours increase as children enter the secondary school system? 
-> 2. If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?
+
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+
+::::{.columns}
+:::{.column width="30%"}
+__Options__  
+
+- Model comparison 
+
+- Parameters
+
+:::
+
+:::{.column width="70%"}
 
 ```{r}
+#| echo: true
 fixef(absmod)
 ```
+
+:::
+::::
 
 
 ## Inference
@@ -824,8 +848,9 @@ Don't just ignore. They add context to results
 
 - e.g. they can give a descriptive answer to "should we expect *all* children get more aggressive in secondary school?"  
 
-- often it's about the amount of variability relative to the corresponding fixed effect.         - a fixed slope of 0.5 with groups varying in slopes with an SD of 1
-        - a fixed slope of 10 with groups varying in slopes with an SD of 1
+- often it's about the amount of variability relative to the corresponding fixed effect.  
+    - a fixed slope of 0.5 with groups varying in slopes with an SD of 1
+    - a fixed slope of 10 with groups varying in slopes with an SD of 1
 
 
 
@@ -891,7 +916,7 @@ p1 | p2 | p3
 
 # The research process: reporting
 
-## Reporting the analysis strategy
+## Reporting the analysis strategy {.smaller}
 
 - Data cleaning outlier/data removal, transformations _prior to_ analysis.  
 
@@ -961,28 +986,52 @@ For final model:
 :::
 ::::
 
-## Reporting: text and tables
+## Reporting: text and tables {.smaller}
 
+
+::::{.columns}
+:::{.column width="50%"}
 Tables help a lot!  
 
+```{r}
+#| echo: true
+#| eval: false
+library(sjPlot)
+tab_model(absmod, 
+          show.ci = 0.95,
+          show.stat = TRUE/FALSE,
+          show.se = TRUE/FALSE,
+          show.df = TRUE/FALSE,
+          show.re.var = TRUE/FALSE,
+          df.method="satterthwaite")
+```
+
 :::{.fragment}
-But *they are not a substitute for interpretation*  
+But **they are not a substitute for interpretation**  
 
 - Key parameters of interest should also be included in-text, with interpretation.  
 
 :::
 
-Lots of options to customise tables:  
-```{r eval=FALSE}
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
 library(sjPlot)
 tab_model(absmod, 
-          show.ci = 0.95,
+          show.ci = NULL,
           show.stat = TRUE,
-          show.se = TRUE,
           show.df = TRUE,
           show.re.var = TRUE,
           df.method="satterthwaite")
 ```
+
+:::
+::::
+
+
 
 ## Visualisations
 
@@ -992,8 +1041,6 @@ tab_model(absmod,
 #| echo: true
 fixef(absmod)
 ```
-
-<br><br>
 
 ```{r fig.asp=.8}
 #| echo: true
@@ -1040,8 +1087,6 @@ fixef(absmod)
 VarCorr(absmod)
 ```
 
-<br><br>
-
 ```{r fig.asp=.8}
 #| echo: true
 #| eval: false
@@ -1084,9 +1129,7 @@ augment(absmod) |>
 :::
 ::::
 
-
-
-# Visualising - Results in context
+## Visualising - Results in context
 
 
 ::::{.columns}
