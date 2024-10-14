@@ -12,10 +12,11 @@ editor_options:
 library(tidyverse)
 library(lme4)
 library(broom.mixed)
+library(effects)
 # settings
 knitr::opts_chunk$set(echo = FALSE)
 # data
-load("dapr3_liveR_newtricks.RData")
+load(url("https://uoepsy.github.io/dapr3/2425/misc/dapr3_liveR_newtricks.RData"))
 
 # cleaning
 
@@ -37,6 +38,13 @@ res <- tidy(mod3b) |>
     p = format.pval(p.value, digits = 2, eps = .001)
   )
 
+efdat <- effect("trainingdays*isOld", mod3b) |>
+  as.data.frame()
+
+efplot <- ggplot(efdat, aes(x=trainingdays,y=fit,col=isOld,
+                  fill=isOld))+
+  geom_line()+
+  geom_ribbon(aes(ymin=lower,ymax=upper),alpha=.3)
 ```
 
 
@@ -55,5 +63,12 @@ fit a slightly different model because the original one didn't work.
 
 # What we found
 
-averaged across dogs, it took `r res[1,"est"]` seconds to complete the trick on the first day of training (b = `r res[1,"est"]`, t(`r res[1,"df"]`)=`r res[1,"t"]`, p `r res[1,"p"]`). For puppies, each subsequent day of training was associated with a `r res[2,"est"]` decrease in time taken ()
+averaged across dogs and tasks, it took `r res[1,"est"]` seconds to complete the trick on the first day of training (b = `r res[1,"est"]`, t(`r res[1,"df"]`)=`r res[1,"t"]`, p `r res[1,"p"]`). For puppies, each subsequent day of training was associated with a `r res[2,"est"]` decrease in time taken (b = `r res[2,"est"]`, t(`r res[2,"df"]`)=`r res[2,"t"]`, p=`r res[2,"p"]`)
+
+
+
+Here's a plot:
+```{r}
+efplot
+```
 
