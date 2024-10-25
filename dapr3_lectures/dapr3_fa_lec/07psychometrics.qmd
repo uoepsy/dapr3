@@ -1,0 +1,624 @@
+---
+title: "Introduction to psychometric testing"
+editor_options: 
+  chunk_output_type: console
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+#| echo: false
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c(
+  "what is a psychometric test?",
+  "using composite scores to simplify data (PCA)",
+  "uncovering underlying constructs (EFA)",
+  "more EFA",
+  "recap"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=6)
+```
+
+## What is psychological measurement?
+
+* In psychology we are interested in things that cannot be observed or measured directly: thoughts, feelings, behaviours etc.
+
+* While technically we *can* observe behaviour, it can be very difficult to measure 
+* Some example questions around this:
+
+  - What is a 'behaviour'? Where does one behaviour end and another start? 
+  - Should we use a physical instrument to measure behaviour or something else? 
+  - Is 'getting mad' a thought, feeling or behaviour. Which should we try to measure?
+  - Are we even correct to distinguish between these three elements? #
+  
+* Stepping back: What are we actually trying to measure?
+
+## What are constructs?
+
+* Focal variables in psychology are *constructs*: useful abstractions about the world that are derived from natural observations
+
+* Constructs are labels for domains of psychological phenomena (e.g., thoughts, feelings or behaviour) that represent something we are interested in
+
+* Used to simplify the world and provide a shared language for science
+  - Can be used to study the same phenomena across diverse contexts
+  - Example: What is similar about **Leadership** in hunter-gatherer societies, in the military and in the music industry?
+
+## Example: Life satisfaction
+
+> Are older people more satisfied with life? 112 people from 12 different dwellings (cities/towns) in Scotland. Information on their ages and some measure of life satisfaction. 
+
+::: {. columns}
+::: {. column, width = "50%"}
+
+```{r}
+#| echo: true
+d3 <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+head(d3)
+```
+
+:::
+
+::: {. column, width = "50%"}
+
+* Did anyone stop to think - What exactly is life satisfaction?
+
+* With the person next to you: define life satisfaction.
+
+:::
+
+## Impact of these differences
+
+* We all have different operationalisations of life satisfaction
+
+* Different operationalisations make it difficult to generalise across studies
+
+* This is key challenge in psychology, the study of this is called psychometrics
+
+## Psychometrics
+
+* Scientific discipline concerned with the construction of psychological measurements
+
+* Connects observable phenomena (e.g., item responses) to theoretical attributes (e.g., life satisfaction)
+  - Theoretical constructs are defined by their domains of observable behaviours
+
+* Psychometricians study the conceptual and statistical foundations of **constructs**, the **measures** that operationalise them and and the **models** used to represent them
+
+* Inter-disciplinary field that has applications across many sciences (e.g., psychology behavioural genetics, neuroscience, political science, sociology)
+
+## Types of psychometric tests
+
+* Psychometric tests can be broadly demarcated into 2 categories
+
+* Tests of **typical performance**
+  - What do participants do on a regular basis
+  - Examples: Interests, values, personality traits, political beliefs
+  - Real-world example: "Which Harry Potter house are you in?"
+  
+* Tests of **maximal performance**
+  - What can participants do when exerting maximum effort
+  - Examples: Aptitude tests, exams, IQ tests
+  - Real-world example: Duolingo, Wordle, revision apps
+  
+* For the most part, the same statistical models are used to evaluate both
+
+## Applications of psychometric tests
+
+* Psychometrics are everywhere
+
+* Education
+- Aptitude / ability tests i.e., standard school tests
+- End-of-school exams
+- Entrance tests
+- Vocational tests
+
+* Business
+- Selection (e.g., personality, skills)
+- Development (e.g., interests, leadership)
+- Performance indicators e.g., well-being, engagement
+- Occupational health
+
+* Health
+- Mental health symptoms e.g., anxiety
+- Clinical diagnoses e.g., personality disorders
+
+* Key takeaway: *People make life-changing decisions using psychometric evidence every day*
+
+## Criteria for good psychometrics
+
+* Lots of important applications, so psychometrics must:
+
+  - **Assess what they are supposed to assess**
+  - **Be consistent and reliable**
+  - **Produce interpretable scores**
+  - Be relevant for specific populations
+  - Differentiate between people in fair way
+
+* In this course we will cover first three and how psychologists evaluate, last two are context-dependent
+* Next few slides will cover some universal principles
+
+## Diagrammatic conventions
+
+* In this section of the course we distinguish between variables that are
+  - **Square** = Observed / measure
+  - **Circle** = Latent / unobserved
+  - **Two-headed arrow** = Covariance
+  - **Single headed arrow** = Regression path
+
+Insert pic here of theoretical effect of interest
+
+```{r}
+magick::image_read("img_sandbox/conventions.png")
+```
+
+## Representational not actual measurement
+
+* We cannot take our ruler and measure life satisfaction
+* We therefore to try to do this by creating tests
+
+- We hope that the responses to the test tell us something about the construct we are interested in
+- Important to remember we are dealing with tests or item responses, not the "things"
+
+* Psychometrics can be thought of as "pseudo-representational": useful representation of target construct rather than 'ground truth' of universe
+* In the next few slides I will introduce key concepts that are consistent
+
+## Measurement error
+
+> All measurement is befuddled by error
+<p align='right'>McNemar (1946, p.294)</p>
+
+* Every measurement we take contains some error, goal is to minimise it
+
+* Measurement error refers to differences between the value we observe when collecting data and the **true value** of the phenomena
+
+* Error can be:
+  - **Random** = Unpredictable. Inconsistent values due to something specific to the measurement occasion (e.g., exam stress)
+  - **Systematic** = Predictable. Consistent alteration of the observed score due to something constant about the measurement tool (e.g., )
+  
+* Can you think of an example of each for trying to measure height?
+
+## Unit of analysis: correlations and covariance
+
+:::: { .columns}
+::: {. column, width = "50%"}
+
+* In psychometrics our unit of analysis (and the input of our models) is *covariance*
+- *Variance* = Deviance around the mean of a single variable
+- *Covariance* = Representation of how two variables change together
+- *Correlation* = Standardised version of covariance
+
+* We are trying to explain patterns in the covariance matrix 
+- i.e. among a set of items
+
+* In many of our models we "imply" that the covariance matrix has a certain structure, and our model tries to reproduce the sample covariance matrix
+- More on this in Week 4
+
+:::
+
+::: {. column, width = "50%}
+* As a metaphor, we are putting objects (i.e., items) into buckets (i.e., psychometric scales). The goal of psychometrics is to decide which objects belong in which buckets
+- It is that simple!
+
+* Can you see any patterns in the below correlation matrix?
+
+```{r}
+lsat_data <- read_csv("data/lifesat.csv")
+head(lsat_data)
+round(cor(lsat_data),2)
+```
+
+:::
+
+
+::: {.aside}
+Before estimating the relationships between our constructs, we need to first account for the patterns of relations among items
+:::
+
+# Test-level: Classical test theory
+
+## Classical test theory (CTT)
+
++ Classical test theory describes scores on any measure as a combination of a signal and noise, and represents them using the below formula:
+
+$$
+\begin{equation}
+\text{Obsered score = True score + Error}
+\end{equation}
+$$
+
+* The observed score is the value actually observed on the test, which is unlikely to reflect the participants' true value on the construct
+
+Put this in a box somewhere
++ 'Signal' in the score, referred to as the *true score*, represents variance in the score explained by the target construct
++ 'Noise' in the score, referred to as *error*, represents variance in the score explained by other things. Error can be random or systematic (we will return to this in more detail later in the course):
+- *Systematic error* tends to be consistent across observations in a sample and "biases" scores in a positive or negative direction (e.g., your weighing scale is broken and weighs everyone 3kg heavier than they are). This affects the accuracy of scores
+- *Random error* varies across observations and could affect test scores positively, negatively, or have no impact (e.g., participant 1 eat a large meal ten minutes before weigh-in, whereas participant 2 fasted for a day before weigh-in)
+
+## CTT diagram
+
+::: {. columns}
+::: {. column, width = "50"}
+
+* For any given participant ($p$), score is:
+
+$$
+X_p = T_p + E_p
+$$
+
+* Where $X_p$ is their observed score, $T_p$ is their true score and $E_p$ is some form of error.
+
+:::
+
+::: {. column, width = "50%}
+
+* A diagram of how scores are generated in classical test theory can be seen below:
+
+```{r}
+magick::image_read("img_sandbox/ctt.png")
+```
+
+:::
+
+## Assumptions of classical test theory
+
+ 1. Our test measures some ability or trait, and in the world there is a "true" value of score on this test for each individual
+ 2. Our true score and our error are not correlated
+ 3. Errors from two measurements are not correlated
+ 4. 1 - true score variance in the test = error
+ 5. The reliability of a test is a measure of how well it reflects the true score
+
+## Scoring in CTT
+
+::: {.columns}
+::: {.column width="50%"}
+
+* In CTT, items are typically summed or averaged (i.e., the mean) to create a score for the target construct
+* In our example, 
+
+* Assumes all items measure the construct to the same extent
+* Is this true? Do "I am happy all of the time" and "I am happy most of the time" capture the same level of life satisfaction?
+
+:::
+
+::: {.column width="50%"}
+```{r}
+lsat_data <- lsat_data %>%
+  rowwise() %>%
+  mutate(
+    lfsat_mean1 = mean(lfsat_1, lfsat_2, lfsat_3),
+    lfsat_mean2 = mean(lfsat_4, lfsat_5, lfsat_6)
+  )
+```
+:::
+
+## Limitations of classical test theory
+
+* In a previous slide I said "the reliability of the test is a measure of how well it reflects the true score"
+
+- Is this only a question of modelling covariance? Is there anything else that may affect whether a test is capturing the 'true score' of a construct?
+* There is also a major empirical limitation of classical test theory: assuming that all items measure the construct to the same extent
+* Do "I am never dissatisfied with my life" and "I am relatively happy about my life" both measure life satisfaction to the same extent?
+* Assumes all items are measuring the same construct and that we know the structure of our test - is this a realistic assumption?
+
+# Item-level: Principal components and latent variables
+
+## Item-driven techniques
+
+* Focus in CTT is on test level, how much *true variance* are we capturing in this score
+* Analyses and estimates are properties of *test*, not of *items* (this will make sense in the next section)
+* Little consideration for how items relate to test
+- i.e. Whether these items belong together
+
+## Principal components analysis (PCA)
+
+
+
+## Latent variable modelling
+
+## PCA and LVM diagrams
+
+::: {. columns}
+::: {. column, width = "50%"}
+
+* Insert explanation of LVM diagram here and fifer
+* In PCA the arrows point from the items to the **component**
+* In LVM the arrows point from the **factor** to the items
+
+:::
+
+::: {. column, width = "50%"}
+
+```{r}
+magick::image_read("img_sandbox/pca_factor.png")
+```
+
+## Scoring in PCA & LVM
+
+::: {. columns}
+::: {. column, width = "50%"}
+
+* Both methods compute scores as weighted composites
+
+* Scores can be extracted from models and returned as columns in data set
+
+* You will learn how to do this in weeks 3 and 4 of the course
+- For now, understand that factor scores and sum scores are different in the way they are calculated
+- But are otherwise very similar in your data set - both are just aggregated columns!
+
+:::
+
+::: {. column, width = "50%"}
+
+* Below is a quick demo of how to create factor scores
+- We will cover this in detail in the next few weeks
+
+```{r}
+library(psych)
+lsatfa <- fa(lsat_data, nfactors = 2)
+
+lsat_data <- lsat_data %>% 
+  ungroup() %>%
+  mutate(
+    lfsat_fac1 = lsatfa$scores[, 1],
+    lfsat_fac2 = lsatfa$scores[, 2],
+  )
+
+cor(lsat_data$lfsat_mean1, lsat_data$lfsat_mean2)
+
+cor(lsat_data$lfsat_fac1, lsat_data$lfsat_fac2)
+```
+
+* The correlations are very small
+- The point is that they are different!
+- Different scoring methods produce different results
+- Could be difference between significant and non-significant result
+
+:::
+
+## Limitations of item-level methods
+
+* Computationally intensive and requires large samples
+* Sample specific - structure may not replicate across samples
+
+## Key differences in methods
+
+```{r}
+cor(lsat_data$lfsat_mean1, lsat_data$lfsat_mean2)
+
+cor(lsat_data$lfsat_fac1, lsat_data$lfsat_fac2)
+```
+
+# Evaluating psychometric tests: Reliability
+
+## Why are we evaluating?
+
+* Psychometric tests can be scored using CTT, PCA or LVM
+
+* *Scores* are created by aggregating responses to multiple items
+
+* Groups of items measuring the same construct are referred to as *scales* (i.e., narrow, unidimensional operationalisations of a single construct)
+
+* One or more *scales* is administered as a *measure*, *test*, or *battery*.
+- If multiple scales are administered and each represents a single construct, the test is said to be multidimensional
+
+* But how do we know if our scales are effective? 
+- By assessing their *reliability* and *validity*
+
+## What is reliability?
+
+## Parallel tests
+
+* Charles Spearman was the first to note that, under certain assumptions (i.e., the tests are truly parallel, each item measures the construct to the same extent, con-generic)
+
+* Where do parallel tests come from?
++ Previous, older definitions of "parallel tests" were somewhat abstract
+
+* Parallel tests can come from several sources
+
++ Time tests were administered (test-retest)
++ Multiple raters (inter-rater reliability)
++ Items (alternate forms, split-half, internal consistency)
+
+## Test-retest reliability
+
+* Correlation between tests taken at 2+ points in time (assumed to be equivalent)
+* Corner-stone of test assessment and appears in many test manuals, but there are some tricky conceptual questions:
+
++ What's the appropriate time between when measures are taken?
++ How stable should the construct be if we are to consider it a trait?
+
+* *Remember*: If we have within-individual changes in mean scores, if the rank order is consistent (i.e., their position in the group) remains consistent, correlations can stay high
++ Everyone follows the same pattern of change, so the results are consistent (i.e., everyone increase by 0.3 in the trait)
+
+## Inter-rater reliability
+
+* Ask a set of judges to rate a set of targets
++ Get friends to rate the personality of a family member
++ Get zoo keepers to rate the subjective well-being of an animal
+
+* We can determine how consistent raters are across:
++ How reliable are their individual estimates
++ How reliable is the average estimate based on the judges' ratings
+
+## Alternate forms and split-half reliability
+
+* Correlation between two variants of a test 
++ Same items in different order (randomise the stimuli)
++ Tests with similar, but not identical content (e.g., tests with fixed number of numerical problems)
+
+* Tests should ideally have equal mean and variance
+* Assumption: If the tests are perfectly reliable, they should correlate perfectly
++ They won't realistically, the extent that they don't = reliability
+
+* Split-half reliability
++ Split test into equal halves, score them up and correlate the halves
++ Modern algorithms can do this for all possible combinations - Becomes computationally intensive!
+
+## Internal consistency
+
+* Make sure to describe Alpha and Omega here
+* Divide the total covariance by the total variance
+
+* These models do not test whether items measure one unidimensional construct, increase as a function of the number of items
+
+* More detail on the differences between these estimates in Week 4
+
+# Evaluating psychometric tests: Validity
+
+## What is validity?
+
+> Validity refers to the degree to which evidence and theory support
+> the interpretations of test scores for proposed uses of
+> tests. Validity is, therefore, the most fundamental consideration in
+> developing tests and evaluating tests. The process of validation
+> involves accumulating relevant evidence to provide a sound scientific
+> basis for the proposed score interpretations. It is the
+> interpretations of the test scores for the proposed uses that are
+> valuated, not the test itself.
+<p align='right'>Standard for Educational and Psychological Testing</p>
+
+## Debates about the definition
+*[W]hether a test really measures what it purports to measure* (Kelley,
+1927)
+
+*[H]ow well a test does the job it is employed to do. The same may be
+used for ... different purposes and its validity may be high for
+one, moderate for another and low for a third* (Cureton, 1951)
+
+*Validity is "an integrated evaluative judgment of the degree to
+which empirical evidence and theoretical rationales support the
+adequacy and appropriateness of inferences and actions based on test
+scores or other modes of assessment* (Messick, 1989)
+
+*A test is valid for measuring an attribute if (a) the attribute
+exists and (b) variations in the attribute causally produce
+variation in the measurement outcomes* (Borsboon et al., 2004)
+
+*[V]alidity means that the information yielded by a test is
+appropriate, meaningful, and useful for decision making -- the purpose
+of mental measurement* (Osterlind, 2010)
+
+## Evidence for validity
+* Debates about how to define validity lead to questions about what  constitutes evidence for validity
+- Not only do we argue about the definitions of our construct, but we argue about how to create definitions!
+
+* Sources of evidence align to what may be viewed as "classical" concepts reported in textbooks, studies, and test manuals
+
+Contemporary perspective:
+
+> The goal of psychometric development so generate a psychometric that *accurately* measures the intended construct, as *precisely* as possible, and that uses of the psychometric are *appropriate* for the given purpose, population, and context.
+<p align='right' >(Hughes, 2018, p. 22) </p>
+
+## Content evidence
+
+* *Content validity*
++ A test should contain only content relevant to the intended construct
++ It should measure what it was intended to measure
+* *Face validity*
++ i.e., for those taking the test, does the test "appear to" measure what it was designed to measure?
+
+## Construct validity
+
+
+
+## Response processes
+
+> All measurement in a test occurs between the participant reading the item and selecting a response
+
+* Everything we have discussed so far is analysed **after** measurement
+* Need to assess whether we are accurately measuring our construct during the **data generating process** i.e. when completing the questionnaire
+* Can do this using qualitative think-aloud-protocol interviws:
+ - Participants complete questionnaire, select response option and verbalise reasoning / self-construal / opinion
+
+## Response processes
+
+* Example of a think-aloud-protocol output:
+
+```{r}
+magick::image_read("img_sandbox/response_processes.png")
+```
+
+## Structural validity
+
+* Many constructs are multi-dimensional i.e. they have multiple underlying components
+ - One of the things we are assessing using PCA and LVM
+ - e.g. Narcissism = 
+ 
+* Need to assess how stable and generalisable the dimensional structure is across samples
+* Most commonly assessed using exploratory / confirmatory factor analysis
+ + Distinction explained in week 4
+
+## Relationships with other constructs
+
+* **Convergent**: 
+  - Measure should have high correlations with other measures of the same construct
+
+* **Discriminant**: 
+  - Measure should have low correlations with measures of different constructs
+
+* **Nomological Net**
+  - Measure should have expected patterns (positive/negative) correlations with different sets of constructs
+	- Also, some measures should vary depending on manipulations, 
+	- e.g., a measure of "stress" should be higher among students who are told that a test is "high stakes" than among students told that a test is "low stakes"
+
+## Relationships with other constructs
+
+* Consider relations in terms of temporal sequence.
+
+* **Concurrent validity**: Correlations with contemporaneous measures
+  + Neuroticism and subjective well-being
+  + Extraversion and leadership
+
+* **Predictive validity**: Related to expected future outcomes
+  + IQ and health
+  + Agreeableness and future income
+
+## Consequences
+
+## Relationship between reliability and validity
+
+* Correlations between observed variables are attenuated, and underestimate the relationships between the underlying constructs
+
+* Reliability is the ceiling for validity: tests cannot correlate with each other more than they correlate with themselves
+
+## Where can you find this information?
+
+* Test manuals (should) contain all information needed to assess reliability and validity
+
+# Summary {background-color="white"}
+
+- We can extend our linear model equation to model certain parameters as random cluster-level adjustments around a fixed center.
+* There are various ways to score psychometric tests. The most common are
+- Classical test theory
+- Principal components analysis
+- 
+
+- We can fit this using the **lme4** package in R
+
+## This week 
+
+* Introduction to psychological measurement and it's challenges
+* Overview of three separate scoring theories:
+- Classical test theory, principal components analysis, latent variable modelling
+* How to evaluate psychometric tests:
+- Reliability: How consistent is my measurement across tests
+- Validity: Am I measuring what I am trying to measure
