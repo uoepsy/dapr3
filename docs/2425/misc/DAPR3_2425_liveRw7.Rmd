@@ -1,0 +1,121 @@
+---
+title: "07 live R"
+author: "John M"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+# 07 - Scoring a psychometric test
+
+Our objective for today is to assess the relationship between age and gender, and an individual's level of Agreeableness. Personality research has demonstrated that women tend to be higher in self-reported Agreeableness, as do people who are older. We want to know which one of these explains the most variance when they are 
+
+Luckily, there is publicly available personality data for the Big Five Inventory in the `psych` package which can be used to answer this question.
+
+First let's load in the data:
+
+```{r}
+library(tidyverse)
+library(psych)
+
+bfi <- psych::bfi
+
+summary(bfi)
+
+head(bfi)
+```
+
+It looks like there are 25 psychometric items in this data set, along with gender, education and age which are represented as numerical variables.
+
+Let's have a look at the relationship among our variables:
+
+```{r}
+# this ends up full of NAs!!
+bfi_cormat <- cor(bfi)
+
+# this uses only the complete observations
+bfi_cormat <- cor(bfi, use = "complete.obs")
+
+view(bfi_cormat)
+
+# sometimes easier to visualise it:  
+library(pheatmap)
+pheatmap(bfi_cormat, cluster_rows=F, cluster_cols=F)
+```
+
+Well, that is quite difficult to interpret. This is the main challenge when 'eye-balling' relationships among items to try to understand the underlying constructs, it can be difficult for us to assess them if we are doing it at the item-level. This can be resolved through aggregation (i.e., scoring the test to create summaries of sets of items).  
+But first... we need to reverse score some of the items!  
+
+
+The psych package actually tells us about which ones should be reversed - they have a minus in front of them in the `bfi.keys`:
+```{r}
+psych::bfi.keys
+```
+
+If items are scored on a scale from 1 to 6, then I can just reverse them by subtracting the scores from 7:  
+
+```{r}
+bfi <- bfi %>% 
+  mutate(
+    A1 = 7 - A1,
+    C4 = 7 - C4,
+    C5 = 7 - C5,
+    E1 = 7 - E1,
+    E2 = 7 - E2,
+    O2 = 7 - O2,
+    O5 = 7 - O5
+  )
+```
+
+The `across()` function will help us do things like this.  
+Some demonstrations of across():  
+
+This calculates the mean across a whole load of variables:
+```{r}
+bfi %>% summarise(
+  across(A1:A5, ~mean(., na.rm=T))
+)
+```
+
+This would do our reverse coding for us all in one little line of code:
+```{r}
+bfi %>% mutate(
+  across(c(A1,C4,C5,E1,E2,O2,O5), 
+         ~ 7 - .
+         )
+)
+```
+
+
+So let's create some mean scores:
+
+the tidyverse way:
+```{r}
+bfi %>%
+  rowwise() %>% 
+  mutate(
+    agree = mean(c(A1,A2,A3,A4,A5))
+  ) %>% view()
+```
+
+To be honest, this is a lot easier:  
+```{r}
+bfi$agree <- rowMeans(bfi %>% select(A1:A5))
+bfi$open <- rowMeans(bfi %>% select(O1:O5))
+bfi$consc <- rowMeans(bfi %>% select(C1:C5))
+bfi$extra <- rowMeans(bfi %>% select(E1:E5))
+bfi$neur <- rowMeans(bfi %>% select(N1:N5))
+```
+
+Here are the correlations of the _mean scores_ (not the items themselves, but the scale scores), and age and education etc.
+```{r}
+pheatmap(cor(bfi[,26:33], use = "complete.obs"))
+```
+
+Each row here is independent (it's not multilevel or anything anymore), so we can go back to simple linear models:
+
+```{r}
+mod <- lm(agree ~ age + gender, data = bfi)
+summary(mod)
+```
+
