@@ -1,0 +1,552 @@
+---
+title: "R8: Principal Component Analysis (PCA)"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+
+set.seed(475)
+nitem <- 6
+A <- matrix(runif(nitem^2,.41,1)*2-1, ncol=nitem) 
+scor <- t(A) %*% A
+df <- MASS::mvrnorm(n=220,mu=rep(0,6),Sigma = scor) |> as.data.frame()
+
+physfunc <- df |> transmute(
+  mobility = round(550 + scale(V1)[,1]*75),
+  balance = round(20 + scale(V2)[,1]*5, 2),
+  flexibility = round(7.5 + scale(V3)[,1]*1.25 + 2),
+  strength = round(35 + scale(V4)[,1]*7.5),
+  coordination = round(1.5+scale(V5)[,1]*.25, 3),
+  fine_motor = round(20+scale(V6)[,1]*2.5,2)
+) 
+
+nitem <- 2
+A <- matrix(runif(nitem^2,.41,1)*2-1, ncol=nitem) 
+scor <- t(A) %*% A
+df <- MASS::mvrnorm(n=220,mu=rep(0,2),Sigma = scor) |> as.data.frame()
+physfunc2 <- df |> transmute(
+  respiratory = round(550 + scale(V1)[,1]*100),
+  endurance = round(15 + scale(V2)[,1]*2.5, 2)
+)
+physfunc <- bind_cols(physfunc,physfunc2) |>
+  relocate(endurance, .after=balance)
+
+```
+
+
+# The goal of PCA  
+
+:::statbox
+The goal of principal component analysis (PCA) is to find a _smaller_ number of uncorrelated variables which are linear combinations of the original ( _many_ ) variables and explain most of the variation in the data.
+:::
+
+Take a moment to think about the various constructs that you are often interested in as a researcher. This might be anything from personality traits, to language proficiency, social identity, anxiety etc. 
+How we measure such constructs is a very important consideration for research. The things we're interested in are very rarely the things we are *directly* measuring. 
+
+Consider how we might assess levels of anxiety or depression. Can we ever directly measure anxiety?^[Even if we cut open someone's brain, it's unclear what we would be looking for in order to 'measure' it. It is unclear whether anxiety even exists as a physical thing, or rather if it is simply the overarching concept we apply to a set of behaviours and feelings.] More often than not, we measure these things using a _set_ of different measures which 'look at' the underlying construct from a different angle. In psychology, this is often questionnaire based methods, with a set of questions each of which might ask about "anxiety" from a slightly different angle. Twenty questions all measuring different aspects of anxiety are (we hope) going to correlate with one another if they are capturing some commonality (the construct of "anxiety").  
+
+But they introduce a problem for us, which is how to deal with 20 variables that represent (in broad terms) the same thing. How can we assess "effects on anxiety", rather than "effects on anxiety q1 + effects on anxiety q2 + ...", etc.  
+
+In addition, not all constructs might have a single dimension - we often talk about "narcissm", but this could arguably be comprised of 3 dimensions of "grandiosity", "vulnerability" and "antagonism".  
+
+This leads us to the idea of *reducing the dimensionality of our data*. Can we capture a reasonable amount of the information from our 20 questions in a smaller number of variables? How many, and what would they represent?  
+
+# When might we want to reduce dimensionality?  
+
+There are many reasons we might want to reduce the dimensionality of data:  
+
+- Theory testing
+  - What are the number and nature of dimensions that best describe a theoretical construct?
+- Test construction
+  - How should I group my items into sub-scales?
+  - Which items are the best measures of my  constructs?
+- Pragmatic
+  - I have multicollinearity issues/too many variables, how can I defensibly combine my variables? 
+  
+PCA is most often used for the latter - we are less interested in the theory behind our items, we just want a useful way of simplifying lots of variables down to a smaller number. For one use of PCA, consider what might happen if we have a lot of predictors in a linear model that are all quite highly related. We're not interested specifically in any one of them, and the high correlations between them may hinder our ability to draw accurate inferences. This is borne out in our variance inflation factor (VIF).  
+
+When the original variables are highly correlated, it is possible to reduce the dimensionality of the problem under investigation without losing too much information. If the correlation between the variables under study are weak, a larger number of components is needed in order to explain sufficient variability.  
+
+
+
+# Performing PCA
+
+Using the `principal()` function from the **psych** package, we can perform a PCA like so, and we can save the object much like we save any other model:  
+```{r}
+#| eval: false
+# PCA with as many components as there are variables:
+my_pca <- principal(dataset, nfactors = ncol(dataset), 
+                    rotate = 'none')
+# PCA with a chosen number of components 
+#(replace .. with your number)
+my_pca <- principal(dataset, nfactors = ...,
+                    rotate = 'none')
+```
+
+Note that the first argument is an entire dataset, so if there are _other things_ in our data, we will need to subset the ones we want first!  
+
+```{r}
+#| eval: false
+myitems <- dataset |> select(item1, item2, item3, item4, item5)
+my_pca <- principal(myitems, nfactors = ..., 
+                    rotate = 'none')
+```
+
+
+:::frame
+__Dataset: physfunc.csv__  
+
+These data contain measurements on 220 individuals on various measures of physical functioning:  
+
+- Mobility: 6-Minute Walk Test (distance in metres walked in 6 minutes).
+- Balance: Single-Leg Stance Test (time in seconds standing on one leg). 
+- Endurance: Stair Climb Test (time in seconds taken to climb a set number of stairs).
+- Flexibility: Sit and Reach Test (distance in cm reached beyond the feet while seated).
+- Strength: Grip Strength Test (measured in kilograms using a dynamometer).
+- Fine Motor Skills: Nine-Hole Peg Test (time in seconds to place and remove pegs from a board).
+- Respiratory Function: Forced Expiratory Volume in 1 Second (FEV1) (measured in Liters per second using a spirometer).  
+
+:::
+
+```{r}
+library(tidyverse)
+library(psych)
+# read in the data
+# read_csv() TODO
+# take a look at it
+head(physfunc)
+# do a PCA! as many components as variables:
+physPCA <- principal(physfunc, nfactors = 8,
+                     rotate = "none")
+```
+
+
+::: {.callout-note collapse="true"}
+#### PCA on the covariance or the correlation matrix?
+
+PCA is ultimately based on a correlation or covariance matrix, not the full dataset. When we give the `principal()` function the dataset, it will internally create a correlation matrix and will use that to conduct the PCA.  
+
+So we can actually do any of these:  
+```{r}
+#| eval: false
+principal(data)
+principal(cor(data))
+principal(cov(data), covar = TRUE)
+```
+
+The first two will be identical, but the third will conduct PCA on the covariance matrix instead. 
+
+This will be different depending on the differences in the scales of the variables. If we use the covariance matrix, and if the variables have large differences in their variances, then the variables with the largest variances will tend to dominate the first few principal components.  
+
+So often it is more straightforward to standardise the variables prior to computing the covariance matrix - i.e., to use the correlation matrix!  
+
+We need to be careful though as to whether the differences in variability of the individual variables is actually something we want to *preserve*. If I have 5 Likert questions scored 1-9, and for 1 question people used the entire range, but for the other four questions they just used the middle of the scale (all responding 4,5,6), then by using the correlation matrix we _lose_ that information because we are standardising the questions before doing the PCA.  
+
+In our example of the physical functioning data, variables are measured on _very_ different scales (some are in 10s of seconds, some are in the 100s of meters!). In this instance, we don't want this aspect of measurement to influence things - we don't want to give more weight to variables like `mobility` and `respiratory` just because they were measured on a  bigger scale, and less weight to `coordination` for which there is very low numerical range. 
+
+:::
+
+# PCA output
+We can print the output by just typing the name of our PCA: 
+
+```{r}
+physPCA
+```
+
+The output is made up of two parts.
+
+First, it shows the *loading matrix*. In each column of the loading matrix we find how much each of the measured variables contributes to the computed new axis/direction. These are the correlations between each variable and each "component" (each of our new dimensions). Notice that there are as many principal components as variables because that's what we asked for!  
+
+The second part of the output displays the contribution of each component to the total variance: 
+
+- **SS loadings:** The sum of the squared loadings (the eigenvalues). These represent the amount of variance explained by each component, out of the total variance (which is 8, because we have 8 variables.^[The variables are all standardised, meaning they each have a variance of 1. $8 \times 1 = 8$ so we can think of the total variance as 8!])  
+- **Proportion Var:** The proportion the overall variance the component accounts for out of all the variables. 
+- **Cumulative Var:** The cumulative sum of Proportion Var.
+- **Proportion Explained:** relative amount of variance explained ($\frac{\text{Proportion Var}}{\text{sum(Proportion Var)}}$.
+- **Cumulative Proportion:** cumulative sum of Proportion Explained.
+
+Let's focus on the row of that output called "Cumulative Var". This displays the cumulative sum of the variances of each principal component. Taken all together, the 8 principal components taken explain **all** of the total variance in the original data. In other words, the total variance of the principal components (the sum of their variances) is equal to the total variance in the original data (the sum of the variances of the variables). This makes sense - we have simply gone from having 8 correlated variables to having 8 orthogonal (unrelated) components - we haven't lost any variance.  
+
+However, our goal is to reduce the dimensionality of our data, so it comes natural to wonder which of the principal components explain most of the variability, and which components instead do not contribute substantially to the total variance.
+
+To that end, the second row "Proportion Var" displays the proportion of the total variance explained by each component, i.e. the variance of the principal component divided by the total variance.
+
+The last row, as we saw, is the cumulative proportion of explained variance: `0.56`, `0.56 + 0.23`, `0.56 + 0.23 + 0.1`, and so on.
+
+We also notice that the first PC alone explains 56% of the total variability, while the first 2 components together explain almost 80% of the total variability. From the third component onwards, we do not see such a big increase in the proportion of explained variance, and the cumulative proportion slowly reaches the total ratio of 1 (or 100%).  
+
+
+# How many components to keep?
+
+There is no single best method to select the optimal number of components to keep, while discarding the remaining ones (which are then considered as noise components).
+
+The following heuristic rules are commonly used in the literature:
+
+- The cumulative proportion of explained variance criterion
+- Kaiser's rule
+- The scree plot
+- Velicer's Minimum Average Partial method
+- Parallel analysis
+
+
+::: {.callout-note collapse="true"}
+#### The cumulative proportion of explained variance criterion
+
+The rule suggests to *keep as many principal components as needed in order to explain approximately 80-90% of the total variance.*
+
+```{r}
+physPCA$Vaccounted
+```
+
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Kaiser's rule
+  
+According to Kaiser's rule, we should **keep the principal components having variance larger than 1**. Standardized variables have a variance equal 1. If we have 8 variables in the data set, and the total variance is 8, the value 1 represents the average variance in the data:
+$$
+\frac{1 + 1 + 1 + 1 + 1 + 1 + 1 + 1}{8} = 1
+$$
+
+:::
+
+
+
+::: {.callout-note collapse="true"}
+#### The scree plot
+
+The scree plot is a graphical criterion which involves plotting the variance for each principal component.
+This can be easily done by using the `scree()` function from the __psych__ package, and giving it the correlation matrix.  
+It will default to also showing "factors" (FA) as well as components (PC). For PCA, we're just going to attend to the PC line. The function also draws a horizontal line at y = 1. So, if you are making a decision about how many PCs to keep by looking at where the plot falls below the y = 1 line, you are basically following Kaiser's rule. In fact, Kaiser's criterion tells you to keep as many PCs as are those with a variance (= eigenvalue) greater than 1.
+
+```{r}
+cor(physfunc) |>
+  scree()
+```
+
+A typical scree plot features higher variances for the initial components and quickly drops to small variances where the line is almost flat. The flat part represents the noise components, which are not able to capture the main sources of variability in the system. 
+
+According to the scree plot criterion, we should **keep as many principal components as where the "elbow" in the plot occurs.** By elbow we mean the point where the line flattens out.  
+
+__NOTE: Scree plots are subjective and may have multiple or no obvious kinks/elbows, making them hard to interpret__  
+
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Velicer’s Minimum Average Partial (MAP) method
+
+The Minimum Average Partial (MAP) test computes the partial correlation matrix (removing and adjusting for a component from the correlation matrix), sequentially partialling out each component. At each step, the partial correlations are squared and their average is computed.  
+At first, the components which are removed will be those that are most representative of the shared variance between 2+ variables, meaning that the "average squared partial correlation" will decrease. At some point in the process, the components being removed will begin represent variance that is specific to individual variables, meaning that the average squared partial correlation will increase.  
+The MAP method is to keep the number of components for which the average squared partial correlation is at the minimum. 
+
+We can conduct MAP in R using the code below. (be aware there is a lot of other information in this output too! For now just focus on the map column)
+
+```{r}
+VSS(physfunc, plot = FALSE, method="pc", n = ncol(physfunc))
+```
+
+__NOTE: The MAP method will sometimes tend to under-extract (suggest too few components)__  
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Parallel analysis
+
+Parallel analysis involves simulating lots of datasets of the same dimension but in which the variables are uncorrelated. For each of these simulations, a PCA is conducted on its correlation matrix, and the eigenvalues are extracted. We can then compare our eigenvalues from the PCA on our *actual* data to the average eigenvalues across these simulations. 
+In theory, for uncorrelated variables, no components should explain more variance than any others, and eigenvalues should be equal to 1. In reality, variables are rarely truly uncorrelated, and so there will be slight variation in the magnitude of eigenvalues simply due to chance. 
+The parallel analysis method suggests keeping those components for which the eigenvalues are greater than those from the simulations. 
+
+It can be conducted in R using:
+```{r}
+fa.parallel(physfunc, fa="pc", n.iter = 500)
+```
+
+__NOTE: Parallel analysis will sometimes tend to over-extract (suggest too many components)__  
+
+:::
+
+
+# Retaining $P$ Components  
+
+Based on the set of criteria, we then make a decision on how many components we will keep.  
+
+Sometimes, there may also be pragmatic reasons for keeping a certain number (e.g. if you want specifically 1 dimension, you may be willing to accept a lower proportion of explained variance).  
+
+It's a common thing to see disagreement between the methods to determine how many components we keep, and ultimately this is a decision that we as researchers have to make and explain.
+
+
+For the Physical Functioning data we've got here, we have some different suggestions:  
+
+| method                    | recommendation                  | note |
+| ------------------------- | ------------------------------- | ---- |
+| explaining >80\% variance | keep 3 components               |    |
+| kaiser's rule             | keep 2 components               |    | 
+| scree plot                | keep 1/2/3 components | subjective   |
+| MAP                       | keep 1 component |  tends to underextract   |
+| parallel analysis         | keep 2 components | tends to overextract  |
+
+
+In part we should also remember what our ultimate aim is in doing PCA. It might be that I literally do want just one single measure of physical functioning - not 2, or 3, or 8. If that's the case, then that can factor in to this decision making too, and give me extra reason to keep just 1 component.  
+
+The five selection criteria above suggest to me either retaining 1 or 2 components. Given my reading of the scree plot, I'm going to keep 2. But it's important to note that this while solution explains a reasonable proportion of the variance (79%), we are ultimately losing 21% of the variability in our measurements. If we're not happy with that, then we should keep more components.   
+
+We've made our decision, let's now do our PCA and retain just the 2 components: 
+```{r}
+physPCA2 <- principal(physfunc, nfactors = 2, 
+                      rotate = "none")
+```
+
+
+# Examining loadings  
+
+Let's have a look at the selected principal components:
+```{r}
+physPCA2$loadings
+```
+
+As we know, our two components account for 79% of the total variability. The loadings for the first component are fairly similar for all variables except `endurance` and     `respiratory` function. Conversely for the second component those two are the only variables with high loadings.  
+
+What we can start to think about is that these two components are essentially getting at two distinct aspects of "physical functioning". The first component captures variability in all the variables that are loosely about "motor control" (i.e. how precise/strong/adaptable your muscle movements are). By contrast, the second component captures variability in two variables related to cardiovascular health (endurance and respiratory functioning).  
+
+So someone who does lots of yoga and climbing might score high on the first component but low on the second, whereas someone who does a lot of running might be the opposite.   
+::: {.callout-caution collapse="true"}
+#### Optional: How well are the units represented in the reduced space?  
+
+We now focus our attention on the following question: Are all the observations well represented in the 2D plot?
+
+The 2D representation of the original data, which comprise 8 measured variables, is an approximation and henceforth it may happen that not all units are well represented in this new space.
+
+Typically, it is good to assess the approximation for each statistical unit by inspecting the scores on the discarded principal components.
+If a unit has a high score on those components, then this is a sign that the unit might be highly misplaced in the new space and misrepresented.
+
+Consider the 3D example below. There are three cases (= units or individuals). In the original space they are all very different from each other. For example, cases 1 and 2 are very different in their x and y values, but very similar in their z value. Cases 2 and 3 are very similar in their x and y values but very different in their z value. Cases 1 and 3 have very different values for all three variables x, y, and z.
+
+However, when represented in the 2D space given by the two principal components, units 2 and 3 seems like they are very similar when, in fact, they were very different in the original space which also accounted for the z variable.
+
+```{r}
+#| echo: false
+#| out-width: "\\textwidth"
+#| include: true
+#| fig-align: 'center'
+knitr::include_graphics('images/pcaefa/pca_bad_representation.png')
+```
+
+We typically measure how badly a unit is represented in the new coordinate system by considering the **sum of squared scores on the discarded principal components:**
+
+```{r}
+scores_discarded <- physPCA$scores[, -(1:2)]
+sum_sq <- rowSums(scores_discarded^2)
+```
+
+Units with a high score should be considered for further inspection as it may happen that they are represented as close to another unit when, in fact, they might be very different.
+
+```{r}
+boxplot(sum_sq)
+```
+
+:::
+
+
+# PCA scores
+
+Now that we have decided to reduce our eight variables down to two principal components, we can, for each of our observations, get their _scores_ on each of our components.  
+
+```{r}
+head(physPCA2$scores)
+```
+
+PCA scores are essentially weighted combinations of an individuals responses to the items.  
+$$
+\text{score}_{\text{component j}} = w_{1j}x_1 + w_{2j}x_2 + w_{3j}x_3 +\, ... \, + w_{pj}x_p
+$$
+Where $w$ are the weights, $x$ the variable scores. 
+
+::: {.callout-caution collapse="true"}
+#### Optional: How are weights calculated?  
+
+The weights are calculated from the eigenvectors as 
+$$
+w_{ij} = \frac{a_{ij}}{\sqrt(\lambda_j)}
+$$
+where $w_{ij}$ is the weight for a given variable $i$ on component $j$ , $a_{ij}$ is the value from the eigenvector for item $i$ on component $j$ and $\lambda_{j}$ is the eigenvalue for that component.
+
+:::
+
+The correlations between the scores and the measured variables are what we saw in the "loadings" bit of the output:
+
+```{r}
+# First PC
+cor(physPCA2$scores[,1], physfunc)
+```
+
+We can also visualise our observations (the people in our dataset) in the reduced space given by the retained principal component scores.
+
+```{r}
+#| fig-width: 5
+#| fig-align: 'center'
+tibble(pc1 = physPCA2$scores[, 1],
+      pc2 = physPCA2$scores[, 2]) %>%
+ggplot(.,aes(x=pc1,y=pc2))+
+geom_point()
+```
+
+Now that we've got those scores, we can go and _use_ them in some further analysis! 
+
+<div class="divider div-transparent div-dot"></div>
+
+# A visual intuition for PCA
+
+```{r include=FALSE}
+library(rgl)
+library(psych)
+set.seed(33)
+S = runif(3,.4,2)
+f = runif(3,.7,.99)
+R = f %*% t(f)
+diag(R) = 1
+R[1,3] <- R[2,3] <- R[3,1] <- R[3,2] <- .1
+Sigma = diag(S)%*%R%*%diag(S)
+Mean <- rep(0,3)
+x <- MASS::mvrnorm(500, Mean, Sigma)
+
+```
+
+Imagine we had 3 measured variables: y1, y2, and y3, as visualised in 3-dimensional space in @fig-scat  
+
+```{r}
+#| echo: false
+#| label: fig-scat
+#| fig-cap: "3 measured variables"
+plot3d(x, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+rglwidget()
+```
+
+The cloud of datapoints in @fig-scat has a shape - it is longer in one direction (sort of diagonally across y1 and y2), slightly shorter in another (across y3), and then quite narrow in another. You can imagine trying to characterise this shape as the ellipse in @fig-ellip
+
+
+```{r}
+#| echo: false
+#| label: fig-ellip
+#| fig-cap: "An ellipsis capturing the cloud of datapoints"
+plot3d(x, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d(ellipse3d(Sigma, centre = Mean), col = "#A41AE4", alpha = 0.4, add = TRUE)
+rglwidget()
+```
+
+When faced with trying to characterise the shape of a 3-dimensional object, we might normally think about its length, width and depth. Imagine being given a ruler and being asked to give two numbers to provide a measurement of your smartphone. What do you pick? Chances are, you will measure its length and then its width. You're likely to ignore the depth because it is much less than the other two dimensions. This is what PCA is doing. 
+If we take three perpendicular dimensions, we can see that the shape in @fig-ellip is longer in one dimension, then slightly shorter in another, and very short in another. These dimensions (seen in @fig-pca3) are our principal components!  Our scree plot (indicating the amount of variance captured by each component) would look like @fig-scree - we can see that each dimension captures less and less of the variance.  
+
+```{r}
+#| label: fig-scree
+#| fig-cap: "Scree plot for PCA of 3 uncorrelated variables"
+#| column: margin
+#| echo: false
+scree(x,factor=FALSE)
+```
+
+```{r}
+#| echo: false
+#| label: fig-pca3
+#| fig-cap: "Principal components are the axes"
+plot3d(x, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d(ellipse3d(Sigma, centre = Mean), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,2]),
+             col="red",lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,3]),
+           col="blue", lwd=2, add=TRUE)
+rglwidget()
+
+```
+
+Our principal components capture sequentially the largest dimensions of the shape, which reflect where the most variance is. If there was no correlation between any of our observed variables (i.e. they're all unrelated), then we would have a shape that was basically a sphere, and the no single dimension would capture much more variance than any other. This would look something like @fig-pcano. Our scree plot would look like @fig-scree2 - we can see that each component captures a similar amount. 
+
+```{r}
+#| label: fig-scree2
+#| fig-cap: "Scree plot for PCA of 3 uncorrelated variables"
+#| column: margin
+#| echo: false
+set.seed(33)
+S = runif(3,.4,2)
+f = runif(3,0,.1)
+R = f %*% t(f)
+diag(R) = 1
+Sigma2 = diag(S)%*%R%*%diag(S)
+Mean2 <- rep(0,3)
+x2 <- MASS::mvrnorm(500, Mean2, Sigma2)
+scree(x2,factor=FALSE)
+```
+```{r}
+#| echo: false
+#| label: fig-pcano
+#| fig-cap: "Principal components for 3 uncorrelated variables"
+plot3d(x2, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d( ellipse3d(Sigma2, centre = Mean2), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x2,nfactors=3,rotate="none")$loadings[,1]),
+           col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x2,nfactors=3,rotate="none")$loadings[,2]),
+           col="red",lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x2,nfactors=3,rotate="none")$loadings[,3]),
+           col="blue", lwd=2, add=TRUE)
+rglwidget()
+```
+
+
+The "loadings" we get out of a PCA reflect the amount to which each variable changes across the component. Try rotating the plots in @fig-pca1 and @fig-pca2, which show the first principal component and second principal component respectively. 
+You will see that the first component (the black line) is much more closely linked to changes in y1 and y2 than it is to changes in y3. The second component is the opposite. This reflected in the relative weight of the loadings below! 
+```{r}
+#| echo: false
+xx = as.data.frame(x)
+names(x)<-c("y1","y2","y3")
+principal(xx,nfactors=3,rotate="none")$loadings
+```
+
+
+
+```{r}
+#| echo: false
+#| label: fig-pca1
+#| fig-cap: "The first principal component"
+plot3d(x, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d(ellipse3d(Sigma, centre = Mean), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+rglwidget()
+```
+
+```{r}
+#| echo: false
+#| label: fig-pca2
+#| fig-cap: "The second principal component"
+plot3d(x, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d(ellipse3d(Sigma, centre = Mean), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,2]),
+  col="green", lwd=2, add=TRUE)
+rglwidget()
+```
+
+
