@@ -1,0 +1,406 @@
+---
+title: "W8 Exercises: PCA"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+:::lo
+**Relevant packages**
+
++ psych
+
+::: 
+
+
+
+
+# Exercises: Police Performance
+
+```{r}
+#| include: false
+#| eval: false
+job <- read_csv('../../data/job_performance.csv')
+library(psych)
+job_pca <- principal(job, nfactors = ncol(job), covar = TRUE, rotate = 'none')
+set.seed(993)
+job$arrest_rate <- round(job_pca$scores[,1:2] %*% c(1, .1) + rnorm(nrow(job),0,6))
+job$arrest_rate <- job$arrest_rate[,1]+16
+job$arrest_rate <- job$arrest_rate / (max(job$arrest_rate)+2)
+# m <- lm(nr_arrests ~ ., job)
+# car::vif(m)
+# m <- lm(job$nr_arrests ~ job_pca$scores[,1:2])
+# write_csv(job, "../../data/police_performance.csv")
+```
+
+
+:::frame
+__Data: police_performance.csv__  
+
+The dataset available at [https://uoepsy.github.io/data/police_performance.csv](https://uoepsy.github.io/data/police_performance.csv) contains records on fifty police officers who were rated in six different categories as part of an HR procedure. The rated skills were:
+
+- communication skills: `commun`
+- problem solving: `probl_solv`
+- logical ability: `logical`
+- learning ability: `learn`
+- physical ability: `physical`
+- appearance: `appearance`
+
+The data also contains information on each police officer's arrest rate (proportion of arrests that lead to criminal charges). 
+
+We are interested in if the skills ratings by HR are a good set of predictors of police officer success (as indicated by their arrest rate).  
+
+:::
+
+`r qbegin(qcounter())`
+Load the job performance data into R and call it `job`. 
+Check whether or not the data were read correctly into R - do the dimensions correspond to the description of the data above?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's load the data:
+
+```{r}
+#| message: false
+library(tidyverse)
+
+job <- read_csv('https://uoepsy.github.io/data/police_performance.csv')
+dim(job)
+```
+There are 50 observations on 6 variables.
+
+The top 6 rows in the data are:
+```{r}
+head(job)
+```
+`r solend()`
+
+`r qbegin(qcounter())`
+Provide descriptive statistics for each variable in the dataset.
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+We now inspect some descriptive statistics for each variable in the dataset:
+```{r}
+# Quick summary
+summary(job)
+```
+
+__OPTIONAL__
+
+If you wish to create a nice looking table for a report, you could try the following code. 
+However, I should warn you: this code is quite difficult to understand - have a go at running sections at a time - slowly adding each function in the pipe to see how it changes. 
+
+```{r}
+library(gt)
+
+# Mean and SD of each variable
+job |>
+  summarise(across(everything(), list(M = mean, SD = sd))) |>
+  pivot_longer(everything()) |>
+  mutate(
+    value = round(value, 2),
+    name = str_replace(name, '_M', '.M'),
+    name = str_replace(name, '_SD', '.SD')
+  ) |>
+  separate(name, into = c('variable', 'summary'), sep = '\\.') |>
+  pivot_wider(names_from = summary, values_from = value) |>
+  gt()
+```
+`r solend()`
+
+`r qbegin(qcounter())`
+Working with _only_ the skills ratings (not the arrest rate - we'll come back to that right at the end), investigate whether or not the variables are highly correlated and explain whether or not you PCA might be useful in this case.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We only have 6 variables here, but if we had many, how might you visualise `cor(job)`?
+Try the below:  
+```{r}
+#| eval: false
+library(pheatmap)
+pheatmap(cor(data))
+```
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's start by looking at the correlation matrix of the data:
+```{r}
+#| label: fig-jobcor
+#| fig-align: 'center'
+#| fig-height: 4
+#| fig-width: 5
+#| fig.cap: "Correlation between the variables in the ``Job'' dataset"
+library(pheatmap)
+
+job_skills <- job |> select(-arrest_rate)
+
+R <- cor(job_skills)
+
+pheatmap(R, breaks = seq(-1, 1, length.out = 100))
+```
+
+The correlation between the variables seems to be quite large (it doesn't matter about direction here, only magnitude; if negative correlations were present, we would think in absolute value).
+
+There appears to be a group of highly correlated variables comprising physical ability, appearance, communication skills, and learning ability which are correlated among themselves but uncorrelated with another group of variables.
+The second group comprises problem solving and logical ability.
+
+This suggests that PCA might be useful in this problem to reduce the dimensionality without a significant loss of information.
+`r solend()`
+
+`r qbegin(qcounter())`
+Look at the variance of the skills ratings in the data set. Do you think that PCA should be carried on the covariance matrix or the correlation matrix? Or does it not matter?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See [Reading 8: Performing PCA](r08_pca.html#performing-pca){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's have a look at the standard deviation of each variable:
+```{r}
+job_skills |> 
+  summarise(across(everything(), sd))
+```
+
+As the standard deviations appear to be fairly similar (and so will the variances) we can perform PCA using the covariance matrix if we want and it probably won't differ too much from the correlation matrix.  
+`r solend()`
+
+`r qbegin(qcounter())`
+Using the `principal()` function from the **psych** package, we conduct a PCA of the job skills.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+[Reading 8: Performing PCA](r08_pca.html#performing-pca){target="_blank"} shows an example of how to use the `principal()` function.  
+:::
+
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+```{r}
+library(psych)
+
+job_pca <- principal(job_skills, nfactors = ncol(job_skills), 
+                     rotate = 'none')
+```
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Looking at the PCA output, how many principal components would you keep if you were following the cumulative proportion of explained variance criterion?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints  
+
+See [Reading 8: How many components to keep?](r08_pca.html#how-many-components-to-keep){target="_blank"} for an explanation of various criteria for deciding how many components we should keep.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Let's look again at the PCA summary:
+
+```{r}
+job_pca$loadings
+```
+
+The following part of the output tells us that the first two components explain 88.3% of the total variance.
+```
+Cumulative Var 0.673 0.883 0.988 0.994 0.997 1.000
+```
+
+According to this criterion, we should keep 2 principal components.
+`r solend()`
+
+`r qbegin(qcounter())`
+Looking again at the PCA output, how many principal components would you keep if you were following Kaiser's criterion?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+job_pca$loadings
+```
+
+The eigenvalues are shown in the row
+```
+SS loadings    4.035 1.261 0.631 0.035 0.022 0.016
+```
+
+From the result we see that only the first two principal components have eigenvalues greater than 1, so this rule suggests to keep 2 PCs only.
+`r solend()`
+
+`r qbegin(qcounter())`
+According to a scree plot, how many principal components would you retain?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+scree(cor(job_skills))
+```
+
+This criterion could suggest 1, or maybe 3?  
+`r solend()`
+
+`r qbegin(qcounter())`
+How many components should we keep according to the MAP method?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+VSS(job_skills, plot=FALSE, method="pc", n = ncol(job_skills))
+```
+
+According to the MAP criterion we should keep 2 principal components.
+`r solend()`
+
+`r qbegin(qcounter())`
+How many components should we keep according to parallel analysis?
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+fa.parallel(job_skills, fa="pc", n.iter = 500)
+```
+
+Parallel analysis suggests to keep 1 principal component only as there is only one PC with an eigenvalue higher than the simulated random ones in red.
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Based on all of the criteria above, make a decision on how many components you will keep.  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+| method                    | recommendation                  | 
+| ------------------------- | ------------------------------- |
+| explaining >80\% variance | keep 2 components               |
+| kaiser's rule             | keep 2 components               |
+| scree plot                | keep 1 or 3 components? (subjective) |
+| MAP                       | keep 2 components               |
+| parallel analysis         | keep 1 component                |
+
+
+Because three out of the five selection criteria above suggest to keep 2 principal components, here we will keep 2 components. This solution explains a reasonable proportion of the variance (88%), but it would be perfectly defensible to instead go for 3, explaining 98%
+
+`r solend()`
+
+`r qbegin(qcounter())`
+perform PCA to extract the desired number of components
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+job_pca2 <- principal(job_skills, nfactors = 2, 
+                     rotate = 'none')
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Examine the loadings of the 2 Principal Components. Is there a link you can see?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See [Reading 8 #Examining Loadings](r08_pca.html#examining-loadings){target="_blank"} for an explanation of the loadings. 
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+job_pca2$loadings
+```
+
+All loadings for the first PC seem to have a similar magnitude apart from `probl_solv` and `logical` which are closer to zero.
+The first component looks like a sort of average of the officers performance scores excluding problem solving and logical ability.
+
+The second principal component, which explains only 21% of the total variance, has two loadings clearly distant from zero: the ones associated to problem solving and logical ability.
+It distinguishes police officers with strong logical and problem solving skills and low scores on other skills (note the negative magnitudes).  
+
+:::rtip
+For interpretation purposes, it might help hiding very small loadings. This can be done by specifying the cutoff value in the `print()` function. However, this only works when you pass the loadings for **all** the PCs:
+```{r}
+print(job_pca2$loadings, cutoff = 0.3)
+```
+
+:::
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Join the principal component scores for your retained components to the original dataset which has the arrest rates in.  
+
+Then fit a linear model to look at how the arrest rate of police officers is predicted by the two components representing different composites of the skills ratings by HR.   
+
+Check for multicollinearity between your predictors. How does this compare to a model which uses all 6 of the original variables instead?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We can get out scores using `mypca$scores`.  We can add them to an existing dataset by just adding them as a new column: 
+
+```{r}
+#| eval: false
+data |>
+  mutate(
+    score1 = mypca$scores[,1]
+  )
+```
+
+To examine multicollinearity - try `vif()` from the __car__ package.  
+
+
+
+:::
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+# add the PCA scores to the dataset
+job <- 
+  job |> mutate(
+    pc1 = job_pca2$scores[,1],
+    pc2 = job_pca2$scores[,2]
+  )
+# use the scores in an analysis
+mod <- lm(arrest_rate ~ pc1 + pc2, data = job)
+
+# multicollinearity isn't a problem, because the components are orthogonal!! 
+library(car)
+vif(mod)
+
+lm(arrest_rate ~ commun+probl_solv+logical+learn+physical+appearance, 
+   data = job) |>
+  vif()
+
+```
+`r solend()`
+
