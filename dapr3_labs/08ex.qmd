@@ -154,7 +154,7 @@ Let's start by looking at the correlation matrix of the data:
 #| fig.cap: "Correlation between the variables in the ``Job'' dataset"
 library(pheatmap)
 
-job_skills <- job %>% select(-arrest_rate)
+job_skills <- job |> select(-arrest_rate)
 
 R <- cor(job_skills)
 
@@ -183,7 +183,7 @@ See [Reading 8: Performing PCA](r08_pca.html#performing-pca){target="_blank"}.
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 Let's have a look at the standard deviation of each variable:
 ```{r}
-job_skills %>% 
+job_skills |> 
   summarise(across(everything(), sd))
 ```
 
@@ -319,13 +319,41 @@ job_pca2 <- principal(job_skills, nfactors = 2,
 
 
 `r qbegin(qcounter())`
-TODO loadings
+Examine the loadings of the 2 Principal Components. Is there a link you can see?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See [Reading 8 #Examining Loadings](r08_pca.html#examining-loadings){target="_blank"} for an explanation of the loadings. 
+
+:::
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+```{r}
+job_pca2$loadings
+```
+
+All loadings for the first PC seem to have a similar magnitude apart from `probl_solv` and `logical` which are closer to zero.
+The first component looks like a sort of average of the officers performance scores excluding problem solving and logical ability.
+
+The second principal component, which explains only 21% of the total variance, has two loadings clearly distant from zero: the ones associated to problem solving and logical ability.
+It distinguishes police officers with strong logical and problem solving skills and low scores on other skills (note the negative magnitudes).  
+
+:::rtip
+For interpretation purposes, it might help hiding very small loadings. This can be done by specifying the cutoff value in the `print()` function. However, this only works when you pass the loadings for **all** the PCs:
+```{r}
+print(job_pca2$loadings, cutoff = 0.3)
+```
+
+:::
+
+
 `r solend()`
 
-`r qbegin(12)`
+`r qbegin(qcounter())`
 Join the principal component scores for your retained components to the original dataset which has the arrest rates in.  
 
 Then fit a linear model to look at how the arrest rate of police officers is predicted by the two components representing different composites of the skills ratings by HR.   
@@ -358,7 +386,7 @@ To examine multicollinearity - try `vif()` from the __car__ package.
 ```{r}
 # add the PCA scores to the dataset
 job <- 
-  job %>% mutate(
+  job |> mutate(
     pc1 = job_pca2$scores[,1],
     pc2 = job_pca2$scores[,2]
   )
