@@ -1,0 +1,85 @@
+---
+title: "08 - Principal Componenets Analysis - Live R"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+# 08 - Principal components anaylsis
+
+Today we are going to conduct a principal components analysis and examine the scores.
+
+First let's load in the data:
+
+```{r}
+library(tidyverse)
+library(psych)
+
+data <- data("bfi")
+
+head(data)
+```
+
+Let's estimate the correlation matrix:
+
+```{r}
+cormat <- cor(data, use = "complete.obs")
+
+print(cormat)
+```
+
+We can conduct an eigendecomposition eigen `eigen()`:
+
+```{r}
+ed <- eigen(cormat)
+
+ed$values
+ed$vectors
+
+# Calculate the total variance
+sum(ed$values)
+
+# Calculate the proportion
+(ed$values/sum(ed$values)*100)
+```
+
+## Principal components analysis
+
+### Calculating the number of components
+
+Let's create a scree plot to calculate the number of components:
+
+```{r}
+plot(ed$values, type = 'b', pch = 16, main = "Scree plot",
+     # Deliberate error
+     xlb = "Component", ylab = "Eigenvalues")
+
+vss(data)
+
+fa.parallel(data)
+```
+
+We know there are five factors in this data set, so let's supply that structure:
+
+```{r}
+# Run it directly from the items
+
+pca_item <- principal(data, nfactors = 5, rotate = "none")
+pca_item
+
+# We can actually run it with the correlation matrix too
+
+pca <- principal(cormat, nfactors = 5, rotate = "none")
+pca
+```
+
+Note that the SS loadings for the correlation matrix-based PCA are equivalent to the eigenvalues that came from the eigendecomposition of the correlation matrix. The item-level PCA (i.e, the one where the correlation matrix is estimated when the PCA is run, where the input is a set of items) has slightly different SS loadings. This is likely due to the way that the correlation matrix is estimated in the `pca` function.
+
+The first argument in the `pca` function is a correlation matrix, which is either supplied directly or computed. This is not a major concern, but does highlight where R results can turn out slightly differently based on settings, despite the same broad process being run - important to watch out for this! We will discuss a famous example in the EFA lecture next week.
+
+Otherwise it looks the same. The output is the same (or may be slightly different due to decimal places) but the difference is that without the items, we cannot generate component scores for each individual:
+
+```{r}
+pca_item$scores
+pca$scores
+```
