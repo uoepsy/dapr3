@@ -1,0 +1,449 @@
+---
+title: "W9 Exercises: EFA"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+
+
+# Conduct Problems  
+
+
+
+:::frame
+__Data: Conduct Problems__  
+
+A researcher is developing a new brief measure of Conduct Problems. She has collected data from n=450 adolescents on 10 items, which cover the following behaviours:  
+
+1. Breaking curfew
+1. Vandalism
+1. Skipping school
+1. Bullying
+1. Spreading malicious rumours
+1. Fighting
+1. Lying
+1. Using a weapon 
+1. Stealing
+1. Threatening others
+
+
+Our task is to use the dimension reduction techniques we learned about in the lecture to help inform how to organise the items she has developed into subscales.  
+
+The data can be found at [https://uoepsy.github.io/data/conduct_probs_scale.csv](https://uoepsy.github.io/data/conduct_probs_scale.csv){target="_blank"} 
+
+:::
+
+`r qbegin(qcounter())`
+Read in the dataset.  
+Create a correlation matrix for *the items*, and inspect the items to check their suitability for exploratory factor analysis (below are a couple of ways we can do this).  
+
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+```{r}
+cpdata <- read.csv("https://uoepsy.github.io/data/conduct_probs_scale.csv")
+# discard the first column
+cpdata <- cpdata[,-1]
+```
+
+Here's a correlation matrix. There's no obvious blocks of items here, but we can see that there are some fairly high correlations, as well as some weaker ones. All are positive.  
+```{r}
+library(ggcorrplot)
+ggcorrplot(cor(cpdata))
+```
+
+The Bartlett's test comes out with a p-value of 0 (which isn't possible, but it's been rounded for some reason). This suggests that we reject the null of this test (that our correlation matrix is proportional to the identity matrix). This is good. It basically means "we have some non-zero correlations"!  
+```{r}
+library(psych)
+cortest.bartlett(cor(cpdata), n=450)
+```
+
+The overall sampling adequacy is 0.87, which is pretty good! (or rather, which is 'meritorious'!).  MSA for all items is >.8
+```{r}
+KMO(cpdata)  
+```
+
+Finally, all the relationships here look fairly linear:
+```{r}
+pairs.panels(cpdata)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+How many dimensions should be retained?  
+
+This question can be answered in the same way as we did for PCA - use a scree plot, parallel analysis, and MAP test to guide you.   
+
+`r qend()` 
+
+`r solbegin(label="Scree", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The scree plot shows a kink at 3, which suggests retaining 2 components. 
+```{r}
+scree(cpdata)
+```
+
+`r solend()`
+`r solbegin(label="MAP", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The MAP suggests retaining 2 factors. I'm just extracting the actual `map` values here to save having to show all the other output. We can see that the 2nd entry is the smallest: 
+```{r}
+VSS(cpdata, plot = FALSE, n = ncol(cpdata))$map
+```
+
+
+`r solend()`
+`r solbegin(label="Parallel Analysis", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Parallel analysis suggests 2 factors as well:
+```{r}
+fa.parallel(cpdata, fa = "both")
+```
+
+`r solend()`
+`r solbegin(label="Making a decision", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Again, a quite clear picture that 2 factors is preferred:  
+```{r}
+#| echo: false
+tibble(
+  guides = c("Scree","MAP","Parallel Analysis"),
+  suggestion = rep(2,3)
+) |> gt::gt()
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Use the function `fa()` from the **psych** package to conduct and EFA to extract 2 factors (this is what *we* suggest based on the various tests above, but *you* might feel differently - the ideal number of factors is subjective!). Use a suitable rotation (`rotate = ?`) and extraction method (`fm = ?`).  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Would you expect factors to be correlated? If so, you'll want an oblique rotation.  
+See [R9#doing-an-efa](r09_efa.html#doing-an-efa){target="_blank"}.  
+
+:::
+
+
+
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+For example, you could choose an oblimin rotation to allow factors to correlate. Let's use MLE as the estimator.  
+```{r}
+conduct_efa <- fa(cpdata, nfactors=2, rotate='oblimin', fm="ml")
+```
+`r solend()`
+
+`r qbegin(qcounter())`
+Inspect your solution. Make sure to look at and think about the loadings, the variance accounted for, and the factor correlations (if estimated).  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Just printing an `fa` object:
+```{r}
+#| eval: false
+myfa <- fa(data, ..... )
+myfa
+```
+Will give you lots and lots of information.  
+You can extract individual parts using:  
+
+- `myfa$loadings` for the loadings
+- `myfa$Vaccounted` for the variance accounted for by each factor
+- `myfa$Phi` for the factor correlation matrix
+
+You can find a quick guide to reading the `fa` output here: [efa_output.pdf](https://uoepsy.github.io/dapr3/2425/misc/efa_output.pdf){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Things look pretty good here. Each item has a clear primary loading on to one of the factors, and the complexity for all items is 1 (meaning they're clearly link to just one of the factors). The `h2` column is showing that the 2 factor solution is explaining 39%+ of the variance in each item.  Both factors are well determined, having a at least 3 salient loadings.  
+
+The 2 factors together explain 57% of the variance in the data - both factors explain a similar amount (29% for factor 1, 28% for factor 2). 
+
+We can also see that there is a moderate correlation between the two factors. Use of an oblique rotation was appropriate - if the correlation had been very weak, then it might not have differed much from if we used an orthogonal rotation.  
+
+```{r}
+#| eval: false
+conduct_efa
+```
+```{r}
+#| echo: false
+.pp(conduct_efa, l=list(1:28))
+```
+
+
+`r solend()`
+
+
+
+`r qbegin(qcounter())`
+Look back to the description of the items, and suggest a name for your factors based on the patterns of loadings.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+To sort the loadings, you can use
+```{r}
+#| eval: false
+print(myfa$loadings, sort = TRUE)
+```
+
+:::
+
+`r qend()` 
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+You can inspect the loadings using:
+```{r}
+print(conduct_efa$loadings, sort=TRUE)
+```
+We can see that, ordered like this, we have five items that have high loadings for one factor and another five items that have high loadings for the other.  
+  
+The five items for factor 1 all have in common that they are non-aggressive forms of conduct problems. The five items for factor 2 are all more aggressive behaviours. We could, therefore, label our factors: ‘non-aggressive’ and ‘aggressive’ conduct problems.
+`r solend()`
+
+`r qbegin(qcounter())`
+Compare three different solutions: 
+
+1) your current solution from the previous questions
+2) one where you fit 1 more factor
+3) one where you fit 1 fewer factors   
+
+Which one looks best?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We're looking here to assess:  
+
+- how much variance is accounted for by each solution
+- do all factors load on 3+ items at a salient level?  
+- do all items have at least one loading at a salient level?
+- are there any "Heywood cases" (communalities or standardised loadings that are >1)?
+- should we perhaps remove some of the more complex items?
+- is the factor structure (items that load on to each factor) coherent, and does it make theoretical sense?
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The 1-factor model explains 39% of the variance (as opposed to the 57% explained by the 2 factor solution), and all items load fairly high on the factor. The downside here is that we're not discerning between different types of conduct problems that we did in the 2 factor solution.  
+```{r}
+conduct_1 <- fa(cpdata, nfactors=1, fm="minres")
+conduct_1
+```
+
+The 3-factor model explains 60% of the variance (only 3% more than the 2-factor model). Notably, the third factor is not very clearly defined - it only has 1 salient loading (possibly 2 if we consider the 0.3 to be salient, but that item is primarily loaded on the 2nd factor). 
+```{r}
+conduct_3 <- fa(cpdata, nfactors=3, rotate='oblimin', fm="minres")
+conduct_3
+```
+
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Write a brief paragraph or two that summarises your method and the results from your chosen optimal factor structure for the 10 conduct problems.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Write about the process that led you to the number of factors. Discuss the patterns of loadings and provide definitions of the factors. 
+
+:::
+
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+The main principles governing the reporting of statistical results are transparency and reproducibility (i.e., someone should be able to reproduce your analysis based on your description).
+
+An example summary would be:
+
+:::int 
+
+First, the data were checked for their suitability for factor analysis. Normality was checked using visual inspection of histograms, linearity was checked through the inspection of the linear and lowess lines for the pairwise relations of the variables, and factorability was confirmed using a KMO test, which yielded an overall KMO of $.87$ with no variable KMOs $<.50$. 
+An exploratory factor analysis was conducted to inform the structure of a new conduct problems test. Inspection of a scree plot alongside parallel analysis (using principal components analysis; PA-PCA) and the MAP test were used to guide the number of factors to retain. All three methods suggested retaining two factors; however, a one-factor and three-factor solution were inspected to confirm that the two-factor solution was optimal from a substantive and practical perspective, e.g., that it neither blurred important factor distinctions nor included a minor factor that would be better combined with the other in a one-factor solution. These factor analyses were conducted using minres extraction and (for the two- and three-factor solutions) an oblimin rotation, because it was expected that the factors would correlate. Inspection of the factor loadings and correlations reinforced that the two-factor solution was optimal: both factors were well-determined, including 5 loadings $>|0.3|$ and the one-factor model blurred the distinction between different forms of conduct problems. 
+The factor loadings are provided in @tbl-loadingtab^[You should provide the table of factor loadings. It is conventional to omit factor loadings $<|0.3|$; however, be sure to ensure that you mention this in a table note.]. Based on the pattern of factor loadings, the two factors were labelled 'aggressive conduct problems' and 'non-aggressive conduct problems'. These factors had a  correlation of $r=.43$. Overall, they accounted for 57% of the variance in the items, suggesting that a two-factor solution effectively summarised the variation in the items.
+
+
+```{r}
+#| label: tbl-loadingtab
+#| echo: false
+#| tbl-cap: "Factor Loadings"
+loadings = unclass(conduct_efa$loadings)
+loadings = round(loadings, 3)
+loadings = loadings[order(loadings[,1],decreasing = T),]
+loadings[abs(loadings) < 0.3] = NA
+loadings[!is.na(loadings[,2]),] <- 
+  loadings[!is.na(loadings[,2]),][
+    order(loadings[!is.na(loadings[,2]),2],decreasing = T),
+  ]
+options(knitr.kable.NA = '')
+knitr::kable(loadings, digits = 2)
+```
+
+:::
+
+
+`r solend()`
+
+# Dimensions of Apathy
+
+:::frame
+__Dataset: radakovic_das.csv__  
+
+Apathy is lack of motivation towards goal-directed behaviours. It is pervasive in a majority of psychiatric and neurological diseases, and impacts everyday life. Traditionally, apathy has been measured as a one-dimensional construct, it may be that multiple different types of demotivation provides a better explanation.
+
+We have data on 250 people who have responded to 24 questions about apathy, that can be accessed at [https://uoepsy.github.io/data/radakovic_das.csv](https://uoepsy.github.io/data/radakovic_das.csv){target="_blank"}.  Information on the items can be seen in the table below.  
+
+::: {.callout-note collapse="true"}
+#### DAS Dictionary
+
+All items are measured on a 6-point Likert scale of Always (0), Almost Always (1), Often (2), Occasionally (3), Hardly Ever (4), and Never (5). Certain items (indicated in the table below with a `-` direction) are reverse scored to ensure that higher scores indicate greater levels of apathy. 
+
+```{r}
+#| echo: false
+qnames = c("I need a bit of encouragement to get things started","I contact my friends","I express my emotions","I think of new things to do during the day","I am concerned about how my family feel","I find myself staring in to space","Before I do something I think about how others would feel about it","I plan my days activities in advance","When I receive bad news I feel bad about it","I am unable to focus on a task until it is finished","I lack motivation","I struggle to empathise with other people","I set goals for myself","I try new things","I am unconcerned about how others feel about my behaviour","I act on things I have thought about during the day","When doing a demanding task, I have difficulty working out what I have to do","I keep myself busy","I get easily confused when doing several things at once","I become emotional easily when watching something happy or sad on TV","I find it difficult to keep my mind on things","I am spontaneous","I am easily distracted","I feel indifferent to what is going on around me")
+revitems = c(10,3,5,7,9,20,2,4,8,13,14,16,18,22)
+Exitems = c(1,6,10,11,17,19,21,23)
+Emitems = c(3,5,7,9,12,15,20,24)
+BCIitems = c(2,4,8,13,14,16,18,22)
+
+tibble(
+  item = 1:24,
+  direction = case_when(
+    item %in% revitems ~ "-",
+    TRUE ~ "+"
+  ),
+  # dimension = case_when(
+  #   item %in% Exitems ~ "Executive",
+  #   item %in% Emitems ~ "Emotional",
+  #   item %in% BCIitems ~ "Initiation"
+  # ),
+  question = qnames
+) |> gt::gt()
+```
+
+:::
+
+:::
+
+`r qbegin(qcounter())`
+Here is some code that does the following:  
+
+- reads in the data 
+- renames the variables as "q1", "q2", "q3", ... and so on
+- recodes the variables so that instead of words, the responses are coded as numbers
+
+```{r}
+rdas <- read_csv("https://uoepsy.github.io/data/radakovic_das.csv")
+
+names(rdas) <- paste0("q",1:24)
+
+rdas <- rdas |> 
+  mutate(across(q1:q24, ~case_match(.,
+    "Always" ~ 0,
+    "Almost Always" ~ 1,
+    "Often" ~ 2,
+    "Occasionally" ~ 3,
+    "Hardly Ever" ~ 4,
+    "Never" ~ 5
+  )))
+```
+
+
+What number of underlying dimensions best explain the variability in the questionnaire?  
+
+Check the suitability of the items before conducting exploratory factor analysis to address this question. Decide on an optimal factor solution and provide a theoretical name for each factor. We're not doing scale development here, so ideally we don't want to get rid of items.  
+
+Once you've tried, have a look at [this paper by Radakovic & Abrahams](https://www.pure.ed.ac.uk/ws/portalfiles/portal/25353052/abrahams_accepted_man_2_.pdf){target="_blank"} that is essentially what you've just done! (the data isn't the same, ours is fake!).  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here are all the item correlations:  
+```{r}
+library(pheatmap)
+cor(rdas, use = "complete") |> pheatmap()
+```
+everything is pretty high in the KMO factor adequacy:  
+```{r}
+KMO(rdas)
+```
+
+How many factors should we consider?  
+```{r}
+scree(rdas)
+vss(rdas, plot = FALSE)
+fa.parallel(rdas)
+```
+
+| criterion | suggestion |
+| --------- | ---------- |
+| kaiser | 2 |
+| scree plot | 3 |
+| parallel analysis | 3 |
+| MAP | 2 | 
+
+Seems like we should consider a 2 factor and a 3 factor solution. 
+I reckon any underlying dimensions of apathy are likely to be quite related to one another, so we'll use an oblique rotation.  
+```{r}
+apath2 <- fa(rdas, nfactors = 2, rotate = "oblimin", fm = "ml")
+apath3 <- fa(rdas, nfactors = 3, rotate = "oblimin", fm = "ml")
+```
+
+The three factor model explains 30% of the variance, but there are various items that seem to load across all 3 factors (q2, q15, q16), and for some of these none of them are 'salient' (i.e. above 0.3).  
+```{r}
+print(apath3$loadings, sort=TRUE)
+```
+
+The two factor solution explains 26% of the variance, and only one item (q2) is below 0.3 (and only just!). 
+```{r}
+print(apath2$loadings, sort=TRUE)
+```
+
+Hard to decide here. I think I need to know more about "apathy" to make an informed decision about the items.  
+[Radakovic & Abrahams](https://www.pure.ed.ac.uk/ws/portalfiles/portal/25353052/abrahams_accepted_man_2_.pdf){target="_blank"} end up with 3 factors: 
+
+"Executive" - this is similar to the second factor ("ML1") in our 3-factor model 
+"Emotional" - this is like the first factor ("ML2") in our 3-factor model
+"Initiation" - the third factor ("ML3") in our 3-factor model
+
+
+`r solend()`
+
