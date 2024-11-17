@@ -1,0 +1,321 @@
+---
+title: "W10 Exercises: EFA, replicability, reliability"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(psych)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+
+# More EFA
+
+
+:::frame
+__Data: petmoods.csv__  
+
+A pet food company has conducted a questionnaire on the internet ($n = 620$) to examine whether owning a pet influences low mood. They asked 16 questions on a Likert scale (1-7, detailed below) followed by a simple Yes/No question concerning whether the respondent owned a pet.  
+
+The researchers don't really know much about the theory of mood disorders, but they looked at some other questionnaires and copied the questions they saw often appearing. They think that they are likely picking up on multiple different types of "low mood", so they want do an EFA to examine this. They then want to look at group differences (pet owners vs not pet owners) in the dimensions of low mood.  
+
+The data are available at https://uoepsy.github.io/data/petmoods.csv  
+
+```{r}
+#| echo: false
+tibble(QuestionNumber = paste0("item",1:16),`Over the last 2 weeks, how much have you had/have you been...` = 
+         c("Little interest or pleasure in doing things?",
+"Feeling down, depressed, or hopeless?",
+"Trouble falling or staying asleep, or sleeping too much?",
+"Feeling tired or having little energy?",
+"Poor appetite or overeating?",
+"Feeling bad about yourself - or that you are a failure or have let yourself or your family down?",
+"Trouble concentrating on things, such as reading the newspaper or watching television?",
+"Moving or speaking so slowly that other people could have noticed? Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual?",
+"A lack of motivation to do anything at all?",
+"Feeling nervous, anxious or on edge?",
+"Not being able to stop or control worrying?",
+"Worrying too much about different things?",
+"Trouble relaxing?",
+"Being so restless that it is hard to sit still?",
+"Becoming easily annoyed or irritable?",
+"Feeling afraid as if something awful might happen?")) %>% knitr::kable() %>% kableExtra::kable_styling(full_width = T)
+
+```
+
+:::
+
+`r qbegin(qcounter())`
+Read in the data, check the suitability for conducting factor analysis, and then examine what underlying dimensions best explain the observed relationships between the 16 mood-related questions in the survey.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- It will be very handy to rename the columns to something easier to work with (see [R7-Questionnaire Data Wrangling #variable-names](r07_qdata.html#variable-names){target="_blank"}).  
+- Make sure to fit the EFA on _only_ the mood questions
+
+
+:::
+
+
+
+`r qend()`
+`r solbegin(label="1 - variable names", slabel=FALSE,show=params$SHOW, toggle=params$TOGGLE)`
+
+```{r}
+library(tidyverse)
+library(psych)
+# TODO
+petdata <- read_csv("../../data/petmoods2.csv")
+```
+
+```{r}
+names(petdata)
+```
+
+I'm going to subset out the mood data for now, to make it easier to work with:  
+```{r}
+moodq <- petdata %>% 
+    select(-ppt_id, -do_you_own_a_pet)
+```
+And then rename the variables:
+```{r}
+names(moodq) <- paste0("item", 1:ncol(moodq))
+head(moodq)
+```
+
+`r solend()`
+`r solbegin(label="2 - suitability for EFA", slabel=FALSE,show=params$SHOW, toggle=params$TOGGLE)`
+
+```{r}
+pheatmap::pheatmap(cor(moodq))
+
+cor(moodq)[lower.tri(cor(moodq))] |> hist()
+
+cut(abs(cor(moodq)[lower.tri(cor(moodq))]),c(0,.2,.5,.8,1)) |>
+  table() |>
+  barplot()
+
+KMO(moodq)
+```
+
+`r solend()`
+`r solbegin(label="3 - how many factors?", slabel=FALSE,show=params$SHOW, toggle=params$TOGGLE)`
+
+```{r}
+scree(moodq)
+VSS(moodq, plot=FALSE)$map
+fa.parallel(moodq)
+```
+
+everything points to 2!
+
+`r solend()`
+`r solbegin(label="4 - doing EFA", slabel=FALSE,show=params$SHOW, toggle=params$TOGGLE)`
+
+We would expect any different dimensions of low mood to be correlated i think:
+```{r}
+mood.fa1 <- fa(moodq, nfactors=1)
+mood.fa2 <- fa(moodq, nfactors=2, rotate="oblimin",fm="ml")
+mood.fa3 <- fa(moodq, nfactors=3, rotate="oblimin",fm="ml")
+```
+
+here i've pulled out the variance explained by each solution:  
+```{r}
+mood.fa1$Vaccounted[2,1]
+mood.fa2$Vaccounted[3,2]
+mood.fa3$Vaccounted[3,3]
+```
+
+3 factor solution only explains 2% more than the 2 factor solution.  
+the 3rd factor has no items with it as the primary loading. Pretty clear sign of over-extraction here.  
+```{r}
+mood.fa3$loadings
+```
+The 1 factor solution explains quite a bit less variance than the 2 factor solution (24% vs 39%).  
+We have a lot more items with no salient loading in the 1-factor solution, whereas the 2-factor solution every item has a loading $\geq |.3|$  
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+print(mood.fa1$loadings, cutoff=.3)
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+print(mood.fa2$loadings, cutoff=.3)
+```
+:::
+::::
+
+`r solend()`
+`r solbegin(label="5 - final solution and interpretation", slabel=FALSE,show=params$SHOW, toggle=params$TOGGLE)`
+
+
+```{r}
+mood.fa2
+```
+
+- Both factors load on 3+ items at a salient level ($\geq |.3|$). 
+- There are no Heywood cases.
+- Factors positively correlated 0.24
+- Items 8 and 14 are a bit more complex.  
+- The solution explains 38% of the variance.  
+
+Here are the wordings of items for factor 1:  
+```{r}
+names(petdata)[3:11]
+```
+
+and for factor 2:
+```{r}
+names(petdata)[12:18]
+```
+
+it kind of makes sense that these two are have higher cross-loadings - they seem to be tapping into something about restlessness:
+```{r}
+names(petdata)[c(10,16)]
+```
+
+
+`r solend()`
+
+
+## Replicability 
+
+`r qbegin(qcounter())`
+Splitting the dataset in two, calculate congruence coefficients for your factor solution.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+The most reliable way to split a dataset is actually to create a sample of rows.  
+For example, if I had 100 rows, then I can split it into two groups of 50 using:  
+```{r}
+#| eval: false
+idx <- sample(1:100, 50) # sample 50 rows
+split1 <- data[idx, ] # choose those rows
+split2 <- data[-idx, ] # exclude those rows
+```
+
+To calculate congruence coefficients, fit the same factor solution to both datasets and then use `fa.congruence()`
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+We have 620, so: 
+```{r}
+idx <- sample(1:620, 310)
+df1 <- moodq[idx,]
+df2 <- moodq[-idx,]
+
+f1 <- fa(df1, nfactors = 2, rotate = "oblimin", fm = "ml")
+f2 <- fa(df2, nfactors = 2, rotate = "oblimin", fm = "ml")
+factor.congruence(f1,f2)
+```
+`r solend()`
+
+## Reliability 
+
+`r qbegin(qcounter())`
+Calculate two measures of reliability for each factor - $alpha$ and $omega$. How do they differ?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Make sure to do this separately for each factor, because both $\alpha$ and $\omega_{total}$ assume unidimensionality  
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+alpha(moodq[,1:9])$total
+alpha(moodq[,10:16])$total
+
+library(MBESS)
+ci.reliability(moodq[,1:9])$est
+ci.reliability(moodq[,10:16])$est
+```
+
+differences in reliability here are quite small!  
+
+`r solend()`
+
+
+# Getting Scores
+
+
+`r qbegin(qcounter())`
+We're going to demonstrate how these decisions can have a bearing on your analysis.  
+
+Remember, we're interested in ultimately doing a group comparison (pet owners vs non-pet owners) in the dimension(s) of low mood.  
+
+So we're going to need numbers to give each person's standing on 'low mood' dimension(s).  
+
+For each of your factors, create two scores: first calculate a sum score from the relevant items, and then estimate a factor score using `factor.scores`
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- We're essentially asking `low mood ~ petownership`, so the dimensions of low mood are _dependent_ variables. So use the Bartlett method of estimating scores.  
+- You'll probably want to append them to the end of the original dataset where we have the variable about pet ownership.
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+petdata <- petdata |>
+  mutate(
+    w.dep=factor.scores(moodq, mood.fa2,method="Bartlett")$scores[,1],
+    w.anx=factor.scores(moodq, mood.fa2,method="Bartlett")$scores[,2],
+    dep = rowSums(moodq[,1:9]),
+    anx = rowSums(moodq[,10:16])
+  )
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Conduct a $t$-test to examine whether the pet-owners differ from non-pet-owners in their levels of each factor of low mood.  
+
+Try doing this with the sum scores, and then with the factor scores. What is different?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+t.test(dep ~ do_you_own_a_pet, data = petdata)
+t.test(w.dep ~ do_you_own_a_pet, data = petdata)
+t.test(anx ~ do_you_own_a_pet, data = petdata)
+t.test(w.anx ~ do_you_own_a_pet, data = petdata)
+```
+
+
+`r solend()`
