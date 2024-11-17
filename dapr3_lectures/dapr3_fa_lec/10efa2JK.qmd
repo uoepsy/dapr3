@@ -1,0 +1,1015 @@
+---
+title: "Factor Analysis 2"
+author: "Josiah King & John Martindale"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+```{r}
+#| include: false
+library(psych)
+set.seed(533)
+makeitems <- function(){
+  S = runif(5,.4,2)
+  f = runif(5,.4,.99)
+  R = f %*% t(f)
+  diag(R) = 1
+  items = round(MASS::mvrnorm(400, mu = rnorm(5,3,.6), Sigma=diag(S)%*%R%*%diag(S)))
+  apply(items, 2, function(x) pmin(7,pmax(1,x)))
+}
+eg_data = do.call(cbind,lapply(1:2, function(x) makeitems()))
+eg_data[,5] <- round(rowMeans(eg_data[,c(5,10)]))
+eg_data <- eg_data[,-10]
+eg_data[,1] <- max(eg_data[,1]) - eg_data[,1] + 1
+eg_data[,6] <- max(eg_data[,6]) - eg_data[,6] + 1
+eg_data <- as.data.frame(eg_data)
+names(eg_data) <- paste0("item_",1:9)
+
+# mm = fa(eg_data, nfactors=2, rotate = "oblimin", fm="ml")
+
+
+egitems = tibble(
+  variable = paste0("item",1:9),
+  wording = c("I worry that people will think I'm awkward or strange in social situations.","I often fear that others will criticize me after a social event.","I'm afraid that I will embarrass myself in front of others.","I feel self-conscious in social situations, worrying about how others perceive me.","I often avoid social situations because I’m afraid I will say something wrong or be judged.","I avoid social gatherings because I fear feeling uncomfortable.","I try to stay away from events where I don’t know many people.","I often cancel plans because I feel anxious about being around others.","I prefer to spend time alone rather than in social situations.")
+)
+```
+
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+#| echo: false
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c(
+  "what is a psychometric test?",
+  "using composite scores to simplify data (PCA)",
+  "uncovering underlying constructs (EFA)",
+  "more EFA",
+  "recap"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=9)
+```
+
+# This week {transition="slide"}
+
+- Evaluating Factor Solutions
+- Replicability & Factor Congruence
+- Back to Scoring 
+- Returning to Reliability
+- Where do we go from here?
+
+# Doing EFA - Overview {background-color="white"}
+
+1.  Check the appropriateness of the data and decide of the appropriate estimator.
+2.  Assess range of number of factors to consider.
+3.  Decide conceptually whether to apply rotation and how to do so.
+4.  **Decide on the criteria to assess and modify a solution.**
+5.  Fit the factor model(s) for each number of factors
+6.  **Evaluate the solution(s) (apply 4)**
+    - **if developing a measurement scale, consider whether to drop items and start over**
+7.  Select a final solution and interpret the model, labeling the factors.
+8.  Report your results.
+
+
+# Evaluating factor solutions
+
+## where to start
+
++ variance accounted for
+    + in total (field dependent)
+    + each factor (relative to one another)
+
++ salient loadings
+    + meaning of factors is based on size and sign of 'salient' loadings
+    + we decide what is 'salient'
+    + in most research this is $\ge |.3| or |.4|$
+
++ Each factor has $\geq 3$ salient loadings (ideally $\geq 3$ *primary* loadings)
+    + if not, may have extracted too many factors
+    
+
+## looking for trouble
+
++ Items with no salient loadings?
+    + maybe a problem item, which should be removed
+    + maybe signal presence of another factor
+
++ Items with multiple salient loadings (cross-loadings)?
+    + look at item complexity values.
+    + makes defining the factors more difficult
+
++ Heywood cases
+    + factor loadings $\geq |1|$
+    + communalities $\geq |1|$
+    + something is **wrong**; we do not trust these results  
+    + Try different rotation, estimation method, eliminate items, rethink if FA is what you actually want to do
+
+
+
+
+
+## Good list of criteria
+
+- how much variance is accounted for by a solution?
+- do all factors load on 3+ items at a salient level?  
+- do all items have at least one loading at a salient level?  
+- are there any highly complex items?  
+- are there any "Heywood cases" (communalities or standardised loadings that are >1)?  
+
+- **is the factor structure (items that load on to each factor) coherent, and does it make theoretical sense?**
+    
+
+## cautions!  
+
+**Remember**:
+If we choose to delete one or more items, we must start back at the beginning, and go back to determining how many factors to extract
+
+<br>
+
+**Very Important**: 
+If one or more factors don't make sense, then either the items are bad, the theory is bad, the analysis is bad, or all three are bad!  
+
+<br>
+
+&#128169; The "garbage in garbage out" principle always applies
+
+- PCA and factor analysis cannot turn bad data into good data
+
+
+## Last weeks example
+
+```{r}
+eg_data <- eg_data |> select(-item_5)
+```
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+fa(eg_data, nfactors=2, rotate = "oblimin", fm="ml")
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+fa(eg_data, nfactors=3, rotate = "oblimin", fm="ml")
+```
+
+:::
+::::
+
+
+# Replicability & Factor congruence
+
+## Dimension reduction in the context of research
+
+::::{.columns}
+:::{.column width="50%"}
+
+**sometimes EFA is itself the main aim **
+
+- e.g., we're trying to develop a new measure of [construct], or our research question is about structure of set of items
+
+:::
+
+:::{.column width="50%" style="opacity:.5"}
+
+other times, we want to "do something" with our factors. 
+
+:::
+::::
+
+
+
+
+## Replicability
+
+We've developed a questionnaire scale. We should probably test the stability of the factor structure when replicated
+
+Essentially: Do similar factors appear when similar data are collected?
+
++ the Big Five? (some caveats)
++ The "positive manifold" of mental abilities 
+
+## Replicability
+
+We need two samples!  
+
++ collect another sample?
++ split a big sample into two? (exploratory vs confirmatory)  
+    + Similar to "train" and "test" sets in machine learning
+
+With two samples, we can:
+  
++ Compute **congruence coefficients** between the factors
++ **Confirmatory factor analysis** where you specify what factors load on what items
+
+
+## Congruence Coefficients
+
++ Congruence coefficients are correlations between sets of factor loadings across samples.
+
+$$
+r_c = \frac{\Sigma{x_iy_i}}{\sqrt{\sum x_i^2\sum y_i^2}}
+$$
+
++ To calculate congruence:
+  + Run the factor model in sample 1.
+  + Run the factor model in sample 2
+    + Ensuring the same items are included, same number of factors specified etc.
+  + Calculate congruence (or use R!)
+
+
+## Congruence Coefficients in R
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r, warning=FALSE, message=FALSE}
+#drop missing data for ease
+bfi <- na.omit(psych::bfi) 
+
+# randomly select one half
+expl <- slice_sample(bfi, prop = .5)
+# select the non-matching cases
+conf <- anti_join(bfi, expl) 
+
+# run EFA on expl 
+res1 <- fa(expl[1:25], nfactors = 5, rotate = "oblimin", fm="ml")
+# run same analysis on conf
+res2 <- fa(conf[1:25], nfactors = 5, rotate = "oblimin", fm="ml")
+# calculate the congruence
+fa.congruence(res1, res2)
+```
+:::
+
+:::{.column width="50%" style="font-size:.8em"}
+
++ Nice properties of the Tucker coefficient:
+    + It measures similarity independent of the mean size of the loadings.
+    + It is insensitive to a change in the sign of any pair of loadings.
+
+
++ MacCallum et al. (1999) suggest the following criteria following Tucker:
+
+| coef value  | replicability |
+|--|--|
+|< 0.68 | terrible |
+| 0.68 to 0.82 | poor |
+| 0.82 to 0.92 | borderline | 
+| 0.92 to 0.98 | good |
+| 0.98 to 1.00 | excellent |
+    
+:::
+::::
+
+:::aside
+- MacCallum, R. C., Widaman, K. F., Zhang, S., & Hong, S. (1999). Sample size in factor analysis. Psychological methods, 4(1), 84.
+:::
+
+## Confirmatory factor analysis (CFA)
+
+
+::::{.columns}
+:::{.column width="50%"}
+__EFA__  
+
+*"what underlying model of latent variables best explains the relations I see in the observed variables?"*  
+
+:::
+
+:::{.column width="50%"}
+__CFA__  
+
+*"I think the relations between these observed variables are because of [specific latent variable model]. Does this model hold in my sample?"*  
+
+
+:::
+::::
+
+## Confirmatory factor analysis (CFA)
+
+
+::::{.columns}
+:::{.column width="50%"}
+__EFA__  
+
+*"what underlying model of latent variables best explains the relations I see in the observed variables?"*  
+
+- aim is to **find** a factor model
+- all factors load on all items
+- loadings are purely data driven
+- rotations push towards simple structures (maximising item loadings on to one of the factors and minimising them on to the other factors)
+
+:::
+
+:::{.column width="50%"}
+__CFA__  
+
+*"I think the relations between these observed variables are because of [specific latent variable model]. Does this model hold in my sample?"*  
+
++ aim is to **test** a hypothesised factor model
++ We explicitly state which items relate to which factor
++ We can test if the loadings are the same in different samples, groups, across time etc.
+
+:::
+::::
+
+## EFA diagram
+
+![](img_sandbox/diag_efa2.png)
+
+## CFA diagram
+
+![](img_sandbox/diag_cfa.png)
+
+# Back to Scoring
+
+## Dimension reduction in the context of research
+
+::::{.columns}
+:::{.column width="50%" style="opacity:.5"}
+
+sometimes EFA is itself the main aim
+
+- e.g., we're trying to develop a new measure of [construct], or our research question is about structure of set of items
+
+:::
+:::{.column width="50%"}
+
+**other times, we want to "do something" with our factors.** 
+
+- is [construct] related to other constructs in ways that you would predict?  
+- are there differences in [construct] between experimental conditions/over time/etc
+
+:::{.fragment}
+
+**so we need variables that represent [construct]**
+
+:::
+
+
+:::
+::::
+
+
+## Scoring
+
+```{r}
+#| echo: false
+head(eg_data |> mutate(S.ANX_cog = "??", S.ANX_beh = "??"),15L) 
+```
+
+
+## Sum scores and Mean scores
+
+- take the mean or sum of raw scores on the observed variables which are related to each factor 
+
+- deciding which are related to which factor might still require EFA 
+
+- will need to remember to reverse score items with negative loadings
+
+- `rowMeans()` and `rowSums()`
+
+## Weighted scores
+
+- take the mean/sum of raw scores on observed variables but weight them according to:  
+    - pre-defined weights from a manual if the scale is already established
+    - PCA weights
+
+## Factor scores
+
+- another type of weighted score
+
+- combines observed responses, factor loadings, and factor correlations
+
+:::{.fragment .incremental}
+
+- but factor correlations depend on rotation method used, and there are infinitely many rotations that are numerically equivalent (**rotational indeterminacy**)  
+
+- in addition, factor scores have to be *estimated* (not calculated like in PCA).  
+
+- which means we also have infinitely many sets of **factor scores**
+
+
+:::
+
+
+
+
+:::notes
+In EFA, once the initial factors are extracted, they can be rotated in multiple ways (orthogonally or obliquely) to make the factor solution more interpretable. These rotations yield different factor loadings that can fit the data equally well, but they represent the factors differently in terms of their direction and structure. Since there is no unique rotation that is "correct," this flexibility in rotation means that there is no single, unique solution for the factor loadings
+:::
+
+## Factor score estimation
+
+
+::::{.columns}
+:::{.column width="50%"}
+
++ There are lots of methods for this... 
+
+```{r}
+#| eval: false
+myfa <- fa(eg_data, nfactors=2, rotate = "oblimin", fm="ml")
+
+factor.scores(eg_data, myfa, method = "Thurstone")
+factor.scores(eg_data, myfa, method = "tenBerge")
+factor.scores(eg_data, myfa, method = "Bartlett")
+factor.scores(eg_data, myfa, method = "Anderson")
+factor.scores(eg_data, myfa, method = "Harman")
+```
+
+```{r}
+#| echo: false
+myfa <- fa(eg_data, nfactors=2, rotate = "oblimin", fm="ml")
+factor.scores(eg_data, myfa, method = "Thurstone")$scores |>
+  head(14L)
+```
+
+
+:::
+
+:::{.column width="50%"}
+
++ In many instances, all methods will produces scores which are closely related. 
+
+```{r}
+#| echo: false
+tibble(
+  mean_score = rowMeans(eg_data |> select(item_6:item_9)),
+  sum_score = rowSums(eg_data |> select(item_6:item_9)),
+  thurstone = factor.scores(eg_data, myfa, method = "Thurstone")$scores[,1],
+  tenberge = factor.scores(eg_data, myfa, method = "tenBerge")$scores[,1],
+  bartlett = factor.scores(eg_data, myfa, method = "Bartlett")$scores[,1],
+  anderson = factor.scores(eg_data, myfa, method = "Anderson")$scores[,1],
+  harman = factor.scores(eg_data, myfa, method = "Harman")$scores[,1]
+) |> pairs.panels()
+```
+
+
+:::
+::::
+
+
+
+## Factor scores - which to use? 
+
+- If the construct is going to be used as a dependent variable, use Bartlett
+
+- If the construct is going to be used as a predictor, use Thurstone
+
+- If the construct is a covariate, less important
+
+:::aside
+- Skrondal, A., & Laake, P. (2001). Regression among factor scores. Psychometrika, 66, 563-575.
+:::
+
+
+# Returning to Reliability
+
+
+## Why care?
+
+```{r}
+#| echo: false
+head(eg_data |> mutate(S.ANX_cog = "??", S.ANX_beh = "??"),5L) 
+```
+
+- measurement is the assignment of numerals to objects and events according to rules (Stevens, 1946, p. 677).
+
+- when we assign numbers for a underlying construct, we assume those numbers are accurate representations of people's true score on the construct.  
+
+- using weights, factor scores etc allow us to get better representations of the construct
+    - e.g, downweights contributions for those items that are estimated to have high measurement error  
+
+**It's always important to understand how (un)reliable our scores are**  
+
+:::aside
+- Stevens, S. S. (1946). On the theory of scales of measurement. Science, 103(2684), 677-680.
+:::
+
+## Reliability 
+
+$$
+\begin{align*}
+\rho_{XX'} &= \frac{Var(T_x)}{Var(X)} = \frac{Var(T_x)}{Var(T_x) + Var(e_x)} = 1 - \frac{Var(e_x)}{Var(X)} \\
+&X\text{ is observed score on scale }X \\
+&T_x\text{ is True scores} \\
+&e_x\text{ is error}
+\end{align*}
+$$
+
+![](img_sandbox/ctt.PNG)
+
+## Reliability
+
+
+
+$$
+\begin{align*}
+\rho_{XX'} &= \frac{Var(T_x)}{Var(X)} = \frac{Var(T_x)}{Var(T_x) + Var(e_x)} = 1 - \frac{Var(e_x)}{Var(X)} \\
+&X\text{ is observed score on scale }X \\
+&T_x\text{ is True scores} \\
+&e_x\text{ is error}
+\end{align*}
+$$
+
+```{r}
+#| echo: false
+#| fig-align: center
+tibble(
+  T_x = rnorm(100),
+  `rel=1` = T_x,
+  `rel=.8` = rnorm(100, T_x, sqrt((1-.8)/.8)),
+  `rel=.5` = rnorm(100, T_x, sqrt((1-.5)/.5)),
+  `rel=.3` = rnorm(100, T_x, sqrt((1-.3)/.3))
+) |> pivot_longer(2:5) |>
+  ggplot(aes(x=T_x,y=value))+
+  geom_point()+
+  facet_grid(~name,scale="free_y")+
+  labs(x="T_x",y="X")
+```
+
+
+## Week 7
+
+Under certain assumptions (i.e., tests are truly parallel, each item measures construct to same extent) correlations between two parallel tests provide estimate of reliability
+
+Parallel tests can come from several sources  
+
+- Time tests were administered (test-retest)
+- Multiple raters (inter-rater reliability)
+- Items (alternate forms, split-half, internal consistency)
+
+:::aside
+**Optional**  correlation between two tests: $\rho_{X_1,X_2} = \frac{ Cov(X_1, X_2)}{\sqrt{ Var(X_1) \cdot Var(X_2)}}$ can be simplified to $\frac{Var(T_x)}{Var(T_x) + Var(E)}$
+
+:::
+
+
+
+<!-- ## optional - the link  -->
+
+<!-- Two tests of the same thing: -->
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- X_1 = T_x + E_1 \\ -->
+<!-- X_2 = T_x + E_2 \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
+
+<!-- correlation between two tests: -->
+<!-- $$ -->
+<!-- \rho_{X_1,X_2} = \frac{ Cov(X_1, X_2)}{\sqrt{ Var(X_1) \cdot Var(X_2)}} -->
+<!-- $$ -->
+
+<!-- ## optional - the link  -->
+
+<!-- taking just the covariance between two tests:  -->
+
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- Cov(X_1, X_2) &= Cov(T_x + E_1, T_x + E_2) \\ -->
+<!-- &=Cov(T_x,T_x) + Cov(T_x,E_2) + Cov(E_1,E_2) + Cov(E_1,T_x) \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
+
+<!-- - Because Errors are independent, $Cov(E_1,E_2)=0$ -->
+<!-- - Because Errors are uncorrelated with true score, $Cov(T_x,E_2) = 0$ and $Cov(E_1,T_x)=0$   -->
+
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- Cov(X_1, X_2) &=Cov(T_x,T_x) + 0 + 0 + 0 \\ -->
+<!-- & = Var(T_x) -->
+<!-- \end{align} -->
+<!-- $$ -->
+
+<!-- So we can take our correlation  -->
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- \rho_{X_1,X_2} &= \frac{ Cov(X_1, X_2)}{\sqrt{ Var(X_1) \cdot Var(X_2)}} \\ -->
+<!-- &=\frac{Var(T_x)}{\sqrt{ Var(X_1) \cdot Var(X_2)}} \\ -->
+<!-- &=\frac{Var(T_x)}{\sqrt{ [Var(T_x) + Var(E_1)] \cdot [Var(T_x) + Var(E_2)]}} \\ -->
+<!-- &\text{we're assuming variance of errors are equal, so } Var(E_1)=Var(E_2) \\ -->
+<!-- &=\frac{Var(T_x)}{\sqrt{ Var(T_x)^2 + Var(E)^2}} \\ -->
+<!-- &=\frac{Var(T_x)}{Var(T_x) + Var(E)} \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
+
+
+
+## Coefficient alpha ("Cronbach's alpha")
+
+
+::::{.columns}
+:::{.column width="50%"}
+$$
+\begin{align*}
+\alpha=\frac{k}{k-1}\left( \frac{\sum\limits_{i\neq}\sum\limits_j\sigma_{ij}}{\sigma^2_X}     \right) = \frac{k^2 \,\,\,\overline{\sigma_{ij}}}{\sigma^2_X} \\
+k \text{ is the number of items in scale X} \\
+\sigma^2_X \text{ is the variance of all items in scale X} \\
+\sigma_{ij} \text{ is the covariance between items }i\text{ and }j \\
+\end{align*}
+$$
+:::
+
+:::{.column width="50%" .fragment}
+<br>
+$$
+\begin{align}
+&= \frac{\text{average covariance}}{\text{total score variance}}\\
+\quad \\
+&= \frac{\text{true variance}}{\text{total score variance}} \\
+\end{align}
+$$
+
+:::
+::::
+
+
+:::aside
+Actually came from Guttman 1945.  
+Cronbach 2004: *"to make so much use of an easily calculated translation of a well-established formula scarcely justifies the fame it has brought me. It is an embarrassment to me that the formula became conventionally known as Cronbach’s $\alpha$."*
+:::
+
+
+## the underlying model being assumed
+
+
+![](img_sandbox/diag_alpha.png)
+
+- unidimensional
+- equal loadings
+
+
+
+
+
+## Coefficient alpha ("Cronbach's alpha")
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+library(psych)
+soc_anx_cog <- 
+  eg_data |> select(item_1:item_4) |>
+  mutate(
+    item_1 = 8 - item_1
+  )
+
+psych::alpha(soc_anx_cog)$total
+```
+
+
+```{r}
+cc = cov(soc_anx_cog)
+(16 * mean(cc[lower.tri(cc)]) ) / var(rowSums(soc_anx_cog))
+```
+
+
+:::
+
+:::{.column width="50%"}
+```{r}
+soc_anx_beh <- 
+  eg_data |> select(item_6:item_9) |>
+  mutate(
+    item_6 = 8 - item_6
+  )
+
+psych::alpha(soc_anx_beh)$total
+```
+:::
+::::
+
+
+## Omega
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+$$
+\begin{align*}
+\omega_{total} = \frac{ \left( \sum\limits_{i=1}^{k}\lambda_i\right)^2 }{ \left(\sum\limits_{i=1}^{k}\lambda_i \right)^2 + \sum\limits_{i=1}^{k}\theta_{ii} } \\
+k \text{ is the number of items in scale}\\
+\lambda_i \text{ is the factor loading for item }i\\
+\theta_{ii}\text{ is the error variance for item }i\\
+\end{align*}
+$$
+:::
+
+:::{.column width="50%" .fragment}
+
+<br>
+$$
+\small
+\begin{align}
+&= \frac{\text{factor loadings}^2}{\text{factor loadings}^2 + \text{error}}\\
+\quad \\
+&= \frac{\text{variance explained by factors}}{\text{variance explained by factors} + \text{error variance}}\\
+\quad \\
+&= \frac{\text{true variance}}{\text{true variance} + \text{error variance}} \\
+\end{align}
+$$
+
+:::
+::::
+
+
+
+## the underlying model
+
+![](img_sandbox/diag_omega.png)
+
+- unidimensional$^*$
+- different loadings
+
+:::aside
+$^*$(other version of omega don't assume unidimensionality)  
+:::
+
+
+## why care?
+
+```{r}
+#| echo: false
+df1 <- MASS::mvrnorm(n=100,
+              mu=c(0,0),
+              Sigma = matrix(c(1,0.8,0.8,1),nrow=2),
+              empirical=TRUE) |>
+  as.data.frame() |>
+  transmute(
+    X_1 = V1, Y_1 = V2,
+    X_0.8 = rnorm(100, X_1, sqrt((1-.8)/.8)),
+    Y_0.8 = rnorm(100, Y_1, sqrt((1-.8)/.8)),
+    X_0.5 = rnorm(100, X_1, sqrt((1-.5)/.5)),
+    Y_0.5 = rnorm(100, Y_1, sqrt((1-.5)/.5)),
+    X_0.3 = rnorm(100, X_1, sqrt((1-.3)/.3)),
+    Y_0.3 = rnorm(100, Y_1, sqrt((1-.3)/.3))
+  ) 
+#  
+# library(gganimate)
+# df1 |> mutate(id=1:n()) |>
+#   pivot_longer(-id) |>
+#   separate(name,into=c("var","rel")) |>
+#   pivot_wider(names_from=var,values_from=value) |>
+#   ggplot(aes(x=X,y=Y))+
+#   geom_point()+
+#   transition_states(rel)+
+#   labs(title="{closest_state}")+
+#   ease_aes('sine-in-out')
+
+p1 <- ggplot(df1, aes(x=X_1,y=Y_1))+
+  geom_point()+
+  labs(x="TRUE X",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,1],df1[,2]),2)))
+
+p2 <- ggplot(df1, aes(x=X_0.8,y=Y_1))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.8,y=Y_1,yend=Y_1),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.8",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) =", round(cor(df1[,3],df1[,2]),2)))
+
+p3 <- ggplot(df1, aes(x=X_0.5,y=Y_1))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.5,y=Y_1,yend=Y_1),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.5",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,5],df1[,2]),2)))
+
+p4 <- ggplot(df1, aes(x=X_0.3,y=Y_1))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.3,y=Y_1,yend=Y_1),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.3",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,7],df1[,2]),2)))
+
+```
+
+
+```{r}
+#| echo: false
+p1
+```
+
+
+## why care? 
+
+```{r}
+#| echo: false
+(p1 + p2) / (p3 + p4)
+```
+
+
+
+## why care?
+
+
+```{r}
+#| echo: false
+#  
+# library(gganimate)
+# df1 |> mutate(id=1:n()) |>
+#   pivot_longer(-id) |>
+#   separate(name,into=c("var","rel")) |>
+#   pivot_wider(names_from=var,values_from=value) |>
+#   ggplot(aes(x=X,y=Y))+
+#   geom_point()+
+#   transition_states(rel)+
+#   labs(title="{closest_state}")+
+#   ease_aes('sine-in-out')
+
+p1 <- ggplot(df1, aes(x=X_1,y=Y_1))+
+  geom_point()+
+  labs(x="TRUE X",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,1],df1[,2]),2)))
+
+p2 <- ggplot(df1, aes(x=X_0.8,y=Y_0.8))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.8,y=Y_1,yend=Y_0.8),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.8",
+       y="rel(Y) = 0.8",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,3],df1[,4]),2)))
+
+p3 <- ggplot(df1, aes(x=X_0.5,y=Y_0.5))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.5,y=Y_1,yend=Y_0.5),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.5",
+       y="rel(Y) = 0.5",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,5],df1[,6]),2)))
+
+p4 <- ggplot(df1, aes(x=X_0.3,y=Y_0.3))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.3,y=Y_1,yend=Y_0.3),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.3",
+       y="rel(Y) = 0.3",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,7],df1[,8]),2)))
+
+(p1 + p2) / (p3 + p4)
+
+```
+
+## Attenuation due to unreliability
+
+$$
+r^*_{xy} = \frac{r_{xy}}{\sqrt{ \rho^2_{0x} \rho^2_{0y}}}
+$$
+
+- $r^*_{xy}$ is the correlation between $x$ and $y$ after correcting for attenuation
+- $r_{xy}$ is the correlation before correcting for attenuation
+- $\rho^2_{0x}$ is the reliabilty of $x$
+- $\rho^2_{0y}$ is the reliabilty of $y$
+
+## Reliability
+
+<br><br><br><br>
+**Reliability is a property of the sample, not of the scale/measurement tool**   
+
+
+
+
+
+
+# Where do we go from here? 
+
+## it feels like a lot
+
+```{r}
+#| echo: false
+head(eg_data |> mutate(S.ANX_cog = "??", S.ANX_beh = "??"),6L) 
+```
+
+- all we're trying to do here is get to the numbers in these columns
+- this is all _before_ we've even got to the analysis we're actually interested in!!
+
+## Options so far
+
+![](img_sandbox/options1.png)
+
+## the devil you know
+
+- really this is all about knowing what goes in the "limitations" section of a paper  
+
+<br>
+
+- mean/sum scores are transportable across studies (e.g., think clinical cut-offs)  
+    - but equal loadings will hardly ever be a good reflection of the true measurement model
+    
+<br>
+    
+- factor scores are based on weights derived from **your sample**.  
+    - what about the next datum?  
+
+
+
+## Other things
+
+![](img_sandbox/options2.png)
+
+
+## CFA
+
+![](img_sandbox/cfasemdiag/Untitled 3.png)
+
+## Nomological Net
+
+![](img_sandbox/cfasemdiag/Untitled 2.png)
+
+## Measurement Invariance
+
+![](img_sandbox/cfasemdiag/Untitled 4.png)
+
+
+## Structural Equation Modelling
+
+![](img_sandbox/cfasemdiag/Untitled 1.png)
+
+
+## Single Item Measures?  
+
+- some mult-item measures feel repetitious
+    - *"am I supposed to give different answers to what is essentially the same question?"*
+    - *"all the questions are basically the same, so I guess I will just score 4 for everything"*
+
+**asking the same question repeatedly is no better than asking it once.**
+
+
+:::aside
+Allen, M. S., Iliescu, D., & Greiff, S. (2022). Single item measures in psychological science. European Journal of Psychological Assessment.
+:::
+
+## Single Item Measures?
+
+![](img_sandbox/singleitem.png)
+
+## Single Item Measures?
+
+- Okay for unidimensional, 'narrow' constructs  
+
+- Maybe okay when construct is used as covariate?  
+
+- Reliability can't be estimated.. 
+
+
+# Summary {background-color="white" .incremental}  
+
+- Measurement is difficult (especially in psych)
+
+- For some research, this is front and center - questions are about the quality of our measurement instruments
+    - underlying dimensionality, validity, measurement invariance
+    
+- For **all** research, thinking about measurement is important
+    - in deriving numerical scores for a construct 
+    - in understanding the reliability of the measurement and the bearing that has on your conclusions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
