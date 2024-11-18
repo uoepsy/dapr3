@@ -237,11 +237,86 @@ factor.congruence(f1,f2)
 ```
 `r solend()`
 
+
+
+```{r}
+#| include: false
+#| echo: false
+m = "
+depression =~ 1.4*PHQ_1 + 1.7*PHQ_2 + 1.5*PHQ_3 + 1.2*PHQ_4 + 0.6*PHQ_5 + 0.5*PHQ_6 + .95*PHQ_7 + 0.5*PHQ_8 + 0.5*PHQ_9 
+anxiety =~ 1.4*GAD_1 + 0.5*GAD_2 + .1*GAD_3 + 1.2*GAD_4 + .7*GAD_5 + 1.6*GAD_6 + 0.4*GAD_7 + .5*PHQ_8
+
+anxiety ~~ 0.3*depression
+anxiety ~ 0.17*petowner
+petowner ~~ 0.3*petowner
+"
+df <- lavaan::simulateData(m, sample.nobs = 203)[,c(1:9,11:14,10,15:17)]
+df <- df[,-17]
+df <- apply(df,2,\(x) as.numeric(cut(x,7)))
+phqgad_items = c(
+    "Little interest or pleasure in doing things?",
+    "Feeling down, depressed, or hopeless?",
+    "Trouble falling or staying asleep, or sleeping too much?",
+    "Feeling tired or having little energy?",
+    "Poor appetite or overeating?",
+    "Feeling bad about yourself - or that you are a failure or have let yourself or your family down?",
+    "Trouble concentrating on things, such as reading the newspaper or watching television?",
+    "Moving or speaking so slowly that other people could have noticed? Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual?",
+    "A lack of motivation to do anything at all?",
+    "Feeling nervous, anxious or on edge?",
+    "Not being able to stop or control worrying?",
+    "Worrying too much about different things?",
+    "Trouble relaxing?",
+    "Being so restless that it is hard to sit still?",
+    "Becoming easily annoyed or irritable?",
+    "Feeling afraid as if something awful might happen?")
+  df <- as_tibble(df)
+  names(df) <- phqgad_items
+  df <- janitor::clean_names(df)
+  df$ppt_id <- paste0("test_ppt",1:203)
+  
+  testdat <- df
+  # names(testdat)[1:16] <- paste0("item", 1:16)
+# write_csv(testdat, "../../data/petmoods_conf.csv")
+  
+#f1 <- fa(moodq, nfactors = 2, rotate = "oblimin", fm = "ml")
+#f2 <- fa(testdat[,-17], nfactors = 2, rotate = "oblimin", fm = "ml")
+#factor.congruence(f1,f2)  
+```
+
+`r qbegin(qcounter())`
+Ideally, we would split a dataset in two right at the start, develop our model on the "exploratory" half, and not touch the second half of the data until we want to assess congruence.  
+
+If we had unlimited time and resources, we would just collect another, completely independent, sample.  
+So let's pretend that's exactly what we've done!  
+
+You can find a 2nd dataset at [https://uoepsy.github.io/data/petmoods_conf.csv](https://uoepsy.github.io/data/petmoods_conf.csv){target="_blank"} that contains the same questions.  
+Compute congruence coefficients for your factor solution across the two dataset (the first one with n=620 and this one with n=203).  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The congruence here is lower, especially for the second factor.  
+Note that, for instance, item11 is no longer loading onto this factor.  
+```{r}
+testdat <- read_csv("https://uoepsy.github.io/data/petmoods_conf.csv")
+names(testdat)[1:16]<-paste0("item",1:16)
+
+testfa <- fa(testdat[,-17], nfactors = 2, rotate = "oblimin", fm = "ml")
+
+factor.congruence(mood.fa2, testfa)
+```
+
+
+`r solend()`
+
+
+
 ## Reliability 
 
 `r qbegin(qcounter())`
 Calculate two measures of reliability for each factor - $alpha$ and $omega$. How do they differ?  
 
+*(If you're thinking "which one should I use?" then there's not really a right answer - they rely on assuming different measurement models. If you're going to use mean/sum scores, then reporting reliabilty as $\alpha$ will make more sense)*
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -306,6 +381,9 @@ petdata <- petdata |>
 Conduct a $t$-test to examine whether the pet-owners differ from non-pet-owners in their levels of each factor of low mood.  
 
 Try doing this with the sum scores, and then with the factor scores. What is different?  
+
+*(If you're wondering "which one is right?" then the answer is kind of "both"/"neither"! Just like $\alpha$ and $\omega$, they are assuming different measurement models of the two dimensions)*  
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
