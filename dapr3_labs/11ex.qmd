@@ -1,0 +1,235 @@
+---
+title: "W11 Exercises"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(psych)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+
+`r qbegin(qcounter())`
+```{r}
+m = "
+  lv1 =~ .8*y1 + .6*y2 + .6*y3 + .7*y4
+  lv2 =~ .7*y5 + .8*y6 + .9*y7 + .7*y8
+  lv3 =~ .8*y9 + .8*y10 + .9*y11 + .4*y4
+  lv4 =~ .9*y12
+  lv1 ~~.2*lv2
+  lv1 ~~.2*lv3
+  lv2 ~~.2*lv2
+"
+eseed=round(runif(1,1e3,1e6))
+set.seed(167807)
+df = lavaan::simulateData(m,sample.nobs = 500)
+
+mm = psych::fa(df, 4, rotate="oblimin",fm="ml")
+
+mm$loadings
+```
+
+
+efa output
+
+Based on the results and the item descriptions, provide an interpretation of the factor solution. Your description should include: 
+
+- Comment on the numerical solution **[6 marks]**
+- Discussion of suitability of the selected number of factors **[6 marks]**
+- An attempt to define the factors **[3 marks]**
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+```{r}
+set.seed(67768)
+nitem <- 5
+A <- matrix(runif(nitem^2,.41,1)*2-1, ncol=nitem) 
+scor <- t(A) %*% A
+df <- MASS::mvrnorm(n=220,mu=rep(0,5),Sigma = scor) |> as.data.frame()
+loadings = psych::principal(df,nfactors=2, rotate="none")$loadings[,1:2]
+loadings[1:4,1] = round(loadings[1:4,1],1)
+loadings[5,1] = round(loadings[5,1],2)
+loadings[c(1,3:5),2] = round(loadings[c(1,3:5),2],1)
+loadings[2,2] = round(loadings[2,2],2)
+loadings
+
+```
+
+calculate the 6 values of the table below, SSloadings [2 marks] and proportion & cumulative variance [2 marks].  
+
+
+```{r}
+vac <- psych::principal(df,nfactors=2, rotate="none")$Vaccounted[1:3,]
+vac[1:3,1:2] <- "__"
+vac
+```
+
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+rbind(
+  apply(loadings,2,\(x) sum(x^2)),
+  apply(loadings,2,\(x) sum(x^2))/5,
+  cumsum(apply(loadings,2,\(x) sum(x^2))/5)
+)
+```
+
+
+
+`r solend()`
+
+
+
+`r qbegin("Q3 - MLM [10 marks]", qlabel=F)`
+
+```{r}
+simbasic_rs <- function (seed = NULL, b0 = 0, b1 = 1, z0 = 1, z1 = 1, e = 1) 
+{
+    if (!is.null(seed)) {
+        set.seed(seed)
+    }
+    N = 200
+    n_groups = 20
+    g = rep(1:n_groups, e = N/n_groups)
+    x = rnorm(N)
+    x = rep(1:(N/n_groups),n_groups)
+    res = MASS::mvrnorm(n_groups,
+                        mu=c(0,0),Sigma=matrix(c(z0,.5,.5,z1),nrow=2))
+    re = res[,1][g]
+    re_x = res[,2][g]
+    b = rbinom(n_groups,1,.5)[g]
+    lp = (b0 + re) + (b1 + re_x) * x + -.4*x*b
+    y = rnorm(N, mean = lp, sd = e)
+    y_bin = rbinom(N, size = 1, prob = plogis(lp))
+    data.frame(x, b, g = factor(g), y, y_bin)
+}
+eseed=round(runif(1,1e3,1e6))
+set.seed(399478)
+df <- tibble(
+  g1 = 1:10,
+  b0 = rnorm(10,0,.2),
+  b1 = rnorm(10,0,.1),
+  data = map2(b0,b1, ~simbasic_rs(b0=..1,b1=..2,z0=2,z1=2))
+) |> unnest(data)
+
+library(lme4)
+
+df = df |> transmute(
+  week = x,
+  journal = factor(b,levels=c("0","1"),labels=c("No","Yes")),
+  center = g1,
+  ppt = g,
+  anger = scale(y)[,1]*2.33 + 9.64
+)
+
+mm = lmerTest::lmer(anger ~ week * journal + 
+            (1 + week | center ) + 
+            (1 + week |center:ppt), data=df)
+# summary(mm)
+```
+
+A company that makes 6-minute journals is undertaking some research to showcase the effectiveness of their product in helping to alleviate unwanted feelings. 
+They send journals to 
+
+
+Scores on the anger measure can range from ? to ?, with changes of 3 being considered 'clinically meaningful'.  
+
+They fit a multilevel model to the data, with week number (0 to 9, with 0 representing the first week participants filled in the anger assessment), whether the journal was used ("no"/"yes", with "no" as the reference level). 
+
+Provide an interpretation of each of:
+
+- the fixed effects **[4 marks]**
+- the random effects **[4 marks]**
+- the relevance of the findings, considering the context of the study design and researchers’ aims **[2 marks]**
+    
+
+::: {.callout-tip collapse="true"}
+#### tips
+
+- try to map the number of marks to "things to mention" - i.e. there are four marks for fixed effects, and four parameters!  
+    - sometimes there will be more things than marks (e.g., you might see 8 fixed effects but 4 marks). This is often because there are lots of different ways to get up to 4 marks (lots of different things you *could* mention). Try to focus on the ones that are of relevance to the RQ primarily. 
+- 
+
+
+:::
+
+    
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+- anger for someone in week 1 who doesn't journal is (intercept)
+- no significant change over the study period for those who don't journal (week fixef)
+- no signif difference between journal/no-journal groups at outset of study
+- journal group decreases in anger over the study more compared to no-journal group (interaction)
+
+
+- participants vary (both intercept and slopes of change) much more than centers
+- high level of ppt variability relative to fixed slope
+- ppts who start more angry decrease less (positive correlation intercepts and slopes)
+
+- effect is small - over 10 weeks they only go down by `r (fixef(mm)[2]+fixef(mm)[4])*9`
+
+
+```{r}
+broom.mixed::augment(mm) |>
+  ggplot(aes(x=week,y=.fitted,group=interaction(center,ppt),
+             col=journal))+
+  geom_line(alpha=.2)+
+  geom_abline(intercept=fixef(mm)[1],slope=fixef(mm)[2],col="red")+
+  geom_abline(intercept=fixef(mm)[1]+fixef(mm)[3],slope=fixef(mm)[2]+fixef(mm)[4],col="blue")
+```
+
+
+`r solend()`
+
+
+`r qbegin("Q3 - hierarchical data structures [4 marks]", qlabel=F)`
+Provide example levels for each of the three types of study: Cross-Sectional, Repeated Measures, Longitudinal [4 marks]
+
+| level | cross-sectional | repeated measures | longitudinal |
+| ----- |---------- |-------------| -----------|
+| 2     | ...  |  ... |  ...      |
+| 1    | ...| ... | ...  |
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+anything that makes sense here, obvious ones are:
+
+| level | cross-sec | rpt measures | longitudinal |
+| ----- |---------- |-------------| -----------|
+| 2     |  department |   people |  people |
+| 1    | people | experimental items | timepoints |
+
+`r solend()`
+
+
