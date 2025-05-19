@@ -1,0 +1,1269 @@
+---
+title: "W2 Exercises: Introducing MLM"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(lme4)
+library(patchwork)
+library(ggdist)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+
+
+# MLM Demonstration
+
+:::lo
+These first set of exercises are not "how to do analyses with multilevel models" - they are designed to get you thinking, and help with an understanding of how these models work.  
+:::
+
+`r qbegin(qcounter())`
+
+Recall the data from last week's exercises. Instead of looking at the roles A, B and C, we'll look in more fine grained detail at the seniority. This is mainly so that we have a continuous variable to work with as it makes this illustration easier.  
+
+The chunk of code below shows a function for plotting that you might not be familiar with - `stat_summary()`. This takes the data in the plot and "summarises" the Y-axis variable into the mean at every unique value on the x-axis. So below, rather than having points for every observation, we have the mean of `wp` at every value of `seniority`:  
+```{r}
+library(tidyverse)
+jsup <- read_csv("https://uoepsy.github.io/data/lmm_jsup.csv")
+
+ggplot(jsup, aes(x = seniority, y = wp, col = role)) +
+  stat_summary(geom="pointrange")
+```
+
+Below is some code that fits a model of the workplace-pride predicted by seniority level. Line 2 then gets the 'fitted' values from the model and adds them as a new column to the dataset, called `pred_lm`. The fitted values are what the model predicts for every individual observation.  
+
+Lines 4-7 then plot the data, split up by each department, and adds lines showing the model fitted values.  
+
+Run the code and check that you get a plot. What do you notice about the lines?  
+
+```{r}
+#| eval: false
+#| code-line-numbers: true
+lm_mod <- lm(wp ~ seniority, data = jsup)
+jsup$pred_lm <- predict(lm_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_lm), col = "red")
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We should get something like this:  
+```{r}
+lm_mod <- lm(wp ~ seniority, data = jsup)
+jsup$pred_lm <- predict(lm_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_lm), col = "red")
+```
+
+Note that the lines are exactly the same for each department. This makes total sense, because the model (which is where we've got the lines from) completely _ignores_ the department variable!  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+Below are 3 more code chunks that all 1) fit a model, then 2) add the fitted values of that model to the plot.  
+
+The first model is a 'no-pooling' approach, similar to what we did in last week's exercises - adding in `dept` as a predictor.  
+
+The second and third are multilevel models. The second fits random intercepts by-department, and the third fits random intercepts and slopes of seniority.  
+
+Copy each chunk and run through the code. Pay attention to how the lines differ.  
+
+```{r}
+#| eval: false
+#| code-fold: true
+fe_mod <- lm(wp ~ dept + seniority, data = jsup)
+jsup$pred_fe <- predict(fe_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_fe), col = "blue")
+```
+
+```{r}
+#| eval: false
+#| code-fold: true
+library(lme4)
+ri_mod <- lmer(wp ~ seniority + (1|dept), data = jsup)
+jsup$pred_ri <- predict(ri_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_ri), col = "green")
+```
+
+```{r}
+#| eval: false
+#| code-fold: true
+rs_mod <- lmer(wp ~ seniority + (1 + seniority|dept), data = jsup)
+jsup$pred_rs <- predict(rs_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_rs), col = "orange")
+```
+
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+
+The first model has an adjustment for each department (we can see this in the coefficients if we want). What this means is that the line for each department is shifted up or down. We can see that the lines are now shifted up for departments like UKSA and FSA, and down for UKSC and OFSTED: 
+```{r}
+fe_mod <- lm(wp ~ dept + seniority, data = jsup)
+jsup$pred_fe <- predict(fe_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_fe), col = "blue")
+```
+
+
+This next one _looks_ very similar to the previous one, but it is conceptually doing something a bit different. Rather than separating out every individual department, we are modelling _a distribution_ of deviations for each department from some average.  
+
+
+```{r}
+library(lme4)
+ri_mod <- lmer(wp ~ seniority + (1|dept), data = jsup)
+jsup$pred_ri <- predict(ri_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_ri), col = "green")
+```
+
+Finally, we can add in the random slopes of seniority. In this model, we are not only allowing departments to vary in their average workplace-pride, but we are also allowing them to vary in the association between seniority and workplace pride. Some departments (OFQUAL, OFSTED, ORR) have a negative association, some have a flatter association (e.g, FSA, UKSA etc).  
+
+```{r}
+rs_mod <- lmer(wp ~ seniority + (1 + seniority|dept), data = jsup)
+jsup$pred_rs <- predict(rs_mod)
+
+ggplot(jsup, aes(x = seniority)) + 
+  geom_point(aes(y = wp), size=1, alpha=.3) +
+  facet_wrap(~dept) +
+  geom_line(aes(y=pred_rs), col = "orange")
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+From the previous questions you should have a model called `ri_mod`.  
+
+Below is a plot of the fitted values from that model. Rather than having a separate facet for each department as we did above, I have put them all on one plot. The thick black line is the average intercept and slope of the departments lines. 
+
+Identify the parts of the plot that correspond to A1-4 in the summary output of the model below  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+knitr::include_graphics("images/match_summ1.png")
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+broom.mixed::augment(ri_mod) |>
+  ggplot(aes(x=seniority, col=dept))+
+  geom_point(aes(y=wp),alpha=.5) + # observations
+  geom_line(aes(y=.fitted)) + # predictions 
+  geom_abline(intercept = fixef(ri_mod)[1], 
+              slope = fixef(ri_mod)[2], lwd=1)  # fixed effect line
+```
+:::
+::::
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Choose from these options:
+
++ where the black line cuts the y axis (at x=0)  
++ the slope of the black line  
++ the standard deviation of the distances from all the individual datapoints (employees) to the line for the department in which it works.  
++ the standard deviation of the distances from all the individual department lines to the black line  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+knitr::include_graphics("images/match_summ1.png")
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+broom.mixed::augment(ri_mod) |>
+  ggplot(aes(x=seniority, col=dept))+
+  geom_point(aes(y=wp),alpha=.3) + # observations
+  geom_line(aes(y=.fitted)) + # predictions 
+  geom_abline(intercept = fixef(ri_mod)[1], 
+              slope = fixef(ri_mod)[2], lwd=1)  # fixed effect line
+```
+:::
+::::
+
++ **A1** = the standard deviation of the distances from all the individual department lines to the black line  
++ **A2** = the standard deviation of the distances from all the individual datapoints (employees) to the line for the department in which it works. 
++ **A3** = where the black line cuts the y axis  
++ **A4** = the slope of the black line  
+
+`r solend()`
+
+
+`r qbegin("Optional Extra", qlabel=FALSE)`
+
+Below is the model equation for the `ri_mod` model.  
+
+Identify the part of the equation that represents each of A1-4.  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+knitr::include_graphics("images/match_summ1.png")
+```
+:::
+
+:::{.column width="50%"}
+<div style="font-size: .7em">
+
+\begin{align}
+\text{For Employee }j\text{ from Dept }i & \\
+\text{Level 1 (Employee):}& \\
+\text{wp}_{ij} &= b_{0i} + b_1 \cdot \text{seniority}_{ij} + \epsilon_{ij} \\
+\text{Level 2 (Dept):}& \\
+b_{0i} &= \gamma_{00} + \zeta_{0i} \\
+\text{Where:}& \\
+\zeta_{0i} &\sim N(0,\sigma_{0}) \\
+\varepsilon &\sim N(0,\sigma_{e}) \\
+\end{align}
+
+</div>
+
+:::
+::::
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Choose from:
+
++ $\sigma_{\varepsilon}$  
++ $b_{1}$  
++ $\sigma_{0}$   
++ $\gamma_{00}$  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
++ **A1 =** $\sigma_{0}$   
++ **A2 =** $\sigma_{\varepsilon}$  
++ **A3 =** $\gamma_{00}$  
++ **A4 =** $b_{1}$  
+
+
+`r solend()`
+
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+# Audio Interference in Executive Functioning (Repeated Measures)
+
+:::lo
+This next set are closer to conducting a real study. We have some data and a research question (below). The exercises will walk you through describing the data, then prompt you to think about how we might fit an appropriate model to address the research question, and finally task you with having a go at writing up what you've done.  
+:::
+
+
+```{r}
+#| include: false
+set.seed(5)
+n_groups = 30
+N = n_groups*3*5
+g = rep(1:n_groups, e = N/n_groups)
+
+w = rep(rep(letters[1:3],5),n_groups)
+w1 = model.matrix(lm(rnorm(N)~w))[,2]
+w2 = model.matrix(lm(rnorm(N)~w))[,3]
+
+b = rep(0:1, e = N/2)
+
+re0 = rnorm(n_groups, sd = 2)[g]
+re_w1  = rnorm(n_groups, sd = 1)[g]
+re_w2  = rnorm(n_groups, sd = 1)[g]
+
+lp = (0 + re0) + 
+  (3)*b + 
+  (0 + re_w1)*w1 +
+  (-2 + re_w2)*w2 + 
+  (2)*b*w1 +
+  (-1)*b*w2
+  
+y = rnorm(N, mean = lp, sd = 1.5) # create a continuous target variable
+
+df <- data.frame(w, g=factor(g),b, y)
+head(df)
+with(df,boxplot(y~interaction(w,b)))
+
+library(tidyverse)
+df %>% transmute(
+  PID = paste0("PPT_",formatC(g,width=2,flag=0)),
+  audio = fct_recode(factor(w),
+                     no_audio = "a",
+                     white_noise = "b",
+                     music = "c"),
+  headphones = fct_recode(factor(b),
+                          speakers = "0",
+                          anc_headphones = "1"),
+  SDMT = pmax(0,round(35 + scale(y)[,1]*12))
+) %>% arrange(PID,audio,headphones) -> ef_music
+
+ef_music <- ef_music %>% group_by(PID) %>%
+  mutate(trial_n = paste0("Trial_",formatC(sample(1:15),width=2,flag=0))) %>%
+  arrange(PID,trial_n) %>% ungroup()
+
+efrep <- slice_sample(ef_music, prop = .8) %>% select(PID,trial_n,audio,headphones,SDMT)
+
+# write_csv(efrep |> select(-trial_n), file="../../data/efsdmt.csv")
+```
+
+:::frame
+__Data: Audio interference in executive functioning__  
+
+This data is from a simulated study that aims to investigate the following research question: 
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+
+`r length(unique(efrep$PID))` healthy volunteers each completed the Symbol Digit Modalities Test (SDMT) - a commonly used test to assess processing speed and motor speed - a total of 15 times. During the tests, participants listened to either no audio (5 tests), white noise (5 tests) or classical music (5 tests). Half the participants listened via active-noise-cancelling headphones, and the other half listened via speakers in the room. Unfortunately, lots of the tests were not administered correctly, and so not every participant has the full 15 trials worth of data.  
+
+The data is available at [https://uoepsy.github.io/data/lmm_ef_sdmt.csv](https://uoepsy.github.io/data/lmm_ef_sdmt.csv).  
+
+```{r}
+#| echo: false
+efrep <- read_csv("https://uoepsy.github.io/data/lmm_ef_sdmt.csv")
+tibble(variable=names(efrep),
+       description = c(
+         "Participant ID",
+         "Audio heard during the test ('no_audio', 'white_noise','music')",
+         "Whether the participant listened via speakers (S) in the room or via noise cancelling headphones (H)",
+         "Symbol Digit Modalities Test (SDMT) score")
+) %>% gt::gt()
+```
+
+:::
+
+`r qbegin(qcounter())`
+How many participants are there in the data?   
+How many have complete data (15 trials)?  
+What is the average number of trials that participants completed? What is the minimum?   
+Does every participant have _some_ data for each type of audio?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Functions like `table()` and `count()` will likely be useful here. 
+:::
+
+
+`r qend()`
+`r solbegin(label="1 - read in the data ", slabel=F,show=T, toggle=params$TOGGLE)`
+```{r}
+efdat <- read_csv("https://uoepsy.github.io/data/lmm_ef_sdmt.csv")
+head(efdat)
+```
+`r solend()`
+`r solbegin(label="2 - how many ppts?", slabel=F,show=T, toggle=params$TOGGLE)`
+For a quick "how many?", functions like `n_distinct()` can be handy:  
+```{r}
+n_distinct(efdat$PID)
+```
+
+Which is essentially the same as asking: 
+```{r}
+unique(efdat$PID) |> length()
+```
+
+
+`r solend()`
+`r solbegin(label="3 - how many observations per ppt?", slabel=F,show=T, toggle=params$TOGGLE)`
+Here are the counts of trials for each participant. 
+```{r}
+#| eval: false
+efdat |> 
+  count(PID)
+```
+```{r}
+#| echo: false
+efdat |> 
+  count(PID) |>
+  print(n=5)
+```
+
+We can pass that to something like `summary()` to get a quick descriptive of the `n` column, and so we can see that no participant completed all 15 trials (max is 14). Everyone completed at least 10, and the median was 12. 
+```{r}
+efdat |> 
+  count(PID) |>
+  summary()
+```
+
+We could also do this easily with things like:
+```{r}
+table(efdat$PID) |> median()
+```
+
+`r solend()`
+`r solbegin(label="4 - how many observations for each audio type per ppt?", slabel=F,show=T, toggle=params$TOGGLE)`
+For this kind of thing I would typically default to using `table()` for smaller datasets, to see how many datapoints are in each combination of `PID` and `audio`:  
+```{r}
+table(efdat$PID, efdat$audio)
+```
+
+From the above, we can see that everyone has data from $\geq 2$ trials for a given audio type.  
+
+```{r}
+table(efdat$PID, efdat$audio) |> min()
+```
+
+
+::: {.callout-tip collapse="true"}
+#### a tidyverse way:
+
+When tables get too big, we can do the same thing with `count()`, but we need to make sure that we are working with factors, in order to summarise all possible combinations of groups (even empty ones)
+```{r}
+efdat |> 
+  mutate(PID = factor(PID),
+         audio = factor(audio)) |>
+  # the .drop=FALSE means "keep empty groups"
+  count(PID,audio,.drop=FALSE) |> 
+  summary()
+```
+
+There are plenty of other ways (e.g., you could use combinations of `group_by()`, `summarise()`), so just pick one that makes sense to you.  
+
+:::
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+
+Consider the following questions about the study:  
+  
+- What is our outcome of interest?  
+- What variables are we seeking to investigate in terms of their impact on the outcome?    
+- What are the units of observations?  
+- Are the observations clustered/grouped? In what way?  
+- What varies *within* these clusters?  
+- What varies *between* these clusters?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+- What is our outcome of interest?  
+    + __SDMT scores__  
+- What variables are we seeking to investigate in terms of their impact on the outcome?  
+    + __audio type__ and the interaction __audio type $\times$ wearing headphones__
+- What are the units of observations?  
+    + __individual trials__  
+- What are the groups/clusters?  
+    + __participants__  
+- What varies *within* these clusters?  
+    + __the type of audio__    
+- What varies *between* these clusters?  
+    + __whether they listen via headphones or speakers__  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+The multilevel model that has only an intercept (and the grouping structure) specified is sometimes referred to as the "null model" (or "intercept only model"). Because there are no predictors in the fixed effects there is just a single value (the intercept). All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either 'variance between groups' or 'residual variance'. This means we can just use those estimates to calculate the ICC.  
+
+For our executive functioning study, fit the null model use the output to calculate the ICC. Compare it to the answer you get from `ICCbare()` (it should be pretty close).  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+```{r}
+#| echo: false
+knitr::include_graphics("images/nullmod.png")
+```
+
+The formula for the ICC is:  
+$$
+ICC = \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} = \frac{\text{between-group variance}}{\text{between-group variance}+\text{within-group variance}}
+$$
+
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+nullmod <- lmer(SDMT ~ 1 + (1 | PID), data = efdat)
+summary(nullmod)
+```
+```{r}
+#| echo: false
+rr = as.data.frame(VarCorr(nullmod))[,4]
+```
+
+$\frac{`r round(rr[1],2)`}{`r round(rr[1],2)`+`r round(rr[2],2)`} = `r round(rr[1]/sum(rr),2)`$, or `r round(rr[1]/sum(rr),2)*100`% of the variance in SDMT scores is explained by participant differences.  
+
+This matches (closely enough) with the `ICCbare()` function: 
+```{r}
+library(ICC)
+ICCbare(x = PID, y = SDMT, data = efdat)
+```
+`r solend()`
+
+`r qbegin(qcounter())`
+Make factors and set the reference levels of the `audio` and `headphones` variables to "no audio" and "speakers" respectively.    
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Can't remember about setting factors and reference levels? Check back to DAPR2!    
+
+:::
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+efdat <- efdat %>%
+  mutate(
+    audio = fct_relevel(factor(audio), "no_audio"),
+    headphones = fct_relevel(factor(headphones), "S")
+  )
+```
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Fit a multilevel model to address the aims of the study (copied below)
+
+> How do different types of audio interfere with executive functioning, and does this interference differ depending upon whether or not noise-cancelling headphones are used? 
+ 
+Specifying the model may feel like a lot, but try splitting it into three parts:  
+
+$$
+\text{lmer(}\overbrace{\text{outcome }\sim\text{ fixed effects}}^1\, + \, (1 + \underbrace{\text{slopes}}_3\, |\, \overbrace{\text{grouping structure}}^2 )
+$$
+
+
+1. Just like the `lm()`s we have used in the past, think about what we want to _test_. This should provide the outcome and the structure of our fixed effects.  
+2. Think about how the observations are clustered/grouped. This should tell us how to specify the grouping structure in the random effects.  
+3. Think about which slopes (i.e. which terms in our fixed effects) could feasibly vary between the clusters. This provides you with what to put in as random slopes.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Make sure to read about multilevel modesl and how to fit them in [2: MLM #multilevel-models-in-r](https://uoepsy.github.io/lmm/02_lmm.html#multilevel-models-in-r){target="_blank"}.  
+
+:::
+
+
+
+`r qend()`
+`r solbegin(label="1 - fixed effects", slabel=F,show=T, toggle=params$TOGGLE)`
+
+The question  
+&nbsp;&nbsp;&nbsp; "*How do different types of audio interfere with executive functioning*"   means we are interested in the effects of audio type (`audio`) on executive functioning (`SDMT` scores), so we will want:
+
+```
+lmer(SDMT ~ audio ...
+```
+
+However, the research aim also asks    
+&nbsp;&nbsp;&nbsp; "*... and does this interference differ depending upon whether or not noise-cancelling headphones are used?*"  
+which suggests that we are interested in the interaction `SDMT ~ audio * headphones`  
+
+```
+lmer(SDMT ~ audio * headphones + ...   
+```
+
+`r solend()`
+`r solbegin(label="2 - hierarchical data structure", slabel=F,show=T, toggle=params$TOGGLE)`
+
+There are lots of ways that our data is grouped.  
+We have:  
+
+- 3 different groups of audio type (`r paste(unique(efdat$audio),collapse=", ")`)
+- 2 groups of listening condition (`r paste(unique(efdat$headphones),collapse=", ")`)
+- 30 groups of participants ("PPT_01", "PPT_02", "PPT_03", ...) 
+
+The effects of audio type and headphones are both things we actually want to _test_ - these variables are in our fixed effects. The levels of audio and headphones are not just a random sample from a wider population of levels - they're a specific set of things we want to compare SDMT scores between.  
+
+Compare this with the participants - we don't care about if there is a difference in SDMT scores between e.g., "PPT_03" and "PPT_28". The participants themselves are just a sample of people that we have taken from a wider population. This makes thinking of "by-participant random effects" a sensible approach - we model differences between participants as a normal distribution of deviations around some average:    
+
+```
+lmer(SDMT ~ audio * headphones + (1 + ... | PID)  
+```
+
+The minimum that we can include is the random intercept. What `(1|PID)` specifies is that "participants vary in their SDMT scores". This makes sense - we would expect some participants to have higher executive functioning (and so will tend to score high on the SDMT), and others to have lower functioning (and so tend to score lower).  
+
+
+`r solend()`
+`r solbegin(label="3 - random slopes", slabel=F,show=T, toggle=params$TOGGLE)`
+
+We can also include a random by-participant effect of `audio`.  
+`audio|PID` specifies that the effect of audio type on SDMT varies by participant. This seems feasible - music might be very distracting (and interfere a lot with the test) for some participants, but have a negligible effect for others.  
+
+```
+lmer(SDMT ~ audio * headphones + 
+              (1 + audio | PID), data = efdat)
+```
+
+
+::: {.callout-tip collapse="true"}
+#### Why can't we have `(headphones|PID)`?  
+
+Why can we fit `(1 + audio | PID)` but not `(1 + headphones | PID)`, or both `(1 + audio + headphones | PID)` or `(1 + audio * headphones | PID)`?  
+
+Remember that `y ~ ... + (x | g)` is saying "the slope of y~x varies by g".  
+Such a sentence only makes sense if each "the slope of y~x" is defined for every (or most) groups.  
+
+For the `headphones` predictor, every participant is _either_ in the "S" (speakers) condition _or_ the "H" (headphones) condition.  
+This means that "the effect of headphones on SDMT" _doesn't exist_ for any single participant! This means it makes no sense to try and think of the effect as 'varying by participant'.  
+
+Compare this to the `audio` predictor, for the effect _does_ exist for a single given participant, therefore it is possible to think of it as being different for different participants (e.g. PPT_30's performance improves with white noise, but PPT_16's performance does not).  
+
+The plots below may help to cement this idea:  
+
+```{r}
+#| echo: false
+library(lattice)
+bwplot(SDMT~headphones|PID, data = efdat, scales=list(x=list(rot=90)))
+
+bwplot(SDMT~audio|PID, data = efdat, scales=list(x=list(rot=90)))
+```
+
+:::
+
+`r solend()`
+
+
+
+`r qbegin(qcounter())`
+We now have a model, but we don't have any p-values or confidence intervals or anything - i.e. we have no inferential criteria on which to draw conclusions. There are a whole load of different methods available for drawing inferences from multilevel models, which means it can be a bit of a never-ending rabbit hole. For now, we'll just use the 'quick and easy' approach provided by the **lmerTest** package seen in the lectures.  
+
+Using the **lmerTest** package, re-fit your model, and you should now get some p-values! 
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+If you use `library(lmerTest)` to load the package, then *every single* model you fit will show p-values calculated with the Satterthwaite method.  
+Personally, I would rather this is not the case, so I often opt to fit specific models with these p-values without ever loading the package:  
+`modp <- lmerTest::lmer(y ~ 1 + x + ....`  
+
+:::
+
+::: {.callout-caution collapse="true"}
+#### optional: a model comparison
+
+If we want to go down the model comparison route, we just need to isolate the relevant part(s) of the model that we are interested in.  
+
+Remember, model comparison is sometimes a useful way of testing a _set_ of coefficients. For instance, in this example the interaction involves estimating _two_ terms: 
+`audiomusic:headphonesH` and `audiowhite_noise:headphonesH`.  
+
+To test the interaction as a whole, we can create a model without the interaction, and then compare it. The `SATmodcomp()` function from the __pbkrtest__ package provides a way of conducting an F test with the same Satterthwaite method of approximating the degrees of freedom:  
+  
+```{r}
+sdmt_mod <- lmer(SDMT ~ audio * headphones + 
+              (1 + audio | PID), data = efdat)
+sdmt_res <- lmer(SDMT ~ audio + headphones + 
+                   (1 + audio | PID), data = efdat)
+library(pbkrtest)
+SATmodcomp(largeModel = sdmt_mod, smallModel = sdmt_res)
+```
+
+:::
+
+
+
+`r qend()`
+
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+sdmt_mod <- lmerTest::lmer(SDMT ~ audio * headphones + 
+              (1 + audio | PID), data = efdat)
+
+summary(sdmt_mod)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+We've already seen in the example with the with the UK civil service employees (above) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are really interested in are the estimates of (and uncertainty around) our *fixed effects* (i.e. estimates for clusters *on average*)  
+
+Using tools like the __effects__ package can provide us with the values of the outcome across levels of a specific fixed predictor (holding other predictors at their mean).   
+
+This should get you started:  
+```{r}
+#| eval: false
+library(effects)
+effect(term = "audio*headphones", mod = sdmt_mod) |>
+  as.data.frame()
+```
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You can see the effects package in [2: MLM #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}.  
+
+:::
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+library(effects)
+effect(term = "audio*headphones", mod = sdmt_mod) |>
+  as.data.frame() |>
+  ggplot(aes(x=audio,y=fit,
+             ymin=lower,ymax=upper,
+             col=headphones))+
+  geom_pointrange(size=1,lwd=1)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Now we have some p-values and a plot, try to create a short write-up of the analysis and results.   
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Think about the principles that have guided you during write-ups thus far. 
+
+The aim in writing a statistical report should be that a reader is able to more or less replicate your analyses **without** referring to your analysis code. Furthermore, it should be able for a reader to understand and replicate your work _even if they use something other than R_. This requires detailing all of the steps you took in conducting the analysis, but without simply referring to R code.   
+
+
+- Provide a description of the sample that is used in the analysis, and any steps that you took to get this sample (i.e. data cleaning/removal)
+- Describe the model/test and how it addresses the research question. What is the structure of the model, and how did you get to this model? *(You don't need a fancy model equation, you can describe in words!)*. 
+- Present (visually and numerically) the key results of the coefficient tests or model comparisons, and explain what these mean in the context of the research question (this could be things like practical significance of the effect size, and the group-level variability in the effects). 
+
+
+:::
+
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+
+
+```{r}
+#| echo: false
+res = as.data.frame(parameters::model_parameters(sdmt_mod, ci_method="s"))
+res[,c(2,3,5,6,7,8)] <- apply(res[,c(2,3,5,6,7,8)], 2, function(x) round(x, 2))
+res[,9] <- format.pval(res[,9],eps=.001,digits=2)
+res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
+
+res2 = as.data.frame(VarCorr(sdmt_mod)) |> mutate(sdcor = round(sdcor,2))
+```
+
+:::int
+SDMT scores were modelled using linear mixed effects regression, with fixed effects of audio-type (no audio/white noise/music, treatment coded with no audio as the reference level), audio delivery (speakers vs ANC-headphones, treatment coded with speakers as the reference level) and their interaction. Participant-level random intercepts and random slopes of audio-type were also included. The inclusion of the interaction term between audio-type and audio-delivery was used to address the question of whether the interference of different audio on executive function depends on whether it is heard via noise-cancelling headphones. A model comparison was conducted between the full model and a restricted model that was identical to the full model with the exception that the interaction term was excluded. Models were fitted using the **lme4** package in R, and estimated with restricted estimation maximum likelihood (REML). Denominator degrees of freedom for all comparisons and tests were approximated using the Satterthwaite method.  
+
+Inclusion of the interaction between headphones and audio-type was found to improve model fit ($F(2, 26.9) = 11.05, p < .001$), suggesting that the interference of different types of audio on executive functioning is dependent upon whether the audio is presented through ANC-headphones or through speakers.  
+
+Participants not wearing headphones and presented with no audio scored on average `r res[1,2]` on the SDMT. For participants without headphones, listening to music via speakers was associated with lower scores compared to no audio ($b = `r res[2,2]`, t(`r res[2,8]`)=`r res[2,7]`, p `r res[2,9]`$), but there was no significant difference between white noise and no audio.   
+
+With no audio playing, wearing ANC-headphones was associated with higher SDMT scores compared to those wearing no headphones ($b = `r res[4,2]`, t(`r res[4,8]`)=`r res[4,7]`, p `r res[4,9]`$).
+The apparent detrimental effect of music on SDMT scores was not significantly different in the headphones condition compared to the no-headphones condition ($b = `r res[5,2]`, t(`r res[5,8]`)=`r res[5,7]`, p `r res[5,9]`$). Compared to those listening through speakers, white noise was associated with a greater increase in scores over no audio, when listening via ANC-heaphones ($b = `r res[6,2]`, t(`r res[6,8]`)=`r res[6,7]`, p `r res[6,9]`$).  
+
+There was considerable variability in baseline (i.e. no-audio) SDMT scores across participants (SD = `r res2[1,5]`), with participants showing similar variability in the effects of music (SD = `r res2[2,5]`) and of white-noise (SD = `r res2[3,5]`). A weak negative correlation (`r res2[5,5]`) between participant-level intercepts and effects of white-noise indicated that people who score higher in the no-audio condition tended to be more negatively effect by white-noise. A similar weak negative correlation (`r res2[6,5]`) between music and white-noise effects suggests participants who were more positively affected by one type of audio tended to be more negatively affected by the other.  
+
+These results suggest that music appears to interfere with executive functioning (lower SDMT scores) compared to listening to no audio, and this is not dependent upon whether is heard through headphones or speakers. When listening via speakers, white noise was not associated with differences in executive functioning compared to no audio, but this was different for those listening via headphones, in which white noise saw a greater increase in performance. Furthermore, there appear to be benefits for executive functioning from wearing ANC-headphones even when not-listening to audio, perhaps due to the noise cancellation. The pattern of findings are displayed in @fig-efplot.  
+
+
+```{r}
+#| label: fig-efplot
+#| fig-cap: "Interaction between the type (no audio/white noise/music) and the delivery (speakers/ANC headphones) on executive functioning task (SDMT)"
+#| echo: false
+plotfit <- effect(term = "audio*headphones", mod = sdmt_mod) |>
+  as.data.frame()
+
+ggplot(efdat, aes(x=audio,y=SDMT,col=headphones))+
+  geom_jitter(height=0,width=.2,alpha=.3) +
+  geom_pointrange(data = plotfit, 
+                  aes(y=fit,ymin=lower,ymax=upper),
+                  size=1,lwd=1) 
+```
+
+```{r}
+#| echo: false
+sjPlot::tab_model(sdmt_mod,df.method="satterthwaite",
+                  show.ci=F,show.stat=T,show.df=T)
+```
+
+
+:::
+`r solend()`
+
+<br>
+<div class="divider div-transparent div-dot"></div>
+
+# Extra: Dominance in Great Apes! (longitudinal)
+
+:::lo
+Here we have some extra exercises for you to practice with. There's a bit more data cleaning involved, so we've made some of the solutions immediately available. Don't worry if some of the functions are new to you - try play around with them to get a sense of how they work.  
+
+
+:::
+
+
+:::frame
+__Data: lmm_apespecies.csv__ & __lmm_apeage.csv__  
+
+We have data from a large sample of great apes who have been studied between the ages of 1 to 10 years old (i.e. during adolescence). Our data includes 4 species of great apes: Chimpanzees, Bonobos, Gorillas and Orangutans. Each ape has been assessed on a primate dominance scale at various ages. Data collection was not very rigorous, so apes do not have consistent assessment schedules (i.e., one may have been assessed at ages 1, 3 and 6, whereas another at ages 2 and 8).  
+
+The researchers are interested in examining how the adolescent development of dominance in great apes differs between species.  
+
+Data on the dominance scores of the apes are available at [https://uoepsy.github.io/data/lmm_apeage.csv](https://uoepsy.github.io/data/lmm_apeage.csv){target="_blank"} and the information about which species each ape is are in [https://uoepsy.github.io/data/lmm_apespecies.csv](https://uoepsy.github.io/data/lmm_apespecies.csv){target="_blank"}.  
+
+:::: {.columns}
+
+::: {.column width="45%"}
+```{r}
+#| echo: false
+#| label: tbl-spec1
+#| tbl-cap: "Data Dictionary: lmm_apespecies.csv"  
+ape_species <- read_csv("../../data/lmm_apespecies.csv")
+tibble(
+  variable = names(ape_species),
+  description = c("Ape Name","Species (Bonobo, Chimpanzee, Gorilla, Orangutan)")
+) |> gt::gt()
+```
+:::
+::: {.column width="10%"}
+
+:::
+::: {.column width="45%"}
+```{r}
+#| echo: false
+#| label: tbl-spec2
+#| tbl-cap: "Data Dictionary: lmm_apeage.csv"  
+ape_age <- read_csv("../../data/lmm_apeage.csv")
+tibble(
+  variable = names(ape_age),
+  description = c("Ape Name","Age at assessment (years)","Dominance (Z-scored)")
+) |> gt::gt()
+```
+
+:::
+::::
+
+:::
+
+
+
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Read in the data and check over it. Do any relevant cleaning/wrangling that might be necessary.   
+
+`r qend()`
+`r solbegin(label="1 - reading and joining", slabel=F,show=T, toggle=params$TOGGLE)`
+We'll read in both datasets, and then join them together. 
+```{r}
+library(tidyverse)
+library(lme4)
+ape_species <- read_csv("https://uoepsy.github.io/data/lmm_apespecies.csv")
+ape_age <- read_csv("https://uoepsy.github.io/data/lmm_apeage.csv")
+```
+Sometimes is handy to check that all our participants are in both datasets:
+```{r}
+# are all the apes in ape_age also in ape_species?
+all(ape_age$ape %in% ape_species$ape)
+# and vice versa?
+all(ape_species$ape %in% ape_age$ape)
+```
+Let's join them:  
+```{r}
+apedat <- full_join(ape_age, ape_species)
+head(apedat)
+```
+`r solend()`
+`r solbegin(label="2 - identifying issues", slabel=F,show=T, toggle=params$TOGGLE)`
+
+First off, we can see that we've got some weird typos. Some apes have been identified as "gorrila" but it is actually spelled "gorilla".  
+Also, we've got people using two alternatives for the chimps: "chimp" and "chimpanzee". We'll need to combine those.  
+```{r}
+table(apedat$species)
+```
+
+
+Age looks like it has some weird values (possibly "-99"?), and there are possibly a few outliers in the dominance variable. Given that dominance is standardised, it is _extremely_ unlikely that we would see values around 20.. They're not "impossible", but they're so incredibly unlikely that I'd be more comfortable assuming they are typos: 
+```{r echo=c(2,3)}
+par(mfrow=c(2,1))
+hist(apedat$age, breaks=20)
+hist(apedat$dominance, breaks=20)
+par(mfrow=c(1,1))
+```
+
+Just to see what the most extreme values of dominance are:  
+```{r}
+# show the biggest 5 absolute values in dominance variable
+sort(abs(apedat$dominance), decreasing = TRUE)[1:5]
+```
+
+`r solend()`
+`r solbegin(label="3 - cleaning up", slabel=F,show=T, toggle=params$TOGGLE)`
+
+
+```{r}
+
+apedat <- apedat |> 
+  mutate(
+    # fix species typos
+    species = case_when(
+      species %in% c("chimp","chimpanzee") ~ "chimp",
+      species %in% c("gorilla","gorrila") ~ "gorilla",
+      TRUE ~ species
+    )
+  ) |>
+    filter(
+      # get rid of ages -99
+      age > 0, 
+      # keep when dominance is between -5 and 5 
+      # (5 here is a slightly arbitrary choice, but you can see from
+      # our checks that this will only exclude the two extreme datapoints
+      # that are 21.2 and 19.4
+      (dominance < 5 & dominance > -5) 
+    )
+
+```
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+How is this data structure "hierarchical" (or "clustered")? What are our level 1 units, and what are our level 2 units?     
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We have a random sample of $\underbrace{\text{timepoints}}_{\text{level 1}}$ from a random sample of $\underbrace{\text{apes}}_{\text{level 2}}$.  
+
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+For how many apes do we have data? How many of each species?  
+How many datapoints does each ape have?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+We've seen this last week too - counting the different levels in our data. There are lots of ways to do these things - functions like `count()`, `summary()`, `n_distinct()`, `table()`, `mean()`, `min()` etc. See [1: Group Structured Data #determining-sample-sizes](https://uoepsy.github.io/lmm/01_clustered.html#determining-sample-sizes){target="_blank"}
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We have `r length(unique(apedat$ape))` apes in our dataset:  
+```{r}
+n_distinct(apedat$ape)
+```
+
+Here's how many of each species:  
+```{r}
+apedat |> 
+  group_by(species) |>
+  summarise(
+   n_apes = n_distinct(ape) 
+  )
+```
+
+Let's create a table of how many observations for each ape, and then we can create a table _from_ that table, to show how many apes have 2 datapoints, how many have 3, 4, and so on:  
+```{r}
+table(apedat$ape) |>
+  table() |>
+  barplot()
+```
+
+`r solend()`
+
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Make a plot to show how dominance changes as apes get older.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You might be tempted to use `facet_wrap(~ape)` here, but we have too many apes! The `group` aesthetic will probably help instead!
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here's a line for each ape, and a facet for each species:  
+```{r}
+ggplot(apedat, aes(x = age, y = dominance, col = species))+
+  geom_line(aes(group = ape)) + 
+  facet_wrap(~species) + 
+  guides(col="none")
+```
+
+It's kind of hard to see the trend for each ape with the lines, so instead let's plot points, and then make a separate little linear model for each ape:  
+
+```{r}
+ggplot(apedat, aes(x = age, y = dominance, col = species))+
+  geom_point(alpha=.1) +
+  stat_smooth(aes(group=ape),geom="line",method=lm,se=F,alpha=.5) +
+  facet_wrap(~species) + 
+  guides(col="none")
+```
+
+`r solend()`
+
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Recenter the `age` variable on 1, which is the youngest ages that we've got data on for any of our species.   
+
+Then fit a model that estimates the differences between primate species in how dominance changes over time.  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+apedat$age <- apedat$age-1 
+
+m.full <- lmer(dominance ~ 1 + age * species + (1 + age | ape), data = apedat)
+```
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+__*Do*__ primate species differ in the growth of dominance?  
+Perform an appropriate test/comparison.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This is asking about the `age*species` interaction, which in our model is represented by 3 parameters. To assess the overall question, it might make more sense to do a model comparison.  
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+m.int <- lmer(dominance ~ 1 + age + species + (1 + age | ape), data = apedat)
+m.full <- lmer(dominance ~ 1 + age * species + (1 + age | ape), data = apedat)
+
+anova(m.int, m.full)
+```
+
+
+```{r}
+#| echo: false
+res = anova(m.int, m.full)
+
+```
+
+:::int
+
+Species differ in how dominance changes over adolescence ($\chi^2(`r res[2,7]`) = `r round(res[2,6],2)`, p = `r format.pval(res[2,8],eps=.001,digits=1)`$).  
+
+:::
+
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Below is code that creates a plot of the average model predicted values for each age.^[This is like taking `predict()` from the model, and then then grouping by `age`, and calculating the mean of those predictions. However, we can do this more easily using `augment()` and then some fancy `stat_summary()` in ggplot]
+
+Before you run the code - do you expect to see straight lines? (remember, not every ape is measured at age 2, or age 3, etc).  
+
+```{r}
+#| eval: false
+library(broom.mixed)
+
+augment(m.full) |>
+  ggplot(aes(age,dominance, color=species)) +
+  # the point ranges are our observations
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  # the lines are the average of our predictions  
+  stat_summary(aes(y=.fitted, linetype=species), fun=mean, geom="line")
+```
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Averaging fitted values would give us straight lines _if_ every ape had data at all ages, but in our study we have some apes with only 2 data points, and each ape has different set of ages (e.g., one ape might be measured at age 3, 6, and 10, another ape might be at ages 2 and 16).  
+
+So the average prediction of orangutans at age 10 might be based on only 3 orangutans, whereas the average prediction of orangutans might be based on 20 orangutans. 
+
+```{r}
+library(broom.mixed)
+augment(m.full) |>
+ggplot(aes(age,dominance, color=species)) +
+  # the point ranges are our observations
+  stat_summary(fun.data=mean_se, geom="pointrange") + 
+  # the lines are the average of our predictions  
+  stat_summary(aes(y=.fitted, linetype=species), fun=mean, geom="line")
+```
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Plot the model based fixed effects.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This should get you started:  
+```{r}
+#| eval: false
+library(effects)
+effect(term = "age*species", mod = m.full) |>
+  as.data.frame() |>
+  ggplot( 
+    ...
+    ...
+```
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here's my attempt:  
+```{r}
+library(effects)
+effect(term = "age*species", mod = m.full) |>
+  as.data.frame() |>
+  ggplot(aes(x=age+1,y=fit,col=species))+
+  geom_line(lwd=1)+
+  geom_ribbon(aes(ymin=lower,ymax=upper,fill=species),col=NA,alpha=.3) +  
+  scale_color_manual(values=c("grey30","black","grey50","darkorange")) +
+  scale_fill_manual(values=c("grey30","black","grey50","darkorange")) +
+  facet_wrap(~species) + 
+  guides(col="none",fill="none") +
+  labs(x="Age (years)")
+  
+```
+
+
+`r solend()`
+
+`r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
+Interpret each of the fixed effects from the model (you might also want to get some p-values or confidence intervals).  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Each of the estimates should correspond to part of our plot from the previous question.  
+
+You can either use the `lmerTest::lmer()` to get p-values, or why not try using `confint(model)` to get some confidence intervals.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Let's get some confidence intervals:  
+
+Remember - a confidence interval is a range of plausible values for the thing we are estimating. The statistical significance we are used to with p-values of $p < .05$ is when the 95% confidence interval does not contain zero (and $p > .05$ is when the interval _does_ contain zero).^[provided that the confidence intervals and p-values are constructed using the same methods]
+
+Here the `parm = "beta_"` bit just tells the function that we want intervals _only_ for our fixed effects:  
+
+```{r}
+confint(m.full, parm = "beta_")
+```
+
+
+```{r}
+#| echo: false
+cis = confint(m.full, method="profile",
+        parm = "beta_")
+sign = ifelse(cis[,1]>0|cis[,2]<0,1,0)
+
+tidy(m.full) |>
+  filter(effect=="fixed") |>
+  transmute(term, est=round(estimate,2),
+            CI = paste0("[",round(cis[,1],2),", ",round(cis[,2],2),"]")) |>
+  mutate(
+    CI = ifelse(sign,paste0(CI,"*"),CI)
+  ) |> 
+  mutate(
+    interpretation = c(
+      "estimated dominance of 1 year old bonobos (at left hand side of plot, bonobo line is lower than 0)",
+      "estimated change in dominance score for every year older a bonobo gets (slope of bonobo line)",
+      "estimated difference in dominance scores at age 1 between bonobos and chimps (at left hand side of plot, chimp line is higher than bonobo line)",
+      "estimated difference in dominance scores at age 1 between bonobos and gorillas (at left hand side of plot, gorilla line is higher than bonobo line)",
+      "no significant difference in dominance scores at age 1 between bonobos and orangutans (at the left hand side of our plot, orangutan line is similar height to bonobo line)",
+      "no significant difference between chimps and bonobos in the change in dominance for every year older (slope of chimp line is similar to slope of bonobo line)",
+      "no significant difference between gorillas and bonobos in the change in dominance for every year older (slope of gorilla line is similar to slope of bonobo line)",
+      "estimated difference between orangutans and bonobos in the change in dominance for every year older (slope of orangutan line is less steep than slope of bonobo line)"
+    )
+  ) |> gt::gt()
+```
+
+
+`r solend()`
