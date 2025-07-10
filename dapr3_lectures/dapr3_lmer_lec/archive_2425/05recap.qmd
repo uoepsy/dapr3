@@ -1,0 +1,1219 @@
+---
+title: "The Research Process"
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+library(knitr)
+library(lme4)
+source('_theme/theme_quarto.R')
+```
+
+# QR CODE!!!
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c(
+  "what is a psychometric test?",
+  "using composite scores to simplify data (PCA)",
+  "uncovering underlying constructs (EFA)",
+  "more EFA",
+  "recap"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=5)
+```
+
+
+# VISUAL RECAP
+
+## example
+
+> **How do reaction times change with increasing sleep deprivation?** <span style="opacity:.4">Participants measured over 10 days of sleep deprivation.</span>  
+
+
+## lm: a line
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide1.PNG")
+```
+
+## lm: a line (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide13.PNG")
+```
+
+## lm: a line (3)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide2.PNG")
+```
+
+## lm: lines and differences between them
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide3.PNG")
+```
+
+## lmer: lines with a distribution of intercepts
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide4.PNG")
+```
+
+## lmer: lines with a distribution of intercepts (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide5.PNG")
+```
+
+## lmer: lines with a distribution of intercepts (3)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide6.PNG")
+```
+
+## lmer: lines with a distribution of intercepts (4)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide7.PNG")
+```
+
+## lmer: and with a distribution of slopes
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide8.PNG")
+```
+
+
+## lmer: and with a distribution of slopes (2)
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide9.PNG")
+```
+
+## fixed and random
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide10.PNG")
+```
+
+## nested: distributions of distributions 
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide11.PNG")
+```
+
+## crossed: distributions and distributions
+
+```{r echo=FALSE, out.height="600px"}
+knitr::include_graphics("img_sandbox/rt_example/Slide12.PNG")
+```
+
+
+# The research process: model specification
+
+## Study {.smaller}
+
+In 2010 A US state's commissioner for education was faced with growing community concern about rising levels of adolescent antisocial behaviours. 
+
+After a series of focus groups, the commissioner approved the trialing of an intervention in which yearly Parent Management Training (PMT) group sessions were offered to the parents of a cohort of students entering 10 different high schools. Every year, the parents were asked to fill out an informant-based version of the Aggressive Behaviour Scale (ABS), measuring verbal and physical abuse, socially inappropriate behavior, and resisting care. Where possible, the same parents were followed up throughout the child's progression through high school. Alongside this, parents from a cohort of students entering 10 further high schools in the state were recruited to also complete the same informant-based ABS, but were not offered the PMT group sessions.  
+The commissioner has two main questions: **Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?**  
+
+The data is available at https://uoepsy.github.io/data/abs_intervention.csv 
+
+## Data
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r echo=FALSE}
+absint<-read_csv("../../../data/abs_intervention.csv")
+
+tibble(
+  variable = names(absint),
+  description = c("Name of school","Participant number","Age of participant (in years) at observation","Informant-based Aggressive Behaviour Scale (ABS) score (range 0 to 100)","Whether or not the school was part of the intervention group in which Parent Management Training (PMT) group sessions were offered to the parents")
+) %>% knitr::kable()
+```
+:::
+:::{.column width="50%"}
+```{r}
+absint<-read_csv("https://uoepsy.github.io/data/abs_intervention.csv") %>% mutate(interv=factor(interv))
+head(absint)
+```
+:::
+::::
+
+## Question to Model
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | grouping structure), family = ...)
+
+
+## Outcome
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(**outcome** ~ fixed effects + (random effects | grouping structure), **family = ...**)
+
+::::{.columns}
+:::{.column width="50%"}
+
+- What are we interested in explaining/predicting?  
+
+  - How is this measured?
+  
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE, fig.width=3,fig.height=2}
+ggplot(absint, aes(x=ABS))+
+  geom_histogram()
+```
+
+:::
+::::
+
+## Fixed Effects  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ **fixed effects** + (random effects | grouping structure), family = ...)
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- What are we interested in explaining/predicting?  
+
+  - How is this measured?
+
+- What variables are we interested in explaining this by?  
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE}
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...") %>% as.data.frame() %>% print(row.names=F)
+```
+
+
+:::
+::::
+
+## Within & Between Effects
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ **fixed effects** + (random effects | grouping structure), family = ...)
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- Are our questions about the effects of our predictors specifically in reference to _group means_ of predictors?  
+
+  - "the effect of being higher on $x$ *__for a__* group"  
+  
+  - "the effect of a group being *__on average__* higher on $x$" 
+
+
+:::
+
+:::{.column width="50%"}
+
+
+:::
+::::
+
+
+## The Grouping Structure  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | grouping structure), family = ...)
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In what different ways can we group our data?   
+
+:::
+
+:::{.column width="50%" .fragment}
+```{r echo=FALSE}
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...") %>% as.data.frame() %>% print(row.names=F)
+```
+:::
+::::
+
+## The Grouping Structure  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ **fixed effects** + (random effects | grouping structure), family = ...)
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In what different ways can we group our data?   
+    - **Of the different ways we can group our data, which groupings are of specific inferential interest?**  
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE}
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...") %>% as.data.frame() %>% print(row.names=F)
+```
+:::
+::::
+
+
+## The Grouping Structure  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | **grouping structure**), family = ...)
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In what different ways can we group our data?   
+    - **Of the different ways we can group our data, which groupings do we think of as a random sample from a general population of groups?** 
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE}
+head(absint, 4L) %>% mutate(interv=as.numeric(as.character(interv)), ABS = round(ABS,1)) %>% rbind("...") %>% as.data.frame() %>% print(row.names=F)
+```
+
+
+:::
+::::
+
+
+## The Grouping Structure  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | **grouping structure**), family = ...)
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In what different ways can we group our data?   
+    - **Of the different ways we can group our data, which groupings do we think of as a random sample from a general population of groups?**  
+    
+        - Is there more than one grouping of this sort, and if so, are these groupings nested? Are the labels unique?  
+        - For each level, how many groups have we sampled?  
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+#| eval: false
+table(absint$schoolid, absint$ppt)
+```
+
+```
+                                 1 2 3 4 5 6 7 8 ...
+  Blue River High School         8 8 8 8 8 8 8 8 ...
+  Central Grammar School         8 8 8 8 8 8 8 8 ...
+  Central High                   8 8 8 8 8 8 8 8 ...
+  Clearwater Charter School      8 8 8 8 8 8 8 8 ...
+  Clearwater School of Fine Arts 8 8 8 8 8 8 8 8 ...
+  ...                            . . . . . . . . ...
+```
+
+:::
+::::
+
+
+
+## The Grouping Structure  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | **grouping structure**), family = ...)
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- In what different ways can we group our data?   
+    - **Of the different ways we can group our data, which groupings do we think of as a random sample from a general population of groups?**  
+    
+        - Is there more than one grouping of this sort, and if so, are these groupings nested? Are the labels unique?  
+        - For each level, how many groups have we sampled?  
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+nrow(absint)
+absint |> 
+  mutate(schoolppt = interaction(schoolid,ppt)) |>
+  summarise(across(everything(), n_distinct))
+```
+
+:::
+::::
+
+
+## Random Intercepts and Slopes
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (**random effects** | grouping structure), family = ...)
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- Which of our fixed effects can vary across our groupings?  
+
+  - "does a single group have multiple _distinct_ values for $x$?"  
+  
+  - "for the data from only one of our groups, can we estimate $y \sim x$?"
+
+
+:::
+
+:::{.column width="50%" style="font-size: 70%;"}
+
+All the data:
+```{r echo=FALSE, fig.asp=.2}
+library(patchwork)
+absint %>% 
+  ggplot(.,aes(x=ABS))+
+  geom_histogram() + 
+absint %>% 
+  ggplot(.,aes(x=age, y=ABS))+
+  geom_point() + 
+absint %>% mutate(interv=factor(interv)) %>% 
+  ggplot(.,aes(x=interv, y=ABS))+
+  geom_point() + 
+  scale_x_discrete(drop=FALSE)
+```
+Data from School == "Central High":
+```{r echo=FALSE, fig.asp=.2}
+library(patchwork)
+absint %>% filter(schoolid == "Central High") %>% 
+  ggplot(.,aes(x=ABS))+
+  geom_histogram() + 
+absint %>% filter(schoolid == "Central High") %>%
+  ggplot(.,aes(x=age, y=ABS))+
+  geom_point() + 
+absint %>% mutate(interv=factor(interv)) %>% filter(schoolid == "Central High") %>%
+  ggplot(.,aes(x=interv, y=ABS))+
+  geom_point() + 
+  scale_x_discrete(drop=FALSE)
+```
+
+:::
+::::
+
+
+## Random Intercepts and Slopes
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (**random effects** | grouping structure), family = ...)
+
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- Which of our fixed effects can vary across our groupings?  
+
+  - "does a single group have multiple _distinct_ values for $x$?"  
+  
+  - "for the data from only one of our groups, can we estimate $y \sim x$?"
+
+
+:::
+
+:::{.column width="50%" style="font-size: 70%;"}
+
+All the data:
+```{r echo=FALSE, fig.asp=.2}
+library(patchwork)
+absint %>% 
+  ggplot(.,aes(x=ABS))+
+  geom_histogram() + 
+absint %>% 
+  ggplot(.,aes(x=age, y=ABS))+
+  geom_point() + 
+absint %>% mutate(interv=factor(interv)) %>% 
+  ggplot(.,aes(x=interv, y=ABS))+
+  geom_point() + 
+  scale_x_discrete(drop=FALSE)
+```
+Data from School == "Central High", Participant == "1":
+```{r echo=FALSE, fig.asp=.2}
+library(patchwork)
+absint %>% filter(schoolid == "Central High", ppt == 1) %>% 
+  ggplot(.,aes(x=ABS))+
+  geom_histogram() +
+absint %>% filter(schoolid == "Central High", ppt == 1) %>%
+  ggplot(.,aes(x=age, y=ABS))+
+  geom_point() + 
+absint %>% mutate(interv=factor(interv)) %>% filter(schoolid == "Central High", ppt == 1) %>%
+  ggplot(.,aes(x=interv, y=ABS))+
+  geom_point() + 
+  scale_x_discrete(drop=FALSE)
+```
+
+:::
+::::
+
+
+## Our model  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | grouping structure), family = ...)
+
+
+:::{.fragment}
+
+&nbsp; &nbsp; &nbsp; lmer(ABS &nbsp; &nbsp; &nbsp; &nbsp; ~ age * interv +  &nbsp; (1 + age &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; schoolid&nbsp; &nbsp; &nbsp; &nbsp; ) +
+  
+&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; &nbsp;(1 + age &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; schoolid:ppt&nbsp; &nbsp; &nbsp; &nbsp; )
+
+:::
+
+## Our model  
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+(g)lmer(outcome ~ fixed effects + (random effects | grouping structure), family = ...)
+
+
+&nbsp; &nbsp; lmer(ABS &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; ~ ageC * interv + (1 + ageC &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; schoolid&nbsp; &nbsp; &nbsp; &nbsp; ) +
+  
+&nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp; &nbsp;(1 + ageC &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | &nbsp; &nbsp; schoolid:ppt&nbsp; &nbsp; &nbsp; &nbsp; )
+
+
+```{r echo=FALSE}
+absint <- absint %>% mutate(ageC = age - 12)
+head(absint, 4L) %>% mutate(ABS = round(ABS,1), ageC = age-12) %>% mutate(interv=as.character(interv)) %>% rbind("...")  %>% as_tibble() %>% kable()
+```
+
+```{r eval=FALSE,echo=FALSE}
+absmod <- lmer(ABS ~ ageC * interv + (1 + ageC | schoolid/ppt), data = absint,
+     control = lmerControl(optimizer="bobyqa"))
+
+lmer(ABS ~ age * interv + (1 + age | schoolid/ppt) , data = absint %>% mutate(age=age-12),
+     control = lmerControl(optimizer="bobyqa")) -> d
+VarCorr(d)
+broom.mixed::augment(d) %>%
+  ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
+  geom_line()
+
+
+lmer(ABS ~ age * interv + (1 + age | schoolid/ppt) , data = absint,
+     control = lmerControl(optimizer="bobyqa")) -> d2
+VarCorr(d2)
+broom.mixed::augment(d2) %>%
+  ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
+  geom_line()
+
+
+absint %>% count(interv,schoolid,ppt) %>%
+  mutate(age = 0) %>%
+  mutate(.fitted = predict(d2, newdata=.)) %>% 
+  bind_rows(broom.mixed::augment(d2), .) %>%
+  ggplot(.,aes(x=age,y=.fitted,group=interaction(schoolid,ppt)))+
+  geom_line()
+```
+
+
+# The research process: model fitting
+
+## Model issues
+
+- Check for convergence issues & singular fits. 
+```{r}
+#| echo: true
+absmod <- lmer(ABS ~ ageC * interv + 
+                 (1 + ageC | schoolid)+
+                 (1 + ageC | schoolid:ppt),
+               data = absint)
+```
+```{r}
+#| echo: true
+absmod@optinfo$message
+```
+
+## Assumptions
+
+- Check that we're happy to assume the things we need to assume
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+plot(absmod,
+     type = c("p"), main = "fitted vs residuals")
+```
+
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+plot(absmod, 
+     form = sqrt(abs(resid(.))) ~ fitted(.),
+     type = c("p"), main="scale-location")
+```
+
+:::
+::::
+
+## Assumptions
+
+
+::::{.columns}
+:::{.column width="30%"}
+
+```{r}
+#| echo: true
+#| eval: false
+qqnorm(resid(absmod), main = "level one residuals")
+qqline(resid(absmod))
+```
+
+
+```{r}
+#| out-width: "100%"
+#| out-height: "450px"
+par(mfrow=c(2,1))
+qqnorm(resid(absmod), main = "level one residuals")
+qqline(resid(absmod))
+par(mfrow=c(1,1))
+```
+
+:::
+
+:::{.column width="30%"}
+```{r}
+#| echo: true
+#| eval: false
+qqnorm(ranef(absmod)$schoolid$`(Intercept)`, main="School level random intercepts")
+qqline(ranef(absmod)$schoolid$`(Intercept)`)
+qqnorm(ranef(absmod)$schoolid$ageC, main="School level random slopes of age")
+qqline(ranef(absmod)$schoolid$ageC)
+```
+
+
+```{r}
+#| out-width: "100%"
+#| out-height: "450px"
+par(mfrow=c(2,1))
+qqnorm(ranef(absmod)$schoolid$`(Intercept)`, main="School level random intercepts")
+qqline(ranef(absmod)$schoolid$`(Intercept)`)
+qqnorm(ranef(absmod)$schoolid$ageC, main="School level random slopes of age")
+qqline(ranef(absmod)$schoolid$ageC)
+par(mfrow=c(1,1))
+```
+:::
+:::{.column width="30%"}
+```{r}
+#| echo: true
+#| eval: false
+qqnorm(ranef(absmod)$`schoolid:ppt`$`(Intercept)`, main="Child level random intercepts")
+qqline(ranef(absmod)$`schoolid:ppt`$`(Intercept)`)
+qqnorm(ranef(absmod)$`schoolid:ppt`$ageC, main="Child level random slopes of age")
+qqline(ranef(absmod)$`schoolid:ppt`$ageC)
+```
+
+
+```{r}
+#| out-width: "100%"
+#| out-height: "450px"
+par(mfrow=c(2,1))
+qqnorm(ranef(absmod)$`schoolid:ppt`$`(Intercept)`, main="Child level random intercepts")
+qqline(ranef(absmod)$`schoolid:ppt`$`(Intercept)`)
+qqnorm(ranef(absmod)$`schoolid:ppt`$ageC, main="Child level random slopes of age")
+qqline(ranef(absmod)$`schoolid:ppt`$ageC)
+par(mfrow=c(1,1))
+```
+
+:::
+::::
+
+
+
+## Assumptions
+
+Do tests if you want, but beware. Multilevel data tends to have bigger $n$, and these tests are overly sensitive.  
+
+- Personally, I prefer plots. 
+
+```{r}
+#| echo: false
+normst <- list(shapiro.test(resid(absmod)),
+shapiro.test(ranef(absmod)$schoolid$`(Intercept)`),
+shapiro.test(ranef(absmod)$schoolid$ageC),
+shapiro.test(ranef(absmod)$`schoolid:ppt`$`(Intercept)`),
+shapiro.test(ranef(absmod)$`schoolid:ppt`$ageC)
+)
+map_chr(normst, ~paste0(.$method," ",.$data.name," W=",round(.$statistic,2),", p=",round(.$p.value,2)))
+```
+
+## Diagnostics
+
+
+::::{.columns}
+:::{.column width="30%"}
+```{r}
+#| echo: false
+#| out-width: "100%"
+library(HLMdiag)
+library(patchwork)
+l1 <- hlm_influence(absmod, level=1)
+l2 <- hlm_influence(absmod, level="schoolid:ppt")
+l3 <- hlm_influence(absmod, level="schoolid")
+dotplot_diag(l1$cooksd) + labs(title="Cook's D: Observations")
+```
+:::
+:::{.column width="30%"}
+```{r}
+#| echo: false
+dotplot_diag(l2$cooksd) + labs(title="Cook's D: Children")
+```
+
+:::
+:::{.column width="30%"}
+```{r}
+#| echo: false
+dotplot_diag(l3$cooksd) + labs(title="Cook's D: School")
+```
+
+:::
+::::
+
+
+# The research process: inference
+
+## Inference
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+
+::::{.columns}
+:::{.column width="30%"}
+__Options__  
+
+- Model comparison 
+
+- Parameters
+
+:::
+
+:::{.column width="70%" style="font-size: .7em"}
+__Methods__  
+
+- satterthwaite df:  
+    - `lmerTest::lmer()` and `pbkrtest::SATmodcomp(model2,model1)`
+- likelihood ratio tests: 
+    - `anova(model1, model2, ...)`
+
+:::{style="opacity: .5"}
+
+- kenward-rogers df
+- likelihood profile confidence intervals
+- parametric bootstrap
+- residual bootstrap
+- case bootstrap
+
+:::
+
+:::
+::::
+
+
+
+
+## Inference
+
+
+
+> Does the presentation of aggressive behaviours increase as children enter the secondary school system? If so, is there any evidence for the effectiveness of Parent Management Training (PMT) group sessions in curbing the rise of aggressive behaviors during a child's transition into the secondary school system?  
+
+
+::::{.columns}
+:::{.column width="30%"}
+__Options__  
+
+- Model comparison 
+
+- Parameters
+
+:::
+
+:::{.column width="70%"}
+
+```{r}
+#| echo: true
+fixef(absmod)
+```
+
+:::
+::::
+
+
+## Inference
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+absmodp <- lmerTest::lmer(ABS ~ ageC * interv + 
+                 (1 + ageC | schoolid)+
+                 (1 + ageC | schoolid:ppt),
+               data = absint)
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+summary(absmodp)
+```
+
+:::
+::::
+
+
+## Interpretation: Fixed effects
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+fixef(absmod)
+```
+:::
+
+:::{.column width="50%"}
+MAP IT TO THE PLOT!!!!
+:::
+::::
+
+
+## Interpretation: Random effects  
+
+Don't just ignore. They add context to results  
+
+- e.g. they can give a descriptive answer to "should we expect *all* children get more aggressive in secondary school?"  
+
+- often it's about the amount of variability relative to the corresponding fixed effect.  
+    - a fixed slope of 0.5 with groups varying in slopes with an SD of 1
+    - a fixed slope of 10 with groups varying in slopes with an SD of 1
+
+
+
+
+## Interpretation: Random effects  
+
+Don't just ignore. They add context to results  
+
+- e.g. they can give a descriptive answer to "should we expect *all* children get more aggressive in secondary school?" 
+
+```{r fig.asp=.6, echo=FALSE}
+plotline = MASS::mvrnorm(n=250, mu=fixef(absmod)[1:2],Sigma=VarCorr(absmod)[[1]]) %>%
+  as_tibble() |> mutate(interv="0")
+plotline2 = MASS::mvrnorm(n=250, mu=c(sum(fixef(absmod)[c(1,3)]),sum(fixef(absmod)[c(2,4)])),Sigma=VarCorr(absmod)[[1]]) %>%
+  as_tibble() |> mutate(interv="1")
+
+ggplot(absint, aes(x=ageC, y=ABS))+
+  geom_point(col=NA)+
+  guides(col="none")+
+  geom_abline(data=plotline, aes(intercept=`(Intercept)`,slope=ageC,col=interv),alpha=.1)+
+  geom_abline(data=plotline2, aes(intercept=`(Intercept)`,slope=ageC,col=interv),alpha=.1)+ 
+  geom_abline(intercept=sum(fixef(absmod)[c(1,3)]),slope=sum(fixef(absmod)[c(2,4)]))+
+  geom_abline(intercept=fixef(absmod)[1],slope=fixef(absmod)[2])-> p1
+
+
+ss = VarCorr(absmod)[[1]]/5
+ss[1,1] <- 5
+ss[2,2] <- .4
+plotline = MASS::mvrnorm(n=250, mu=fixef(absmod)[1:2],Sigma=ss) %>%
+  as_tibble() |> mutate(interv="0")
+plotline2 = MASS::mvrnorm(n=250, mu=c(sum(fixef(absmod)[c(1,3)]),sum(fixef(absmod)[c(2,4)])),Sigma=ss) %>%
+  as_tibble() |> mutate(interv="1")
+
+ggplot(absint, aes(x=ageC, y=ABS))+
+  geom_point(col=NA)+
+  guides(col="none")+
+  geom_abline(data=plotline, aes(intercept=`(Intercept)`,slope=ageC,col=interv),alpha=.1)+
+  geom_abline(data=plotline2, aes(intercept=`(Intercept)`,slope=ageC,col=interv),alpha=.1)+ 
+  geom_abline(intercept=sum(fixef(absmod)[c(1,3)]),slope=sum(fixef(absmod)[c(2,4)]))+
+  geom_abline(intercept=fixef(absmod)[1],slope=fixef(absmod)[2])-> p2
+
+ss = VarCorr(absmod)[[1]]/5
+ss[1,1] <- 1
+ss[2,2] <- 5
+plotline = MASS::mvrnorm(n=250, mu=fixef(absmod)[1:2],Sigma=ss) %>%
+  as_tibble() |> mutate(interv="0")
+plotline2 = MASS::mvrnorm(n=250, mu=c(sum(fixef(absmod)[c(1,3)]),sum(fixef(absmod)[c(2,4)])),Sigma=ss) %>%
+  as_tibble() |> mutate(interv="1")
+
+ggplot(absint, aes(x=ageC, y=ABS))+
+  geom_point(col=NA)+
+  guides(col="none")+
+  geom_abline(data=plotline, aes(intercept=`(Intercept)`,slope=ageC,col=interv),alpha=.1)+
+  geom_abline(data=plotline2, aes(intercept=`(Intercept)`,slope=ageC,col=interv),alpha=.1)+ 
+  geom_abline(intercept=sum(fixef(absmod)[c(1,3)]),slope=sum(fixef(absmod)[c(2,4)])) +
+  geom_abline(intercept=fixef(absmod)[1],slope=fixef(absmod)[2])-> p3
+
+p1 | p2 | p3
+```
+
+
+
+
+# The research process: reporting
+
+## Reporting the analysis strategy {.smaller}
+
+- Data cleaning outlier/data removal, transformations _prior to_ analysis.  
+
+- Unplanned transformations and data removal which are carried out in order to meet assumptions.  
+
+:::{.fragment}
+
+- Specify all fixed effects (explanatory variables & covariates).  
+Link them to explicitly stated research questions/hypotheses. 
+
+- Explicitly state the hierarchical structure of the data and of the model.  
+Specify random effects according to the sampling units (schools/children etc) with which they interact. 
+
+:::
+
+:::{.fragment}
+
+- Planned structure of random effects to be fitted   
+
+- Procedure to be used to decide on final random effect structure.  
+
+:::
+
+:::{.fragment}
+
+- State clearly the relevant test/comparison/parameter estimate of interest.  
+Link to explicitly stated research questions/hypotheses.  
+
+  - Method you plan to use to conduct inference (e.g. LRT, kr, bootstrap)
+  - Any model comparisons should be clearly stated so that the reader understands the structure of *both* models being compared.  
+
+
+:::
+
+
+## Reporting results
+
+
+::::{.columns}
+:::{.column width="50%"}
+__Model fitting (strategy? results? ??)__  
+
+- Software packages and versions used to fit the model(s), along with the estimation method (ML/REML) and optimiser used.   
+
+- If proposed model failed to converge:  
+  - steps leading to final converging model.  
+  - final model structure  
+  
+:::
+
+:::{.column width="50%"}
+__Results__  
+
+For final model:  
+
+- all parameter estimates for fixed effects.  
+
+    - coefficients
+    - associated standard errors, test statistics, df and p-values (if used, or CIs if preferred)
+
+- random effects  
+
+  - standard deviation and/or variance for each random effect
+  - correlations/covariances if modelled   
+  - residual variance/standard deviation
+    
+:::
+::::
+
+## Reporting: text and tables {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+Tables help a lot!  
+
+```{r}
+#| echo: true
+#| eval: false
+library(sjPlot)
+tab_model(absmod, 
+          show.ci = 0.95,
+          show.stat = TRUE/FALSE,
+          show.se = TRUE/FALSE,
+          show.df = TRUE/FALSE,
+          show.re.var = TRUE/FALSE,
+          df.method="satterthwaite")
+```
+
+:::{.fragment}
+But **they are not a substitute for interpretation**  
+
+- Key parameters of interest should also be included in-text, with interpretation.  
+
+:::
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+library(sjPlot)
+tab_model(absmod, 
+          show.ci = NULL,
+          show.stat = TRUE,
+          show.df = TRUE,
+          show.re.var = TRUE,
+          df.method="satterthwaite")
+```
+
+:::
+::::
+
+
+
+## Visualisations
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+fixef(absmod)
+```
+
+```{r fig.asp=.8}
+#| echo: true
+#| eval: false
+library(effects)
+efplot <- effect("ageC*interv", absmod) |> 
+  as.data.frame()
+
+ggplot(efplot, aes(x = ageC, y = fit, 
+                   col = interv, fill = interv)) +
+  geom_line()+
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha=.3) +
+  scale_x_continuous("Age",breaks=0:7,labels=12:19)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r fig.asp=.8}
+#| echo: false
+library(effects)
+efplot <- effect("ageC*interv", absmod) |> 
+  as.data.frame()
+
+ggplot(efplot, aes(x = ageC, y = fit, 
+                   col = interv, fill = interv)) +
+  geom_line()+
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha=.3) +
+  scale_x_continuous("Age",breaks=0:7,labels=12:19)
+```
+:::
+::::
+
+
+## Visualisations - Results in context
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+fixef(absmod)
+VarCorr(absmod)
+```
+
+```{r fig.asp=.8}
+#| echo: true
+#| eval: false
+library(effects)
+library(broom.mixed)
+efplot <- effect("ageC*interv", absmod) |> 
+  as.data.frame()
+
+augment(absmod) |>
+  mutate(uppt = paste0(schoolid, ppt)) |>
+  ggplot(aes(x=ageC, col = interv)) +
+  geom_line(aes(y = .fitted, group = uppt), alpha=.1) + 
+  geom_line(data = efplot, aes(y = fit, col= interv)) +
+  geom_ribbon(data = efplot, aes(y = fit, 
+                                 ymin = lower, ymax = upper,
+                                 fill = interv), alpha = .3) +
+  scale_x_continuous("Age",breaks=0:7,labels=12:19)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r fig.asp=.8}
+#| echo: false
+library(effects)
+library(broom.mixed)
+efplot <- effect("ageC*interv", absmod) |> 
+  as.data.frame()
+
+augment(absmod) |>
+  mutate(uppt = paste0(schoolid, ppt)) |>
+  ggplot(aes(x=ageC, col = interv)) +
+  geom_line(aes(y = .fitted, group = uppt), alpha=.1) + 
+  geom_line(data = efplot, aes(y = fit, col= interv)) +
+  geom_ribbon(data = efplot, aes(y = fit, 
+                                 ymin = lower, ymax = upper,
+                                 fill = interv), alpha = .3) +
+  scale_x_continuous("Age",breaks=0:7,labels=12:19)
+```
+:::
+::::
+
+## Visualising - Results in context
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+:::
+
+:::{.column width="50%"}
+But plotting manually gives you more control:
+
+```{r echo=FALSE, fig.asp=.8}
+library(effects)
+effs <- effect("ageC:interv", absmod) |>
+  as.data.frame()
+
+facetlabs <- c(
+  `0` = "No Intervention",
+  `1` = "Parent Management\nTraining"
+)
+
+broom.mixed::augment(absmod) %>%
+ggplot(., aes(x=ageC+12,
+              col=interv))+
+  geom_point(aes(y=ABS), alpha=.1) +
+  geom_line(aes(y=.fitted,group=interaction(schoolid,ppt)), alpha=.2) +
+  scale_color_manual("Intervention",values=c("#BF1932","#88B04B"),
+                     labels=c("None","PMT"))+
+  guides(fill="none",col="none")+
+  labs(y="ABS", x="")+
+  facet_grid(~interv, labeller = as_labeller(facetlabs)) -> p1
+
+ggplot(effs, aes(x=ageC+12,
+              col=interv))+
+  geom_line(aes(y=fit), lwd=1)+
+  geom_ribbon(aes(ymax=upper,ymin=lower, fill=interv), alpha=.2)+
+  scale_color_manual("Intervention",values=c("#BF1932","#88B04B"),
+                     labels=c("None","PMT"))+
+  scale_fill_manual("Intervention",values=c("#BF1932","#88B04B"),
+                    labels=c("None","PMT"))+
+  labs(title="estimated change in ABS over age", 
+       subtitle="averaged across children within schools",
+       y="ABS", x="- Age (years) -")+
+  guides(fill="none",col="none") -> p2
+
+p1 / p2
+```
+:::
+::::
+
+# QR CODE!!!
+
+# End
+
+## This week 
+
+
+::::{.columns}
+:::{.column width="50%"}
+### Tasks
+
+![](img_sandbox/readings.png){width=60px style="margin:0;margin-left:-60px"} Complete readings 
+
+<br>
+
+![](img_sandbox/labs.svg){width=60px style="margin:0;margin-left:-60px"} Attend your lab and work together on the exercises 
+
+<br>
+
+![](img_sandbox/exam.svg){width=60px style="margin:0;margin-left:-60px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+### Support
+
+![](img_sandbox/forum.svg){width=60px style="margin:0;margin-left:-60px"} Piazza forum! 
+
+<br>
+
+![](img_sandbox/oh.png){width=60px style="margin:0;margin-left:-60px"} Office hours (see Learn page for details)
+
+
+
+:::
+::::
+

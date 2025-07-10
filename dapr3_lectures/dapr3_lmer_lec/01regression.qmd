@@ -54,7 +54,7 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=1)
     - what we can do with our current tools
 
 
-# Model Structures
+# Regression Models
 
 ## Models
 
@@ -273,6 +273,79 @@ ggplot(df,aes(x=as.numeric(x=="Category1"),y=y))+
 :::
 ::::
 
+## The linear model as variance explained
+
+### Sums of Squares
+
+::::{.columns}
+:::{.column width="50%"}
+
+Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
+
+- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
+
+- $SS_{model} = \sum^{n}_{i=1}(\hat y_i - \bar y)^2$  
+  
+- $SS_{residual} = \sum^{n}_{i=1}(y_i - \hat y_i)^2$  
+
+:::
+:::{.column width="50%" .fragment}
+
+```{r}
+set.seed(993)
+df <- 
+  tibble(
+    x1 = rnorm(100)+3,
+    y = x1*2 + rnorm(100)
+  )
+
+# SST, SSM and SSR
+plt_sst = 
+  ggplot(df, aes(x=x1,y=y))+
+  geom_point()+
+  geom_hline(yintercept=mean(df$y), lty="dashed")+
+  geom_segment(aes(x=x1,xend=x1,y=y,yend=mean(df$y)), lty="dashed",col="red")+
+  geom_text(x=1,y=8,label="bar(y)",parse=T, size=6)+
+  geom_curve(x=1.1,xend=2,y=8,yend=mean(df$y),curvature=-.2)+
+  labs(title="SS Total")
+
+plt_ssr = ggplot(df, aes(x=x1,y=y))+
+  geom_point()+
+  geom_hline(yintercept=mean(df$y), lty="dashed")+
+  geom_smooth(method=lm,se=F)+
+  geom_segment(aes(x=x1,xend=x1,y=y,yend=fitted(lm(y~x1,df))), lty="dashed",col="red")+
+  labs(title="SS Residual")
+
+plt_ssm = ggplot(df, aes(x=x1,y=y))+
+  geom_point()+
+  geom_hline(yintercept=mean(df$y), lty="dashed")+
+  geom_smooth(method=lm,se=F)+
+  geom_segment(aes(x=x1,xend=x1,yend=mean(df$y),y=fitted(lm(y~x1,df))), lty="dashed",col="blue")+
+  labs(title="SS Model")
+
+plt_sst / (plt_ssm + plt_ssr) & scale_x_continuous("x",breaks=NULL) & scale_y_continuous("y",breaks=NULL)
+
+```
+
+:::
+::::
+
+## Why?
+
+::: {.incremental}
+
++ Linear models are "explain" variance in an outcome.
+
++ Models can accommodate lots of predictors.
+
++ With multiple predictors, those predictors are likely to correlate.
+
++ Multiple regression is the optimal prediction of the outcome from several predictors, **taking into account their redundancy with one another**
+    + how does [predictor of interest] explain variance in [outcome] *beyond the variance explained by other variables*  
+
+:::
+
+
 ## Multiple Regression
 
 ::::{.columns}
@@ -283,7 +356,7 @@ $\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + \, ... \, + b_k
 
 :::
 
-:::{.column width="50%" .fragment}
+:::{.column width="50%"}
 ```{r echo=FALSE, fig.asp=.8}
 mwdata <- read_csv(file = "https://uoepsy.github.io/data/wellbeing.csv")
 fit<-lm(wellbeing~outdoor_time+social_int, data=mwdata)
@@ -390,8 +463,22 @@ broom::tidy(mod1) |>
 
 :::
 
+##  Uses of multiple regression  
 
-## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+::: {.incremental}
+
++ **For prediction:** multiple predictors may lead to improved prediction. 
+
++ **For theory testing:** often our theories suggest that multiple variables together contribute to variation in an outcome
+
++ **For covariate control:** we might want to assess the effect of a specific predictor, controlling for the influence of others.
+
+:::
+
+
+
+
+## ![](img_sandbox/tangent.png){width=35px} Third variables 
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -411,7 +498,7 @@ why useful?
 visual is for learning only - intution building.
 :::
 
-## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+## ![](img_sandbox/tangent.png){width=35px} Third variables 
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -427,7 +514,7 @@ visual is for learning only - intution building.
 ::::
 
 
-## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+## ![](img_sandbox/tangent.png){width=35px} Third variables 
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -452,7 +539,7 @@ visual is for learning only - intution building.
 
 :::
 
-## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+## ![](img_sandbox/tangent.png){width=35px} Third variables 
 
 
 ::::{.columns}
@@ -490,8 +577,7 @@ Design is so important! If possible, we could design it so that X and Z are orth
 :::
 
 
-## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
-
+## ![](img_sandbox/tangent.png){width=35px} Third variables 
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -506,7 +592,7 @@ Design is so important! If possible, we could design it so that X and Z are orth
 :::{.fragment}
 Association between X and Y is changed if we adjust for Z (**a** is smaller than previous slide), because there is a bit (**b**) that could be attributed to Z instead.  
 
-- regression coefficients for X and Z are like areas **a** and **c** (scaled to be in terms of 'per unit change in the predictor')
+- multiple regression coefficients for X and Z are like areas **a** and **c** (scaled to be in terms of 'per unit change in the predictor')
 - total variance explained by _both_ X and Z is **a+b+c**
 
 :::
@@ -531,6 +617,275 @@ Association between X and Y is changed if we adjust for Z (**a** is smaller than
     - BP ~ drug | cholesterol
 
 :::
+
+
+## I have control issues.. 
+### ..and so should you
+
+::::{.columns}
+:::{.column width="50%"}
+what do we mean by "control"?  
+
+- often quite a vague/nebulous idea
+
+relationship between x and y ... 
+
+- controlling for z
+- accounting for z
+- conditional upon z
+- holding constant z
+- **adjusting** for z
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/simp.jpg)
+
+:::
+::::
+
+## I have control issues.. 
+### ..and so should you
+
+- linear regression models provide "linear adjustment" of Z 
+
+    - sort of like stratification across groups, but Z can now be continuous
+
+    - assumes effect of X on Y is constant across Z
+        - (but doesn't have to, as we'll see tomorrow)
+
+## I have control issues.. 
+### ..and so should you
+
+In order to estimate "the effect" of X on Y, deciding on what to control for **MUST** rely on a theoretical model of causes - i.e. a theory about the underlying data generating process  
+
+
+## simple lm(y~x)
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide1.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## what do i do with Z?  
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide13.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## Z is a confounder
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide2.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+## Z is a mediator
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide3.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## Z is a collider
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide4.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## example
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide5.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## example
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide6.PNG)
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+set.seed(78)
+df = tibble(
+  age = runif(100,18,80),
+  drug = rbinom(100,1,plogis(scale(age)*1.2)),
+  BP = rnorm(100,60+1*age - 5*drug,5)
+) |> mutate(drug=factor(drug))
+m2 = lm(BP~age+drug,df)
+p1 = ggplot(df,aes(x=drug,y=BP,col=age))+
+  geom_jitter(width=.1,height=0,
+              size=2,alpha=.3)+
+  stat_summary(geom="pointrange",
+               position=position_nudge(x=.23))
+
+p2 = ggplot(df,aes(x=age,y=BP,col=drug))+
+  geom_point(size=3,alpha=.6)+
+  geom_abline(intercept=coef(m2)[1],
+              slope=coef(m2)[2],
+              lwd=1,col="tomato")+
+  geom_abline(intercept=coef(m2)[1]+coef(m2)[3],
+              slope=coef(m2)[2],
+              lwd=1,col="skyblue2")
+p1 / p2
+```
+:::
+::::
+
+
+
+
+## example
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide7.PNG)
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+set.seed(3)
+df = tibble(
+  age = runif(100,18,80),
+  drug = rbinom(100,1,.5),
+  BP = rnorm(100,60+1*age - 5*drug,5)
+) |> mutate(drug=factor(drug))
+m2 = lm(BP~age+drug,df)
+p1 = ggplot(df,aes(x=drug,y=BP,col=age))+
+  geom_jitter(width=.1,height=0,
+              size=2,alpha=.3)+
+  stat_summary(geom="pointrange",
+               position=position_nudge(x=.23))
+
+p2 = ggplot(df,aes(x=age,y=BP,col=drug))+
+  geom_point(size=3,alpha=.6)+
+  geom_abline(intercept=coef(m2)[1],
+              slope=coef(m2)[2],
+              lwd=1,col="tomato")+
+  geom_abline(intercept=coef(m2)[1]+coef(m2)[3],
+              slope=coef(m2)[2],
+              lwd=1,col="skyblue2")
+p1 / p2
+```
+
+:::
+::::
+
+
+## example
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide8.PNG)
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+set.seed(44)
+df = tibble(
+  drug = rbinom(100,1,.5),
+  cholesterol = rnorm(100,-1*drug,1),
+  BP = rnorm(100,120+1.2*cholesterol,2)
+) |> mutate(drug=factor(drug))
+m2 = lm(BP~cholesterol+drug,df)
+p1 = ggplot(df,aes(x=drug,y=BP))+
+  geom_jitter(width=.1,height=0,
+              size=2,alpha=.3)+
+  stat_summary(geom="pointrange",
+               position=position_nudge(x=.23))
+
+p2 = ggplot(df,aes(x=cholesterol,y=BP,col=drug))+
+  geom_point(size=3,alpha=.6)+
+  geom_abline(intercept=coef(m2)[1],
+              slope=coef(m2)[2],
+              lwd=1,col="tomato")+
+  geom_abline(intercept=coef(m2)[1]+coef(m2)[3],
+              slope=coef(m2)[2],
+              lwd=1,col="skyblue2")
+p1 / p2
+```
+
+:::
+::::
+
+## example 2
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide9.PNG)
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+## example 2
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide10.PNG)
+:::
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide11.PNG) 
+:::
+::::
+
+- to play around with this, see  [https://colliderbias.herokuapp.com/](https://colliderbias.herokuapp.com/){target="_blank"}
+
+## general heuristics (NOT rules)
+
+- control for a confounder  
+- don't control for a mediator  
+- don't control for a collider 
+
+- draw your theoretical model **before** you get your data, so that you know what variables you (ideally) need.  
+
+:::{.aside}
+
+For more on this, see:  
+
+- Wysocki, A. C., Lawson, K. M., & Rhemtulla, M. (2022). Statistical control requires causal justification. Advances in Methods and Practices in Psychological Science, 5(2), 25152459221095823.
+- Rohrer, J. M. (2024). Causal inference for psychologists who think that causal inference is not for them. Social and Personality Psychology Compass, 18(3), e12948.
+- Cinelli, C., Forney, A., & Pearl, J. (2024). A crash course in good and bad controls. Sociological Methods & Research, 53(3), 1071-1104.
+
+:::
+
+
 
 
 ## Multiple Regression
@@ -995,67 +1350,11 @@ g + geom_area(data=ld,aes(x=x,y=y),fill="grey30",alpha=.3) +
 
 ![](img_sandbox/sum4.png)
 
-## Sums of Squares
-
-::::{.columns}
-:::{.column width="50%"}
-
-Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
-
-- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
-
-- $SS_{model} = \sum^{n}_{i=1}(\hat y_i - \bar y)^2$  
-  
-- $SS_{residual} = \sum^{n}_{i=1}(y_i - \hat y_i)^2$  
-
-:::
-:::{.column width="50%" .fragment}
-
-```{r}
-set.seed(993)
-df <- 
-  tibble(
-    x1 = rnorm(100)+3,
-    y = x1*2 + rnorm(100)
-  )
-
-# SST, SSM and SSR
-plt_sst = 
-  ggplot(df, aes(x=x1,y=y))+
-  geom_point()+
-  geom_hline(yintercept=mean(df$y), lty="dashed")+
-  geom_segment(aes(x=x1,xend=x1,y=y,yend=mean(df$y)), lty="dashed",col="red")+
-  geom_text(x=1,y=8,label="bar(y)",parse=T, size=6)+
-  geom_curve(x=1.1,xend=2,y=8,yend=mean(df$y),curvature=-.2)+
-  labs(title="SS Total")
-
-plt_ssr = ggplot(df, aes(x=x1,y=y))+
-  geom_point()+
-  geom_hline(yintercept=mean(df$y), lty="dashed")+
-  geom_smooth(method=lm,se=F)+
-  geom_segment(aes(x=x1,xend=x1,y=y,yend=fitted(lm(y~x1,df))), lty="dashed",col="red")+
-  labs(title="SS Residual")
-
-plt_ssm = ggplot(df, aes(x=x1,y=y))+
-  geom_point()+
-  geom_hline(yintercept=mean(df$y), lty="dashed")+
-  geom_smooth(method=lm,se=F)+
-  geom_segment(aes(x=x1,xend=x1,yend=mean(df$y),y=fitted(lm(y~x1,df))), lty="dashed",col="blue")+
-  labs(title="SS Model")
-
-plt_sst / (plt_ssm + plt_ssr) & scale_x_continuous("x",breaks=NULL) & scale_y_continuous("y",breaks=NULL)
-
-```
-
-:::
-::::
 
 ## Sums of Squares (2)
 
 ::::{.columns}
 :::{.column width="50%"}
-
-Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
 
 - $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
     - **a+b+c+e**

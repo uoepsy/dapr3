@@ -1,0 +1,532 @@
+---
+title: "A little primer on regression coefficients"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+library(lme4)
+source('_theme/theme_quarto.R')
+set.seed(887)
+df = tibble(
+  age = c(18,19,20,33,67,24,37,55,41,31),
+  exercise = round(runif(10,0,7)),
+  therapy = c(0,0,1,0,1,1,0,0,1,1),
+  stress = age*.3 + -.7*exercise + -3*therapy  -.1*age*therapy+ rnorm(10)
+)
+
+```
+
+## change in Y for a 1 unit change in X
+
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age, data = df)
+.pp(summary(mod), l = list(9:18))
+```
+
+## unit level predictions
+
+```{r}
+#| echo: true
+mod = lm(stress ~ age, data = df)
+coef(mod)
+```
+
+::::{.columns}
+:::{.column width="30%"}
+__Data__  
+```{r}
+#| echo: false
+df
+```
+
+:::
+:::{.column width="20%"}
+__Predictions__  
+```{r}
+#| echo: false
+library(marginaleffects)
+predictions(mod) |> as_tibble() |> transmute(prediction=estimate)
+```
+
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
+## unit level counterfactuals
+
+```{r}
+#| echo: true
+mod = lm(stress ~ age, data = df)
+coef(mod)
+```
+
+::::{.columns}
+:::{.column width="30%"}
+__Data__  
+```{r}
+#| echo: false
+df
+```
+
+:::
+:::{.column width="20%"}
+__Predictions__  
+```{r}
+#| echo: false
+library(marginaleffects)
+predictions(mod) |> as_tibble() |> transmute(prediction=estimate)
+```
+
+:::
+:::{.column width="50%"}
+__Counterfactuals__  
+```{r}
+#| echo: false
+library(marginaleffects)
+comparisons(mod, variables="age") |> as_tibble() |> 
+  select(term,contrast,estimate) 
+```
+
+:::
+::::
+
+
+## unit level counterfactuals
+
+```{r}
+#| echo: true
+mod = lm(stress ~ therapy, data = df)
+coef(mod)
+```
+
+::::{.columns}
+:::{.column width="30%"}
+__Data__  
+```{r}
+#| echo: false
+df
+```
+
+:::
+:::{.column width="20%"}
+__Predictions__  
+```{r}
+#| echo: false
+library(marginaleffects)
+predictions(mod) |> as_tibble() |> transmute(prediction=estimate)
+```
+
+:::
+:::{.column width="50%"}
+__Counterfactuals__  
+```{r}
+#| echo: false
+library(marginaleffects)
+comparisons(mod, variables="therapy") |> as_tibble() |> 
+  select(term,contrast,estimate) 
+```
+
+:::
+::::
+
+## holding constant
+
+```{r}
+#| echo: true
+mod = lm(stress ~ age + exercise + therapy, data = df)
+coef(mod)
+```
+
+::::{.columns}
+:::{.column width="30%"}
+__Data__  
+```{r}
+#| echo: false
+df
+```
+
+:::
+:::{.column width="20%"}
+__Predictions__  
+```{r}
+#| echo: false
+library(marginaleffects)
+predictions(mod) |> as_tibble() |> transmute(prediction=estimate)
+```
+
+:::
+:::{.column width="50%"}
+__Counterfactuals__  
+```{r}
+#| echo: false
+library(marginaleffects)
+comparisons(mod, variables="therapy") |> as_tibble() |> 
+  select(term,contrast,estimate) |>
+  transmute(
+    age = df$age,
+    exercise = df$exercise, 
+    term, contrast, estimate
+  )
+```
+
+:::
+::::
+
+## interactions
+
+```{r}
+#| echo: true
+mod = lm(stress ~ age + exercise + therapy + age:therapy, data = df)
+coef(mod)
+```
+
+::::{.columns}
+:::{.column width="30%"}
+__Data__  
+```{r}
+#| echo: false
+df
+```
+
+:::
+:::{.column width="20%"}
+__Predictions__  
+```{r}
+#| echo: false
+library(marginaleffects)
+predictions(mod) |> as_tibble() |> transmute(prediction=estimate)
+```
+
+:::
+:::{.column width="50%"}
+__Counterfactuals__  
+```{r}
+#| echo: false
+library(marginaleffects)
+comparisons(mod, variables=c("therapy")) |> as_tibble() |> 
+  select(term,contrast,estimate) |>
+  transmute(
+    age = df$age,
+    exercise = df$exercise, 
+    term, contrast, estimate
+  )
+```
+
+:::
+::::
+
+## Think in hypotheticals
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age, data = df)
+.pp(summary(mod), l = list(9:18))
+```
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide1.PNG)
+:::
+::::
+
+## Think in hypotheticals
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age, data = df)
+.pp(summary(mod), l = list(9:18))
+```
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide2.PNG)
+:::
+::::
+
+## Think in hypotheticals
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age, data = df)
+.pp(summary(mod), l = list(9:18))
+```
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide3.PNG)
+:::
+::::
+
+
+## Think in hypotheticals
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ therapy, data = df)
+.pp(summary(mod), l = list(9:18))
+```
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide4.PNG)
+:::
+::::
+
+
+
+## Think in hypotheticals
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age + exercise + therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age + exercise + therapy, data = df)
+.pp(summary(mod), l = list(9:20))
+```
+
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide5.PNG)
+:::
+::::
+
+
+## Think in hypotheticals
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age + exercise + therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age + exercise + therapy, data = df)
+.pp(summary(mod), l = list(9:20))
+```
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide6.PNG)
+:::
+::::
+
+## Think in hypotheticals
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age + exercise + therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age + exercise + therapy, data = df)
+.pp(summary(mod), l = list(9:20))
+```
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide7.PNG)
+:::
+::::
+
+
+## Think in hypotheticals
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age + exercise + therapy +
+           age:therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age + exercise + therapy + age:therapy, data = df)
+.pp(summary(mod), l = list(10:22))
+```
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide8.PNG)
+:::
+::::
+
+## Think in hypotheticals
+
+
+```{r}
+set.seed(887)
+df = tibble(
+  age = c(18,19,20,33,67,24,37,55,41,31),
+  exercise = round(runif(10,0,7)),
+  n_therapy = round(runif(10,0,10)),
+  stress = age*.3 + -.7*exercise + -1*n_therapy  -.1*age*n_therapy+ rnorm(10)
+)
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+__continuous x continuous interaction__  
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ age + exercise + n_therapy + 
+           age:n_therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ age + exercise + n_therapy + age:n_therapy, data = df)
+.pp(summary(mod), l = list(12:24))
+```
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide9.PNG)
+:::
+::::
+
+## Think in hypotheticals
+
+
+```{r}
+set.seed(887)
+df = tibble(
+  age = c(18,19,20,33,67,24,37,55,41,31),
+  exercise = round(runif(10,0,7)),
+  therapy = c(0,0,1,0,1,1,0,0,1,1),
+  stress = age*.3 + -.7*exercise + -3*therapy  -.1*age*therapy+ rnorm(10)
+) |> mutate(agegroup=ifelse(age<35,"young","old"))
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+__categorical x categorical interaction__  
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ agegroup + exercise + therapy + 
+           agegroup:therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ agegroup + exercise + therapy + agegroup:therapy, data = df)
+.pp(summary(mod), l = list(10:22))
+```
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide10.PNG)
+:::
+::::
+
+## Think in hypotheticals
+
+::::{.columns}
+:::{.column width="50%"}
+__categorical x categorical interaction__
+```{r}
+#| echo: true
+#| eval: false
+mod = lm(stress ~ agegroup + exercise + therapy + 
+           agegroup:therapy, data = df)
+summary(mod)
+```
+```{r}
+#| echo: false
+mod = lm(stress ~ agegroup + exercise + therapy + agegroup:therapy, data = df)
+.pp(summary(mod), l = list(10:22))
+```
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/interactions/Slide11.PNG)
+:::
+::::

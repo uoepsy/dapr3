@@ -1,0 +1,2338 @@
+---
+title: "Regression Refresh"
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+# Announcements {background-color="white"}
+
+- Please check the Learn page for the Course Introduction video!  
+
+- Please make sure you install (or update) R and Rstudio (see instructions on Learn)
+
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c(
+  "what is a psychometric test?",
+  "using composite scores to simplify data (PCA)",
+  "uncovering underlying constructs (EFA)",
+  "more EFA",
+  "recap"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=1)
+```
+
+# This week {transition="slide"}
+
+- The (generalised) linear model
+    - model structures (multiple predictors, interactions, link functions)
+    - inference (coefficients and model comparisons)
+    - assumptions
+- introduction to group-structured data 
+    - what it looks like
+    - what we can do with our current tools
+
+
+# Model Structures
+
+## Models
+
+::::{.columns}
+:::{.column width="50%"}
+__deterministic__  
+
+given the same input, deterministic functions return *exactly* the same output
+
+- area of sphere = $4\pi r^2$  
+
+- height of fall = $1/2 g t^2$
+
+    <!-- - $g =$ gravitational constant, $9.8m/s^2$ -->
+    <!-- - $t =$ time (in seconds) of fall -->
+
+:::
+
+:::{.column width="50%" .fragment}
+__statistical__  
+
+$$ 
+\color{red}{\textrm{outcome}} \color{black}{=} \color{blue}{(\textrm{model})} + \color{black}{\textrm{error}}
+$$
+
+
+- handspan = height + randomness  
+
+- cognitive test score = age + premorbid IQ + ... + randomness
+:::
+::::
+
+## The Linear Model
+
+$$
+\begin{align}
+\color{red}{\textrm{outcome}} & = \color{blue}{(\textrm{model})} + \textrm{error} \\
+\qquad \\
+\qquad \\
+\color{red}{y_i} & = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_i} + \varepsilon_i \\
+\qquad \\
+& \text{where } \varepsilon_i \sim N(0, \sigma) \text{ independently} \\
+\end{align}
+$$
+
+
+## The Linear Model
+
+::::{.columns}
+
+:::{.column width="50%"}
+Our proposed model of the world:
+
+$\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_i} + \varepsilon_i$  
+
+:::
+
+:::{.column width="50%"}
+
+```{r bb}
+x <- tibble(x=c(-1,4))
+f <- function(x) {5+2*x}
+p1 <- x %>% ggplot(aes(x=x)) +
+  stat_function(fun=f,size=1,colour="blue") +
+  geom_segment(aes(x=0,xend=0,y=0,yend=f(0)),colour="blue", lty="dotted") +
+  geom_segment(aes(x=0,xend=1,y=f(0),yend=f(0)),colour="blue",linetype="dotted") +
+  geom_segment(aes(x=1,y=f(0),xend=1,yend=f(1)),colour="blue",linetype="dotted") +
+  geom_point(x=0,y=f(0),col="blue",size=3)+
+  annotate("text",x=0.5,y=3,hjust=0,label=expression(paste(b[0], " (intercept)")),
+           size=8,parse=TRUE,colour="blue") +
+  geom_segment(x=.5,xend=0.01,y=3,yend=4.9,arrow = arrow(length=unit(0.30,"cm")),col="blue")+
+  geom_segment(x=1.02,xend=1.02,y=5,yend=7,col="blue")+
+  geom_segment(x=c(1,1),xend=c(1.02,1.02),y=c(5,7),yend=c(5,7),col="blue")+
+  annotate("text",x=1,y=6,hjust=-.1,label=expression(paste(b[1], " (slope)")),
+           size=8,parse=TRUE,colour="blue") +
+    ggtitle(expression(paste(b[0]," = 5, ",b[1]," = 2")))+
+  scale_y_continuous(breaks=0:13)+
+  scale_x_continuous(limits = c(-0.3, 4), breaks=0:4)
+p1 +
+  ggtitle("")+
+  geom_segment(x=2.02,xend=2.02,y=7,yend=9,col="blue",alpha=.4)+
+  geom_segment(x=c(2,2),xend=c(2.02,2.02),y=c(7,9),yend=c(7,9),col="blue",alpha=.4)+
+  annotate("text",x=2,y=8,hjust=-.1,label=expression(paste(b[1], " (slope)")),
+           size=8,parse=TRUE,colour="blue",alpha=.4) +
+  
+  geom_segment(x=3.02,xend=3.02,y=9,yend=11,col="blue",alpha=.1)+
+  geom_segment(x=c(3,3),xend=c(3.02,3.02),y=c(9,11),yend=c(9,11),col="blue",alpha=.1)+
+  annotate("text",x=3,y=10,hjust=-.1,label=expression(paste(b[1], " (slope)")),
+           size=8,parse=TRUE,colour="blue",alpha=.1) +
+  
+  scale_y_continuous("y",labels=NULL)+
+  scale_x_continuous(limits=c(-0.3,4), breaks=c(0,1), labels=c("0","1"))+
+  ggtitle(expression(paste("y = ",b[0] %.% 1 + b[1] %.% x)))
+  
+```
+
+:::
+::::
+
+
+## The Linear Model
+
+
+::::{.columns}
+:::{.column width="50%"}
+Our model $\hat{\textrm{f}}\textrm{itted}$ to some data:  
+
+$\hat{y}_i = \color{blue}{\hat b_0 \cdot{} 1 + \hat b_1 \cdot{} x_i}$  
+  
+For the $i^{th}$ observation:  
+
+  - $\color{red}{y_i}$ is the value we observe for $x_i$   
+  - $\hat{y}_i$ is the value the model _predicts_ for $x_i$   
+  - $\color{red}{y_i} = \hat{y}_i + \hat\varepsilon_i$  
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| label: fitplot
+xX <-1.2
+yY <- 9.9
+p1 + 
+  geom_point(aes(x=xX,y=yY),size=3,colour="red") +
+  geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") +
+  annotate("text",1.1,8.6,hjust=1,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=8)+
+  geom_point(aes(x=xX,y=f(xX)),col="black",size=3,shape=1)+
+  ggtitle(expression(paste("y = ",b[0] %.% 1 + b[1] %.% x)))+
+  scale_y_continuous("y")+
+  scale_x_continuous(limits=c(-0.3,4), breaks=c(0,1), labels=c("0","1"))+
+  theme(axis.text.y=element_text(colour="white"))+
+  NULL
+```
+:::
+::::
+
+
+
+## An example
+
+::::{.columns}
+
+:::{.column width="50%"}
+Our model $\hat{\textrm{f}}\textrm{itted}$ to some data:  
+
+$\color{red}{y_i} = \color{blue}{5 \cdot{} 1 + 2 \cdot{} x_i} + \hat\varepsilon_i$  
+  
+:::{.fragment}
+For the observation $x_i = 1.2, \; y_i = 9.9$:  
+
+$$
+\begin{align}
+\color{red}{9.9} & = \color{blue}{5 \cdot{}} 1 + \color{blue}{2 \cdot{}} 1.2 + \hat\varepsilon_i \\
+& = 7.4 + \hat\varepsilon_i \\
+& = 7.4 + 2.5 \\
+\end{align}
+$$
+:::
+:::
+:::{.column width="50%"}
+```{r}
+#| label: errplot
+xX <-1.2
+yY <- 9.9
+p1 + #ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) +
+  geom_point(aes(x=xX,y=yY),size=3,colour="red") +
+  geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") +
+  annotate("text",1.1,8.6,hjust=1,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=8)+
+  ggtitle(expression(paste("y = ", 5 %.% 1 + 2 %.% x)))
+```
+
+:::
+::::
+
+::: {.notes}
+minimizing residuals
+:::
+
+## Categorical Predictors
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r}
+#| label: catpred
+set.seed(993)
+tibble(
+  x = sample(c("Category0","Category1"), size = 30, replace = T),
+  y = 5 + 2*(x == "Category1") + rnorm(30,0,1) %>% round(2)
+) %>% select(y,x) -> df
+df %>% sample_n(6) %>% rbind(., c("...","...")) %>% kableExtra::kbl()
+```
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| label: catpredplot
+ggplot(df,aes(x=as.numeric(x=="Category1"),y=y))+
+  geom_point(size=3,alpha=.5)+
+  stat_summary(geom="point",shape=4,size=6)+
+  stat_summary(geom="path", aes(group=1))+
+  scale_x_continuous(name="isCategory1",breaks=c(0,1),
+                     labels=c("0\n(FALSE)","1\n(TRUE)"))+
+  geom_segment(x=0,xend=1,y=mean(df$y[df$x=="Category0"]),yend=mean(df$y[df$x=="Category0"]),
+               lty="dashed",col="blue")+
+  geom_segment(x=1,xend=1,y=mean(df$y[df$x=="Category0"]),yend=mean(df$y[df$x=="Category1"]),
+               lty="dashed",col="blue")+
+  annotate("text",x=1.05,y=6,
+           label=expression(paste(b[1], " (slope)")),
+           angle=90,
+           size=8,parse=TRUE,colour="blue")+
+  labs(title="y ~ x    (x is categorical)")
+```
+:::
+::::
+
+## Multiple Regression
+
+::::{.columns}
+:::{.column width="50%"}
+More than one predictor?   
+
+$\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + \, ... \, + b_k \cdot x_k} + \varepsilon$
+
+:::
+
+:::{.column width="50%" .fragment}
+```{r echo=FALSE, fig.asp=.8}
+mwdata <- read_csv(file = "https://uoepsy.github.io/data/wellbeing.csv")
+fit<-lm(wellbeing~outdoor_time+social_int, data=mwdata)
+steps=20
+outdoor_time <- with(mwdata, seq(min(outdoor_time),max(outdoor_time),length=steps))
+social_int <- with(mwdata, seq(min(social_int),max(social_int),length=steps))
+newdat <- expand.grid(outdoor_time=outdoor_time, social_int=social_int)
+wellbeing <- matrix(predict(fit, newdat), steps, steps)
+
+x1 <- outdoor_time
+x2 <- social_int
+y <- wellbeing
+
+p <- persp(x1,x2,y, theta = 35,phi=10, col = NA,main="y~x1+x2")
+obs <- with(mwdata, trans3d(outdoor_time,social_int, wellbeing, p))
+pred <- with(mwdata, trans3d(outdoor_time, social_int, fitted(fit), p))
+points(obs, col = "red", pch = 16)
+#points(pred, col = "blue", pch = 16)
+segments(obs$x, obs$y, pred$x, pred$y)
+
+```
+:::
+::::
+
+
+:::aside
+
+I've stopped showing the $i$'s for now because we start to have more subscripts, but for any individual $i$, our model is  
+
+$\color{red}{y_i} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_{1i} + \, ... \, + b_k \cdot x_{ki}} + \varepsilon_i$
+
+:::
+
+```{r}
+#| eval: false
+fit<-lm(wellbeing~outdoor_time+social_int+routine, data=mwdata)
+steps=20
+outdoor_time <- with(mwdata, seq(min(outdoor_time),max(outdoor_time),length=steps))
+social_int <- with(mwdata, seq(min(social_int),max(social_int),length=steps))
+newdat <- expand.grid(outdoor_time=outdoor_time, social_int=social_int, routine = "Routine")
+wellbeing <- matrix(predict(fit, newdat), steps, steps)
+
+x1 <- outdoor_time
+x2 <- social_int
+y <- wellbeing
+
+p <- persp(x1,x2,y, theta = 35,phi=10, col = NA,zlim=c(10,70), main="y~x1+x2+x3\n(x3 is categorical)")
+newdat <- expand.grid(outdoor_time=outdoor_time, social_int=social_int-2, routine = "No Routine")
+wellbeing <- matrix(predict(fit, newdat), steps, steps)
+y <- wellbeing
+par(new=TRUE)
+persp(x1,x2,y, theta = 35,phi=10, col = NA,zlim=c(10,80), axes=F)
+
+```
+
+::: {.notes}
+minimizing residuals
+:::
+
+
+## Multiple Regression
+
+```{r}
+set.seed(124)
+mydata = tibble(
+  x1 = rnorm(100,0,1),
+  x2 = rnorm(100, .2*x1, 2),
+  y = rnorm(100, .5*x2+.4*x1, 1.7)
+) |> mutate(y=scale(y)*11.9+20)
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+mod1 <- lm(y ~ x1 + x2, data = mydata)
+summary(mod1)
+```
+:::
+
+:::{.column width="50%"}
+
+<br><br><br>
+
+```{r}
+broom::tidy(mod1) |>
+  transmute(
+    term,
+    est=round(estimate,2),
+    interpretation=c(
+      "estimated y when all predictors are zero/reference level",
+      "estimated change in y when x1 increases by 1, and all other predictors are held constant",
+      "estimated change in y when x2 increases by 1, and all other predictors are held constant"
+    )
+  ) |> gt::gt()
+```
+
+:::
+::::
+
+::: {.notes}
+- coefficients now interpreted with "holding constant"
+
+:::
+
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide1.PNG)
+:::
+::::
+
+
+::: {.notes}
+TANGENT.  
+why useful?  
+
+visual is for learning only - intution building.
+:::
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+- X and Y are 'orthogonal' (perfectly uncorrelated)  
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide2.PNG)
+
+:::
+::::
+
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+
+- X and Y are correlated.  
+    - **a** = portion of Y's variance shared with X
+    - **e** = portion of Y's variance unrelated to X
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide3.PNG)
+
+
+:::
+::::
+
+:::{.notes}
+- SIGNAL / NOISE  
+- a/e
+
+
+:::
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- X and Y are correlated.  
+    - **a** = portion of Y's variance shared with X
+    - **e** = portion of Y's variance unrelated to X
+- Z is also related to Y (**c**)
+- Z is orthogonal to X (no overlap)
+
+:::{.fragment}
+
+- relation between X and Y is unaffected (**a**)
+- unexplained variance in Y (**e**) is reduced, so **a**:**e** ratio is greater.
+
+Design is so important! If possible, we could design it so that X and Z are orthogonal (in the long run) by e.g., randomisation.  
+:::
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide4.PNG)
+:::
+::::
+
+:::{.notes}
+- third variable  
+- might be completely unrelated to X
+- in which case, what does it do? 
+    - makes noise smaller!
+    - easier to detect signal!
+
+- randomised experiments
+- bp ~ drug | age 
+:::
+
+
+## ![](img_sandbox/tangent.png){width=35px} associations in regression {.smaller}
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- X and Y are correlated.  
+
+<br>
+
+- Z is also related to Y (**c + b**)  
+- Z *is* related to X (**b + d**)
+
+:::{.fragment}
+Association between X and Y is changed if we adjust for Z (**a** is smaller than previous slide), because there is a bit (**b**) that could be attributed to Z instead.  
+
+- regression coefficients for X and Z are like areas **a** and **c** (scaled to be in terms of 'per unit change in the predictor')
+- total variance explained by _both_ X and Z is **a+b+c**
+
+:::
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide5.PNG)
+:::
+::::
+
+::: {.notes}
+- observational studies are much more difficult
+- lots of possible variables that overlap X
+  - e.g. older people take drug more
+  - effect might just be age
+  
+- we want: difference BP between drug and no drug, OF SAME AGE
+- coefficients are A and C - unique bits of X and Z
+
+- NOTE - aim is not to control for EVERYTHING.
+    - some Zs we might want to remove this bias, some we might not.
+    - BP ~ drug | cholesterol
+
+:::
+
+
+## Multiple Regression
+
+```{r}
+set.seed(124)
+mydata = tibble(
+  x1 = rnorm(100,0,1),
+  x2 = rnorm(100, .2*x1, 2),
+  y = rnorm(100, .5*x2+.4*x1, 1.7)
+) |> mutate(y=scale(y)*11.9+20)
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+mod1 <- lm(y ~ x1 + x2, data = mydata)
+summary(mod1)
+```
+:::
+
+:::{.column width="50%"}
+
+<br><br><br>
+
+```{r}
+broom::tidy(mod1) |>
+  transmute(
+    term,
+    est=round(estimate,2),
+    interpretation=c(
+      "estimated y when all predictors are zero/reference level",
+      "estimated change in y when x1 increases by 1, and all other predictors are held constant",
+      "estimated change in y when x2 increases by 1, and all other predictors are held constant"
+    )
+  ) |> gt::gt()
+```
+
+:::
+::::
+
+
+## Multiple Regression
+
+```{r}
+set.seed(124)
+mydata = tibble(
+  x1 = rnorm(100,0,1),
+  x2 = rnorm(100, .2*x1, 2),
+  y = rnorm(100, .5*x2+.4*x1, 1.7)
+) |> transmute(knowledge=scale(y)*11.9+20,
+               age=x1,education=x2)
+```
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+mod1 <- lm(knowledge ~ age + education, data = mydata)
+summary(mod1)
+```
+:::
+
+:::{.column width="50%"}
+
+<br><br><br>
+
+```{r}
+broom::tidy(mod1) |>
+  transmute(
+    term,
+    est=round(estimate,2),
+    interpretation=c(
+      "estimated knowledge for age 0, education 0",
+      "estimated change in knowledge for every 1 year older, holding education constant",
+      "estimated change in knowledge for every 1 year of education, holding age constant"
+    )
+  ) |> gt::gt()
+```
+
+:::
+::::
+
+
+## Interactions
+
+what if the relationship of interest *depends on* the level of some other variable?  
+
+. . .
+
+adding in a product term (x1 $\times$ x2) to our model, we can model this.. 
+
+$\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + b_2 \cdot x_2 + b_3 \cdot x_1 \cdot x_2} + \varepsilon$
+
+
+:::aside
+Why the product? 
+We could rearrange the above model equation to: $\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + (b_1 + b_3 \cdot x_2) \cdot{} x_1 + b_2 \cdot x_2} + \varepsilon$  
+This highlights that "the effect of x1 on y" is now $(b_1 + b_3 \cdot x_2)$ - i.e. "some number $b_1$, plus some number $b_3$ that changes depending on $x_2$".  
+
+:::
+
+
+## Interactions (2)
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+mwdata2<-read_csv("https://uoepsy.github.io/data/wellbeing_rural.csv") %>% mutate(
+  isRural = factor(ifelse(location=="rural","rural","notrural"))
+)
+df <- mwdata2 |> transmute(
+  y = wellbeing,
+  x1 = outdoor_time,
+  x2 = ifelse(isRural=="rural","Level2","Level1")
+)
+
+
+fit<-lm(wellbeing~outdoor_time+isRural, data=mwdata2)
+with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2\n(x2 is categorical)"))
+abline(a = coef(fit)[1],b=coef(fit)[2])
+abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2], col="red")
+```
+
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2, data = df)), l = list(c(9:13)))
+```
+
+:::
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+fit<-lm(wellbeing~outdoor_time*isRural, data=mwdata2)
+with(mwdata2, plot(wellbeing ~ outdoor_time, col=isRural, xlab="x1",ylab="y",main="y~x1+x2+x1:x2\n(x2 is categorical)"))
+abline(a = coef(fit)[1],b=coef(fit)[2])
+abline(a = coef(fit)[1]+coef(fit)[3],b=coef(fit)[2]+coef(fit)[4], col="red")
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
+```
+
+:::
+::::
+
+
+## Interactions (3)
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+set.seed(913)
+df <- tibble(
+  x1 = round(pmax(0,rnorm(50,4,2)),1),
+  x2 = round(pmax(0,rnorm(50,4,2)),1),
+  y = 8 + .6*x1 + .5*x2 + .8*x1*x2 + rnorm(50,0,4),
+  yb = rbinom(50,1,plogis(scale(y)))
+)
+
+modl2 <- lm(y~x1+x2,df)
+
+x1_pred <- df |> with(seq(min(x1),max(x1),length.out=20))
+x2_pred <- df |> with(seq(min(x2),max(x2),length.out=20))
+
+ac <- expand.grid(x1=x1_pred,x2=x2_pred) 
+
+ypred <- matrix(predict(modl2,type="response",
+                             newdata=ac),nrow=20)
+
+library(plot3D)
+
+persp3D(x=x1_pred,y=x2_pred,z=ypred,theta=45,phi=15,
+        type="surface",xlab="x1",ylab="x2",zlab="y",
+        xlim=c(0,9), ylim=c(0,8),
+        zlim=c(min(df$y),max(df$y)+2),border="black",
+      #col="white",
+        colkey=FALSE,
+        main="y~x1+x2")
+points3D(x=df$x1,y=df$x2,z=df$y,col="black",pch=16,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2, data = df)), l = list(c(9:13)))
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+modl2 <- lm(y~x1*x2,df)
+
+x1_pred <- df |> with(seq(min(x1),max(x1),length.out=20))
+x2_pred <- df |> with(seq(min(x2),max(x2),length.out=20))
+
+ac <- expand.grid(x1=x1_pred,x2=x2_pred) 
+
+ypred <- matrix(predict(modl2,type="response",
+                             newdata=ac),nrow=20)
+
+persp3D(x=x1_pred,y=x2_pred,z=ypred,theta=45,phi=15,
+        type="surface",xlab="x1",ylab="x2",zlab="y",
+        xlim=c(0,9), ylim=c(0,8),
+        zlim=c(min(df$y),max(df$y)+2),
+        #col="white",
+        border="black",
+        colkey=FALSE,
+        main="y~x1+x2+x1:x2")
+points3D(x=df$x1,y=df$x2,z=df$y,col="black",pch=16,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
+```
+:::
+::::
+
+## Interactions (4)
+
+::::{.columns}
+:::{.column width="50%"}
+
+:::
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+modl2 <- lm(y~x1*x2,df)
+
+x1_pred <- df |> with(seq(min(x1),max(x1),by=1))
+x2_pred <- df |> with(seq(min(x2),max(x2),length.out=20))
+
+library(plot3D)
+lines3D(x=rep(1,20),y=x2_pred,theta=45,phi=15,
+        z=predict(modl2, newdata=tibble(x1=1,x2=x2_pred)),
+        xlab="x1",ylab="x2",zlab="y",
+        xlim=c(0,9), ylim=c(0,8),
+        zlim=c(min(df$y),max(df$y)+2),colkey=FALSE)
+lines3D(x=rep(2,20),y=x2_pred,
+        z=predict(modl2, newdata=tibble(x1=2,x2=x2_pred)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=rep(3,20),y=x2_pred,
+        z=predict(modl2, newdata=tibble(x1=3,x2=x2_pred)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=rep(4,20),y=x2_pred,
+        z=predict(modl2, newdata=tibble(x1=4,x2=x2_pred)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=rep(5,20),y=x2_pred,
+        z=predict(modl2, newdata=tibble(x1=5,x2=x2_pred)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=rep(6,20),y=x2_pred,
+        z=predict(modl2, newdata=tibble(x1=6,x2=x2_pred)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=rep(7,20),y=x2_pred,
+        z=predict(modl2, newdata=tibble(x1=7,x2=x2_pred)),
+        colkey=FALSE,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
+```
+:::
+::::
+
+
+## Interactions (5)
+
+::::{.columns}
+:::{.column width="50%"}
+
+:::
+:::{.column width="50%"}
+```{r}
+#| out-height: "350px"
+x1_pred <- df |> with(seq(min(x1),max(x1),length.out=20))
+x2_pred <- df |> with(seq(min(x2),max(x2),by=1))
+
+library(plot3D)
+lines3D(x=x1_pred,y=rep(1,20),theta=45,phi=15,
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=1)),
+        xlab="x1",ylab="x2",zlab="y",
+        xlim=c(0,9), ylim=c(0,8),
+        zlim=c(min(df$y),max(df$y)+2),colkey=FALSE)
+lines3D(x=x1_pred,y=rep(2,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=2)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(3,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=3)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(4,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=4)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(5,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=5)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(6,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=6)),
+        colkey=FALSE,add=TRUE)
+lines3D(x=x1_pred,y=rep(7,20),
+        z=predict(modl2, newdata=tibble(x1=x1_pred,x2=7)),
+        colkey=FALSE,add=TRUE)
+```
+```{r}
+#| echo: true
+#| eval: false
+summary(lm(y ~ x1 + x2 + x1:x2, data = df))
+```
+```{r}
+.pp(summary(lm(y ~ x1 + x2 + x1:x2, data = df)), l = list(c(9:14)))
+```
+:::
+::::
+
+## Notation
+
+$\begin{align} \color{red}{y} \;\;\;\; & = \;\;\;\;\; \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + ... + b_k \cdot x_k} & + & \;\;\;\varepsilon \\ \qquad \\ \color{red}{\begin{bmatrix}y_1 \\ y_2 \\ y_3 \\ y_4 \\ y_5 \\ \vdots \\ y_n \end{bmatrix}} & = \color{blue}{\begin{bmatrix} 1 & x_{11} & x_{21} & \dots & x_{k1} \\ 1 & x_{12} & x_{22} &  & x_{k2} \\ 1 & x_{13} & x_{23} &  & x_{k3} \\ 1 & x_{14} & x_{24} &  & x_{k4} \\ 1 & x_{15} & x_{25} &  & x_{k5} \\ \vdots & \vdots & \vdots & \ddots & \vdots \\ 1 & x_{1n} & x_{2n} & \dots & x_{kn} \end{bmatrix} \begin{bmatrix} b_0 \\ b_1 \\ b_2 \\ \vdots \\ b_k \end{bmatrix}} & + & \begin{bmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \varepsilon_3 \\ \varepsilon_4 \\ \varepsilon_5 \\ \vdots \\ \varepsilon_n \end{bmatrix} \\  \\\color{red}{\boldsymbol y} \;\;\;\;\; & = \qquad \qquad \;\;\; \mathbf{\color{blue}{X \qquad \qquad \qquad \;\;\;\: \boldsymbol \beta}} & + & \;\;\; \boldsymbol \varepsilon \\ \end{align}$
+
+
+## Link functions
+
+$\begin{align} \color{red}{y} = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & (-\infty, \infty) \\ \qquad \\ \qquad \\ \color{red}{ln \left( \frac{p}{1-p} \right) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & [0,1] \\ \qquad \\ \qquad \\ \color{red}{ln (y) } = \mathbf{\color{blue}{X \boldsymbol{\beta}} + \boldsymbol{\varepsilon}} & \qquad  & (0, \infty) \\ \end{align}$  
+
+
+## Generalised Linear Models in R
+
+- Linear regression
+```{r}
+#| eval: false
+#| echo: true
+linear_model <- lm(continuous_y ~ 1 + x1 + x2 ... , data = df)
+```
+
+- Logistic regression
+```{r}
+#| eval: false
+#| echo: true
+logistic_model <- glm(binary_y ~ 1 + x1 + x2 + ..., data = df, family=binomial(link="logit"))
+```
+
+- Poisson regression
+```{r}
+#| eval: false
+#| echo: true
+poisson_model <- glm(count_y ~ 1 + x1 + x2 + ..., data = df, family=poisson(link="log"))
+```
+
+:::aside
+We can (out of laziness) omit the 1 in `y~1+x1+...` and just write `y~x1+...`.  
+The `1` just tells R to estimate the intercept, and it will do this by default anyway!  
+:::
+
+
+# Inference
+
+## What is inference?
+
+![](img_sandbox/statistical_inference.png){width=60%}
+
+:::aside
+image source: Umberto, DAPR1
+:::
+
+## Null Hypothesis Testing
+
+```{r}
+set.seed(2394)
+samplemeans <- replicate(2000, mean(rnorm(n=100, mean=0, sd=5)))
+g <- ggplot(data=tibble(samplemeans),aes(x=samplemeans))+
+  #geom_histogram(alpha=.3)+
+  stat_function(geom="line",fun=~dnorm(.x, mean=0,sd=sd(samplemeans))*270,lwd=1)
+
+ld <- layer_data(g) %>% filter(x <= sd(samplemeans) & x >= (-sd(samplemeans)))
+ld2 <- layer_data(g) %>% filter(x <= 2*sd(samplemeans) & x >= (-2*sd(samplemeans)))
+ld3 <- layer_data(g) %>% filter(x >= 1.2)
+ld4 <- layer_data(g) %>% filter(x <= -1.2)
+
+g + geom_area(data=ld,aes(x=x,y=y),fill="grey30",alpha=.3) + 
+  geom_area(data=ld2,aes(x=x,y=y),fill="grey30",alpha=.1) +
+  geom_area(data=ld3,aes(x=x,y=y),fill="tomato1",alpha=.3) +
+  geom_area(data=ld4,aes(x=x,y=y),fill="tomato1",alpha=.3) +
+  geom_segment(aes(x=0,xend=0,y=0,yend=dnorm(0,0,sd=sd(samplemeans))*280), lty="dashed")+
+  geom_segment(aes(x=1.2,xend=1.2,y=0,yend=180), lty="dashed", col="tomato1")+ 
+  # geom_vline(aes(xintercept=1.2),lty="dashed",col="tomato1")+
+  labs(x = "statistic")+
+  scale_y_continuous(NULL, breaks=NULL)+
+  scale_x_continuous(NULL, breaks=NULL, limits=c(-1.5,2))+
+  annotate("text",x=-.5, y=250, label="population parameter\nunder null hypothesis", col="grey30")+
+  annotate("text",x=1, y=210, label="statistics we would expect from\nsamples of size n if the\nnull hypothesis is true", col="grey30")+
+  annotate("text",x=1.65, y=100, label="statistic we observed\nin our sample", col="tomato1")+
+  annotate("text",x=1.5, y=40, label="p-value", col="tomato1")+
+  geom_curve(aes(x=-.5, xend=0, y=240, yend=220), col="grey30", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))+
+  geom_curve(aes(x=1, xend=0.5, y=190, yend=150), col="grey30", size=0.5, curvature = -0.2, arrow = arrow(length = unit(0.03, "npc")))+
+  geom_curve(aes(x=1.6, xend=1.2, y=90, yend=40), col="tomato1", size=0.5, curvature = -0.2, arrow = arrow(length = unit(0.03, "npc"))) +
+  geom_curve(aes(x=1.5, xend=1.3, y=35, yend=2.5), col="tomato1", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))
+```
+
+## Null Hypothesis Testing
+
+```{r}
+
+ld <- layer_data(g) %>% filter(x <= sd(samplemeans) & x >= (-sd(samplemeans)))
+ld2 <- layer_data(g) %>% filter(x <= 2*sd(samplemeans) & x >= (-2*sd(samplemeans)))
+ld3 <- layer_data(g) %>% filter(x >= qnorm(.975,0,sd(samplemeans)))
+ld4 <- layer_data(g) %>% filter(x <= qnorm(.025,0,sd(samplemeans)))
+
+
+g + geom_area(data=ld,aes(x=x,y=y),fill="grey30",alpha=.3) + 
+  geom_area(data=ld2,aes(x=x,y=y),fill="grey30",alpha=.1) +
+  geom_area(data=ld3,aes(x=x,y=y),fill="blue",alpha=.3) +
+  geom_area(data=ld4,aes(x=x,y=y),fill="blue",alpha=.3) +
+  geom_segment(aes(x=0,xend=0,y=0,yend=dnorm(0,0,sd=sd(samplemeans))*280), lty="dashed")+
+  scale_y_continuous(NULL, breaks=NULL)+
+  scale_x_continuous(NULL, breaks=NULL, limits=c(-1.5,2))+
+  annotate("text",x=-.5, y=250, label="population parameter\nunder null hypothesis", col="grey30")+
+  annotate("text",x=1, y=210, label="statistics we would expect from\nsamples of size n if the\nnull hypothesis is true", col="grey30")+
+  annotate("text",x=1.5, y=40, label="critical regions", col="blue")+
+  geom_curve(aes(x=1.5, xend=1.2, y=35, yend=5), col="blue", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))+
+  geom_curve(aes(x=-.5, xend=0, y=240, yend=220), col="grey30", size=0.5, curvature = 0, arrow = arrow(length = unit(0.03, "npc")))+
+  geom_curve(aes(x=1, xend=0.5, y=190, yend=150), col="grey30", size=0.5, curvature = -0.2, arrow = arrow(length = unit(0.03, "npc")))
+```
+
+## test of individual parameters
+
+![](img_sandbox/sum1.png)
+
+<!-- :::aside -->
+<!-- the model "parameters" are the things being estimated - the intercept and all the slopes (and the residual standard deviation, but we're less interested in that).  -->
+<!-- ::: -->
+
+## test of individual parameters (2)
+
+![](img_sandbox/sum2.png)
+
+## test of individual parameters (3)
+
+![](img_sandbox/sum3.png)
+
+## test of individual parameters (4)
+
+![](img_sandbox/sum4.png)
+
+## Sums of Squares
+
+::::{.columns}
+:::{.column width="50%"}
+
+Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
+
+- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
+
+- $SS_{model} = \sum^{n}_{i=1}(\hat y_i - \bar y)^2$  
+  
+- $SS_{residual} = \sum^{n}_{i=1}(y_i - \hat y_i)^2$  
+
+:::
+:::{.column width="50%" .fragment}
+
+```{r}
+set.seed(993)
+df <- 
+  tibble(
+    x1 = rnorm(100)+3,
+    y = x1*2 + rnorm(100)
+  )
+
+# SST, SSM and SSR
+plt_sst = 
+  ggplot(df, aes(x=x1,y=y))+
+  geom_point()+
+  geom_hline(yintercept=mean(df$y), lty="dashed")+
+  geom_segment(aes(x=x1,xend=x1,y=y,yend=mean(df$y)), lty="dashed",col="red")+
+  geom_text(x=1,y=8,label="bar(y)",parse=T, size=6)+
+  geom_curve(x=1.1,xend=2,y=8,yend=mean(df$y),curvature=-.2)+
+  labs(title="SS Total")
+
+plt_ssr = ggplot(df, aes(x=x1,y=y))+
+  geom_point()+
+  geom_hline(yintercept=mean(df$y), lty="dashed")+
+  geom_smooth(method=lm,se=F)+
+  geom_segment(aes(x=x1,xend=x1,y=y,yend=fitted(lm(y~x1,df))), lty="dashed",col="red")+
+  labs(title="SS Residual")
+
+plt_ssm = ggplot(df, aes(x=x1,y=y))+
+  geom_point()+
+  geom_hline(yintercept=mean(df$y), lty="dashed")+
+  geom_smooth(method=lm,se=F)+
+  geom_segment(aes(x=x1,xend=x1,yend=mean(df$y),y=fitted(lm(y~x1,df))), lty="dashed",col="blue")+
+  labs(title="SS Model")
+
+plt_sst / (plt_ssm + plt_ssr) & scale_x_continuous("x",breaks=NULL) & scale_y_continuous("y",breaks=NULL)
+
+```
+
+:::
+::::
+
+## Sums of Squares (2)
+
+::::{.columns}
+:::{.column width="50%"}
+
+Rather than focussing on slope coefficients, we can also think of our model in terms of sums of squares (SS).  
+
+- $SS_{total} = \sum^{n}_{i=1}(y_i - \bar y)^2$  
+    - **a+b+c+e**
+- $SS_{model} = \sum^{n}_{i=1}(\hat y_i - \bar y)^2$  
+    - **a+b+c**
+- $SS_{residual} = \sum^{n}_{i=1}(y_i - \hat y_i)^2$  
+    - **e**
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide5.PNG)
+:::
+::::
+
+
+
+## $R^2$
+
+
+::::{.columns}
+:::{.column width="50%"}
+$R^2 = \frac{SS_{Model}}{SS_{Total}} = 1 - \frac{SS_{Residual}}{SS_{Total}}$
+```{r echo=FALSE}
+x = rnorm(100)
+z = rnorm(100)
+y = .2*x + .3*z + rnorm(100)
+```
+```{r}
+#| echo: true
+#| eval: false
+mdl <- lm(y ~ 1 + z + x)
+summary(mdl)
+```
+```
+...
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)   
+(Intercept)   ...       ...      ...    ...
+z             ...       ...      ...    ...
+x             ...       ...      ...    ...
+...
+
+...
+Multiple R-squared:  0.134,	Adjusted R-squared:  0.116
+...
+```
+
+:::
+
+:::{.column width="50%"}
+
+![](img_sandbox/ssvenn/Slide5.PNG)
+
+:::
+::::
+
+
+## tests of multiple parameters
+
+```{r echo=F}
+set.seed(2345)
+tibble(
+  x=rnorm(100),
+  z=rnorm(100),
+  z2=rnorm(100),
+  species=rep(c("cat","dog","parrot","horse"),e=25),
+  y=10+x-2*z+2*z2+(species=="cat")*4 + rnorm(100)
+) -> df
+```
+
+Model comparisons:
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+m1 <- lm(y ~ 1 + x, data = df)
+```
+![](img_sandbox/ssvenn/Slide8.PNG)
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+m2 <- lm(y ~ 1 + z + z2 + x, data = df)
+```
+![](img_sandbox/ssvenn/Slide7.PNG)
+:::
+::::
+
+
+## tests of multiple parameters (2)
+
+::::{.columns}
+:::{.column width="50%"}
+isolate the improvement in model fit due to inclusion of additional parameters
+
+```{r}
+#| echo: true
+m1 <- lm(y ~ 1 + x, data = df)
+m2 <- lm(y ~ 1 + z + z2 + x, data = df)
+anova(m1,m2)
+```
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide7a.PNG)
+:::
+::::
+
+:::aside
+For linear models, model comparisons are typically testing reduction in residual sums of squares (via an $F$ test). For models with other error distributions, we often test differences in log-likelihood (via $\chi^2$ test).  
+:::
+
+
+## tests of multiple parameters (3)
+
+::::{.columns}
+:::{.column width="50%"}
+Test everything in the model all at once by comparing it to a 'null model' with no predictors:  
+
+```{r}
+#| echo: true
+m0 <- lm(y ~ 1, data = df)
+m2 <- lm(y ~ 1 + z2 + z + x, data = df)
+anova(m0,m2)
+```
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide7b.PNG)
+:::
+::::
+
+
+## tests of multiple parameters  (4)
+
+- Recall that a categorical predictor with $k$ levels involves fitting $k-1$ coefficients
+- We can test "are there differences in group means?" by testing the reduction in residual sums of squares resulting from the inclusion of all $k-1$ coefficients at once  
+
+```{r}
+#| echo: true
+m0 = lm(y ~ 1, data = df)
+m1 = lm(y ~ 1 + species, data = df)
+```
+
+<br>
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| eval: false
+summary(m1)
+```
+```{r}
+.pp(summary(m1), l=list(c(9:20)))
+```
+
+
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+anova(m0, m1)
+```
+
+:::
+::::
+
+
+
+
+## ![](img_sandbox/tangent.png){width=35px} traditional ANOVA/ANCOVA {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+This is kind of where traditional "analysis of (co)variance" sits.  
+
+There are different 'types' of ANOVA..  
+
+- Type 1 ("sequential"): tests the addition of each variable entered in to the model, **in order**
+
+```{r}
+#| echo: true
+m1 = lm(y ~ z2 + z + x, data = df)
+anova(m1)
+```
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide7c.PNG)
+:::
+::::
+
+:::aside
+this is not really relevant for DAPR3, but put a pin in it here, and come back to it if your dissertation supervisor suggests that you do an ANOVA/ANCOVA. You've already got all the tools to do these in the regression framework with `lm()`.  
+:::
+
+## ![](img_sandbox/tangent.png){width=35px} traditional ANOVA/ANCOVA  {.smaller}
+
+::::{.columns}
+:::{.column width="50%"}
+This is kind of where traditional "analysis of (co)variance" sits.  
+
+There are different 'types' of ANOVA..  
+
+- Type 3: tests the addition of each variable **as if it were the last one entered in to the model**:  
+
+```{r}
+#| echo: true
+m1 = lm(y ~ z2 + z + x, data = df)
+car::Anova(m1, type="III")
+```
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/ssvenn/Slide7d.PNG)
+:::
+::::
+
+:::aside
+this is not really relevant for DAPR3, but put a pin in it here, and come back to it if your dissertation supervisor suggests that you do an ANOVA/ANCOVA. You've already got all the tools to do these in the regression framework with `lm()`.  
+:::
+
+
+# Assumptions
+
+## models have assumptions
+
+Our model:  
+
+$\color{red}{y} = \color{blue}{\mathbf{X \boldsymbol \beta}} + \varepsilon \qquad \text{where } \boldsymbol \varepsilon \sim N(0, \sigma) \text{ independently}$
+<br>
+<br>
+Our ability to generalise from the model we fit on sample data to the wider population requires making some _assumptions._
+
+. . .
+
+- assumptions about the nature of the **model**
+(linear)
+
+. . .
+
+- assumptions about the nature of the **errors** (normal)
+
+
+:::aside
+You can also phrase the linear model as: $\color{red}{\boldsymbol  y} \sim Normal(\color{blue}{\mathbf{X \boldsymbol \beta}}, \sigma)$
+:::
+
+
+## The broader idea
+
+All our work here is in
+aim of making **models of the world**.  
+
+
+::::{.columns}
+:::{.column width="80%" .incremental}
+
+- Models are models. They are simplifications. They are therefore wrong.  
+
+- Our residuals reflect everything that we **don't** account for in our model. $y - \hat{y}$
+
+- In an ideal world, our model accounts for _all_ the systematic relationships. The leftovers (our residuals) are just random noise.  
+
+
+  - If our model is mis-specified, or we don't measure some systematic relationship, then our residuals may reflect this.
+
+
+- We check by examining how much "like randomness" the residuals appear to be (zero mean, normally distributed, constant variance, i.i.d ("independent and identically distributed")
+    - _these ideas tend to get referred to as our "assumptions"_
+
+
+- We will **never** know whether our residuals contain only randomness - we can never observe everything! 
+
+
+:::
+
+:::{.column width="20%"}
+![](img_sandbox/joeymap.jpg)
+:::
+::::
+
+
+## assumptions 
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+What does randomness look like?  
+"zero mean and constant variance"
+
+- mean of the residuals = zero across the predicted values of the model.  
+
+- spread of residuals is normally distributed and constant across the predicted values of the model.  
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE,fig.asp=.8}
+library(ggdist)
+library(tidyverse)
+df<-tibble(x=runif(1000,1,10),xr = round(x), y=1*x+rnorm(1000))
+df$y2 <- resid(lm(y~x,df))
+#df$y[df$x==6]<-6+rnorm(100,0,3)
+df %>% group_by(xr) %>% summarise(m=mean(y2), s=sd(y2)) -> dfd
+p1 <- ggplot(df, aes(x=x,y=y))+
+  geom_point()+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y")
+p2 <- ggplot(df, aes(x=xr,y=y2))+
+  geom_jitter(height=0,width=1, alpha=.3)+
+  stat_dist_halfeye(inherit.aes=F,data=dfd, aes(x=xr,dist="norm",arg1=m,arg2=s),alpha=.6, fill="orange")+
+  #geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("residuals")
+
+p1 / p2
+```
+:::
+::::
+
+## assumptions 
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+What does randomness look like?  
+"zero mean and constant variance"
+
+- **mean of the residuals = zero across the predicted values of the model.**  
+
+- spread of residuals is normally distributed and constant across the predicted values of the model.  
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE,fig.asp=.8}
+library(ggdist)
+library(tidyverse)
+tibble(x = runif(1000,1,10),
+       xr = round(x),
+       s = abs(5-x)*2,
+       e = map_dbl(s,~rnorm(1,0,1)),
+       y = x + s + e) -> df
+df$y2 <- resid(lm(y~x,df))
+#df$y[df$x==6]<-6+rnorm(100,0,3)
+df %>% group_by(xr) %>% summarise(m=mean(y2), s=sd(y2)) -> dfd
+p1 <- ggplot(df, aes(x=x,y=y))+
+  geom_point()+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y")
+p2 <- ggplot(df, aes(x=xr,y=y2))+
+  geom_jitter(height=0,width=1, alpha=.3)+
+  stat_dist_halfeye(inherit.aes=F,data=dfd, aes(x=xr,dist="norm",arg1=m,arg2=s),alpha=.6, fill="orange")+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("residuals")
+
+p1 / p2
+```
+:::
+::::
+
+## assumptions 
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+What does randomness look like?  
+"zero mean and constant variance"
+
+- mean of the residuals = zero across the predicted values of the model.  
+
+- **spread of residuals is normally distributed and constant across the predicted values of the model.**  
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE,fig.asp=.8}
+library(ggdist)
+library(tidyverse)
+tibble(x = runif(1000,1,10),
+       xr = round(x),
+       s = abs(x)/2,
+       e = map_dbl(s,~rnorm(1,0,.)),
+       y = x + e) -> df
+df$y2 <- resid(lm(y~x,df))
+#df$y[df$x==6]<-6+rnorm(100,0,3)
+df %>% group_by(xr) %>% summarise(m=mean(y2), s=sd(y2)) -> dfd
+p1 <- ggplot(df, aes(x=x,y=y))+
+  geom_point()+
+  geom_smooth(method="lm",se=F, fullrange=T)+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("y")
+p2 <- ggplot(df, aes(x=xr,y=y2))+
+  geom_jitter(height=0,width=1, alpha=.3)+
+  stat_dist_halfeye(inherit.aes=F,data=dfd, aes(x=xr,dist="norm",arg1=m,arg2=s),alpha=.6, fill="orange")+
+  scale_x_continuous("x",1:10, breaks=seq(1,10,2))+
+  scale_y_continuous("residuals")
+
+p1 / p2
+```
+:::
+::::
+
+## assumptions 
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+What does randomness look like?  
+"zero mean and constant variance"
+
+- mean of the residuals = zero across the predicted values of the model.  
+
+- spread of residuals is normally distributed and constant across the predicted values of the model.  
+
+:::
+
+:::{.column width="50%"}
+
+__`plot(model)`__
+
+```{r echo=FALSE}
+df<-tibble(x=runif(1000,1,10),xr = round(x),z=rnorm(1000),y=1*x+.4*z+rnorm(1000))
+```
+
+```{r echo=c(2,3)}
+par(mfrow=c(2,2))
+my_model <- lm(y ~ z + x, data = df)
+plot(my_model)
+par(mfrow=c(1,1))
+```
+
+:::
+::::
+
+## assumptions: the recipe book
+  
+  
+**L**inearity  
+**I**ndependence  
+**N**ormality  
+**E**qual variances  
+
+:::aside
+"A Line without N is a Lie!" (Umberto)
+:::
+
+## when things look weird...
+
+first thing to do: **think!**  
+
+- is our model mis-specified?  
+  - is the relationship non-linear? higher order terms? (e.g. $y \sim x + x^2$)
+  - is there an omitted variable or interaction term? 
+  - given our outcome variable, do we really *expect* our errors to be normally distributed?  
+
+...
+  
+## when things look weird...
+
+highly skewed?  
+
+- transform the outcome variable?
+  - makes things look more "normal"
+  - but can make things more tricky to interpret:  
+    `lm(y ~ x)` and `lm(log(y) ~ x)` are quite different models
+
+...
+
+## when things look weird...
+
+non-constant variance?  
+
+- bootstrap\*
+  - do many times: resample (with replacement) your data, and refit your model.
+  - obtain a distribution of parameter estimate of interest. 
+  - summarise the distribution to compute a confidence interval for the estimate
+  - celebrate?  
+- corrected standard errors (see **{lmtest}** package)
+
+...
+
+:::aside
+\* not great with small samples.
+:::
+
+## what about independence?  
+
+- you can't necessarily see violations of independence in diagnostic plots - we need to think about how the data were generated.  
+
+- transformations/bootstraps/ etc don't help us if we have violated our assumption of independence...
+
+# Group Structured Data
+
+## Examples of grouped ('clustered') data
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- children within schools  
+
+- patients within clinics  
+
+- observations within individuals  
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/h2.png)
+:::
+::::
+
+
+## Clusters of clusters
+
+::::{.columns}
+:::{.column width="50%"}
+
+- children within classrooms within schools within districts etc...  
+
+- patients within doctors within hospitals... 
+
+- time-periods within trials within individuals
+
+:::
+
+:::{.column width="50%"}
+![](img_sandbox/h3.png)
+:::
+::::
+
+:::aside
+Other relevant terms you will tend to see: "grouping structure", "levels", "hierarchies". 
+:::
+
+## Common study designs
+
+
+![](img_sandbox/lev1.png)
+
+## the impact of clustering
+
+Measurements on observational units within a given cluster are often more similar to each other than to those in other clusters.  
+
+- For example, our measure of academic performance for children in a given class will tend to be more similar to one another (because of class specific things such as the teacher) than to children in other classes.
+
+
+## the impact of clustering  
+
+::::{.columns}
+:::{.column width="50%"}
+#### why?
+
+
+Clustering is something **systematic** that our model should (arguably) take into account.  
+
+- $\varepsilon \sim N(0, \sigma) \textbf{ independently}$ 
+
+:::
+
+:::{.column width="50%" .fragment}
+#### how?
+
+Standard errors will often be smaller than they should be, meaning that:  
+
+- confidence intervals will often be too narrow 
+- $t$-statistics will often be too large  
+- $p$-values will often be misleadingly small
+
+
+:::
+::::
+
+
+## quantifying clustering {.smaller}
+
+Clustering can be expressed in terms of the expected correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
+
+<br>
+$\rho = \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_e} \\ \qquad \\\textrm{Where:} \\ \sigma^2_{b} = \textrm{variance between clusters} \\ \sigma^2_e = \textrm{variance within clusters (residual variance)} \\$
+
+:::
+
+:::{.column width="50%"}
+
+```{r echo=FALSE, fig.asp=.8, fig.align="center"}
+iccgen <- function(j,n,e,icc,coef=0){
+  v = (icc*e)/(1-icc)
+  es = e/(v+e)
+  v = if(is.infinite(v)){v=e}else{v/(v+e)}
+  npj = n/j
+  tibble(
+    j = letters[1:j],
+    zeta_j = rnorm(j,0,sqrt(v))
+  ) %>%
+    mutate(
+      e_ij = map(j, ~rnorm(npj, 0, sqrt(es)))
+    ) %>% unnest() %>%
+    mutate(
+      x = rnorm(n, 10, 5),
+      y = 5 + coef*x + zeta_j + e_ij
+    )
+}
+set.seed(3406)
+sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
+        ~iccgen(j=10,n=100,e=1,icc=.,coef=0), .id="icc") %>%
+  group_by(icc, j) %>%
+  mutate(
+    m = mean(y)
+  ) %>% ungroup
+
+ggplot(sims, aes(x=j, y=y))+
+  geom_jitter(height=0, size=2,aes(col=j))+
+  scale_y_continuous(NULL, labels=NULL)+
+  stat_summary(geom="errorbar",aes(x=j,y=m,col=j),lwd=1)+
+  facet_wrap(~icc)+
+  guides(col=F)+
+  labs(x="cluster")
+```
+
+
+:::
+::::
+
+
+:::aside
+Can also be interpreted as the expected correlation between two randomly drawn observations from the same group. 
+:::
+
+:::notes
+The larger the ICC, the lower the variability is within the clusters (relative to the variability between clusters). The greater the correlation between two observations from the same group. 
+:::
+
+```{r}
+#| eval: false
+#| fig-asp: 0.8
+set.seed(875)
+sims = map_dfr(set_names(c(0,.5,.75,.95,.99,1)), 
+        ~iccgen(j=10,n=100,e=1,icc=.,coef=.1), .id="icc")
+
+ggplot(sims, aes(x=x, y=y))+
+  geom_point(aes(col=j))+
+  geom_line(aes(col=j))+
+  facet_wrap(~icc)+
+  guides(col=F)+
+  scale_y_continuous(NULL, labels=NULL)+
+  scale_x_continuous("X", labels=NULL)
+```
+
+
+# Working with clustered data
+
+## Wide Data/Long Data
+
+
+::::{.columns}
+:::{.column width="50%"}
+__Wide Data__  
+observations are spread across columns
+
+```{r echo=FALSE}
+tibble(
+  ID = sprintf("%03d",1:4), 
+  age = rdunif(4, 18, 75),
+  trial_1 = c(10, 7.5, 12, 10.5),
+  trial_2 = c(12.5, 7, 14.5, 17),
+  trial_3 = c(18, 5, 11, 14)
+) -> wided
+wided %>% rbind(.,"...")
+```
+
+:::
+
+:::{.column width="50%"}
+__Long Data__  
+each observation of the outcome is a separate row
+
+```{r echo=FALSE}
+tibble(
+  ID = sprintf("%03d",1:4), 
+  age = rdunif(4, 18, 75),
+  trial_1 = c(10, 7.5, 12, 10.5),
+  trial_2 = c(12.5, 7, 14.5, 17),
+  trial_3 = c(18, 5, 11, 14)
+) -> wided
+pivot_longer(wided, 3:5, names_to="trial", values_to="score") -> longd
+longd %>% rbind(.,"...")
+```
+:::
+::::
+
+## Wide Data/Long Data
+
+
+```{r echo=FALSE}
+knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
+```
+
+:::aside
+Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (\\@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)
+:::
+
+##  Long Data = plots by group
+
+
+::::{.columns}
+:::{.column width="50%"}
+__`group` aesthetic__  
+
+```{r}
+#| echo: true
+#| fig-asp: .5
+ggplot(longd, aes(x=trial,y=score, group=ID))+
+  geom_point(size=4)+
+  geom_path()
+```
+
+:::
+
+:::{.column width="50%"}
+__`facet_wrap()`__  
+```{r}
+#| echo: true
+#| fig-asp: .5
+ggplot(longd, aes(x=trial,y=score))+
+  geom_point(size=4)+
+  geom_path(aes(group=1))+
+  facet_wrap(~ID)
+```
+:::
+::::
+
+## Long Data = computations by-group
+
+```{r}
+#| echo: true
+longd %>% 
+  group_by(ID) %>%
+  summarise(
+    ntrials = n_distinct(trial),
+    meanscore = mean(score),
+    sdscore = sd(score)
+  )
+```
+
+
+# Modelling clustered data with `lm()`
+
+```{r}
+#| include: false
+set.seed(7555)
+n_groups = 12
+N = n_groups*10
+g = rep(1:n_groups, e = N/n_groups)
+#x = rep(seq(-1,1,length.out=10),n_groups)
+x = rnorm(N)
+b = rbinom(n_groups,1,.5)[g]
+re0 = rnorm(n_groups, sd = 1)
+re0[1] = 2.3
+re0[11] = -1.7
+re0[9] = -3.4
+re = re0[g]
+b = rbinom(n_groups,1,plogis(scale(order(re0))))[g]
+rex = rnorm(n_groups, sd = .5)
+rex[c(3,8)] = rnorm(2,.2,1)
+rex[9] = -1.4
+re_x = rex[g]
+lp = (0 + re) + (1 + re_x) * x
+y = rnorm(N, mean = lp, sd = 1)
+x = round(x*2)#unname(unlist(by(x,g,order,simplify=T)))
+df = data.frame(x,b=factor(b), g = factor(g), y)
+df = df[-c(81,83:89),]
+df[c(97,102),"y"] <- df[c(97,102),"y"]+2
+df$x = df$x + abs(min(df$x)) + .5
+df$x = as.numeric(as.character(factor(df$x,levels=sort(unique(df$x)),
+           labels=seq(15,65,5))))
+df$y = round(50+scale(df$y)*13.3)
+df[81,"y"] = 20
+ggplot(df,aes(x=x,y=y,col=b))+geom_point()+facet_wrap(~g)
+gg = c("Dunfermline","Inverness","Glasgow","Edinburgh","Aberdeen","Dumfries",
+  "Perth","Dundee","Kirkcaldy","Paisley","Fort William","Stirling")
+d3 = df |> transmute(
+  age = x,
+  lifesat = y[,1],
+  dwelling = gg[g],
+  size = ifelse(b==1,"<100k",">100k")
+) |> sample_n(nrow(df))
+df$cluster_var = d3$dwelling
+#write_csv(d3,file="../../../data/d3lmm.csv")
+```
+
+
+<!-- ## Example data {.smaller} -->
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- >   -->
+
+
+<!-- ```{r} -->
+<!-- #d3 <-  -->
+<!-- head(d3) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(ICC) -->
+<!-- ICCbare(x = city, y = lifesat, data = d3) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE, fig.align="center", fig.asp=.9} -->
+<!-- ggplot(d3, aes(x=lifesat))+ -->
+<!--   geom_dotplot(dotsize=.3)+  -->
+<!--   scale_y_continuous(NULL,breaks=NULL)+ -->
+<!--   labs(x="Life Satisfaction") -> p1 -->
+<!-- ggplot(d3, aes(x=lifesat,fill=city))+ -->
+<!--   geom_dotplot()+ -->
+<!--   facet_wrap(~city)+ -->
+<!--   guides(fill=FALSE)+ -->
+<!--   scale_y_continuous(NULL,breaks=NULL)+ -->
+<!--   labs(x="Life Satisfaction")-> p2 -->
+
+<!-- p1 / p2 + plot_layout(heights=c(1,2)) -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+
+
+<!-- ## Ignore it  (v1) {.smaller} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __(Complete pooling)__   -->
+
+<!-- + `lm(y ~ 1, data = df)`   -->
+
+<!-- + Information from all clusters is pooled together to estimate $y$ (equivalent to `mean(df$y)`) -->
+
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- model <- lm(lifesat ~ 1, data = d3) -->
+<!-- ``` -->
+<!-- ```{r echo=FALSE, out.width="300px"} -->
+<!-- .pp(summary(model),l=list(c(9:12))) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE} -->
+<!-- ggplot(d3,aes(x=city,y=lifesat,col=city))+ -->
+<!--   geom_point(size=4,alpha=.3)+ -->
+<!--   guides(col=FALSE)+ -->
+<!--   geom_hline(yintercept=mean(d3$lifesat),lty="longdash") -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+<!-- ## Fixed Effects (v1) {.smaller} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __(No pooling)__   -->
+
+<!-- - `lm(y ~ 1 + cluster, data = df)`   -->
+
+<!-- - *Completely* partition out cluster differences in average $y$.  -->
+
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- model <- lm(lifesat ~ 1 + city, data = d3) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...  ...")) -->
+<!-- ``` -->
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE} -->
+<!-- lm(lifesat ~ 1 + city, data = d3) |> -->
+<!--   broom::augment() |> -->
+<!--   ggplot(aes(x=city,y=lifesat,col=city))+ -->
+<!--   geom_point(size=4,alpha=.3)+ -->
+<!--   guides(col=FALSE)+ -->
+<!--   stat_summary(geom="point",size=7,col="black",shape="_") -->
+<!--   NULL -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+<!-- ## Fixed Effects (v1) {.smaller} -->
+
+
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- __(No pooling)__   -->
+
+<!-- - `lm(y ~ 1 + cluster, data = df)`   -->
+
+<!-- - *Completely* partition out cluster differences in average $y$.  -->
+
+<!-- - like separating out each clusters' data and calculating the mean $y$.   -->
+
+<!-- - prevents us from studying cluster level effects, e.g.:   -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- model <- lm(lifesat ~ 1 + city + culture, data = d3) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- cat(c(.pp(summary(model),l=list(c(9:14))),"...  ...\n... ...")) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- .pp(summary(model),l=list(c(21:23))) -->
+<!-- ``` -->
+
+
+<!-- ::: -->
+
+<!-- :::{.column width="50%"} -->
+<!-- ```{r echo=FALSE} -->
+<!-- lm(lifesat ~ 1 + city+culture, data = d3) |> -->
+<!--   broom::augment() |> -->
+<!--   ggplot(aes(x=city,y=lifesat,col=culture))+ -->
+<!--   geom_point(size=4,alpha=.3)+ -->
+<!--   guides(col=FALSE)+ -->
+<!--   stat_summary(geom="point",size=7,col="black",shape="_") -->
+<!--   NULL -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- :::: -->
+
+## Example data
+
+::::{.columns}
+:::{.column width="50%"}
+> Are older people more satisfied with life? 112 people from 12 different dwellings (cities/towns) in Scotland. Information on their ages and some measure of life satisfaction.  
+
+```{r}
+#| echo: true
+d3 <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv") 
+head(d3)
+```
+
+```{r}
+#| echo: true
+library(ICC)
+ICCbare(x = dwelling, y = lifesat, data = d3)
+```
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE, fig.align="center"}
+ggplot(d3, aes(x=age,y=lifesat))+
+  geom_point(size=4,alpha=.3)+
+  labs(x="Age",y="Life Satisfaction") -> p1
+ggplot(d3, aes(x=age,y=lifesat,fill=dwelling))+
+  geom_point(size=4,alpha=.3)+
+  facet_wrap(~dwelling)+
+  guides(fill=FALSE)+
+  labs(x="Age",y="Life Satisfaction")-> p2
+
+p1 / p2 + plot_layout(heights=c(1,2))
+```
+:::
+::::
+
+## Ignore it
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(Complete pooling)__  
+
++ `lm(y ~ 1 + x, data = df)`  
+
++ Information from all clusters is pooled together to estimate over x  
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + age, data = d3)
+```
+```{r}
+.pp(summary(model),l=list(c(10:12)))
+```
+:::
+
+:::{.column width="50%"}
+```{r}
+lm(lifesat ~ age, data = d3) |>
+  broom::augment() |>
+  ggplot(aes(x=age,y=lifesat))+
+  geom_point(size=4,alpha=.3)+
+  geom_smooth(method="lm")+
+  geom_smooth(method="lm",se=F,fullrange=T)+
+  geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
+  geom_segment(aes(y=lifesat, yend = .fitted, x = age, xend = age), alpha=.2,lty="dotted")+
+  labs(x="Age",y="Life Satisfaction")+
+  xlim(0,70)+
+  NULL
+```
+:::
+::::
+
+## Ignore it
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(Complete pooling)__  
+
++ `lm(y ~ 1 + x, data = df)`  
+
++ Information from all clusters is pooled together to estimate over x  
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + age, data = d3)
+```
+```{r}
+.pp(summary(model),l=list(c(10:12)))
+```
+
+But residuals are __not__ independent.  
+:::
+
+:::{.column width="50%"}
+```{r}
+library(ggfx)
+library(ggforce)
+df |> mutate(
+  cluster_var=gg[g],
+  f = fitted(lm(y ~ x, data = df))
+) -> pdat 
+
+ggplot(pdat,aes(x=x,y=y))+
+  with_blur(geom_point(aes(col=cluster_var),size=4,alpha=.2), sigma = unit(0.7, 'mm')) + 
+  geom_point(data = filter(pdat,cluster_var %in% gg[1]),aes(col=cluster_var),size=4) + 
+  
+  geom_mark_ellipse(aes(label = cluster_var, filter = cluster_var == gg[1]),
+                    con.colour  = "black", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  geom_point(data = filter(pdat,cluster_var %in% gg[11]),aes(col=cluster_var),size=4) + 
+  
+  geom_mark_ellipse(aes(label = cluster_var, filter = cluster_var == gg[11]),
+                    con.colour  = "black", con.cap = 0, 
+                    con.arrow = arrow(ends = "last",length = unit(0.5, "cm")),
+                    show.legend = FALSE) + 
+  
+  guides(col=FALSE, alpha=FALSE)+
+  geom_smooth(method="lm",se=F,fullrange=T)+
+  geom_point(size=4,aes(x=0,y=coef(model)[1]),col="blue")+
+  geom_segment(aes(y=y, yend = f, x = x, xend = x), alpha=.2)+
+  xlim(0,70)+
+  labs(x="Age",y="Life Satisfaction")+
+  NULL
+```
+:::
+::::
+
+
+## Fixed Effects Models 
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(No pooling)__  
+
+- `lm(y ~ cluster + x, data = df)`  
+
+- *Completely* partition out cluster differences in average $y$. 
+
+- Treat every cluster as an independent entity.  
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + dwelling + age, data = d3)
+```
+<div style="font-size:.8em">
+```{r}
+cat(c(.pp(summary(model),l=list(c(10:18))),"...  ...\n...  ..."))
+.pp(summary(model),l=list(c(23:24)))
+```
+</div>
+
+:::
+
+:::{.column width="50%"}
+```{r}
+broom::augment(model) |>
+  mutate(
+    cluster_var = dwelling,
+    f = .fitted,
+    x=age,y=lifesat
+  ) -> pdat
+
+ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
+  geom_point(size=4,alpha=.3)+
+  geom_line(aes(y=f,group=cluster_var))+
+  geom_smooth(pdat |> filter(cluster_var == "Aberdeen"), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
+  geom_point(x=0,y=coef(model)[1],size=3,aes(col="Aberdeen"))+
+  guides(col=FALSE) +
+  labs(x="Age",y="Life Satisfaction")+
+  xlim(0,70)+
+  NULL
+```
+:::
+::::
+
+## Fixed Effects Models 
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(No pooling)__  
+
+- `lm(y ~ cluster * x, data = df)`  
+
+- *Completely* partition out cluster differences in $y \sim x$. 
+
+- Treat every cluster as an independent entity.  
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + dwelling * age, data = d3)
+```
+<div style="font-size:.8em">
+```{r echo=FALSE}
+cat(c(.pp(summary(model),l=list(c(9:14))),"...  ..."))
+cat(c(.pp(summary(model),l=list(c(23:26))), "...  ..."))
+```
+</div>
+:::
+
+:::{.column width="50%"}
+```{r echo=FALSE}
+broom::augment(model) |>
+  mutate(
+    cluster_var = dwelling,
+    f = .fitted,
+    x=age,y=lifesat
+  ) -> pdat
+
+ggplot(pdat, aes(x=x,y=y,col=cluster_var))+
+  geom_point(size=4,alpha=.3)+
+  geom_line(aes(y=f,group=cluster_var))+
+  geom_smooth(pdat |> filter(cluster_var == "Aberdeen"), method="lm", se=F, fullrange = T, mapping=aes(x=x,y=f,col=cluster_var), lty="dashed", lwd=.5) +
+  geom_point(x=0,y=coef(model)[1],size=3,aes(col="Aberdeen"))+
+  guides(col=FALSE) +
+  labs(x="Age",y="Life Satisfaction")+
+  xlim(0,70)+
+  NULL
+```
+:::
+::::
+
+:::notes
+
+It doesn't matter if 99/100 clusters all show one pattern, we're happy to let cluster 100 do it's own thing.  
+
+:::
+
+
+## Fixed Effects Models 
+
+
+::::{.columns}
+:::{.column width="50%"}
+__(No pooling)__  
+
+- `lm(y ~ cluster * x, data = df)`  
+
+- *Completely* partition out cluster differences in $y \sim x$. 
+
+- Treat every cluster as an independent entity.  
+
+- Prevents us from studying cluster level effects. 
+
+```{r}
+#| echo: true
+model <- lm(lifesat ~ 1 + dwelling * age + size, data = d3)
+```
+<div style="font-size:.8em">
+```{r}
+cat(c(.pp(summary(model),l=list(c(9:14))),"...  ...\n...  ..."))
+cat(c(.pp(summary(model),l=list(c(20:26))),"... ..."))
+```
+</div>
+:::
+
+:::{.column width="50%"}
+```{r}
+d3 |> select(dwelling, size) |> table()
+```
+:::
+::::
+
+# Summary {background-color="white"}
+
+- we can fit a linear regression model which takes the form $\color{red}{y} = \color{blue}{\mathbf{X} \boldsymbol{\beta}} + \boldsymbol{\varepsilon}$  
+
+- in R, we fit this with `lm(y ~ x1 + .... xk, data = mydata)`.  
+
+- we can extend this to different link functions to model outcome variables which follow different distributions.  
+
+- when drawing inferences from a fitted model to the broader population, we rely on certain assumptions.  
+
+  - one of these is that the errors are independent.
+
+## This week 
+
+
+::::{.columns}
+:::{.column width="50%"}
+### Tasks
+
+![](img_sandbox/readings.png){width=60px style="margin:0;margin-left:-60px"} Complete readings 
+
+<br>
+
+![](img_sandbox/labs.svg){width=60px style="margin:0;margin-left:-60px"} Attend your lab and work together on the exercises 
+
+<br>
+
+![](img_sandbox/exam.svg){width=60px style="margin:0;margin-left:-60px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+### Support
+
+![](img_sandbox/forum.svg){width=60px style="margin:0;margin-left:-60px"} Piazza forum! 
+
+<br>
+
+![](img_sandbox/oh.png){width=60px style="margin:0;margin-left:-60px"} Office hours (see Learn page for details)
+
+
+
+:::
+::::
+
+
+
+
+
