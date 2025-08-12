@@ -20,28 +20,34 @@ source('_theme/theme_quarto.R')
 #| results: "asis"
 block1_name = "multilevel modelling<br>working with group structured data"
 block1_lecs = c("regression refresher",
-                "introducing multilevel models",
+                "the multilevel model",
                 "more complex groupings",
                 "centering, assumptions, and diagnostics",
                 "recap")
 block2_name = "factor analysis<br>working with multi-item measures"
 block2_lecs = c(
-  "what is a psychometric test?",
-  "using composite scores to simplify data (PCA)",
-  "uncovering underlying constructs (EFA)",
-  "more EFA",
-  "recap"
+  "reducing dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "measurement reliability & validity",
+  "recap & exam prep"
   )
+
 
 source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
 course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=2)
 ```
 
+:::woo
+https://app.wooclap.com/events/PQBDDT/votes?view=desktop&mobile=false
+:::
+
+
 # This week {transition="slide"}
 
 - introduction to the multilevel/mixed effects model
-    - model structure
-    - multilevel models in R
+    - how to think about it (model structure)
+    - how to fit it (in R)
 
 # Introducing the multi-level model
 
@@ -89,193 +95,8 @@ wordcloud(words = mlmname$word, freq = mlmname$freq, random.order=FALSE,
 knitr::include_graphics("img_sandbox/mlmname.png")
 ```
 
-## single level regression
 
-
-::::{.columns}
-:::{.column width="50%"}
-::: {style="width:0; float:left;"}
-$$
-\begin{align}
-& \text{for observation }j \\
-\quad \\
-& \text{    } \\
-& \color{red}{y_j} = \color{blue}{b_0 \cdot{} 1 \; + \; b_1 \cdot{} x_{j} } + \varepsilon_j \\
-\end{align}
-$$
-:::
-:::
-
-:::{.column width="50%" style="font-size: 70%;color:#999999"}
-<br>
-for observation $j$,  
-<br>
-their value of $\color{red}{y}$ =  
-&nbsp;&nbsp;some number ($\color{blue}{b_0}$) +  
-&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
-&nbsp;&nbsp;their residual $\varepsilon_j$  
-
-:::
-::::
-
-## multi-level regression
-
-::::{.columns}
-:::{.column width="50%"}
-::: {style="width:0; float:left;"}
-$$
-\begin{align}
-& \text{for observation }j\text{ in group }i \\
-\quad \\
-& \text{Level 1:} \\
-& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
-\end{align}
-$$
-:::
-:::
-
-:::{.column width="50%" style="font-size: 70%;color:#999999"}
-<br>
-for observation $j$ **from group $i$**,  
-<br>
-their value of $\color{red}{y}$ =   
-&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
-&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
-&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
-  
-:::
-::::
-
-## multi-level regression
-
-::::{.columns}
-:::{.column width="50%"}
-::: {style="width:0; float:left;"}
-$$
-\begin{align}
-& \text{for observation }j\text{ in group }i \\
-\quad \\
-& \text{Level 1:} \\
-& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
-& \quad \\
-& \text{Level 2:} \\
-& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
-\quad \\
-\end{align}
-$$
-:::
-:::
-
-:::{.column width="50%" style="font-size: 70%;color:#999999"}
-<br>
-for observation $j$ **from group $i$**,  
-<br>
-their value of $\color{red}{y}$ =   
-&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
-&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
-&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
-<br>
-group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
-&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$) +  
-&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
-
-:::
-::::
-
-
-## multi-level regression {visibility="uncounted"}
-
-::::{.columns}
-:::{.column width="50%"}
-::: {style="width:0; float:left;"}
-$$
-\begin{align}
-& \text{for observation }j\text{ in group }i \\
-\quad \\
-& \text{Level 1:} \\
-& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
-& \quad \\
-& \text{Level 2:} \\
-& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
-\quad \\
-& \color{orange}{\zeta_{0i}} \sim N(0, \color{orange}{\sigma_0}) \\
-& \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
-\end{align}
-$$
-:::
-:::
-
-:::{.column width="50%" style="font-size: 70%;color:#999999"}
-<br>
-for observation $j$ **from group $i$**,  
-<br>
-their value of $\color{red}{y}$ =   
-&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
-&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
-&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
-<br>
-group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
-&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$) +  
-&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
-<br><br>
-We are now assuming $\color{orange}{\zeta_0}$ and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\color{orange}{\sigma_0^2}$ and $\sigma_\varepsilon^2$ respectively.  
-  
-:::
-::::
-
-## multi-level (mixed-effects) regression
-
-Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
-
-
-::::{.columns}
-:::{.column width="60%" style="float:left;"}
-
-$$
-\begin{align}
-& \color{red}{y_{ij}} = \overbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}^{\color{blue}{b_{0i}}} \cdot 1 + \color{blue}{b_{1} \cdot x_{ij}}  +  \varepsilon_{ij} \\
-& \quad \\
-& \color{orange}{\zeta_{0i}} \sim N(0, \sigma_0) \\
-& \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
-\end{align}
-$$
-
-:::
-:::{.column width="40%" style="font-size: 70%;color:#999999"}
-<br><br>
-The intercept $\color{blue}{b_{0i}}$ is a "mix" of two things: 
-
-- the fixed number $\gamma_{00}$
-- group deviations $\color{orange}{\zeta_{0i}}$
-
-:::
-::::
-
-:::aside
-**other notation to be aware of**  
-
-- Many people use the symbol $u$ as the random part - i.e. in place of $\zeta$  
-
-- Sometimes people use $b_{00}$ as the fixed part - i.e. instead of $\gamma_{00}$  
-
-- In various resources, you are likely to see $\alpha$ used to denote the intercept instead of $b_0$  
-
-:::
-
-## NOTE 
-
-:::{.incremental}
-
-- You do **not** have to write equations for the DAPR3 report or exam.  
-
-- As models get more complex, it is much easier to explain your model structure in words rather than equations  
-    - *"\[**outcome**\] was modelled using a linear multilevel model, with fixed effects of \[**predictors**\] and by-\[**grouping**\] random intercepts."*  
-    
-- We're still going to go through them in lectures & readings because they provide a clear scaffolding for learning how the models work
-
-:::
-
-# Building up the idea
+# Building up the idea - in pictures
 
 ## back to our example {.smaller}
 
@@ -683,6 +504,197 @@ basep +
 :::
 ::::
 
+:::woo
+https://app.wooclap.com/events/PQBDDT/votes?view=desktop&mobile=false
+:::
+
+# Building up the idea - in equations
+
+## single level regression
+
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j \\
+\quad \\
+& \text{    } \\
+& \color{red}{y_j} = \color{blue}{b_0 \cdot{} 1 \; + \; b_1 \cdot{} x_{j} } + \varepsilon_j \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$,  
+<br>
+their value of $\color{red}{y}$ =  
+&nbsp;&nbsp;some number ($\color{blue}{b_0}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_j$  
+
+:::
+::::
+
+## multi-level regression
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+  
+:::
+::::
+
+## multi-level regression
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$) +  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+
+:::
+::::
+
+
+## multi-level regression {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="50%"}
+::: {style="width:0; float:left;"}
+$$
+\begin{align}
+& \text{for observation }j\text{ in group }i \\
+\quad \\
+& \text{Level 1:} \\
+& \color{red}{y_{ij}} = \color{blue}{b_{0i} \cdot 1 + b_{1} \cdot x_{ij}} + \varepsilon_{ij} \\
+& \quad \\
+& \text{Level 2:} \\
+& \color{blue}{b_{0i}} = \gamma_{00} + \color{orange}{\zeta_{0i}} \\
+\quad \\
+& \color{orange}{\zeta_{0i}} \sim N(0, \color{orange}{\sigma_0}) \\
+& \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
+\end{align}
+$$
+:::
+:::
+
+:::{.column width="50%" style="font-size: 70%;color:#999999"}
+<br>
+for observation $j$ **from group $i$**,  
+<br>
+their value of $\color{red}{y}$ =   
+&nbsp;&nbsp;some number **for group $i$** ($\color{blue}{b_{0i}}$) +  
+&nbsp;&nbsp;some amount ($\color{blue}{b_1}$) times their value of $x$ +  
+&nbsp;&nbsp;their residual $\varepsilon_{ij}$  
+<br>
+group $i$'s intercept ($\color{blue}{b_{0i}}$) =  
+&nbsp;&nbsp;the intercept for the average of the population of groups ($\gamma_{00}$) +  
+&nbsp;&nbsp;the deviation of group $i$ ($\color{orange}{\zeta_{0i}}$) from $\gamma_{00}$  
+<br><br>
+We are now assuming $\color{orange}{\zeta_0}$ and $\varepsilon$ to be normally distributed with a mean of 0, and we denote their variances as $\color{orange}{\sigma_0^2}$ and $\sigma_\varepsilon^2$ respectively.  
+  
+:::
+::::
+
+## multi-level (mixed-effects) regression
+
+Sometimes, you will see the levels collapsed into one equation, as it might make for more intuitive reading:
+
+
+::::{.columns}
+:::{.column width="60%" style="float:left;"}
+
+$$
+\begin{align}
+& \color{red}{y_{ij}} = \overbrace{(\gamma_{00} + \color{orange}{\zeta_{0i}})}^{\color{blue}{b_{0i}}} \cdot 1 + \color{blue}{b_{1} \cdot x_{ij}}  +  \varepsilon_{ij} \\
+& \quad \\
+& \color{orange}{\zeta_{0i}} \sim N(0, \sigma_0) \\
+& \varepsilon_{ij} \sim N(0, \sigma_\varepsilon) \\ 
+\end{align}
+$$
+
+:::
+:::{.column width="40%" style="font-size: 70%;color:#999999"}
+<br><br>
+The intercept $\color{blue}{b_{0i}}$ is a "mix" of two things: 
+
+- the fixed number $\gamma_{00}$
+- group deviations $\color{orange}{\zeta_{0i}}$
+
+:::
+::::
+
+:::aside
+**other notation to be aware of**  
+
+- Many people use the symbol $u$ as the random part - i.e. in place of $\zeta$  
+
+- Sometimes people use $b_{00}$ as the fixed part - i.e. instead of $\gamma_{00}$  
+
+- In various resources, you are likely to see $\alpha$ used to denote the intercept instead of $b_0$  
+
+:::
+
+## NOTE 
+
+:::{.incremental}
+
+- You do **not** have to write equations for the DAPR3 report or exam.  
+
+- As models get more complex, it is much easier to explain your model structure in words rather than equations  
+    - *"\[**outcome**\] was modelled using a linear multilevel model, with fixed effects of \[**predictors**\] and by-\[**grouping**\] random intercepts."*  
+    
+- We're still going to go through them in lectures & readings because they provide a clear scaffolding for learning how the models work
+
+:::
 
 ## the multilevel model
 
@@ -1647,11 +1659,22 @@ pptplots
 lm_mod <- lm(ACE ~ 1 + visit, data = d3)
 summary(lm_mod)
 ```
+
+```{r}
+#| eval: false
+#| echo: true
+pptplots + 
+  geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
+```
+:::woo
+https://app.wooclap.com/events/PQBDDT/votes?view=desktop&mobile=false
+:::
+
 :::
 
 :::{.column width="50%" .fragment}
 ```{r}
-#| echo: true
+#| echo: false
 pptplots + 
   geom_line(aes(y=fitted(lm_mod)), col = "blue", lwd=1)
 ```
@@ -1673,11 +1696,22 @@ ri_mod <- lmer(ACE ~ 1 + visit +
                  (1 | ppt), data = d3)
 summary(ri_mod)
 ```
+
+```{r}
+#| eval: false
+#| echo: true
+pptplots + 
+  geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
+```
+:::woo
+https://app.wooclap.com/events/PQBDDT/votes?view=desktop&mobile=false
 :::
 
-:::{.column width="50%"}
+:::
+
+:::{.column width="50%" .fragment}
 ```{r}
-#| echo: true
+#| echo: false
 pptplots + 
   geom_line(aes(y=fitted(ri_mod)), col = "red", lwd=1)
 ```
@@ -1700,11 +1734,21 @@ rs_mod <- lmer(ACE ~ 1 + visit +
 summary(rs_mod)
 ```
 
+```{r}
+#| eval: false
+#| echo: true
+pptplots + 
+  geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=1)
+```
+:::woo
+https://app.wooclap.com/events/PQBDDT/votes?view=desktop&mobile=false
 :::
 
-:::{.column width="50%"}
+:::
+
+:::{.column width="50%" .fragment}
 ```{r}
-#| echo: true
+#| echo: false
 pptplots + 
   geom_line(aes(y=fitted(rs_mod)), col = "orange", lwd=1)
 ```

@@ -26,17 +26,17 @@ source('_theme/theme_quarto.R')
 #| results: "asis"
 block1_name = "multilevel modelling<br>working with group structured data"
 block1_lecs = c("regression refresher",
-                "introducing multilevel models",
+                "the multilevel model",
                 "more complex groupings",
                 "centering, assumptions, and diagnostics",
                 "recap")
 block2_name = "factor analysis<br>working with multi-item measures"
 block2_lecs = c(
-  "what is a psychometric test?",
-  "using composite scores to simplify data (PCA)",
-  "uncovering underlying constructs (EFA)",
-  "more EFA",
-  "recap"
+  "reducing dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "measurement reliability & validity",
+  "recap & exam prep"
   )
 
 source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
@@ -46,9 +46,9 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=1)
 # This week {transition="slide"}
 
 - The (generalised) linear model
-    - model structures (multiple predictors, interactions, link functions)
-    - inference (coefficients and model comparisons)
-    - assumptions
+    - how to think about it (multiple predictors, interactions, link functions)
+    - how to draw inferences (from coefficients and model comparisons)
+    - assumptions we make
 - introduction to group-structured data 
     - what it looks like
     - what we can do with our current tools
@@ -345,6 +345,18 @@ plt_sst / (plt_ssm + plt_ssr) & scale_x_continuous("x",breaks=NULL) & scale_y_co
 
 :::
 
+##  Uses of multiple regression  
+
+::: {.incremental}
+
++ **For prediction:** multiple predictors may lead to improved prediction. 
+
++ **For theory testing:** often our theories suggest that multiple variables together contribute to variation in an outcome
+
++ **For covariate control:** we might want to assess the effect of a specific predictor, controlling for the influence of others.
+
+:::
+
 
 ## Multiple Regression
 
@@ -463,17 +475,6 @@ broom::tidy(mod1) |>
 
 :::
 
-##  Uses of multiple regression  
-
-::: {.incremental}
-
-+ **For prediction:** multiple predictors may lead to improved prediction. 
-
-+ **For theory testing:** often our theories suggest that multiple variables together contribute to variation in an outcome
-
-+ **For covariate control:** we might want to assess the effect of a specific predictor, controlling for the influence of others.
-
-:::
 
 
 
@@ -653,7 +654,7 @@ relationship between x and y ...
     - sort of like stratification across groups, but Z can now be continuous
 
     - assumes effect of X on Y is constant across Z
-        - (but doesn't have to, as we'll see tomorrow)
+        - (but doesn't have to, as we'll see shortly)
 
 ## I have control issues.. 
 ### ..and so should you
@@ -685,7 +686,7 @@ In order to estimate "the effect" of X on Y, deciding on what to control for **M
 ::::
 
 
-## Z is a confounder
+## Z is...  a confounder
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -696,7 +697,7 @@ In order to estimate "the effect" of X on Y, deciding on what to control for **M
 :::
 ::::
 
-## Z is a mediator
+## Z is...  a mediator
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -708,7 +709,7 @@ In order to estimate "the effect" of X on Y, deciding on what to control for **M
 ::::
 
 
-## Z is a collider
+## Z is...  a collider
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -732,20 +733,20 @@ In order to estimate "the effect" of X on Y, deciding on what to control for **M
 ::::
 
 
-## example
+## example - observational study
 
 ::::{.columns}
 :::{.column width="50%"}
 ![](img_sandbox/caus/Slide6.PNG)
 :::
-:::{.column width="50%"}
+:::{.column width="50%" .fragment}
 ```{r}
 #| echo: false
-set.seed(78)
+set.seed(700)
 df = tibble(
   age = runif(100,18,80),
   drug = rbinom(100,1,plogis(scale(age)*1.2)),
-  BP = rnorm(100,60+1*age - 5*drug,5)
+  BP = rnorm(100,60+1*age - 10*drug,5)
 ) |> mutate(drug=factor(drug))
 m2 = lm(BP~age+drug,df)
 p1 = ggplot(df,aes(x=drug,y=BP,col=age))+
@@ -762,6 +763,22 @@ p2 = ggplot(df,aes(x=age,y=BP,col=drug))+
   geom_abline(intercept=coef(m2)[1]+coef(m2)[3],
               slope=coef(m2)[2],
               lwd=1,col="skyblue2")
+p1 / plot_spacer()
+```
+:::
+::::
+
+
+
+## example - observational study
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/caus/Slide6.PNG)
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
 p1 / p2
 ```
 :::
@@ -770,16 +787,16 @@ p1 / p2
 
 
 
-## example
+## example - randomised trial
 
 ::::{.columns}
 :::{.column width="50%"}
 ![](img_sandbox/caus/Slide7.PNG)
 :::
-:::{.column width="50%"}
+:::{.column width="50%" .fragment}
 ```{r}
 #| echo: false
-set.seed(3)
+set.seed(62)
 df = tibble(
   age = runif(100,18,80),
   drug = rbinom(100,1,.5),
@@ -807,7 +824,7 @@ p1 / p2
 ::::
 
 
-## example
+## example - post-treatment variables
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -843,7 +860,7 @@ p1 / p2
 :::
 ::::
 
-## example 2
+## example 2 - colliders
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -854,7 +871,7 @@ p1 / p2
 :::
 ::::
 
-## example 2
+## example 2 - colliders
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -873,7 +890,7 @@ p1 / p2
 - don't control for a mediator  
 - don't control for a collider 
 
-- draw your theoretical model **before** you get your data, so that you know what variables you (ideally) need.  
+- draw your theoretical model **before** you collect your data, so that you know what variables you (ideally) need.  
 
 :::{.aside}
 
@@ -882,6 +899,8 @@ For more on this, see:
 - Wysocki, A. C., Lawson, K. M., & Rhemtulla, M. (2022). Statistical control requires causal justification. Advances in Methods and Practices in Psychological Science, 5(2), 25152459221095823.
 - Rohrer, J. M. (2024). Causal inference for psychologists who think that causal inference is not for them. Social and Personality Psychology Compass, 18(3), e12948.
 - Cinelli, C., Forney, A., & Pearl, J. (2024). A crash course in good and bad controls. Sociological Methods & Research, 53(3), 1071-1104.
+- VanderWeele, Tyler J. (2019). Principles of Confounder Selection. European Journal of Epidemiology 34 (3): 211–19.
+
 
 :::
 
@@ -891,12 +910,16 @@ For more on this, see:
 ## Multiple Regression
 
 ```{r}
-set.seed(124)
-mydata = tibble(
-  x1 = rnorm(100,0,1),
-  x2 = rnorm(100, .2*x1, 2),
-  y = rnorm(100, .5*x2+.4*x1, 1.7)
-) |> mutate(y=scale(y)*11.9+20)
+set.seed(700)
+df = tibble(
+  age = runif(100,18,80),
+  drug = rbinom(100,1,plogis(scale(age)*1.2)),
+  BP = rnorm(100,60+1*age - 10*drug,5)
+) |> mutate(drug=factor(drug))
+mydata <- df |> mutate(drug = factor(drug, 
+                                     levels=0:1,
+                                     labels=c("No","Yes")))
+
 ```
 
 
@@ -904,73 +927,71 @@ mydata = tibble(
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-mod1 <- lm(y ~ x1 + x2, data = mydata)
+mod1 = lm(BP ~ age + drug, mydata)
 summary(mod1)
 ```
 :::
 
 :::{.column width="50%"}
-
-<br><br><br>
-
 ```{r}
 broom::tidy(mod1) |>
   transmute(
     term,
     est=round(estimate,2),
     interpretation=c(
-      "estimated y when all predictors are zero/reference level",
-      "estimated change in y when x1 increases by 1, and all other predictors are held constant",
-      "estimated change in y when x2 increases by 1, and all other predictors are held constant"
+      "estimated BP when all predictors are zero (age 0, drug = no)",
+      "estimated change in BP when age increases by 1, and drug is held constant",
+      "estimated change in BP between drug = no and drug = yes, holding age constant"
     )
   ) |> gt::gt()
 ```
+![](img_sandbox/caus/Slide6.PNG)
 
 :::
 ::::
 
 
-## Multiple Regression
+<!-- ## Multiple Regression -->
 
-```{r}
-set.seed(124)
-mydata = tibble(
-  x1 = rnorm(100,0,1),
-  x2 = rnorm(100, .2*x1, 2),
-  y = rnorm(100, .5*x2+.4*x1, 1.7)
-) |> transmute(knowledge=scale(y)*11.9+20,
-               age=x1,education=x2)
-```
+<!-- ```{r} -->
+<!-- set.seed(124) -->
+<!-- mydata = tibble( -->
+<!--   x1 = rnorm(100,0,1), -->
+<!--   x2 = rnorm(100, .2*x1, 2), -->
+<!--   y = rnorm(100, .5*x2+.4*x1, 1.7) -->
+<!-- ) |> transmute(knowledge=scale(y)*11.9+20, -->
+<!--                age=x1,education=x2) -->
+<!-- ``` -->
 
 
-::::{.columns}
-:::{.column width="50%"}
-```{r}
-#| echo: true
-mod1 <- lm(knowledge ~ age + education, data = mydata)
-summary(mod1)
-```
-:::
+<!-- ::::{.columns} -->
+<!-- :::{.column width="50%"} -->
+<!-- ```{r} -->
+<!-- #| echo: true -->
+<!-- mod1 <- lm(knowledge ~ age + education, data = mydata) -->
+<!-- summary(mod1) -->
+<!-- ``` -->
+<!-- ::: -->
 
-:::{.column width="50%"}
+<!-- :::{.column width="50%"} -->
 
-<br><br><br>
+<!-- <br><br><br> -->
 
-```{r}
-broom::tidy(mod1) |>
-  transmute(
-    term,
-    est=round(estimate,2),
-    interpretation=c(
-      "estimated knowledge for age 0, education 0",
-      "estimated change in knowledge for every 1 year older, holding education constant",
-      "estimated change in knowledge for every 1 year of education, holding age constant"
-    )
-  ) |> gt::gt()
-```
+<!-- ```{r} -->
+<!-- broom::tidy(mod1) |> -->
+<!--   transmute( -->
+<!--     term, -->
+<!--     est=round(estimate,2), -->
+<!--     interpretation=c( -->
+<!--       "estimated knowledge for age 0, education 0", -->
+<!--       "estimated change in knowledge for every 1 year older, holding education constant", -->
+<!--       "estimated change in knowledge for every 1 year of education, holding age constant" -->
+<!--     ) -->
+<!--   ) |> gt::gt() -->
+<!-- ``` -->
 
-:::
-::::
+<!-- ::: -->
+<!-- :::: -->
 
 
 ## Interactions
@@ -981,7 +1002,9 @@ what if the relationship of interest *depends on* the level of some other variab
 
 adding in a product term (x1 $\times$ x2) to our model, we can model this.. 
 
-$\color{red}{y} = \color{blue}{b_0 \cdot{} 1 + b_1 \cdot{} x_1 + b_2 \cdot x_2 + b_3 \cdot x_1 \cdot x_2} + \varepsilon$
+$$
+\color{red}{y} = \color{blue}{\underbrace{b_0 \cdot{} 1}_{\text{intercept}} + \underbrace{b_1 \cdot{} x_1}_{\text{slope of x1 when x2 is 0}} + \underbrace{b_2 \cdot x_2}_{\text{slope of x2 when x1 is 0}} + \underbrace{b_3 \cdot x_1 \cdot x_2}_{\text{interaction term}}} + \varepsilon
+$$
 
 
 :::aside
@@ -1828,40 +1851,49 @@ par(mfrow=c(1,1))
 
 first thing to do: **think!**  
 
-- is our model mis-specified?  
-  - is the relationship non-linear? higher order terms? (e.g. $y \sim x + x^2$)
-  - is there an omitted variable or interaction term? 
-  - given our outcome variable, do we really *expect* our errors to be normally distributed?  
+- model mis-specification?
+- transformation? 
+- bootstrap or corrected SEs?  
 
-...
-  
-## when things look weird...
 
-highly skewed?  
+<!-- ## when things look weird... -->
 
-- transform the outcome variable?
-  - makes things look more "normal"
-  - but can make things more tricky to interpret:  
-    `lm(y ~ x)` and `lm(log(y) ~ x)` are quite different models
+<!-- first thing to do: **think!**   -->
 
-...
+<!-- - is our model mis-specified?   -->
+<!--   - is the relationship non-linear? higher order terms? (e.g. $y \sim x + x^2$) -->
+<!--   - is there an omitted variable or interaction term?  -->
+<!--   - given our outcome variable, do we really *expect* our errors to be normally distributed?   -->
 
-## when things look weird...
+<!-- ... -->
 
-non-constant variance?  
+<!-- ## when things look weird... -->
 
-- bootstrap\*
-  - do many times: resample (with replacement) your data, and refit your model.
-  - obtain a distribution of parameter estimate of interest. 
-  - summarise the distribution to compute a confidence interval for the estimate
-  - celebrate?  
-- corrected standard errors (see **{lmtest}** package)
+<!-- highly skewed?   -->
 
-...
+<!-- - transform the outcome variable? -->
+<!--   - makes things look more "normal" -->
+<!--   - but can make things more tricky to interpret:   -->
+<!--     `lm(y ~ x)` and `lm(log(y) ~ x)` are quite different models -->
 
-:::aside
-\* not great with small samples.
-:::
+<!-- ... -->
+
+<!-- ## when things look weird... -->
+
+<!-- non-constant variance?   -->
+
+<!-- - bootstrap\* -->
+<!--   - do many times: resample (with replacement) your data, and refit your model. -->
+<!--   - obtain a distribution of parameter estimate of interest.  -->
+<!--   - summarise the distribution to compute a confidence interval for the estimate -->
+<!--   - celebrate?   -->
+<!-- - corrected standard errors (see **{lmtest}** package) -->
+
+<!-- ... -->
+
+<!-- :::aside -->
+<!-- \* not great with small samples. -->
+<!-- ::: -->
 
 ## what about independence?  
 
@@ -1952,7 +1984,7 @@ Standard errors will often be smaller than they should be, meaning that:
 ::::
 
 
-## quantifying clustering {.smaller}
+## quantifying clustering
 
 Clustering can be expressed in terms of the expected correlation among the measurements within the same cluster - known as the __intra-class correlation coefficient (ICC).__
 
@@ -2075,16 +2107,16 @@ longd %>% rbind(.,"...")
 :::
 ::::
 
-## Wide Data/Long Data
+<!-- ## Wide Data/Long Data -->
 
 
-```{r echo=FALSE}
-knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif")
-```
+<!-- ```{r echo=FALSE} -->
+<!-- knitr::include_graphics("https://www.fromthebottomoftheheap.net/assets/img/posts/tidyr-longer-wider.gif") -->
+<!-- ``` -->
 
-:::aside
-Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (\\@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain)
-:::
+<!-- :::aside -->
+<!-- Source: Examples of wide and long representations of the same data. Source: Garrick Aden-Buie’s (\\@grrrck) [Tidy Animated Verbs](https://github.com/gadenbuie/tidyexplain) -->
+<!-- ::: -->
 
 ##  Long Data = plots by group
 
@@ -2331,11 +2363,11 @@ d3 <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
 head(d3)
 ```
 
-```{r}
-#| echo: true
-library(ICC)
-ICCbare(x = dwelling, y = lifesat, data = d3)
-```
+<!-- # ```{r} -->
+<!-- # #| echo: true -->
+<!-- # library(ICC) -->
+<!-- # ICCbare(x = dwelling, y = lifesat, data = d3) -->
+<!-- # ``` -->
 :::
 
 :::{.column width="50%"}
