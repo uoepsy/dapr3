@@ -25,13 +25,12 @@ block1_lecs = c("regression refresher",
                 "recap")
 block2_name = "factor analysis<br>working with multi-item measures"
 block2_lecs = c(
-  "reducing dimensionality",
+  "measurement and dimensionality",
   "exploring underlying constructs (EFA)",
   "testing theoretical models (CFA)",
-  "measurement reliability & validity",
+  "reliability and validity",
   "recap & exam prep"
   )
-
 
 source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
 course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=3)
@@ -187,7 +186,7 @@ The things in a cluster belong __only__ to that cluster.
 knitr::include_graphics("https://media.gettyimages.com/id/657783001/photo/mallard-ducklings.jpg?s=2048x2048&w=gi&k=20&c=0kXqa1ss4W5kqSe5PsrK-2zy3UAkYbTnDLfqUckPzJ8=")
 ```
 
-## Nested Structures {visibility="uncounted"}
+## Nested Structures (2)
 
 The things in a cluster belong __only__ to that cluster.  
 
@@ -199,18 +198,14 @@ knitr::include_graphics("img_sandbox/structure_nestednew.png")
 
 <center>
 
-**`(1 | school) + (1 | class:school)`**
+**in R:**  
+**`(1 | school) + (1 | class:school)`**  
+or  
+**`(1 | school) + (1 | school:class)`**  
 
 </center>
 
-:::aside
-
-- the order doesn't matter, so this is also fine: **`(1 | school) + (1 | school:class)`**
-- we can use **`(1 | school/class)`** as shorthand, but it is often preferable to separate them out (allowing different random effects for schools vs for children)
-
-:::
-
-## Nested Structures - labels!  
+## Nested Structures (3) - labels!  
 
 The things in a cluster belong __only__ to that cluster.  
 
@@ -222,21 +217,39 @@ knitr::include_graphics("img_sandbox/structure_nestedlabnew.png")
 
 <center>
 
-**`(1 | school) + (1 | class:school)`**
+**in R:**  
+**`(1 | school) + (1 | class:school)`**  
+or  
+**`(1 | school) + (1 | school:class)`**  
+or  
+**`(1 | school) + (1 | class)`** *iff* the labels of classes are unique!!
 
 </center>
 
-:::aside
+## Nested Structures (4) - Shorthand (discouraged)
 
-- If labels are unique, `class:school` is the same as `class`, meaning that the two below are equivalent:  
-    - **`(1 | school) + (1 | class:school)`**
-    - **`(1 | school) + (1 | class)`**
+**`(1 | school/class)`**
+is shorthand for  
+**`(1 | school) + (1 | class:school)`**   
+
+<br>
+
+:::{.fragment}
+
+shorthand only works when random slopes are same at each level  
+
+this can't be compressed:  
+**`(1 + x + z | school) + (1 + z | class:school)`**   
 
 :::
 
 
 
-## Example 1
+we can use  as shorthand, but it is often preferable to separate them out (allowing different random effects for schools vs for children)
+
+:::
+
+## Example 1 (just two levels)
  
 ::::{.columns}
 :::{.column width="50%"}
@@ -281,7 +294,7 @@ ggplot(d3, aes(x=visit, y=ACE))+
 :::
 ::::
 
-## Nested Example
+## Example 2 (another level, nested)
 
 
 ::::{.columns}
@@ -333,7 +346,7 @@ ggplot(d3full, aes(x=visit, y=ACE))+
 
 ## Crossed Structures
 
-Not nested? ==> "crossed"
+Crossed == "not nested"?  
 
 ```{r}
 #| echo: false
@@ -347,7 +360,7 @@ knitr::include_graphics("img_sandbox/structure_crossednew.png")
 
 </center>
 
-## Crossed Example
+## Example 3 (crossed)
 
 ```{r}
 #| include: false
@@ -399,32 +412,34 @@ df = df |> transmute(
 
 
 ::::{.columns}
-:::{.column style="width:50%;font-size:70%"}
-Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
+:::{.column}
+Participants take part in an experiment where they each complete the same 10 tasks. 
 
+:::{style="font-size:70%"}
 ```{r}
-#| echo: true
+#| echo: false
 d3cross <- read_csv("https://uoepsy.github.io/data/lmm_egcross.csv")
 ```
 ```{r}
 #| echo: false
 rbind(
-  df[c(1:2),],
+  df[c(1:2),c("ppt","task","score")],
   "...",
-  df[c(6:7),],
-  "...",
-  "...",
-  df[c(11:12),],
-  "...",
-  df[c(16:17),],
+  df[c(6:7),c("ppt","task","score")],
   "...",
   "...",
-  df[c(101:102),],
+  df[c(11:12),c("ppt","task","score")],
   "...",
-  df[c(106:107),],
+  df[c(16:17),c("ppt","task","score")],
+  "...",
+  "...",
+  df[c(101:102),c("ppt","task","score")],
+  "...",
+  df[c(106:107),c("ppt","task","score")],
   "..."
 ) |> as.data.frame() |> print(row.names=FALSE)
 ```
+:::
 
 :::
 
@@ -438,11 +453,22 @@ rbind(
 
 ```{r}
 #| echo: false
-ggplot(df,aes(x = condition, y = score, col = task)) +
+p1 <- ggplot(df,aes(x = 1, y = score, col = task)) +
   geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
-  facet_wrap(group~ppt) +
+  facet_wrap(~ppt) +
   labs(title="participants")+
+  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)+
   scale_color_viridis_d(option = "C")
+
+p2 <- ggplot(df,aes(x = 1, y = score, col = task)) +
+  geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
+  facet_wrap(~task) +
+  labs(title="tasks")+
+  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)+
+  scale_color_viridis_d(option = "C")
+
+p1 / p2
+
 ```
 
 :::
@@ -536,7 +562,7 @@ _"Ultimately, the random effect structure one uses in an analysis encodes the as
 :::
 
 
-## Example 1
+## Example 1 (just two levels)
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -582,7 +608,7 @@ lmer(ACE ~ 1 + visit + condition +
 ::::
 
 
-## Nested example
+## Example 2 (another level, nested)
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -635,11 +661,11 @@ lmer(ACE ~ 1 + visit * condition +
 ::::
 
 
-## Crossed Example
+## Example 3 (crossed)
 
 
 ::::{.columns}
-:::{.column style="width:50%;font-size:70%"}
+:::{.column}
 Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
 
 ```{r}
@@ -680,11 +706,11 @@ lmer(score ~ condition * group + ???
 ::::
 
 
-## Crossed Example
+## Example 3 (crossed)
 
 
 ::::{.columns}
-:::{.column style="width:50%;font-size:70%"}
+:::{.column}
 Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
 
 ```{r}

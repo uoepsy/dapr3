@@ -1,0 +1,1137 @@
+---
+title: "Exploratory Factor Analysis 1"
+author: "Josiah King & John Martindale"
+editor_options: 
+  chunk_output_type: console
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(patchwork)
+source('_theme/theme_quarto.R')
+```
+
+
+```{r}
+#| include: false
+library(psych)
+set.seed(533)
+makeitems <- function(){
+  S = runif(5,.4,2)
+  f = runif(5,.4,.99)
+  R = f %*% t(f)
+  diag(R) = 1
+  items = round(MASS::mvrnorm(400, mu = rnorm(5,3,.6), Sigma=diag(S)%*%R%*%diag(S)))
+  apply(items, 2, function(x) pmin(7,pmax(1,x)))
+}
+eg_data = do.call(cbind,lapply(1:2, function(x) makeitems()))
+eg_data[,5] <- round(rowMeans(eg_data[,c(5,10)]))
+eg_data <- eg_data[,-10]
+eg_data[,1] <- max(eg_data[,1]) - eg_data[,1] + 1
+eg_data[,6] <- max(eg_data[,6]) - eg_data[,6] + 1
+eg_data <- as.data.frame(eg_data)
+names(eg_data) <- paste0("item_",1:9)
+
+# mm = fa(eg_data, nfactors=2, rotate = "oblimin", fm="ml")
+
+
+egitems = tibble(
+  variable = paste0("item",1:9),
+  wording = c("I worry that people will think I'm awkward or strange in social situations.","I often fear that others will criticize me after a social event.","I'm afraid that I will embarrass myself in front of others.","I feel self-conscious in social situations, worrying about how others perceive me.","I often avoid social situations because I’m afraid I will say something wrong or be judged.","I avoid social gatherings because I fear feeling uncomfortable.","I try to stay away from events where I don’t know many people.","I often cancel plans because I feel anxious about being around others.","I prefer to spend time alone rather than in social situations.")
+)
+```
+
+# QR!!!
+
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+#| echo: false
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "introducing multilevel models",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c(
+  "what is a psychometric test?",
+  "using composite scores to simplify data (PCA)",
+  "uncovering underlying constructs (EFA)",
+  "more EFA",
+  "recap"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
+```
+
+# This week {transition="slide"}
+
+-   Introduction to EFA
+-   EFA vs PCA
+-   Estimation & Number of factors
+-   Factor rotation
+-   EFA output
+
+# EFA vs PCA
+
+*Real friends don't let friends do PCA.* (W. Revelle, 25 October 2020)
+
+## Questions to ask before you start
+
+::: columns
+::: {.column width="50%"}
+### PCA
+
+-   Why are your variables correlated?
+    -   Agnostic/don't care
+-   What are your goals?
+    -   Just reduce the number of variables
+        
+```{r, echo=FALSE}
+magick::image_read("img_sandbox/pca_factor1.png")
+```        
+        
+:::
+::: {.column width="50%" .fragment}
+### EFA
+
+-   Why are your variables correlated?
+    -   Believe there *are* underlying "causes" of these correlations
+-   What are your goals?
+    -   Reduce your variables and learn about/model their underlying
+        (latent) causes
+        
+```{r, echo=FALSE}
+magick::image_read("img_sandbox/pca_factor2.png")
+```        
+     
+
+:::
+:::
+
+## Latent variables
+
+::: columns
+::: {.column width="50%"}
+-   Theorized common cause (e.g., cognitive ability) of responses to a
+    set of variables
+
+    -   Explain correlations between measured variables
+    -   Held to be real
+    -   No direct test of this theory
+    
+:::
+
+::: {.column width="50%"}
+```{r, echo=FALSE}
+magick::image_read("img_sandbox/pca_factor.png")
+```
+:::
+:::
+
+## Latent variables?  
+
+:::{.incremental}
+
+- Anxiety 
+- Depression
+- Trust
+- Motivation
+- Identity ?
+- Socioeconomic Status  ??
+- Exposure to distressing events ???
+
+:::
+
+
+## PCA versus EFA: How are they different?
+
+::: columns
+::: {.column width="50%"}
+**PCA**
+
+- The observed measures are independent variables
+- The component is like a dependent variable (it's really just a composite!)
+- Components sequentially capture as much variance in the measures as possible
+- Components are determinate
+
+:::
+
+::: {.column width="50%"}
+**EFA**
+
+- The observed measures are dependent variables
+- The factor is the independent variable
+- Models the relationships between variables $(r_{y_{1},y_{2}},r_{y_{1},y_{3}}, r_{y_{2},y_{3}})$
+- Factors are *in*determinate
+
+
+:::
+:::
+
+## Modeling the relationships
+
+- We have some observed variables that are correlated
+
+- EFA tries to explain these patterns of correlations
+
+- Aim is that the correlations between items _after removing the effect of the Factor_ are zero
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+$$
+\begin{align}
+\rho(y_{1},y_{2} | Factor)=0 \\
+\rho(y_{1},y_{3} | Factor)=0 \\
+\rho(y_{2},y_{3} | Factor)=0 \\
+\end{align}
+$$
+
+:::
+
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+egitems[1:3,] |> gt::gt()
+```
+
+
+:::
+::::
+
+
+## Modeling the relationships
+
+- In order to model these correlations, EFA looks to distinguish between common and unique variance.  
+
+$$
+\begin{equation}
+var(\text{total}) = var(\text{common}) + var(\text{specific}) + var(\text{error})
+\end{equation}
+$$
+
+<br>
+ 
+| | | |
+|-|-|-|
+|common variance | variance shared across items | true and shared | 
+|specific variance | variance specific to an item that is not shared with any other items | true and unique | 
+| error variance | variance due to measurement error | not 'true', unique |
+
+## Optional: general factor model equation
+
+$$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$
+
+-   $\mathbf{\Sigma}$: A $p \times p$ observed covariance matrix (from data)
+
+-   $\mathbf{\Lambda}$: A $p \times m$ matrix of factor loading's (relates the $m$ factors to the $p$ items)
+
+-   $\mathbf{\Phi}$: An $m \times m$ matrix of correlations between factors ("goes away" with orthogonal factors)
+
+-   $\mathbf{\Psi}$: A diagonal matrix with $p$ elements indicating unique (error) variance for each item
+    
+
+## Optional: general factor model equation
+
+```{r}
+#| include: false
+RR = matrix(c(1,.6,.6,
+              .6,1,.6,
+              .6,.6,1), nrow=3)
+tdf = MASS::mvrnorm(2e2,mu=c(0,0,0),Sigma=RR)
+cor(tdf) |> round(2)
+
+ll = fa(tdf, nfactors=1,rotate="none")$loadings[,1]
+uu = fa(tdf, nfactors=1,rotate="none")$uniqueness
+
+ll %*% t(ll) + diag(uu)
+
+```
+
+$$
+\begin{align}
+\text{Outcome} &= \quad\quad\quad\text{Model} &+ \text{Error} \quad\quad\quad\quad\quad \\
+\quad \\
+\mathbf{\Sigma} &= \quad\quad\quad\mathbf{\Lambda}\mathbf{\Lambda'} &+ \mathbf{\Psi} \quad\quad\quad\quad\quad\quad  \\
+\quad \\
+\begin{bmatrix}
+1 & 0.61 & 0.64 \\
+0.61 & 1 & 0.59 \\
+0.64 & 0.59 & 1
+\end{bmatrix} &= 
+\begin{bmatrix}
+0.817 \\
+0.750  \\
+0.788 \\
+\end{bmatrix}
+\begin{bmatrix}
+0.817 & .750 & .788 \\
+\end{bmatrix} &+
+\begin{bmatrix}
+0.33 & 0 & 0 \\
+0 & 0.44 & 0 \\
+0 & 0 & 0.38
+\end{bmatrix} \\
+\quad \\
+\begin{bmatrix}
+1 & 0.61 & 0.64 \\
+0.61 & 1 & 0.59 \\
+0.64 & 0.59 & 1
+\end{bmatrix} &= 
+\begin{bmatrix}
+0.67 & 0.61 & 0.64 \\
+0.61 & 0.56 & 0.59 \\
+0.64 & 0.59 & 0.62
+\end{bmatrix} &+
+\begin{bmatrix}
+0.33 & 0 & 0 \\
+0 & 0.44 & 0 \\
+0 & 0 & 0.38
+\end{bmatrix} \\
+\end{align}
+$$
+
+
+## As a diagram
+
+![](img_sandbox/diag_efa1.png)
+
+## As a diagram (PCA)
+
+![](img_sandbox/diag_pca.png)
+
+## As a diagram (PCA)
+
+![](img_sandbox/diag_pca2.png)
+
+
+## We make assumptions when we use models
+
+- As EFA is a model, just like linear models and other statistical tools, using it requires us to make some assumptions:
+
+    1.  The residuals/error terms should be uncorrelated (it's a diagonal matrix, remember!)
+    2.  The residuals/errors should not correlate with factor
+    3.  Relationships between items and factors should be linear, although there are models that can account for nonlinear relationships
+        
+# What does an EFA look like?
+
+```{r simulate_data, include=FALSE}
+nF=2 #number of factors
+nV=10 #number of variables
+
+Psi<-matrix(nrow=nF, ncol=nF,     # the nF by nF factor correlation matrix
+            data=c(1.00,0.00,
+                   0.00,1.00),byrow=T)
+
+
+Lambda<-matrix(nrow=nV, ncol=nF,  # the nV by nF factor loading matrix
+                      #F1    F2
+               data=c(0.70, 0.10, # item1
+                      0.80, 0.08, # item2
+                      0.70, 0.06, # item3
+                      0.65, 0.10, # item4
+                      0.84, 0.04, # item5
+                      0.01, 0.65, # item6
+                      0.10, 0.88, # item7
+                      0.03, 0.90, #item8
+                      0.10, 0.67,  #item9
+                      0.02, 0.70), #item10
+                byrow=T)
+
+
+Theta<-matrix(nrow=nV, ncol=nV, # the nV by nV residual matrix
+            #item1 item2 item3 item4 item5 item6 item7 item8 item9 item10
+      data=c(1-0.70^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item1
+             0.00, 1-0.80^2-0.08^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item2
+             0.00, 0.00, 1-0.70^2-0.06^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item3
+             0.00, 0.00, 0.00, 1-0.65^2-0.10^2, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, #item4
+             0.00, 0.00, 0.00, 0.00, 1-0.84^2-0.04^2, 0.00, 0.00, 0.00, 0.00, 0.00, #item5
+             0.00, 0.00, 0.00, 0.00, 0.00, 1-0.01^2-0.65^2, 0.00, 0.00, 0.00, 0.00, #item6
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.88^2, 0.00, 0.00, 0.00, #item7
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.03^2-0.90^2, 0.00, 0.00, #item8
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.10^2-0.67^2, 0.00, #item9
+             0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1-0.02^2-0.70^2), #item10
+      byrow=T) 
+
+
+#compute correlation matrix from Psi, Lambda and Theta
+
+Sigma<-Lambda%*%Psi%*%t(Lambda)+Theta
+#simulate data
+library(MASS)
+agg.items<-as.data.frame(mvrnorm(n=1000, mu=rep(0,10), Sigma=Sigma))
+names(agg.items)<-c('item1','item2','item3','item4','item5','item6','item7','item8','item9','item10')
+
+agg.items <- agg.items %>%
+  mutate(
+    item1 = as.numeric(cut(agg.items$item1, breaks = 6, labels = c(1:6))), 
+    item2 = as.numeric(cut(agg.items$item2, breaks = 6, labels = c(1:6))), 
+    item3 = as.numeric(cut(agg.items$item3, breaks = 6, labels = c(1:6))), 
+    item4 = as.numeric(cut(agg.items$item4, breaks = 6, labels = c(1:6))), 
+    item5 = as.numeric(cut(agg.items$item5, breaks = 6, labels = c(1:6))), 
+    item6 = as.numeric(cut(agg.items$item6, breaks = 6, labels = c(1:6))), 
+    item7 = as.numeric(cut(agg.items$item7, breaks = 6, labels = c(1:6))), 
+    item8 = as.numeric(cut(agg.items$item8, breaks = 6, labels = c(1:6))), 
+    item9 = as.numeric(cut(agg.items$item9, breaks = 6, labels = c(1:6))), 
+    item10 = as.numeric(cut(agg.items$item10, breaks = 6, labels = c(1:6))), 
+  )
+```
+
+
+## Some data
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+gt::gt(egitems)
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: true
+cor(eg_data) |>
+  pheatmap::pheatmap()
+```
+:::
+::::
+
+## What does an EFA look like?
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+gt::gt(egitems)
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: true
+library(psych)
+myfa <- fa(eg_data, nfactors = 2, 
+           fm = "ml", rotate = "oblimin")
+myfa
+```
+:::
+::::
+
+## What does an EFA look like?
+
+
+::::{.columns}
+:::{.column width="50%" style="font-size:.8em" .incremental}
+
+-   **Factor loading's**, like PCA loading's, show the relationship of
+    each measured variable to each factor.
+
+    -   They range between -1.00 and 1.00
+    -   Larger absolute values = stronger relationship between measured
+        variable and factor
+
+-   We interpret our factor models by the pattern and size of these
+    loading's.
+
+    -   **Primary loading's**: refer to the factor on which a measured
+        variable has it's highest loading
+    -   **Cross-loading's**: refer to all other factor loading's for a
+        given measured variable
+
+-   Square of the factor loading's tells us how much item variance is
+    explained ( `h2` ), and how much isn't ( `u2`)
+
+-   **Factor correlations** : When estimated, tell us how closely
+    factors relate (see rotation)
+
+-   `SS Loading` and proportion of variance information is interpreted
+    as we discussed for PCA.
+
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: true
+library(psych)
+myfa <- fa(eg_data, nfactors = 2, 
+           fm = "ml", rotate = "oblimin")
+myfa
+```
+:::
+::::
+
+
+# Doing EFA - Overview {background-color="white"}
+
+So how do we move from data and correlations to a factor analysis?
+
+1.  Check the appropriateness of the data and decide on the appropriate estimator.
+2.  Assess range of number of factors to consider.
+3.  Decide conceptually whether to apply rotation and how to do so.
+4.  Decide on the criteria to assess and modify a solution.
+5.  Fit the factor model(s) for each number of factors
+6.  Evaluate the solution(s) (apply 4)
+    - if developing a measurement scale, consider whether to drop items and start over
+7.  Select a final solution and interpret the model, labeling the factors.
+8.  Report your results.
+
+
+
+# Suitability of data, Estimation, Number of factors
+
+1.  Check the appropriateness of the data and decide of the appropriate estimator.
+2.  Assess range of number of factors to consider.
+3. ...
+4. ...
+
+## Data suitability
+
+In short "is the data correlated?".  
+
+- check correlation matrix (ideally roughly \> .20)
+- we can take this a step further and calculate the squared multiple correlations (SMC) 
+    - regress each item on all other items (e.g., $R^2$ for item1 ~ all other items)
+    - tells us how much shared variation there is between an item and all other items
+    
+- there are also some statistical tests (e.g. Bartlett's test) and metrics (KMO adequacy)
+
+## Estimation
+
+- For PCA, we discussed the use of the eigen-decomposition
+    - this isn't estimation, this is just a calculation
+
+- For EFA, we have a model (with error), so we need to estimate the model parameters (the factor loadings)
+
+
+## Estimation Methods
+
+- Maximum Likelihood Estimation (ml)
+- Principal Axis Factoring (paf)
+- Minimum Residuals (minres)
+
+## Maximum likelihood estimation
+
+Find values for the parameters that maximize the likelihood of obtaining the observed covariance matrix  
+
+
+::::{.columns}
+:::{.column width="50%"}
+Pros: 
+
+- quick and easy, very generalisable estimation method
+- we can get various "fit" statistics (useful for model comparisons) 
+
+:::
+
+:::{.column width="50%"}
+Cons: 
+
+- Assumes a normal distribution
+- Sometimes fails to converge
+- Sometimes produces solutions with impossible values
+    - Factor loadings $> 1$ (Heywood cases)
+    - Factor correlations $> 1$
+
+:::
+::::
+
+## Non-continuous data
+
+- Sometimes (often) even when we assume a construct is continuous, we measure it with a **discrete** scale.
+
+- E.g., Likert!  
+
+- Simulation studies tend to suggest $\geq 5$ response categories can be treated as continuous
+    - **provided that they have all been used!!**  
+
+```{r}
+#| echo: false
+set.seed(34)
+data.frame(
+  item1 = as.numeric(cut(rnorm(200),7)),
+  item2 = as.numeric(cut(rnorm(200),3))+2,
+  item3 = as.numeric(cut(rnorm(200),7)),
+  item4 = as.numeric(cut(rnorm(200),7))
+) |>
+  psych::multi.hist()
+```
+
+
+## Non-continuous data
+
+```{r, echo=FALSE}
+magick::image_read("img_sandbox/response.png")
+```
+
+## Polychoric Correlations
+
+::::{.columns}
+:::{.column width="50%"}  
+
+- Estimates of the correlation between two theorized normally distributed continuous variables, based on their observed ordinal manifestations.  
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+set.seed(444)
+df <- tibble(
+  item1 = rnorm(1e3),
+  item2 = .6*item1 + rnorm(1e3)
+)
+df <- as.data.frame(apply(df,2,scale))
+df2 <- apply(df,2,function(x) cut(x,3,labels=c("disagree","neither","agree")))
+names(df) <- paste0("l",names(df))
+df <- cbind(df,df2)
+
+
+thresh1 <- df |> group_by(item1) |>
+  summarise(
+    min = min(litem1),
+    max = max(litem1),
+    lab = max-((max-min)/2)
+  )
+
+thresh2 <- df |> group_by(item2) |>
+  summarise(
+    min = min(litem2),
+    max = max(litem2),
+    lab = max-((max-min)/2)
+  )
+
+ggplot(df,aes(x=litem1,y=litem2,col=interaction(item1,item2)))+
+  geom_point(size=3,alpha=.5)+
+  guides(col="none") +
+  geom_vline(data=thresh1[-2,], aes(xintercept=min),size=1)+
+  geom_hline(data=thresh2[-2,], aes(yintercept=min),size=1)+
+  geom_text(data=thresh1,inherit.aes=F,aes(x=lab,y=-3,label=item1))+
+  geom_text(data=thresh2,inherit.aes=F,aes(y=lab,x=-3.3,label=item2),angle=90)+
+  labs(x="underlying agreement with item 1",
+       y="underlying agreement with item 2")
+```
+:::
+::::
+
+
+## Choosing an estimator
+
+-   The straightforward option, as with many statistical models, is ML.
+
+-   If ML solutions fail to converge, principal axis is a simple
+    approach which typically yields reliable results.
+
+-   If concerns over the distribution of variables, use PAF on the
+    polychoric correlations.
+
+## How many factors?  
+
+::: columns
+::: {.column width="50%"}
+
+-   Variance explained
+-   Scree plots
+-   MAP
+-   Parallel Analysis
+
+
+
+:::
+
+::: {.column .fragment width="50%"}
+But... if there's no strong steer, then we want a **range.**   
+
+- Treat MAP as a minimum
+- PA as a maximum
+- Explore all solutions in this range and select the one that yields the best numerically and theoretically.
+
+:::
+:::
+
+# Factor rotation & Simple Structures
+
+1. ...
+2. ...
+3. Decide conceptually whether to apply rotation and how to do so.
+4. Decide on the criteria to assess and modify a solution.
+5. ...
+
+
+```{r}
+#| echo: false
+set.seed(63239)
+eg2 = lavaan::simulateData(
+  "l1 =~ -.8*item1+.7*item2+.85*item3+.9*item4+.8*item5
+  l2 =~ -.8*item6+.7*item7+.85*item8+.9*item9+.8*item10
+  l1~~.7*l2
+  l1~~1*l1
+  l2~~1*l2"
+)
+eg2[,5] <- rowMeans(eg2[,c(5,10)])
+eg2 <- apply(eg2, 2, \(x) as.numeric(cut(x,7))) |> as.data.frame()
+eg2 <- eg2[,-10]
+
+mn = fa(eg2, nfactors=2, rotate = "none", fm="ml")
+mr = fa(eg2, nfactors=2, rotate = "varimax", fm="ml")
+mor = fa(eg2, nfactors=2, rotate = "oblimin", fm="ml")
+
+x_axis <- c(1, 0)
+y_axis <- c(0, 1)
+new_x_axis <- mr$rot.mat %*% x_axis
+new_y_axis <- mr$rot.mat %*% y_axis
+newo_x_axis <- (mor$rot.mat %*% mor$Phi) %*% x_axis
+newo_y_axis <- (mor$rot.mat %*% mor$Phi) %*% y_axis
+original_axes <- data.frame(
+  x = c(0, x_axis[1], 0, y_axis[1]),
+  y = c(0, x_axis[2], 0, y_axis[2]),
+  axis = c("Original X", "Original X", "Original Y", "Original Y")
+)
+rotated_axes <- data.frame(
+  x = c(0, new_x_axis[1], 0, new_y_axis[1]),
+  y = c(0, new_x_axis[2], 0, new_y_axis[2]),
+  axis = c("Rotated X", "Rotated X", "Rotated Y", "Rotated Y")
+)
+orotated_axes <- data.frame(
+  x = c(0, newo_x_axis[1], 0, newo_y_axis[1]),
+  y = c(0, newo_x_axis[2], 0, newo_y_axis[2]),
+  axis = c("Rotated X", "Rotated X", "Rotated Y", "Rotated Y")
+)
+
+p1 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_label(aes(label=rowname))+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+    geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1)
+  
+p2 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_label(aes(label=rowname))+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1)
+
+p3 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_label(aes(label=rowname))+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1)
+```
+
+## What is rotation?  
+
+Factor solutions can sometimes be complex to interpret.
+
+-   the pattern of the factor loading's is not clear.
+-   The difference between the primary and cross-loading's is small
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+p1
+```
+
+:::
+
+:::{.column width="50%" .fragment}
+```{r}
+#| echo: false
+p2
+```
+:::
+::::
+
+## Types of rotation
+
+```{r}
+#| eval: false
+# no rotation
+fa(eg_data, nfactors = 2, rotate = "none", fm="ml")
+# orthogonal rotations
+fa(eg_data, nfactors = 2, rotate = "varimax", fm="ml")
+fa(eg_data, nfactors = 2, rotate = "quartimax", fm="ml")
+# oblique rotations
+fa(eg_data, nfactors = 2, rotate = "oblimin", fm="ml")
+fa(eg_data, nfactors = 2, rotate = "promax", fm="ml")
+```
+
+::::{.columns}
+:::{.column width="50%"}
+__Orthogonal__  
+
+```{r}
+#| echo: false
+p2
+```
+
+:::
+
+:::{.column width="50%" .fragment}
+__Oblique__  
+
+```{r}
+#| echo: false
+p3
+```
+:::
+::::
+
+## Why rotate?
+
+-   Factor rotation is an approach to clarifying the relationships
+    between items and factors.
+
+    -   Rotation aims to maximize the relationship of a measured item
+        with a factor.
+    -   That is, make the primary loading big and cross-loading's small.
+
+![](img_sandbox/diag_efa2.png)
+
+
+
+## Rotational Indeterminacy
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+- **Rotational indeterminacy** means that there are an infinite number of pairs of factor loading's and factor score matrices which will fit the data **equally well**, and are thus **indistinguishable** by any numeric criteria
+
+- There is no **unique solution** to the factor problem
+    
+- We can not numerically tell rotated solutions apart, so **theoretical coherence** of the solution plays a big role!  
+    
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+library(rgl)
+
+set.seed(33)
+S = runif(3,.4,2)
+f = runif(3,.7,.99)
+R = f %*% t(f)
+diag(R) = 1
+R[1,3] <- R[2,3] <- R[3,1] <- R[3,2] <- .1
+Sigma = diag(S)%*%R%*%diag(S)
+Mean <- rep(0,3)
+x <- MASS::mvrnorm(500, Mean, Sigma)
+
+plot3d(x, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d(ellipse3d(Sigma, centre = Mean), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,2]),
+  col="red",lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="varimax")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="varimax")$loadings[,2]),
+  col="red",lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="quartimax")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="quartimax")$loadings[,2]),
+  col="red",lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="varimin")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="varimin")$loadings[,2]),
+  col="red",lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="geominT")$loadings[,1]),
+  col="green", lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="geominT")$loadings[,2]),
+  col="red",lwd=2, add=TRUE)
+rglwidget()
+
+
+```
+
+
+:::
+::::
+
+
+
+
+
+
+
+
+## Simple structure
+
+Adapted from Sass and Schmitt (2011):
+
+1.  Each variable (row) should have at least one zero loading
+
+2.  Each factor (column) should have same number of zero’s as there are
+    factors
+
+3.  Every pair of factors (columns) should have several variables which
+    load on one factor, but not the other
+
+4.  Whenever more than four factors are extracted, each pair of factors
+    (columns) should have a large proportion of variables which do not
+    load on either factor
+
+5.  Every pair of factors should have few variables which load on both
+    factors
+
+
+<!-- ## The impact of rotation -->
+
+<!-- ::: columns -->
+<!-- ::: {.column width="50%"} -->
+<!-- **Original correlations** -->
+
+<!-- ```{r, echo=FALSE, warning=FALSE} -->
+<!-- library(qgraph) -->
+<!-- bfi2 <- na.omit(bfi) -->
+<!-- qgraph(cor(bfi2[1:25])) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- ::: {.column width="50%"} -->
+<!-- **EFA with no rotation and 5 factors** -->
+
+<!-- ```{r, echo=FALSE, warning=FALSE} -->
+<!-- no_rotate <- fa(bfi2, 5, rotate="none") -->
+<!-- qgraph(no_rotate$loadings, minimum = 0.2) -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- ::: -->
+
+<!-- ## The impact of rotation -->
+
+<!-- ::: columns -->
+<!-- ::: {.column width="50%"} -->
+<!-- **EFA with no rotation and 5 factors** -->
+
+<!-- ```{r, echo=FALSE, warning=FALSE} -->
+<!-- no_rotate <- fa(bfi2, 5, rotate="none") -->
+<!-- qgraph(no_rotate$loadings, minimum = 0.2) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- ::: {.column width="50%"} -->
+<!-- **EFA with orthogonal rotation and 5 factors** -->
+
+<!-- ```{r, echo=FALSE, warning=FALSE} -->
+<!-- orth_rotate <- fa(bfi2, 5, rotate="varimax") -->
+<!-- qgraph(orth_rotate$loadings, minimum = 0.2) -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- ::: -->
+
+<!-- ## The impact of rotation -->
+
+<!-- ::: columns -->
+<!-- ::: {.column width="50%"} -->
+<!-- **EFA with orthogonal rotation and 5 factors** -->
+
+<!-- ```{r, echo=FALSE, warning=FALSE} -->
+<!-- qgraph(orth_rotate$loadings, minimum = 0.2) -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- ::: {.column width="50%"} -->
+<!-- **EFA with oblique rotation and 5 factors** -->
+
+<!-- ```{r, echo=FALSE, warning=FALSE} -->
+<!-- obl_rotate <- fa(bfi2, 5, rotate="oblimin") -->
+<!-- qgraph(obl_rotate$loadings, minimum = 0.2) -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- ::: -->
+
+## How do I choose which rotation?
+
+-   Clear recommendation: always to choose oblique.
+
+-   Why?
+
+    -   It is very unlikely factors have correlations of 0
+    -   If they are close to zero, this is allowed within oblique
+        rotation
+    -   The whole approach is exploratory, and the constraint is
+        unnecessary.
+
+-   However, there is a catch...
+
+## Interpretation and oblique rotation
+
+-   When we have an obliquely rotated solution, we need to draw a
+    distinction between the **pattern** and **structure** matrix.
+
+```{r}
+#| echo: false
+myfa <- fa(eg_data, nfactors = 2, fm = "ml", rotate = "oblimin")
+```
+::::{.columns}
+:::{.column width="50%"}
+__Pattern Matrix__  
+
+matrix of regression weights (loading's) from factors to variables  
+$item1 = \lambda_1 Factor1 + \lambda_2 Factor2 + u_{item1}$
+```{r}
+myfa$loadings
+```
+
+:::
+
+:::{.column width="50%"}
+__Structure Matrix__  
+
+matrix of correlations between factors and variables.  
+$cor(item1, Factor1)$
+```{r}
+myfa$Structure
+```
+
+:::
+::::
+
+
+- For orthogonal rotation, structure matrix == pattern matrix
+
+:::notes
+- When we use oblique rotation, the structure matrix is the pattern matrix multiplied by the factor correlations.
+
+- In most situations, it doesn't impact what we do, but it's important to be aware of.  
+:::
+
+# The EFA output
+
+3. ...
+4. ...
+5.  Fit the factor model(s) for each number of factors
+6.  Evaluate the solution(s) (apply 4)
+    - if developing a measurement scale, consider whether to drop items and start over
+7. ...
+
+##
+
+![](img_sandbox/efa_output/Slide1.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide2.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide3.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide4.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide5.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide6.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide7.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide8.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide9.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide10.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide11.PNG)
+
+##
+
+![](img_sandbox/efa_output/Slide12.PNG)
+
+
+##
+
+![](img_sandbox/efa_output/Slide13.PNG)
+
+# Interpretation
+
+6. ...
+7.  Select a final solution and interpret the model, labeling the factors. 
+8. ...
+
+## 
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+print(myfa$loadings, cutoff=.3, sort = TRUE)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: false
+gt::gt(egitems)
+```
+
+:::
+::::
+
+
+
