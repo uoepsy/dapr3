@@ -50,7 +50,7 @@ options(digits=3,scipen=3)
 
 
 knitr::opts_chunk$set(
-  fig.asp=.8,
+  #fig.asp=.8,
   #tidy=TRUE,
   tidy.opts=list(width.cutoff=70, arrow=TRUE, indent=2, args.newline=TRUE)
 )
