@@ -39,7 +39,8 @@ These first set of exercises are not "how to do analyses with multilevel models"
 
 Recall the data from last week's exercises. Instead of looking at the roles A, B and C, we'll look in more fine grained detail at the seniority. This is mainly so that we have a continuous variable to work with as it makes this illustration easier.  
 
-The chunk of code below shows a function for plotting that you might not be familiar with - `stat_summary()`. This takes the data in the plot and "summarises" the Y-axis variable into the mean at every unique value on the x-axis. So below, rather than having points for every observation, we have the mean of `wp` at every value of `seniority`:  
+The chunk of code below shows a function for plotting that you might not be familiar with - `stat_summary()`. This takes the data in the plot and "summarises" the Y-axis variable into the mean at every unique value on the x-axis. So below, rather than having a lot of individual data points that represent every employee's `wp` (workplace pride), we let `stat_summary()` compute the mean (the points) plus and minus the standard error (the vertical lines) of all the `wp` observations at each value of `seniority`:  
+
 ```{r}
 library(tidyverse)
 jsup <- read_csv("https://uoepsy.github.io/data/lmm_jsup.csv")
@@ -48,7 +49,7 @@ ggplot(jsup, aes(x = seniority, y = wp, col = role)) +
   stat_summary(geom="pointrange")
 ```
 
-Below is some code that fits a model of the workplace-pride predicted by seniority level. Line 2 then gets the 'fitted' values from the model and adds them as a new column to the dataset, called `pred_lm`. The fitted values are what the model predicts for every individual observation.  
+Below is some code that fits a model of the workplace-pride predicted by seniority level. Line 2 then gets the 'fitted' values from the model and adds them as a new column to the dataset, called `pred_lm`. The fitted values are what the model predicts the workplace pride to be for every value of `seniority`.
 
 Lines 4-7 then plot the data, split up by each department, and adds lines showing the model fitted values.  
 
@@ -134,7 +135,14 @@ ggplot(jsup, aes(x = seniority)) +
 `r qend()`
 `r solbegin(show=TRUE, toggle=params$TOGGLE)`
 
-The first model has an adjustment for each department (we can see this in the coefficients if we want). What this means is that the line for each department is shifted up or down. We can see that the lines are now shifted up for departments like UKSA and FSA, and down for UKSC and OFSTED: 
+With the first model, `wp ~ seniority + dept`, we are saying the following things:
+
+- We allow the model to estimate an association between workplace pride and seniority, in particular for the reference level of `dept`, which is ACE (remember how to interpret models with treatment-coded predictors?)
+  - In other words, the model estimates the slope of the line that associates `seniority` and `wp` for the department ACE.
+- We also allow the model to take that line it estimated for ACE and shift it up and down for each different department. The slope of the line stays the same. All that's changing is the vertical position of the line.
+  - Look at UKSA and FSA: the lines are shifted up compared to ACE.
+  - Look at UKSC and OFSTED: the lines are shifted down compared to ACE.
+
 ```{r}
 fe_mod <- lm(wp ~ dept + seniority, data = jsup)
 jsup$pred_fe <- predict(fe_mod)
@@ -146,8 +154,15 @@ ggplot(jsup, aes(x = seniority)) +
 ```
 
 
-This next one _looks_ very similar to the previous one, but it is conceptually doing something a bit different. Rather than separating out every individual department, we are modelling _a distribution_ of deviations for each department from some average.  
+With the second model, `wp ~ seniority + (1|dept)`, we are saying the following things:
 
+- We allow the model to estimate an association between workplace pride and seniority. There's no fixed effect of `dept` here, so the model doesn't take any particular levels of `dept` into consideration. You can think of it as the line for the "average" department.
+- With `(1|dept)`, we allow the model to _adjust the intercept_ of that line, depending on the scores of each department. 
+  - In other words, the `wp ~ seniority` bit is modelling the average line for all departments, and the `(1|dept)` bit is saying "now nudge that line up or down so that it fits the data of each individual department better".
+  - People often call these "random intercepts by department". You may also hear "intercept adjustments by department".
+  - If we look at this model's summary, we can see how it combines all these individual adjustments into a distribution and give us some summary statistics. This way, we can see how big the adjustments tend to be.
+
+The lines in this second plot look very similar to the lines in the first plot, but the machinery behind them is different.
 
 ```{r}
 library(lme4)
@@ -160,7 +175,17 @@ ggplot(jsup, aes(x = seniority)) +
   geom_line(aes(y=pred_ri), col = "green")
 ```
 
-Finally, we can add in the random slopes of seniority. In this model, we are not only allowing departments to vary in their average workplace-pride, but we are also allowing them to vary in the association between seniority and workplace pride. Some departments (OFQUAL, OFSTED, ORR) have a negative association, some have a flatter association (e.g, FSA, UKSA etc).  
+
+Finally, with the third model, `wp ~ seniority + (1 + seniority|dept)`, we are saying the following things:
+
+- We allow the model to estimate an association between workplace pride and seniority, for departments on average. That's the `wp ~ seniority` bit, like before.
+- With `(1 + seniority|dept)`, we allow the model to _adjust the intercept_ of that line AND to _adjust the slope_ of that line for each individual department.
+  - In other words, the `wp ~ seniority` bit is modelling the average line for all departments, and the `(1 + seniority|dept)` bit is saying "now nudge that line up or down AND change how steep it is, so that it fits the data of each individual department better".
+  - People often call these "random intercepts by department and random slopes over seniority by department". You may also hear "intercept adjustments by department and adjustments to the slope of seniority by department".
+  - If we look at this model's summary, we can see how it combines all these individual adjustments into a distribution of intercept adjustments and a distribution of slope adjustments, and give us some summary statistics about both. This way, we can see how big the adjustments tend to be.
+
+So in this next plot, the height of the lines is changing, but additionally, each department's association between seniority and workplace pride can be different.
+Some departments (OFQUAL, OFSTED, ORR) have a negative association, some have a flatter association (e.g, FSA, UKSA etc).  
 
 ```{r}
 rs_mod <- lmer(wp ~ seniority + (1 + seniority|dept), data = jsup)
@@ -513,9 +538,15 @@ Consider the following questions about the study:
 `r solend()`
 
 `r qbegin(qcounter())`
-The multilevel model that has only an intercept (and the grouping structure) specified is sometimes referred to as the "null model" (or "intercept only model"). Because there are no predictors in the fixed effects there is just a single value (the intercept). All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either 'variance between groups' or 'residual variance'. This means we can just use those estimates to calculate the ICC.  
+A model that only has an intercept, i.e., `y ~ 1`, is called an "intercept-only model".
+A multilevel model that only has an intercept but also has a grouping structure, i.e., `y ~ 1 + (1|g)` is called an "intercept-only model with random intercepts".
+(Here `g` stands for an arbitrary group.)
 
-For our executive functioning study, fit the null model use the output to calculate the ICC. Compare it to the answer you get from `ICCbare()` (it should be pretty close).  
+Because there are no predictors in the fixed effects, the model only estimates one fixed parameter: the intercept.
+All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either 'variance between groups' or 'residual variance'. This means we can just use those estimates to calculate the ICC (the Intraclass Correlation Coefficient).  
+
+For our executive functioning study, fit an intercept-only model with random intercepts for the appropriate outcome variable and the appropriate grouping variable (check your responses to the last question to remind yourself what these variables are for this dataset).
+Use the output to calculate the ICC. Compare it to the answer you get from `ICCbare()` (it should be pretty close).  
 
 
 ::: {.callout-tip collapse="true"}
@@ -604,7 +635,7 @@ $$
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-Make sure to read about multilevel modesl and how to fit them in [2: MLM #multilevel-models-in-r](https://uoepsy.github.io/lmm/02_lmm.html#multilevel-models-in-r){target="_blank"}.  
+Make sure to read about multilevel models and how to fit them in [2: MLM #multilevel-models-in-r](https://uoepsy.github.io/lmm/02_lmm.html#multilevel-models-in-r){target="_blank"}.  
 
 :::
 
@@ -744,11 +775,16 @@ summary(sdmt_mod)
 
 `r qbegin(qcounter())`
 
-We've already seen in the example with the with the UK civil service employees (above) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are really interested in are the estimates of (and uncertainty around) our *fixed effects* (i.e. estimates for clusters *on average*)  
+We've already seen in the example with the UK civil service employees (above and last week) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are typically really interested in are the estimates of (and uncertainty around) our *fixed effects* (i.e. estimates for clusters *on average*).
+We say "typically" because if you study individual differences, for example, sometimes you might really care about estimating the variability within and between people!
+But for now, we're going to focus on what most research questions target: the fixed effects.
 
 Using tools like the __effects__ package can provide us with the values of the outcome across levels of a specific fixed predictor (holding other predictors at their mean).   
 
+Your task is to make a plot that visualises the model's fixed effect estimates.
+
 This should get you started:  
+
 ```{r}
 #| eval: false
 library(effects)
@@ -760,7 +796,8 @@ effect(term = "audio*headphones", mod = sdmt_mod) |>
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-You can see the effects package in [2: MLM #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}.  
+You can see the effects package used for plotting in [2: MLM #visualising-models](https://uoepsy.github.io/lmm/02_lmm.html#visualising-models){target="_blank"}.  
+(You'll have to use different geoms than this example does because the example involves a continuous and a categorical predictor, whereas this data set has two categorical ones.)
 
 :::
 
@@ -886,7 +923,7 @@ Data on the dominance scores of the apes are available at [https://uoepsy.github
 #| echo: false
 #| label: tbl-spec1
 #| tbl-cap: "Data Dictionary: lmm_apespecies.csv"  
-ape_species <- read_csv("../../data/lmm_apespecies.csv")
+ape_species <- read_csv("data/lmm_apespecies.csv")
 tibble(
   variable = names(ape_species),
   description = c("Ape Name","Species (Bonobo, Chimpanzee, Gorilla, Orangutan)")
@@ -901,7 +938,7 @@ tibble(
 #| echo: false
 #| label: tbl-spec2
 #| tbl-cap: "Data Dictionary: lmm_apeage.csv"  
-ape_age <- read_csv("../../data/lmm_apeage.csv")
+ape_age <- read_csv("data/lmm_apeage.csv")
 tibble(
   variable = names(ape_age),
   description = c("Ape Name","Age at assessment (years)","Dominance (Z-scored)")
@@ -917,7 +954,7 @@ tibble(
 
 
 `r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
-Read in the data and check over it. Do any relevant cleaning/wrangling that might be necessary.   
+Read in the data and check over it. Do any relevant cleaning/wrangling that might be necessary to put the datasets together into a single dataframe.   
 
 `r qend()`
 `r solbegin(label="1 - reading and joining", slabel=F,show=T, toggle=params$TOGGLE)`
@@ -950,7 +987,7 @@ table(apedat$species)
 ```
 
 
-Age looks like it has some weird values (possibly "-99"?), and there are possibly a few outliers in the dominance variable. Given that dominance is standardised, it is _extremely_ unlikely that we would see values around 20.. They're not "impossible", but they're so incredibly unlikely that I'd be more comfortable assuming they are typos: 
+Age looks like it has some weird values (possibly "-99"?), and there are possibly a few outliers in the dominance variable. Given that dominance is standardised, it is _extremely_ unlikely that we would see values around 20. They're not "impossible", but they're so incredibly unlikely that I'd be more comfortable assuming they are typos: 
 ```{r echo=c(2,3)}
 par(mfrow=c(2,1))
 hist(apedat$age, breaks=20)
@@ -1080,7 +1117,16 @@ ggplot(apedat, aes(x = age, y = dominance, col = species))+
 
 
 `r qbegin(paste0("Extra ",qcounter()), qlabel=FALSE)`
-Recenter the `age` variable on 1, which is the youngest ages that we've got data on for any of our species.   
+
+The youngest age that we have data for for any of our species is 1.
+But it's often useful for the value 0 to be contained within the range of a predictor's values, because that makes interpreting all the other estimates easier.
+(Why? Because the intercept, and all the group-level variability in intercepts, is estimated when the predictors = 0.
+And if 0 is outside of the range of predictors, then we're estimating the intercept for values that don't really exist in our data.
+Mathematically possible, but hard to interpret.)
+
+For the current analysis, let's subtract 1 from the age variable so that the minimum value of `age` becomes 0.
+In other words, let's shift the age variable down by 1, so that the value 0 now represents the minimum age, 1.
+This way, the intercept (and the group-level variability in intercepts) will be estimated for the minimum age in our dataset.
 
 Then fit a model that estimates the differences between primate species in how dominance changes over time.  
 
@@ -1102,7 +1148,7 @@ Perform an appropriate test/comparison.
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-This is asking about the `age*species` interaction, which in our model is represented by 3 parameters. To assess the overall question, it might make more sense to do a model comparison.  
+This is asking about the `age*species` interaction, which in our model is represented by three parameters (the interaction terms between age and each of the three non-reference-level species). To assess the overall question, it might make more sense to do a model comparison.  
 
 :::
 
