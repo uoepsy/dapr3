@@ -252,7 +252,7 @@ Question 1
 </div>
 <div class="question-body">
 <p>Recall the data from last week’s exercises. Instead of looking at the roles A, B and C, we’ll look in more fine grained detail at the seniority. This is mainly so that we have a continuous variable to work with as it makes this illustration easier.</p>
-<p>The chunk of code below shows a function for plotting that you might not be familiar with - <code>stat_summary()</code>. This takes the data in the plot and “summarises” the Y-axis variable into the mean at every unique value on the x-axis. So below, rather than having points for every observation, we have the mean of <code>wp</code> at every value of <code>seniority</code>:</p>
+<p>The chunk of code below shows a function for plotting that you might not be familiar with - <code>stat_summary()</code>. This takes the data in the plot and “summarises” the Y-axis variable into the mean at every unique value on the x-axis. So below, rather than having a lot of individual data points that represent every employee’s <code>wp</code> (workplace pride), we let <code>stat_summary()</code> compute the mean (the points) plus and minus the standard error (the vertical lines) of all the <code>wp</code> observations at each value of <code>seniority</code>:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>jsup <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/lmm_jsup.csv"</span>)</span>
@@ -267,7 +267,7 @@ Question 1
 </div>
 </div>
 </div>
-<p>Below is some code that fits a model of the workplace-pride predicted by seniority level. Line 2 then gets the ‘fitted’ values from the model and adds them as a new column to the dataset, called <code>pred_lm</code>. The fitted values are what the model predicts for every individual observation.</p>
+<p>Below is some code that fits a model of the workplace-pride predicted by seniority level. Line 2 then gets the ‘fitted’ values from the model and adds them as a new column to the dataset, called <code>pred_lm</code>. The fitted values are what the model predicts the workplace pride to be for every value of <code>seniority</code>.</p>
 <p>Lines 4-7 then plot the data, split up by each department, and adds lines showing the model fitted values.</p>
 <p>Run the code and check that you get a plot. What do you notice about the lines?</p>
 <div class="cell" data-layout-align="center">
@@ -363,7 +363,18 @@ Solution
 </button>
 </div>
 <div id="sol-body-2" class="solution-body proof solution" style="display: none;">
-<p><span class="proof-title"><em>Solution 2</em>. </span>The first model has an adjustment for each department (we can see this in the coefficients if we want). What this means is that the line for each department is shifted up or down. We can see that the lines are now shifted up for departments like UKSA and FSA, and down for UKSC and OFSTED:</p>
+<p><span class="proof-title"><em>Solution 2</em>. </span>With the first model, <code>wp ~ seniority + dept</code>, we are saying the following things:</p>
+<ul>
+<li>We allow the model to estimate an association between workplace pride and seniority, in particular for the reference level of <code>dept</code>, which is ACE (remember how to interpret models with treatment-coded predictors?)
+<ul>
+<li>In other words, the model estimates the slope of the line that associates <code>seniority</code> and <code>wp</code> for the department ACE.</li>
+</ul></li>
+<li>We also allow the model to take that line it estimated for ACE and shift it up and down for each different department. The slope of the line stays the same. All that’s changing is the vertical position of the line.
+<ul>
+<li>Look at UKSA and FSA: the lines are shifted up compared to ACE.</li>
+<li>Look at UKSC and OFSTED: the lines are shifted down compared to ACE.</li>
+</ul></li>
+</ul>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>fe_mod <span class="ot">&lt;-</span> <span class="fu">lm</span>(wp <span class="sc">~</span> dept <span class="sc">+</span> seniority, <span class="at">data =</span> jsup)</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>jsup<span class="sc">$</span>pred_fe <span class="ot">&lt;-</span> <span class="fu">predict</span>(fe_mod)</span>
@@ -380,7 +391,17 @@ Solution
 </div>
 </div>
 </div>
-<p>This next one <em>looks</em> very similar to the previous one, but it is conceptually doing something a bit different. Rather than separating out every individual department, we are modelling <em>a distribution</em> of deviations for each department from some average.</p>
+<p>With the second model, <code>wp ~ seniority + (1|dept)</code>, we are saying the following things:</p>
+<ul>
+<li>We allow the model to estimate an association between workplace pride and seniority. There’s no fixed effect of <code>dept</code> here, so the model doesn’t take any particular levels of <code>dept</code> into consideration. You can think of it as the line for the “average” department.</li>
+<li>With <code>(1|dept)</code>, we allow the model to <em>adjust the intercept</em> of that line, depending on the scores of each department.
+<ul>
+<li>In other words, the <code>wp ~ seniority</code> bit is modelling the average line for all departments, and the <code>(1|dept)</code> bit is saying “now nudge that line up or down so that it fits the data of each individual department better”.</li>
+<li>People often call these “random intercepts by department”. You may also hear “intercept adjustments by department”.</li>
+<li>If we look at this model’s summary, we can see how it combines all these individual adjustments into a distribution and give us some summary statistics. This way, we can see how big the adjustments tend to be.</li>
+</ul></li>
+</ul>
+<p>The lines in this second plot look very similar to the lines in the first plot, but the machinery behind them is different.</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ri_mod <span class="ot">&lt;-</span> <span class="fu">lmer</span>(wp <span class="sc">~</span> seniority <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>dept), <span class="at">data =</span> jsup)</span>
@@ -398,7 +419,17 @@ Solution
 </div>
 </div>
 </div>
-<p>Finally, we can add in the random slopes of seniority. In this model, we are not only allowing departments to vary in their average workplace-pride, but we are also allowing them to vary in the association between seniority and workplace pride. Some departments (OFQUAL, OFSTED, ORR) have a negative association, some have a flatter association (e.g, FSA, UKSA etc).</p>
+<p>Finally, with the third model, <code>wp ~ seniority + (1 + seniority|dept)</code>, we are saying the following things:</p>
+<ul>
+<li>We allow the model to estimate an association between workplace pride and seniority, for departments on average. That’s the <code>wp ~ seniority</code> bit, like before.</li>
+<li>With <code>(1 + seniority|dept)</code>, we allow the model to <em>adjust the intercept</em> of that line AND to <em>adjust the slope</em> of that line for each individual department.
+<ul>
+<li>In other words, the <code>wp ~ seniority</code> bit is modelling the average line for all departments, and the <code>(1 + seniority|dept)</code> bit is saying “now nudge that line up or down AND change how steep it is, so that it fits the data of each individual department better”.</li>
+<li>People often call these “random intercepts by department and random slopes over seniority by department”. You may also hear “intercept adjustments by department and adjustments to the slope of seniority by department”.</li>
+<li>If we look at this model’s summary, we can see how it combines all these individual adjustments into a distribution of intercept adjustments and a distribution of slope adjustments, and give us some summary statistics about both. This way, we can see how big the adjustments tend to be.</li>
+</ul></li>
+</ul>
+<p>So in this next plot, the height of the lines is changing, but additionally, each department’s association between seniority and workplace pride can be different. Some departments (OFQUAL, OFSTED, ORR) have a negative association, some have a flatter association (e.g, FSA, UKSA etc).</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>rs_mod <span class="ot">&lt;-</span> <span class="fu">lmer</span>(wp <span class="sc">~</span> seniority <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> seniority<span class="sc">|</span>dept), <span class="at">data =</span> jsup)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>jsup<span class="sc">$</span>pred_rs <span class="ot">&lt;-</span> <span class="fu">predict</span>(rs_mod)</span>
@@ -1360,8 +1391,9 @@ Question 5
 Question 6
 </div>
 <div class="question-body">
-<p>The multilevel model that has only an intercept (and the grouping structure) specified is sometimes referred to as the “null model” (or “intercept only model”). Because there are no predictors in the fixed effects there is just a single value (the intercept). All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either ‘variance between groups’ or ‘residual variance’. This means we can just use those estimates to calculate the ICC.</p>
-<p>For our executive functioning study, fit the null model use the output to calculate the ICC. Compare it to the answer you get from <code>ICCbare()</code> (it should be pretty close).</p>
+<p>A model that only has an intercept, i.e., <code>y ~ 1</code>, is called an “intercept-only model”. A multilevel model that only has an intercept but also has a grouping structure, i.e., <code>y ~ 1 + (1|g)</code> is called an “intercept-only model with random intercepts”. (Here <code>g</code> stands for an arbitrary group.)</p>
+<p>Because there are no predictors in the fixed effects, the model only estimates one fixed parameter: the intercept. All of the variance in the outcome gets modelled in the random effects part, and is partitioned into either ‘variance between groups’ or ‘residual variance’. This means we can just use those estimates to calculate the ICC (the Intraclass Correlation Coefficient).</p>
+<p>For our executive functioning study, fit an intercept-only model with random intercepts for the appropriate outcome variable and the appropriate grouping variable (check your responses to the last question to remind yourself what these variables are for this dataset). Use the output to calculate the ICC. Compare it to the answer you get from <code>ICCbare()</code> (it should be pretty close).</p>
 <div class="callout callout-style-default callout-tip callout-titled">
 <div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
@@ -1497,7 +1529,7 @@ Hints
 </div>
 <div id="callout-7" class="callout-7-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>Make sure to read about multilevel modesl and how to fit them in <a href="https://uoepsy.github.io/lmm/02_lmm.html#multilevel-models-in-r" target="_blank">2: MLM #multilevel-models-in-r</a>.</p>
+<p>Make sure to read about multilevel models and how to fit them in <a href="https://uoepsy.github.io/lmm/02_lmm.html#multilevel-models-in-r" target="_blank">2: MLM #multilevel-models-in-r</a>.</p>
 </div>
 </div>
 </div>
@@ -1705,8 +1737,9 @@ adwht_ns:hH  0.249 -0.136 -0.707 -0.351  0.191</code></pre>
 Question 10
 </div>
 <div class="question-body">
-<p>We’ve already seen in the example with the with the UK civil service employees (above) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are really interested in are the estimates of (and uncertainty around) our <em>fixed effects</em> (i.e.&nbsp;estimates for clusters <em>on average</em>)</p>
+<p>We’ve already seen in the example with the UK civil service employees (above and last week) that we can visualise the fitted values (model predictions). But these were plotting all the cluster-specific values, and what we are typically really interested in are the estimates of (and uncertainty around) our <em>fixed effects</em> (i.e.&nbsp;estimates for clusters <em>on average</em>). We say “typically” because if you study individual differences, for example, sometimes you might really care about estimating the variability within and between people! But for now, we’re going to focus on what most research questions target: the fixed effects.</p>
 <p>Using tools like the <strong>effects</strong> package can provide us with the values of the outcome across levels of a specific fixed predictor (holding other predictors at their mean).</p>
+<p>Your task is to make a plot that visualises the model’s fixed effect estimates.</p>
 <p>This should get you started:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(effects)</span>
@@ -1725,7 +1758,8 @@ Hints
 </div>
 <div id="callout-11" class="callout-11-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>You can see the effects package in <a href="https://uoepsy.github.io/lmm/02_lmm.html#visualising-models" target="_blank">2: MLM #visualising-models</a>.</p>
+<p>You can see the effects package used for plotting in <a href="https://uoepsy.github.io/lmm/02_lmm.html#visualising-models" target="_blank">2: MLM #visualising-models</a>.<br>
+(You’ll have to use different geoms than this example does because the example involves a continuous and a categorical predictor, whereas this data set has two categorical ones.)</p>
 </div>
 </div>
 </div>
@@ -2910,7 +2944,7 @@ Table&nbsp;2: Data Dictionary: lmm_apeage.csv
 Extra 12
 </div>
 <div class="question-body">
-<p>Read in the data and check over it. Do any relevant cleaning/wrangling that might be necessary.</p>
+<p>Read in the data and check over it. Do any relevant cleaning/wrangling that might be necessary to put the datasets together into a single dataframe.</p>
 </div>
 <p class="question-end">
 </p>
@@ -2975,7 +3009,7 @@ Also, we’ve got people using two alternatives for the chimps: “chimp” and 
        187        146        127        211          2        157 </code></pre>
 </div>
 </div>
-<p>Age looks like it has some weird values (possibly “-99”?), and there are possibly a few outliers in the dominance variable. Given that dominance is standardised, it is <em>extremely</em> unlikely that we would see values around 20.. They’re not “impossible”, but they’re so incredibly unlikely that I’d be more comfortable assuming they are typos:</p>
+<p>Age looks like it has some weird values (possibly “-99”?), and there are possibly a few outliers in the dominance variable. Given that dominance is standardised, it is <em>extremely</em> unlikely that we would see values around 20. They’re not “impossible”, but they’re so incredibly unlikely that I’d be more comfortable assuming they are typos:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(apedat<span class="sc">$</span>age, <span class="at">breaks=</span><span class="dv">20</span>)</span>
 <span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a><span class="fu">hist</span>(apedat<span class="sc">$</span>dominance, <span class="at">breaks=</span><span class="dv">20</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -3168,7 +3202,8 @@ Hints
 Extra 16
 </div>
 <div class="question-body">
-<p>Recenter the <code>age</code> variable on 1, which is the youngest ages that we’ve got data on for any of our species.</p>
+<p>The youngest age that we have data for for any of our species is 1. But it’s often useful for the value 0 to be contained within the range of a predictor’s values, because that makes interpreting all the other estimates easier. (Why? Because the intercept, and all the group-level variability in intercepts, is estimated when the predictors = 0. And if 0 is outside of the range of predictors, then we’re estimating the intercept for values that don’t really exist in our data. Mathematically possible, but hard to interpret.)</p>
+<p>For the current analysis, let’s subtract 1 from the age variable so that the minimum value of <code>age</code> becomes 0. In other words, let’s shift the age variable down by 1, so that the value 0 now represents the minimum age, 1. This way, the intercept (and the group-level variability in intercepts) will be estimated for the minimum age in our dataset.</p>
 <p>Then fit a model that estimates the differences between primate species in how dominance changes over time.</p>
 </div>
 <p class="question-end">
@@ -3200,7 +3235,7 @@ Hints
 </div>
 <div id="callout-15" class="callout-15-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>This is asking about the <code>age*species</code> interaction, which in our model is represented by 3 parameters. To assess the overall question, it might make more sense to do a model comparison.</p>
+<p>This is asking about the <code>age*species</code> interaction, which in our model is represented by three parameters (the interaction terms between age and each of the three non-reference-level species). To assess the overall question, it might make more sense to do a model comparison.</p>
 </div>
 </div>
 </div>
