@@ -42,6 +42,8 @@ cdat <- full_join(
                        labels = c("mammals","birds","sea_creatures"))
   )
 
+# write_csv(cdat, "../../docs/2526/misc/cutespec.csv")
+
 ggplot(cdat, aes(x=size, y = rating)) + 
   geom_point(size=3)+
   stat_smooth(method=lm,se=F,aes(group=pid))+
@@ -69,7 +71,10 @@ cdat |>
 
 
 library(lme4)
-mod <- lmer(rating ~ 1 + size*condition+ (1+size| pid), data = cdat)
+
+# let's ignore condition for a minute. 
+
+mod <- lmer(rating ~ 1 + size (1+size| pid), data = cdat)
 
 broom.mixed::augment(mod) |>
   filter(pid %in% unique(cdat$pid)[1:16]) |>

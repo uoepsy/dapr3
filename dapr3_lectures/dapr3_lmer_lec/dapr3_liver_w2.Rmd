@@ -1,0 +1,102 @@
+---
+title: "dapr3_liver_w2"
+author: "jk"
+date: "2025-09-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# hide all code from final output:
+knitr::opts_chunk$set(echo = FALSE)
+# make sure we don't print loads of decimal places
+options(digits=3)
+
+# packages needed:
+# (add more here as when need arises)
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+
+
+
+# read in the data!
+cdat <- read_csv("https://uoepsy.github.io/dapr3/2526/misc/cutespec.csv")
+```
+
+Every participant:  
+```{r}
+ggplot(cdat, aes(x=size, y = rating)) + 
+  geom_point(size=3)+
+  stat_smooth(method=lm,se=F,aes(group=pid))+
+  geom_line(aes(group=pid))+
+  facet_wrap(~condition)+
+  ylim(-10,10)+
+  theme_minimal()
+```
+
+Participants 1 to 16:
+```{r}
+cdat |> 
+  filter(pid %in% unique(cdat$pid)[1:16]) |>
+  ggplot(aes(x=size, y = rating, col = condition)) + 
+  geom_point(size=3)+
+  stat_smooth(method=lm,se=F,aes(group=pid))+
+  geom_line(aes(group=pid))+
+  facet_wrap(~pid)+
+  ylim(-10,10)+
+  theme_minimal()
+```
+
+A weird looking participant:
+```{r}
+cdat |>
+  filter(pid == "chisquareatops") |>
+  ggplot(aes(x=size, y = rating)) + 
+  geom_point(size=3)+geom_line()+
+  ylim(-10,10)+
+  theme_minimal()
+```
+
+
+Ignoring condition for a minute:
+In this model, we are allowing the intercept and the slope of size to vary by-participant.  
+```{r}
+mod <- lmer(rating ~ 1 + size (1 + size | pid), data = cdat)
+summary(mod)
+```
+
+This means that the model will predict:
+
+- each person has a different estimated rating when size = 0
+- how ratings change with size can be different for each person
+
+To show this, let's just quickly plot fitted lines for the first 16:  
+```{r}
+augment(mod) |>
+  filter(pid %in% unique(cdat$pid)[1:16]) |>
+  ggplot(aes(x=size)) +
+  geom_line(aes(y=rating))+
+  stat_smooth(aes(y=rating),method=lm,se=F)+
+  geom_line(aes(y=.fitted))+
+  facet_wrap(~pid)+
+  ylim(-10,10)+
+  theme_minimal()
+```
+
+These are *predictions* that we kind of get 'after the model is estimated'. 
+The parameters that actually define our model (i.e., the ones that the estimation process tries to find the best values for):  
+
+```{r}
+fixef(mod)
+VarCorr(mod)
+```
+
+What if we ignored people?
+```{r}
+lm(rating ~ 1 + size, data = cdat) |>
+  summary()
+```
+
+
+
+

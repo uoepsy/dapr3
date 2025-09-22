@@ -30,12 +30,18 @@ tibble(
 ) |> gt::gt()
 
 
+
+# I am interested in how self confidence changes as school children progress through school
+# I go to 20 schools and collect data on some children from each one for 5 years. Every year I record what year of school they are in and assess their self confidence.  
+# The "schoolyear" variable contains information about which year group a child is in at a given point. 
+# Does it make more sense to treat this as... 
 tibble(
   school = c("SchoolA"),
   ppt = rep(c("P01","P02"),e=5),
   age = rep(11:15,2),
+  schoolyear = rep(paste0("year",1:5),2),
   selfconf = round(age*.2 + (ppt=="P01")*3 + rnorm(10))
-)
+) |> select(-age)
 
 
 
