@@ -137,11 +137,10 @@ ggplot(jsup, aes(x = seniority)) +
 
 With the first model, `wp ~ seniority + dept`, we are saying the following things:
 
-- We allow the model to estimate an association between workplace pride and seniority, in particular for the reference level of `dept`, which is ACE (remember how to interpret models with treatment-coded predictors?)
-  - In other words, the model estimates the slope of the line that associates `seniority` and `wp` for the department ACE.
-- We also allow the model to take that line it estimated for ACE and shift it up and down for each different department. The slope of the line stays the same. All that's changing is the vertical position of the line.
-  - Look at UKSA and FSA: the lines are shifted up compared to ACE.
-  - Look at UKSC and OFSTED: the lines are shifted down compared to ACE.
+- We allow the model to estimate an association between workplace pride and seniority. This line is estimated without respect to department, or in other words, for the "average" department.
+- We also allow the model to take that line and shift it up and down for each different department. The slope of the line stays the same. All that's changing is the vertical position of the line.
+  - Look at UKSA and FSA: the lines are shifted up compared to the others.
+  - Look at UKSC and OFSTED: the lines are shifted down compared to the others.
 
 ```{r}
 fe_mod <- lm(wp ~ dept + seniority, data = jsup)
@@ -156,13 +155,18 @@ ggplot(jsup, aes(x = seniority)) +
 
 With the second model, `wp ~ seniority + (1|dept)`, we are saying the following things:
 
-- We allow the model to estimate an association between workplace pride and seniority. There's no fixed effect of `dept` here, so the model doesn't take any particular levels of `dept` into consideration. You can think of it as the line for the "average" department.
+- We allow the model to estimate an association between workplace pride and seniority.
 - With `(1|dept)`, we allow the model to _adjust the intercept_ of that line, depending on the scores of each department. 
   - In other words, the `wp ~ seniority` bit is modelling the average line for all departments, and the `(1|dept)` bit is saying "now nudge that line up or down so that it fits the data of each individual department better".
+  - This is **very similar to the fixed-effects-based model above**. The difference is that the nudges up and down are now drawn from a single distribution, so they are all slightly closer to the mean of departments than the changes that the model above made. 
   - People often call these "random intercepts by department". You may also hear "intercept adjustments by department".
   - If we look at this model's summary, we can see how it combines all these individual adjustments into a distribution and give us some summary statistics. This way, we can see how big the adjustments tend to be.
 
-The lines in this second plot look very similar to the lines in the first plot, but the machinery behind them is different.
+
+Side note: Why use random effects instead of fixed effects, if they do the same thing?
+
+- They don't really do the same thing: random effects can also include random slopes, which the fixed-effect model cannot do. We'll see random slopes next.
+- Fixed effects are generally used for predictors that we have particular hypotheses/predictions about. Random effects are used when we have other sources of non-independence we need to tell the model about.
 
 ```{r}
 library(lme4)
@@ -514,9 +518,9 @@ Consider the following questions about the study:
   
 - What is our outcome of interest?  
 - What variables are we seeking to investigate in terms of their impact on the outcome?    
-- What are the units of observations?  
-- Are the observations clustered/grouped? In what way?  
-- What varies *within* these clusters?  
+- What does a row of data represent?
+- Are the rows of data clustered/grouped? In what way?  
+- What varies *within* these clusters?
 - What varies *between* these clusters?  
 
 `r qend()`
@@ -526,9 +530,9 @@ Consider the following questions about the study:
     + __SDMT scores__  
 - What variables are we seeking to investigate in terms of their impact on the outcome?  
     + __audio type__ and the interaction __audio type $\times$ wearing headphones__
-- What are the units of observations?  
+- What does a row of data represent?
     + __individual trials__  
-- What are the groups/clusters?  
+- Are the rows of data grouped/clustered? In what way?
     + __participants__  
 - What varies *within* these clusters?  
     + __the type of audio__    
@@ -588,7 +592,7 @@ ICCbare(x = PID, y = SDMT, data = efdat)
 `r solend()`
 
 `r qbegin(qcounter())`
-Make factors and set the reference levels of the `audio` and `headphones` variables to "no audio" and "speakers" respectively.    
+Make factors and set the reference levels of the `audio` and `headphones` variables to "no audio" (`no_audio`) and "speakers" (`S`) respectively.    
 
 
 ::: {.callout-tip collapse="true"}
@@ -629,7 +633,7 @@ $$
 
 1. Just like the `lm()`s we have used in the past, think about what we want to _test_. This should provide the outcome and the structure of our fixed effects.  
 2. Think about how the observations are clustered/grouped. This should tell us how to specify the grouping structure in the random effects.  
-3. Think about which slopes (i.e. which terms in our fixed effects) could feasibly vary between the clusters. This provides you with what to put in as random slopes.  
+3. Some conditions are within-group (i.e., every member of the group contributes to every condition), some conditions are between-group (i.e., every member of the group contributes to only one condition). You can only use random slopes for __within-group conditions__. Think about what variable(s) you have within-group data for. This provides you with what to put in as random slopes.  
 
 
 ::: {.callout-tip collapse="true"}
