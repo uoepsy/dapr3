@@ -12,7 +12,13 @@ qdata <- fetch_survey(surveyID = "SV_5BCIFyTms4yZSoC")[-c(7,10),] |>
 ratings <- 
   qdata |> 
   mutate(pid = 1:n(),
-         pid = ifelse(is.na(q33),pid,q33)) |>
+         pid = ifelse(is.na(q33),pid,q33))
+
+ratings$pid[duplicated(ratings$pid)] <- paste0(ratings$pid[duplicated(ratings$pid)],"_v2")
+if(any(duplicated(ratings$pid))){stop("dups")}
+
+ratings <- 
+  ratings |>
   select(pid,m1_1:s10_1) |>
   pivot_longer(-pid, values_to="rating") |> 
   filter(!is.na(rating)) |>
@@ -25,7 +31,12 @@ ratings <-
 orders <- 
   qdata |>
   mutate(pid = 1:n(),
-         pid = ifelse(is.na(q33),pid,q33)) |>
+         pid = ifelse(is.na(q33),pid,q33))
+
+orders$pid[duplicated(orders$pid)] <- paste0(orders$pid[duplicated(orders$pid)],"_v2")
+if(any(duplicated(orders$pid))){stop("dups")}
+orders <- 
+  orders |>
   select(pid,mammals_do_m1:last_col()) |>
   pivot_longer(-pid, values_to="order") |>
   filter(!is.na(order)) |>
@@ -42,7 +53,7 @@ cdat <- full_join(
                        labels = c("mammals","birds","sea_creatures"))
   )
 
-# write_csv(cdat, "../../docs/2526/misc/cutespec.csv")
+# 
 # 
 ggplot(cdat, aes(x=factor(size), y = rating)) +
   #geom_point(size=3)+
@@ -78,7 +89,7 @@ cdat <- bind_rows(cdat,toadd)
 mod <- lmer(rating ~ 1 + size*condition + (1+size| pid), data = cdat)
 summary(mod)
 
-
+# write_csv(cdat, "../../docs/2526/misc/cutespec.csv")
 
 cdat |>
   #filter(pid %in% unique(cdat$pid)[88:94]) |>

@@ -1,0 +1,117 @@
+---
+title: "dapr3_liver_w2"
+author: "jk"
+date: "2025-09-22"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+# hide all code from final output:
+knitr::opts_chunk$set(echo = FALSE)
+# make sure we don't print loads of decimal places
+options(digits=3)
+
+# packages needed:
+# (add more here as when need arises)
+library(tidyverse)
+library(lme4)
+library(broom.mixed)
+library(effects)
+library(lattice)
+
+# read in the data!
+cdat <- read_csv("https://uoepsy.github.io/dapr3/2526/misc/cutespec.csv")
+```
+
+plot some people! 
+
+```{r}
+cdat |>
+  # this code filters the data to just those that are "in" a sample of 12 people's IDs:
+  filter(pid %in% sample(unique(cdat$pid), 12)) |>
+  ggplot(aes( x = size , y = rating, col = condition)) +
+  geom_point() +
+  facet_wrap(~pid)
+```
+
+Ignoring condition for a minute:
+In this model, we are allowing the intercept and the slope of size to vary by-participant.  
+
+```{r}
+# Initially this model didn't converge (we got a warning)
+# Sometimes this is actually a false positive, and we can simply avoid it by switching the optimizer (think "complicated way the computer goes brr to fit the model"), like we did here. 
+# We'll talk more about this in week 3, but for now this code helps:  
+
+mod <- lmer(rating ~ size + (1 + size | pid), data = cdat, 
+            control = lmerControl(optimizer = "bobyqa"))
+
+summary(mod)
+```
+
+This means that the model will predict:
+
+- each person has a different estimated rating when size = 0
+- how ratings change with size can be different for each person
+
+To show this, let's just quickly plot fitted lines for everyone:  
+```{r}
+augment(mod) |>
+  ggplot(aes(x = size, y = .fitted)) +
+  geom_line(aes(group = pid))
+```
+
+These lines are *predictions* that we kind of get 'after the model is estimated'. 
+The parameters that actually define our model (i.e., the ones that the estimation process tries to find the best values for):  
+
+```{r}
+fixef(mod)
+VarCorr(mod)
+# or just:  
+summary(mod)
+```
+
+What if we ignored "people"?
+```{r}
+lm(rating ~ size, data = cdat) |>
+  summary()
+```
+
+Now our question is whether the effect of size on rating differs between mammals, birds, and sea creatures, which means we want to have the condition (bird/mammal/seacreature) variable in the model:  
+```{r}
+mod <- lmer(rating ~ size * condition + (1 + size | pid), data = cdat)
+
+summary(mod)
+
+# The effects package takes the term from the model, and can make a 
+# little data.frame of fixed effect predictions (and uncertainty) across those predictors.  
+effect(term = "size*condition", mod = mod, xlevels=10) |>
+  as.data.frame() |>  # which we can then plot! 
+  ggplot(aes(x = size, y = fit, col = condition)) +
+  geom_line()+
+  geom_ribbon(aes(ymin=lower,ymax=upper,fill=condition),alpha=.2, col=NA)
+```
+
+
+Why can we not have `condition|pid`?  
+
+```{r}
+# consider the size variable
+# it varies *within* people - i.e., a given person see various sizes
+# this means that "the effect of size on rating" is defined for each person
+# and could vary from one person to the next. therefore size|pid makes sense.
+# in visual terms: we can consider a slope for each person, and so we can talk about how much the slope varies
+xyplot(rating~size|pid, data=cdat)
+
+# consider the condition variable
+# it varies *between* people - i.e., a given person sees only one condition
+# this means that "the effect of condition on rating" is NOT defined for each person (it only makes sense when comparing people). 
+# if it is not defined for any one person, then we can't estimate how much it varies from one person to another.
+# so condition|pid doesn't make sense. 
+# in visual terms: we can't imagine a slope for each person, therefore we can't say how much the slope varies
+bwplot(rating~condition|pid, data = cdat)
+```
+
+
+

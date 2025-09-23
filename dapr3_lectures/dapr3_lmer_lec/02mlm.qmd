@@ -2225,7 +2225,146 @@ BIC(model)
 - Lots and lots of different methods 
 
 :::
-:::{.column width="60%" .fragment}
+:::{.column width="60%"}
+```{r}
+#| echo: false
+#| fig-asp: .6
+#| fig-align: center
+
+## function to work out the "last two" points on for a given best fit
+## line, by working out the residuals for given x and y
+## (maths courtesy of Umberto Noè)
+require(patchwork)
+
+plot_dat <- function() {
+  # solve for y=5x+2
+  x1=1
+  x2=11
+  a_given=-7.5
+  b_given=3
+  
+  randline <- function (x) {
+    a<-runif(1,-5,5)
+    b<-runif(1,-3,7)
+    y<-a+b*x+runif(length(x),-20,20)
+  }
+  
+  x = sample(0:12,8)
+  y = randline(x)
+  x <- c(x,x1,x2)
+  
+  loss_function <- function(y_new) {
+    y_complete <- c(y, y_new[1], y_new[2])
+    fit <- lm(y_complete ~ x)
+    a_diff <- (fit$coefficients[1] - a_given)^2
+    b_diff <- (fit$coefficients[2] - b_given)^2
+    return(a_diff + b_diff)
+  }
+
+  # Use optimization to find y1 and y2
+  result <- optim(c(0, 0), loss_function)
+  
+  # Extract y1 and y2
+  y1 <- result$par[1]
+  y2 <- result$par[2]
+  
+  pd <- tibble(x=x,y=c(y,y1,y2),colour=c(rep("a",8),rep("b",2)))
+
+  return(pd)
+}
+
+pd1 <- plot_dat()
+pd2 <- plot_dat()
+pd3 <- plot_dat()
+pd4 <- plot_dat()
+
+yr<-range(c(pd1$y[pd1$colour=="a"],pd2$y[pd2$colour=="a"],pd3$y[pd3$colour=="a"],pd4$y[pd4$colour=="a"]))
+yr2<-range(c(pd1$y,pd2$y,pd3$y,pd4$y))
+
+do_p <- function(x) {
+x |> filter(colour=="a") |> ggplot(aes(x=x,y=y)) +
+  geom_point(size=3) +
+  xlim(c(0,15)) +
+    ylim(yr2) +
+  geom_smooth(method="lm",se=FALSE)
+}
+
+p1 <- do_p(pd1)
+p2 <- do_p(pd2)
+p3 <- do_p(pd3)
+p4 <- do_p(pd4)
+(p1 + p2) / (p3 + p4)
+```
+:::
+::::
+
+## Inference {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="40%"}
+
+- Degrees of freedom for multilevel models is not clear 
+- Lots and lots of different methods 
+
+:::
+:::{.column width="60%"}
+```{r}
+#| echo: false
+#| fig-asp: .6
+#| fig-align: center
+
+
+
+do_p <- function(x) {
+x |> ggplot(aes(x=x,y=y)) +
+  geom_point(aes(colour=colour),size=3) +
+  xlim(c(0,15)) +
+    ylim(yr2) +
+  scale_colour_manual(values=c('a'='darkgrey','b'='red')) +
+  theme(legend.position = "none") +
+  geom_smooth(method="lm",se=FALSE)
+}
+
+p1 <- do_p(pd1)
+p2 <- do_p(pd2)
+p3 <- do_p(pd3)
+p4 <- do_p(pd4)
+(p1 + p2) / (p3 + p4)
+
+```
+:::
+::::
+
+## Inference {visibility="uncounted"}
+
+::::{.columns}
+:::{.column width="40%"}
+
+- Degrees of freedom for multilevel models is not clear 
+- Lots and lots of different methods 
+
+:::
+:::{.column width="60%"}
+```{r}
+#| echo: false
+#| fig-asp: .6
+#| fig-align: center
+pptplots
+
+```
+:::
+::::
+
+## Inference - lmerTest
+
+::::{.columns}
+:::{.column width="40%"}
+
+- Degrees of freedom for multilevel models is not clear 
+- Lots and lots of different methods 
+
+:::
+:::{.column width="60%"}
 
 using the **{lmerTest}** package will overwrite the `lmer()` function, and give you hypothesis tests for the fixed effects:
 
@@ -2242,7 +2381,7 @@ summary(model)
 
 
 
-## Inference (2)
+## Inference - LRTs
 
 ::::{.columns}
 :::{.column width="40%"}
@@ -2270,12 +2409,52 @@ Technical note: This is not an "ANOVA", this is a likelihood ratio test. It does
 
 
 
-## Inference (3)
+## Inference
+### it's (almost always) about fixed effects
 
 
 - vast majority of research questions are about **fixed effects**, not random effects
 
 - model comparisons should differ in only fixed effects, and have the same random effects
+
+
+```{r}
+set.seed(753)
+df <- junk::sim_basicrs(b0=5,b1=1)
+df <- df |> filter(g %in% unique(df$g)[10:16])
+m01 <- lmer(y~1+(1+x|g),df)
+m11 <- lmer(y~1+x+(1+x|g),df)
+m10 <- lmer(y~1+x+(1|g),df)
+m00 <- lmer(y~1+(1|g),df)
+
+plotf <- function(mod){
+  broom.mixed::augment(mod) |>
+    ggplot(aes(x=x,y=.fitted))+
+    geom_point(aes(y=y),alpha=.2)+
+    geom_line(aes(group=g),alpha=.6)+
+    geom_abline(intercept = fixef(mod)[1],slope=fixef(mod)[2],
+                col="blue",lwd=1)
+}
+p01 <- plotf(m01) + 
+  geom_abline(intercept = fixef(m01)[1],slope=0,
+                col="blue",lwd=1) +
+  labs(title="lmer(y~1+(1+x|g))")
+p11 <- plotf(m11) +
+  labs(title="lmer(y~1+x+(1+x|g))")
+p10 <- plotf(m10) +
+  labs(title="lmer(y~1+x+(1|g))")
+p00 <- df |> mutate(.fitted = predict(m00)) |>
+  ggplot(aes(x=x,y=.fitted))+
+    geom_point(aes(y=y),alpha=.2)+
+    geom_line(aes(group=g),alpha=.6)+
+    geom_abline(intercept = fixef(m00)[1],slope=0,
+                col="blue",lwd=1) +
+  labs(title="lmer(y~1+(1|g))")
+  
+(p00 + p01) / (p10 + p11) & theme_classic()
+
+
+```
 
 
 :::{.fragment}
