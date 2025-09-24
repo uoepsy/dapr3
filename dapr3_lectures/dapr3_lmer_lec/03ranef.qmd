@@ -36,10 +36,6 @@ source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
 course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=3)
 ```
 
-:::woo
-https://app.wooclap.com/events/PQBDDT/votes?view=desktop&mobile=false
-:::
-
 
 # This week {transition="slide"}
 
@@ -180,7 +176,7 @@ tibble::tibble(
 The things in a cluster belong __only__ to that cluster.  
 
 ```{r}
-#| out-width: "450px"
+#| out-width: "350px"
 #| echo: false
 #| fig-align: "center"
 knitr::include_graphics("https://media.gettyimages.com/id/657783001/photo/mallard-ducklings.jpg?s=2048x2048&w=gi&k=20&c=0kXqa1ss4W5kqSe5PsrK-2zy3UAkYbTnDLfqUckPzJ8=")
@@ -238,16 +234,13 @@ is shorthand for
 
 shorthand only works when random slopes are same at each level  
 
-this can't be compressed:  
+this can't be compressed to use `school/class`:  
 **`(1 + x + z | school) + (1 + z | class:school)`**   
 
 :::
 
 
 
-we can use  as shorthand, but it is often preferable to separate them out (allowing different random effects for schools vs for children)
-
-:::
 
 ## Example 1 (just two levels)
  
@@ -269,26 +262,23 @@ rbind(
 d3[d3$condition=="mindfulness",][1:4,]) |> as.data.frame() |>
   print(row.names=FALSE)
 ```
-```{r}
-#| eval: false
-ggplot(d3, aes(x=visit, y=ACE))+
-  geom_line(aes(group=ppt, col=condition), alpha=.7)
-```
 
 :::
 
 :::{.column width="50%"}
-```{r}
-#| eval: false
-... + (1 + ... | ppt)
-```
 
 ```{r}
-#| echo: false
-d3 <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv")
+#| echo: true
+#| fig-height: 6
 ggplot(d3, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7)+
   theme(legend.position = "bottom")
+```
+
+```{r}
+#| eval: false
+#| echo: true
+... + (1 + ... | ppt)
 ```
 
 :::
@@ -316,28 +306,24 @@ rbind(
   "..."
 ) |> as.data.frame() |> print(row.names=FALSE)
 ```
-```{r}
-#| eval: false
-ggplot(d3full, aes(x=visit, y=ACE))+
-  geom_line(aes(group=ppt, col=condition), alpha=.7) +
-  facet_wrap(~sitename)
-```
 
 :::
 
 :::{.column width="50%"}
 
 ```{r}
-#| eval: false
-... + (1 + ... | sitename) + (1 + ... | ppt:sitename)
-```
-
-```{r}
-#| echo: false
+#| echo: true
+#| fig-height: 6
 ggplot(d3full, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7) +
   facet_wrap(~sitename)+
   theme(legend.position = "bottom")
+```
+
+```{r}
+#| eval: false
+#| echo: true
+... + (1 + ... | sitename) + (1 + ... | ppt:sitename)
 ```
 
 :::
@@ -360,65 +346,20 @@ knitr::include_graphics("img_sandbox/structure_crossednew.png")
 
 </center>
 
-## Example 3 (crossed)
-
 ```{r}
 #| include: false
-eseed = round(runif(1,1e3,1e7))
-set.seed(eseed)
-set.seed(234)
-
-n_groups = 20
-n_items = 10
-N = n_groups * n_items
-g = rep(1:n_groups, e = n_items)
-j = rep(1:n_items, n_groups)
-b = rep(0:1,n_groups/2)[g]
-w = c(rep(rep(0:1,e=n_items/2),n_groups/2),rep(rep(1:0,e=n_items/2),n_groups/2))
-
-
-
-g.re = MASS::mvrnorm(n_groups, mu = c(0,0), Sigma = matrix(c(8,1,1,3),nrow=2))
-g.re0 = g.re[,1][g]
-g.reb = g.re[,2][g]
-
-j.re = MASS::mvrnorm(n_items, mu = c(0,0), Sigma = matrix(c(2,.6,.6,1),nrow=2))
-j.re0 = j.re[,1][j]
-j.reb = j.re[,2][j]
-
-b0 = 0
-bb = 1
-bw = 2
-bwb = -1
-
-lp = b0 + g.re0 + j.re0 + (bw + g.reb + j.reb)*w + (bb)*b + (bwb)*b*w
-y = rnorm(N, mean = lp, sd = 1)
-#y_bin = rbinom(N, size = 1, prob = plogis(lp))
-df=data.frame(g,j,w,b,y)
-
-library(lme4)
-m = lmer(y~w*b+(1+w|g)+(1+b*w|j),df)
-summary(m)
-
-df = df |> transmute(
-  ppt = paste0("ppt_",formatC(g,digits=1,flag="0")),
-  task = paste0("task_",formatC(j,digits=1,flag="0")),
-  condition = ifelse(w==0,"A","B"),
-  group = ifelse(b==0,"1","2"),
-  score = round((y+10)*10)/10
-)
-# write_csv(df,file="../../../data/lmm_egcross.csv")
+df <- read_csv("https://uoepsy.github.io/data/lmm_egcross1.csv")
 ```
 
+## Example 3 (crossed)
 
 ::::{.columns}
 :::{.column}
 Participants take part in an experiment where they each complete the same 10 tasks. 
 
-:::{style="font-size:70%"}
 ```{r}
-#| echo: false
-d3cross <- read_csv("https://uoepsy.github.io/data/lmm_egcross.csv")
+#| echo: true
+d3cross <- read_csv("https://uoepsy.github.io/data/lmm_egcross1.csv")
 ```
 ```{r}
 #| echo: false
@@ -439,40 +380,134 @@ rbind(
   "..."
 ) |> as.data.frame() |> print(row.names=FALSE)
 ```
-:::
 
 :::
 
 :::{.column width="50%"}
-
-
 ```{r}
-#| eval: false
-... + (1 + ... | participant) + (1 + ... | task)
-```
-
-```{r}
-#| echo: false
-p1 <- ggplot(df,aes(x = 1, y = score, col = task)) +
+#| echo: true
+#| fig-height: 6
+ggplot(d3cross,aes(x = 1, y = score)) +
   geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
   facet_wrap(~ppt) +
   labs(title="participants")+
-  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)+
-  scale_color_viridis_d(option = "C")
-
-p2 <- ggplot(df,aes(x = 1, y = score, col = task)) +
-  geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
-  facet_wrap(~task) +
-  labs(title="tasks")+
-  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)+
-  scale_color_viridis_d(option = "C")
-
-p1 / p2
-
+  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)
+```
+```{r}
+#| eval: false
+#| echo: true
+... + (1 + ... | participant) + ...
 ```
 
 :::
 ::::
+
+## Example 3 (crossed)
+
+::::{.columns}
+:::{.column}
+Participants take part in an experiment where they each complete the same 10 tasks. 
+
+```{r}
+#| echo: true
+d3cross <- read_csv("https://uoepsy.github.io/data/lmm_egcross1.csv")
+```
+```{r}
+#| echo: false
+rbind(
+  df[c(1:2),c("ppt","task","score")],
+  "...",
+  df[c(6:7),c("ppt","task","score")],
+  "...",
+  "...",
+  df[c(11:12),c("ppt","task","score")],
+  "...",
+  df[c(16:17),c("ppt","task","score")],
+  "...",
+  "...",
+  df[c(101:102),c("ppt","task","score")],
+  "...",
+  df[c(106:107),c("ppt","task","score")],
+  "..."
+) |> as.data.frame() |> print(row.names=FALSE)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| fig-height: 6
+ggplot(d3cross,aes(x = 1, y = score)) +
+  geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
+  facet_wrap(~task) +
+  labs(title="tasks")+
+  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)
+
+```
+```{r}
+#| eval: false
+#| echo: true
+... + (1 + ... | task) + ...
+```
+
+:::
+::::
+
+## Example 3 (crossed)
+
+::::{.columns}
+:::{.column}
+Participants take part in an experiment where they each complete the same 10 tasks. 
+
+```{r}
+#| echo: true
+d3cross <- read_csv("https://uoepsy.github.io/data/lmm_egcross1.csv")
+```
+```{r}
+#| echo: false
+rbind(
+  df[c(1:2),c("ppt","task","score")],
+  "...",
+  df[c(6:7),c("ppt","task","score")],
+  "...",
+  "...",
+  df[c(11:12),c("ppt","task","score")],
+  "...",
+  df[c(16:17),c("ppt","task","score")],
+  "...",
+  "...",
+  df[c(101:102),c("ppt","task","score")],
+  "...",
+  df[c(106:107),c("ppt","task","score")],
+  "..."
+) |> as.data.frame() |> print(row.names=FALSE)
+```
+
+:::
+
+:::{.column width="50%"}
+```{r}
+#| echo: true
+#| fig-height: 6
+ggplot(d3cross,aes(x = 1, y = score, col = task)) +
+  geom_jitter(size=3,height=0,width=.2,alpha=.6)+ 
+  facet_wrap(~ppt) +
+  labs(title="participants and tasks")+
+  scale_x_continuous(limits=c(.5,1.5),breaks=NULL)+
+  scale_color_viridis_d(option = "C")
+
+```
+```{r}
+#| eval: false
+#| echo: true
+... + (1 + ... | participant) + (1 + ... | task)
+```
+
+:::
+::::
+
+
 
 
 ## "Random Effects"
@@ -567,6 +602,7 @@ _"Ultimately, the random effect structure one uses in an analysis encodes the as
 ::::{.columns}
 :::{.column width="50%"}
 ```{r}
+#| fig-height: 6
 d3 <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv")
 ggplot(d3, aes(x=visit,y=ACE,col=condition))+
   geom_point()+
@@ -613,6 +649,7 @@ lmer(ACE ~ 1 + visit + condition +
 ::::{.columns}
 :::{.column width="50%"}
 ```{r}
+#| fig-height: 6
 d3full <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldeclineFULL.csv")
 ggplot(d3full, aes(x=visit, y=ACE))+
   geom_line(aes(group=ppt, col=condition), alpha=.7) +
@@ -660,17 +697,21 @@ lmer(ACE ~ 1 + visit * condition +
 :::
 ::::
 
-
 ## Example 3 (crossed)
 
+```{r}
+#| include: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_egcross1.csv")
+```
 
 ::::{.columns}
 :::{.column}
-Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
+Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants see tasks 1-5 in Condition A and tasks 6-10 in B.  
 
 ```{r}
 #| out-height: "325px"
-ggplot(df,aes(x = condition, y = score, col = group)) +
+df |> mutate(group=factor(group)) |>
+  ggplot(aes(x = condition, y = score, col = group)) +
   geom_boxplot() +
   facet_wrap(~ppt) +
   labs(title="participants")
@@ -711,7 +752,74 @@ lmer(score ~ condition * group + ???
 
 ::::{.columns}
 :::{.column}
-Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.  
+Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. Participants see tasks 1-5 in Condition A and tasks 6-10 in B.  
+
+```{r}
+#| out-height: "325px"
+df |> mutate(group=factor(group)) |>
+ggplot(aes(x = condition, y = score, col=group)) +
+  geom_boxplot() +
+  facet_wrap(~task) +
+  labs(title="tasks")
+```
+
+:::
+
+:::{.column style="width:50%;font-size:70%"}
+
+- multiple observations from each participants:  
+`(1 | ppt)`
+
+- participants are observed in each condition - the effect of condition could be different for participant 1 vs participant 2  
+`(condition | ppt)`
+
+- participants are observed in *either* group 1 or group 2. The effect of group is not defined for a single participant:  
+~~`(group | ppt)`~~
+
+- multiple observations of each task (not nested within ppts):  
+`(1 | task)`
+
+:::{.incremental}
+
+- tasks are completed by people in each group - the effect of group could be different for task 1 vs task 2:  
+`(group | task)`  
+
+- tasks 1-5 are in Condition A, and 6-10 in Condition B. The effect of condition isn't defined for any given task:  
+~~`(condition | task)`~~  
+
+:::
+
+:::
+::::
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| eval: false
+#| echo: true
+lmer(score ~ condition * group + ???  
+```
+:::
+:::{.column width="50%" .fragment}
+```{r}
+#| eval: false
+#| echo: true
+lmer(score ~ condition * group +
+      (1 + condition | ppt ) + 
+      (1 + group | task), data = dfcross)
+```
+:::
+::::
+
+## Example 4 (crossed, but more complex!)
+
+```{r}
+#| include: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_egcross2.csv")
+```
+
+::::{.columns}
+:::{.column}
+Participants take part in an experiment where they each complete 10 tasks. Odd numbered participants are in Group 1, Even numbered participants in Group 2. **Participants 1-10 see tasks 1-5 in Condition A and tasks 6-10 in B, Participants 11-20 see tasks 1-5 in B and 6-10 in A.**  
 
 ```{r}
 #| out-height: "325px"
@@ -978,13 +1086,11 @@ in our sample, some things will not vary _enough_ to fit `x|g`
 14 Study sites, each with c18 ppts, each with approx 10 observations
 ```{r}
 #| echo: true
-d3full <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldeclineFULL.csv")
-```
-```{r}
-#| echo: true
 #| message: true
 #| warning: true
 #| error: true
+d3full <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldeclineFULL.csv")
+
 maxmodelfull <- lmer(ACE ~ visit * condition + 
                    (1 + visit * condition | sitename) +
                    (1 + visit | sitename:ppt), 
@@ -1001,15 +1107,16 @@ isSingular(maxmodelfull)
 ## Deciding on the optimal random effect structure
 
 ::::{.columns}
-:::{.column width="50%"}
+:::{.column width="48%"}
 **Keep it maximal**   
 
 1. Start with maximal model  
 2. Remove random effects with least variance until model converges (see Barr et al., 2013)
 
 :::
-
-:::{.column width="50%"}
+:::{.column width="4%"}
+:::
+:::{.column width="48%"}
 **Selection based**  
 
 Use a criterion for model selection (e.g. LRT, AIC, BIC) to choose a random effect structure that is supported by the data (see Matsuchek et al., 2017)
