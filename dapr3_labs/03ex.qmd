@@ -163,17 +163,23 @@ geduc = read_csv("https://uoepsy.github.io/data/lmm_gadeduc.csv")
 head(geduc)
 ```
 
-We can make it long by taking the all the columns from `visit_0` to `visit_4` and shoving their values into one variable, and keeping the name of the column they come from as another variable:  
+We can make it long by taking the all the columns from `visit_0` to `visit_4` (that is, from the second column `2` to the last column `last_col()`) and shoving their values into one variable called `GAD`, and keeping the name of the column they come from as another variable called `visit`:  
+
 ```{r}
 geduc |> 
   pivot_longer(2:last_col(), names_to="visit",values_to="GAD")
 ```
 
+This is step 1 of our data wrangling.
+In the next step, we'll pipe the result of `pivot_longer()` into `mutate()`.
+
+In general, building up and running your data wrangling pipeline step by step, the way we're illustrating here, is a good way to make sure each step of your code really is doing what you think it's doing.
+
 
 `r solend()`
 `r solbegin(label="2 - time is numeric", slabel=F,show=T, toggle=params$TOGGLE)`
 Now we know how to get our data long, we need to sort out our time variable (`visit`) and make it into numbers.  
-We can replace all occurrences of the string `"visit_"` with nothingness `""`, and then convert them to numeric.  
+We can replace all occurrences of the string `"visit_"` in our data with nothingness `""`, and then convert what remains—the visit number—to numeric.  
 
 ```{r}
 geduc |> 
@@ -207,8 +213,8 @@ geduc_long
 
 
 `r qbegin(qcounter())`
-Visualise the data. Does it look like the treatment had an effect?  
-Does it look like it worked for every therapist?  
+Visualise the data. Does it look like the treatment had an effect over time?
+Does it look like the treatment worked when used by every therapist?  
 
 
 ::: {.callout-tip collapse="true"}
@@ -240,7 +246,17 @@ ggplot(geduc_long, aes(x = visit, y = GAD, col = group)) +
 
 
 `r qbegin(qcounter())`
-Fit a model to test if the psychoeducational treatment is associated with greater improvement in anxiety over time.  
+Fit a model to test if the psychoeducational treatment is associated with greater improvement in anxiety over time.
+
+Step 1: Choose the appropriate fixed effects.
+
+Step 2: Think about the grouping structure in the data.
+
+Step 3: Choose the appropriate random effects.
+
+Note that the patient variable does not uniquely specify the individual patients. 
+That is, patient "1" from therapist "AO" is a different person from patient "1" from therapist "BJ".
+
 `r qend()`
 `r solbegin(label="1 - fixed effects", slabel=F,params$SHOW_SOLS, toggle=params$TOGGLE)`
 
@@ -293,6 +309,55 @@ mod1 <- lmer(GAD ~ visit*group +
 ```
 
 `r solend()`
+`r solbegin(label="4 - interpreting the model", slabel=F,params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The question asked whether the psychoeducational treatment (in the variable `group`) is associated with greater improvement in anxiety (`GAD`) over time (`visit`).
+
+Let's take a look at the model summary to find out.
+
+```{r}
+summary(mod1)
+```
+
+The question focuses on the fixed effects, so let's look at those coefficients and their t-values.
+
+- `visit`: We see a negative association between `visit` and `GAD`: the more therapy visits you have, the less your anxiety.
+The t-value here is more extreme than 2 (which is, as a rule of thumb, approximately the t-value that represents the boundary of the 95% CI).
+So we likely have a significant negative association between time and anxiety.
+If this association is significant, that means we can reject the null hypothesis that there's no change in anxiety over time.
+
+- `groupTreatment`: We see a very small positive association between `group` and `GAD`, but the error is much bigger than the estimate itself, and consequently, the t-value is also pretty close to 0.
+I doubt we can reject the null hypothesis that, on average, there's no difference between the treatment and control groups.
+
+- `visit:groupTreatment`: We see a negative coefficient for the interaction between `visit` and `groupTreatment`, accompanied by a fairly extreme t-value.
+We likely have a significant negative interaction.
+This means that we can reject the null hypothesis that there's no difference between groups as time goes on.
+And the negative coefficient means that, as visits increase, the GAD of the treatment group decreases more than the GAD of the control group does. 
+(Note: Interactions are REALLY hard to interpret just based on model coefficients.
+The best way to interpret them is to look at plots of the data.)
+
+To see whether our guesses about significance based on the t-values were on the right track, we can re-fit the model using `lmerTest`.
+
+```{r}
+mod1_test <- lmerTest::lmer(
+  GAD ~ visit*group + 
+    (1+visit*group|therapist) +
+    (1+visit|therapist:patient),
+  geduc_long
+)
+summary(mod1_test)
+```
+
+
+Yes, the effects deemed "significant" based on Satterthwaite's method are the ones we expected.
+
+So yes, it looks like the treatment group does improve more over time, compared to the control group, taking into account all the variability introduced by individual patients and therapists.
+
+
+`r solend()`
+
+
+
 
 `r qbegin(qcounter())`
 For each of the models below, what is wrong with the random effect structure?  
@@ -333,7 +398,11 @@ modelB <- lmer(GAD ~ visit*group +
              geduc_long)
 ```
 
-Using the `/` here means we have the same random slopes fitted for therapists and for patients-within-therapists. but the effect of group can't vary by patient, so this doesn't work. hence why we need to split them up into `(...|therapist)+(...|therapist:patient)`.  
+Using the `/` here means we have the same random slopes fitted for therapists and for patients-within-therapists.
+
+Concretely, `(1+visit*group|therapist/patient)` is shorthand for `(1 + visit*group | therapist)` (which is fine) `+ (1 + visit*group | patient:therapist)` (which is not fine, because we don't have data for every participant for both groups.
+
+In other words, the effect of group can't vary by patient, so this doesn't work, hence why we need to split them up into `(...|therapist)+(...|therapist:patient)`.  
 
 `r solend()`
 
@@ -344,16 +413,30 @@ Let's suppose that I don't want the psychoeducation treatment, I just want the s
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-`dotplot.ranef.mer()` might help here!  
+`ranef()` and `dotplot.ranef.mer()` might help here!  
 You can read about `ranef` in [Chapter 2 #making-model-predictions](https://uoepsy.github.io/lmm/02_lmm.html#making-model-predictions){target="_blank"}.  
 
 :::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-It would be best to go to one of the therapists `SZ`, `YS`, or `IT`...  
+The three best therapists to go to are `SZ`, `AO`, or `IT`.
 
-Why? These therapists all have the most negative slope of visit:  
+Why?
+
+- We said we don't care about getting the treatment, so we can ignore the parameters `groupTreatment` and `visit:groupTreatment`.
+- `(Intercept)` doesn't tell us about the effect that each therapist has over time, just how good they're estimated to be at visit 0.
+- `visit` is the parameter that tells us about how anxiety changes over time. And because lower GAD is better, we want scores to decrease over time.
+
+So we can look at which therapists have the most negative slope estimated for `visit`:
+
+```{r}
+ranef(mod1)$therapist |>
+  arrange(visit)
+```
+
+
+Double check using the plot:
 
 ```{r}
 #| fig-height: 6
@@ -367,6 +450,8 @@ dotplot.ranef.mer(ranef(mod1))$therapist
 Recreate this plot.  
 
 The faint lines represent the model estimated lines for each patient. The points and ranges represent our fixed effect estimates and their uncertainty.  
+
+Make sure you're plotting model estimates, not the raw data.
 
 ```{r} 
 #| echo: false
@@ -388,7 +473,7 @@ broom.mixed::augment(mod1) |>
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-- you can get the patient-specific lines using `augment()` from the __broom.mixed__ package, and the fixed effects estimates using the __effects__ package. 
+- you can get the patient-specific lines using `augment()` from the __broom.mixed__ package, and the fixed effects estimates using `effect()` from the __effects__ package. 
 - remember that the "patient" column doesn't group observations into unique patients. 
 - remember you can pull multiple datasets into ggplot:  
 ```{r}
@@ -526,7 +611,7 @@ laughs <- read_csv("https://uoepsy.github.io/data/lmm_laughs.csv")
 ```
 
 These data are simulated to imitate an experiment that investigates the effect of visual non-verbal communication (i.e. gestures, facial expressions) on joke appreciation. 
-`r n_distinct(laughs$ppt)` Participants took part in the experiment, in which they each rated how funny they found a set of `r n_distinct(laughs$joke_id)` jokes. For each participant, the order of these `r n_distinct(laughs$joke_id)` jokes was randomly set for each run of the experiment. For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video. This meant that each participant saw `r n_distinct(laughs$joke_id)/2` jokes with video and `r n_distinct(laughs$joke_id)/2` without, and each joke would be presented in with video roughly half of the times it was seen.  
+`r n_distinct(laughs$ppt)` participants took part in the experiment, in which they each rated how funny they found a set of `r n_distinct(laughs$joke_id)` jokes. For each participant, the order of these `r n_distinct(laughs$joke_id)` jokes was randomised for each run of the experiment. For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video. This meant that each participant saw `r n_distinct(laughs$joke_id)/2` jokes with video and `r n_distinct(laughs$joke_id)/2` without, and each joke would be presented in with video roughly half of the times it was seen.  
 
 The researchers want to investigate whether the delivery (audio/audiovideo) of jokes is associated with differences in humour-ratings.  
 
@@ -539,7 +624,7 @@ Data are available at [https://uoepsy.github.io/data/lmm_laughs.csv](https://uoe
 tibble(
   variable = names(laughs),
   description = c("Participant Identification Number",
-                  "Joke presented",
+                  "The text of the joke",
                   "Joke Identification Number",
                   "Experimental manipulation: whether joke was presented in audio-only ('audio') or in audiovideo ('video')",
                   "Humour rating chosen on a slider from 0 to 100")
@@ -553,7 +638,9 @@ tibble(
 
 
 `r qbegin(qcounter())`
-Prior to getting hold of any data or anything, we should be able to write out the structure of our ideal "maximal" model.  
+Don't look at the actual data yet!
+
+Even before getting hold of any data, we should be able to write out the structure of our ideal "maximal" model based only on the information above.
 
 Can you do so?  
 
@@ -664,11 +751,20 @@ If you're using `joke_id`, can you find out the actual joke that these correspon
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+Which joke is funniest in audio?
+
+Audio is the reference level of `delivery`, so we only need to look at the intercept adjustments.
+
+```{r}
+ranef(mod)$joke_id |>
+  arrange(desc(`(Intercept)`))
+```
+
 ```{r}
 dotplot.ranef.mer(ranef(mod))$joke_id
 ```
 
-Joke 19 is the funniest apparently! (not sure I agree)
+Joke 19 is the funniest apparently!
 
 Lots of ways to find what the joke actually is. Here is one way:
 ```{r}
@@ -677,21 +773,28 @@ laughs |> count(joke_id, joke_label) |>
   pull(joke_label)
 ```
 
+(not sure I agree)
 
-And from the plot above, Joke 28 has the most benefit of video. 
-We can quickly check this with something like:  
+To find out which joke benefits most from video, we should look at the by-joke adjustments to the slope over `delivery`.
+
+We can see the biggest slope adjustment in the plot above, which shows us that Joke 28 has the most benefit of video. 
+We can also quickly check this with something like:  
+
 ```{r}
 ranef(mod)$joke_id |>
   filter(deliveryvideo == max(deliveryvideo))
 ```
 
-The joke itself is a bit weird.. maybe the video really helped!  
+Which joke is it?
 
 ```{r}
 laughs |> count(joke_id, joke_label) |>
   filter(joke_id==28) |>
   pull(joke_label)
 ```
+
+The joke itself is a bit weird... but I can imagine that the video really helped!  
+
 
 `r solend()`
 
@@ -702,7 +805,7 @@ Do jokes that are rated funnier when presented in audio-only tend to also benefi
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-Think careful about this question. The random effects show us that jokes vary in their intercepts (ratings in audio-only) and in their effects of delivery (the random slopes). We want to know if these are related..  
+Think careful about this question. The random effects show us that jokes vary in their intercepts (ratings in audio-only) and in their effects of delivery (the random slopes). We want to know if these are related... one might even say ... co-related ...  
 
 :::
 
@@ -712,17 +815,24 @@ Think careful about this question. The random effects show us that jokes vary in
 ```{r}
 VarCorr(mod)
 ```
-It's the correlation here that tell us - jokes rated higher in the audio-only tend to have a bigger effect of the video. 
 
-We can see this in a plot if we like. Here every dot is a joke, and the x-axis shows whether it is above or below the average rating for audio-only (the intercept). The y-axis shows whether it is above or below the average effect of video. 
+It's the correlation of `joke_id`'s `(Intercept)` and `deliveryvideo` adjustments here that addresses the question.
+The correlation is 0.39, so this tells us that jokes rated higher when presented as audio-only tend to have a bigger effect of the video. 
+
+We can see this in a plot if we like. Here every dot is a joke, and the x-axis shows whether it is above or below the average rating for audio-only (the intercept).
+The average rating for audio-only is represented as 0 on the x axis, so if the rating is above-average, the value is positive; if the rating is below-average, the value is negative.
+
+The y-axis shows whether it is above or below the average effect of video.
+The average effect of video is represented as 0 on the y axis, so if the effect is above-average, the value is positive; if the effect is below-average, the value is negative.
+
 ```{r}
-plot(ranef(mod)$joke)
+plot(ranef(mod)$joke_id)
 ```
 
 `r solend()`
 
 `r qbegin(qcounter())`
-Create a plot of the estimated effect of video on humour-ratings. Try to plot not only the fixed effects, but the raw data too.  
+Create a plot of the estimated effect of video on humour ratings. Try to plot not only the fixed effects, but the raw data too.  
 
 
 ::: {.callout-tip collapse="true"}
@@ -735,18 +845,40 @@ See e.g. [Chapter 2 #visualising-models](https://uoepsy.github.io/lmm/02_lmm.htm
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+Many ways!
+There's no one correct answer.
+
 ```{r}
 library(effects)
 
+# get the model's predictions
 plotdatf <- effect("delivery",mod) |>
   as.data.frame()
+```
 
+
+Josiah's version:
+
+```{r}
 ggplot(data = laughs, aes(x = delivery)) +
   geom_jitter(aes(y = rating), width = .1, height = 0, alpha = .1) +
   geom_pointrange(data = plotdatf,
                   aes(y = fit, ymin = lower, ymax = upper),
                   position=position_nudge(x=.2))
 ```
+
+
+Elizabeth's version:
+
+```{r}
+laughs |>
+  ggplot(aes(x = delivery, y = rating, colour = delivery, fill = delivery)) +
+  geom_violin(alpha = 0.2) +
+  geom_jitter(alpha = 0.2) +
+  geom_pointrange(data = plotdatf, aes(y = fit, ymin = lower, ymax = upper), colour = 'black') +
+  theme(legend.position = 'none') 
+```
+
 
 `r solend()`
 
