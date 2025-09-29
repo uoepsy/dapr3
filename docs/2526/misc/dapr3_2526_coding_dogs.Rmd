@@ -1,0 +1,154 @@
+---
+title: "dapr3_week3_code_demo"
+author: "jk"
+date: "2025-09-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(digits=3)
+
+library(tidyverse)
+library(lme4)
+
+load(url("https://uoepsy.github.io/dapr3/2526/misc/dapr3_liveR_newtricks.RData"))
+```
+
+# new_trick
+
+We're studying animal learning. 
+
+- We have studied 20 dogs (6 puppies, 14 adults) who are all learning the same new trick.  
+- Each dog has 30 minutes of training for the trick each day for 7 days. 
+- At the end of each training session they are tested to and the time it takes them to complete the trick is recorded
+
+In this study, "Learning" is operationalised as reduction over time in the number of seconds taken to complete the a trick.  
+
+RQ: Is Learning worse for adult dogs (compared to puppies)?  
+
+
+```{r}
+new_trick
+
+```
+
+## descriptives
+
+We need to count/describe things at the right level. 
+
+This doesn't tell us how many puppies/adults there are.. 
+```{r}
+new_trick |> count(isOld)
+```
+This does: 
+```{r}
+new_trick |> count(DOG, isOld) |> count(isOld)
+```
+We can do something like this to see the min/median/max numbers of observations for each dog (they're all 7): 
+
+```{r}
+new_trick |> count(DOG) |> summary()
+```
+
+## Modelling
+
+### lmer  
+
+We're interested in whether learning (reduction over the week in the time taken to complete the trick) is slower for adults vs puppies
+So `tricktime ~ trainingdays` captures learning. We want to know if that is different between adults and puppies, so we include the interaction `tricktime ~ trainingdays*isOld`:  
+
+```{r}
+mod <- lmerTest::lmer(tricktime ~ trainingdays*isOld +
+                        (1 + trainingdays |DOG), 
+                      data=new_trick)
+summary(mod)
+```
+
+
+`trainingdays` is a "within" dog variable. It varies within each dog. This means there is a slope of `tricktime ~ trainingdays` for each dog, and slopes could be different from one dog to another: 
+```{r}
+# lattice is for not-very-pretty-plots that are jsut quick checks:
+library(lattice)
+xyplot(tricktime ~ trainingdays|DOG,new_trick)
+```
+
+`isOld` is a "between" dog variable. it varies between dogs but not within. This means there is no slope for `tricktime ~ isOld` doesn't exist for any one individual dog, so the effect can't differ from one dog to another:  
+```{r}
+bwplot(tricktime ~ isOld|DOG,new_trick)
+```
+
+### models that don't work and shouldn't work:
+
+This model shouldn't work. And it doesn't! 
+```{r}
+sillymod <- lmer(tricktime ~ trainingdays * isOld + (1+trainingdays + isOld|DOG), 
+     data = new_trick) 
+```
+
+### models that shouldn't work but do (but don't mean what you want them to mean)
+
+This model shouldn't work, but it does converge. Unfortunately, what comes out won't make sense, because the model doesn't make sense. 
+```{r}
+sillymod1 <- lmer(tricktime ~ trainingdays * isOld + (1 + isOld|DOG), 
+     data = new_trick)
+summary(sillymod1)
+```
+
+moral of the story: we can't just rely on error messages to find the "correct" model!!  
+
+
+# new_trick_dogbreeds
+
+Another, expanded study:  
+We targeted social media groups for owners of specific breeds of dog. E.g., "The Dachschund Owner's Group" on facebook. From each group we recruited c20 dogs (some are adults, some are puppies), who all completed our "new trick" study (detailed above)  
+
+```{r}
+head(new_trick_dogbreeds)
+
+mod <- lmerTest::lmer(tricktime ~ trainingdays*isOld + 
+       (1 + trainingdays | BREED:DOG) +
+         (1 + trainingdays + isOld | BREED), 
+       data=new_trick_dogbreeds)
+
+summary(mod)
+```
+
+the `ranef()` are the random effects - the deviations for each group. So we can see each dog (one grouping) and each breed (another grouping) relative to the average (the fixed effects):  
+
+```{r}
+ranef(mod)
+```
+
+the `dotplot.ranef.mer()` function can plot them as "catterpillar plots" which can be interesting to see.  
+So for instance, corgis are the slowest at the start (intercept is highest). Whippets are the slowest at the start (intercept is lowest)  
+Staffordshire Terriers, Terriers, Spaniels, all have better learning (more negative slopes of trainingdays).  
+Lurchers, Whippets all have worse learning (more positive slopes of traningdays)  
+and so on.. 
+```{r}
+dotplot.ranef.mer(ranef(mod))
+```
+
+
+# many_new_tricks
+
+Suppose our original study had not simply tasked the dogs with learning _one_ trick, but we actually did it for a selection of tricks ("speak", "wave", "walk backwards" etc..).  
+
+```{r}
+many_new_tricks
+
+# here's all the dogs and all the tricks
+ggplot(many_new_tricks, aes(x=trainingdays, y=tricktime)) + 
+  geom_line(aes(col=DOG)) +
+  facet_wrap(~trick)
+
+# let's for fun, just highlight dougal:
+library(gghighlight)
+ggplot(many_new_tricks, aes(x=trainingdays, y=tricktime)) + 
+  facet_wrap(~trick) +
+  geom_point()+
+  gghighlight(DOG=="Dougal")
+  
+
+```
+
