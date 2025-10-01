@@ -1,12 +1,12 @@
 ---
-title: "Exploratory Factor Analysis 1"
-author: "Josiah King & John Martindale"
+title: "Exploratory Factor Analysis (EFA)"
 editor_options: 
   chunk_output_type: console
 editor: 
   markdown: 
     wrap: 72
 ---
+
 
 ```{r}
 #| label: setup
@@ -61,24 +61,23 @@ egitems = tibble(
 
 ```{r}
 #| results: "asis"
-#| echo: false
 block1_name = "multilevel modelling<br>working with group structured data"
 block1_lecs = c("regression refresher",
-                "introducing multilevel models",
+                "the multilevel model",
                 "more complex groupings",
                 "centering, assumptions, and diagnostics",
                 "recap")
 block2_name = "factor analysis<br>working with multi-item measures"
 block2_lecs = c(
-  "what is a psychometric test?",
-  "using composite scores to simplify data (PCA)",
-  "uncovering underlying constructs (EFA)",
-  "more EFA",
-  "recap"
+  "measurement and dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "reliability and validity",
+  "recap & exam prep"
   )
 
 source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
-course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
 ```
 
 # This week {transition="slide"}
@@ -105,9 +104,6 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
 -   What are your goals?
     -   Reduce reduce reduce!  
         
-![](img_sandbox/pca_factor1.png)
-
-        
 :::
 ::: {.column width="50%" .fragment}
 ### EFA
@@ -119,40 +115,80 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
         (latent) causes
         
 
-![](img_sandbox/pca_factor2.png)     
-
 :::
 :::
 
 ## "Latent variables"?
 
+
+- Still just "dimensions" but.. 
+
+- **Theorized common cause** of responses to a set of variables
+
+    -   *Explain* correlations between measured variables
+    -   Held to be real (can never test this)
+
+## graphical thinking
+
+::::{.columns}
+:::{.column width="50%"}
+
+![](img_sandbox/quickdiags/Slide1.png)
+:::
+:::{.column width="50%" .fragment}
+
+![](img_sandbox/quickdiags/Slide2.png)
+:::
+::::
+
+## PCA versus EFA: How are they different?
+
 ::: columns
-::: {.column width="50%" .incremental}
-- Still an underlying "dimension", but.. 
+::: {.column width="50%"}
+**PCA**
 
-- Theorized common cause (e.g., cognitive ability) of responses to a set of variables
+- The observed measures are independent variables
+- The component is a bit like a dependent variable (it's really just a composite!)
+- Components **sequentially** capture as much variance in the measures as possible
+- Components are determinate
 
-    -   Explain correlations between measured variables
-    -   Held to be real
-    -   No direct test of this theory
-    
 :::
 
 ::: {.column width="50%"}
-```{r, echo=FALSE}
-magick::image_read("img_sandbox/pca_factor.png")
-```
+**EFA**
+
+- The observed measures are dependent variables
+- The factor is the independent variable
+- Models the relationships between variables  
+- Factors are *in*determinate
+
+
 :::
 :::
+
+## As a diagram (PCA)
+
+![](img_sandbox/diag_pca.png)
+
+## As a diagram (PCA)
+
+![](img_sandbox/diag_pca2.png)
+
+## As a diagram (EFA)
+
+
+![](img_sandbox/diag_efa1.png)
 
 ## Debates!   
 
 Put these into two groups - those you feel more comfortable with conceptualising as latent variables and those you don't:  
-(no right/wrong answers)
+(no right/wrong answers)  
 
 :::woo
 wooo! 
-:::
+::: 
+
+<br>
 
 
 - Anxiety 
@@ -164,33 +200,7 @@ wooo!
 - Identity
 
 
-
-## PCA versus EFA: How are they different?
-
-::: columns
-::: {.column width="50%"}
-**PCA**
-
-- The observed measures are independent variables
-- The component is like a dependent variable (it's really just a composite!)
-- Components **sequentially** capture as much variance in the measures as possible
-- Components are determinate
-
-:::
-
-::: {.column width="50%"}
-**EFA**
-
-- The observed measures are dependent variables
-- The factor is the independent variable
-- Models the relationships between variables $(r_{y_{1},y_{2}},r_{y_{1},y_{3}}, r_{y_{2},y_{3}})$
-- Factors are *in*determinate
-
-
-:::
-:::
-
-## Modeling the relationships
+## EFA models of the relationships
 
 - We have some observed variables that are correlated
 
@@ -242,6 +252,10 @@ $$
 |specific variance | variance specific to an item that is not shared with any other items | true and unique | 
 | error variance | variance due to measurement error | not 'true', unique |
 
+
+
+
+
 ## Optional: general factor model equation
 
 $$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$
@@ -259,10 +273,12 @@ $$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$
 
 ```{r}
 #| include: false
-RR = matrix(c(1,.6,.6,
-              .6,1,.6,
-              .6,.6,1), nrow=3)
-tdf = MASS::mvrnorm(2e2,mu=c(0,0,0),Sigma=RR)
+set.seed(34567)
+RR = matrix(c(1,.6,.6,.6,
+              .6,1,.6,.6,
+              .6,.6,1,.6,
+              .6,.6,.6,1), nrow=4)
+tdf = MASS::mvrnorm(2e2,mu=c(0,0,0,0),Sigma=RR)
 cor(tdf) |> round(2)
 
 ll = fa(tdf, nfactors=1,rotate="none")$loadings[,1]
@@ -279,54 +295,48 @@ $$
 \mathbf{\Sigma} &= \quad\quad\quad\mathbf{\Lambda}\mathbf{\Lambda'} &+ \mathbf{\Psi} \quad\quad\quad\quad\quad\quad  \\
 \quad \\
 \begin{bmatrix}
-1 & 0.61 & 0.64 \\
-0.61 & 1 & 0.59 \\
-0.64 & 0.59 & 1
+1 & 0.53 & 0.57 & 0.57 \\
+0.53 & 1 & 0.54 & 0.56 \\
+0.57 & 0.54 & 1 & 0.56 \\
+0.57 & 0.56 & 0.56 & 1 \\
 \end{bmatrix} &= 
 \begin{bmatrix}
-0.817 \\
-0.750  \\
-0.788 \\
+0.747 \\
+0.725 \\ 
+0.746 \\ 
+0.764 \\
 \end{bmatrix}
 \begin{bmatrix}
-0.817 & .750 & .788 \\
+0.747 & 0.725 & 0.746 & 0.764 \\
 \end{bmatrix} &+
 \begin{bmatrix}
-0.33 & 0 & 0 \\
-0 & 0.44 & 0 \\
-0 & 0 & 0.38
+0.44 & 0 & 0 & 0 \\
+0 & 0.47 & 0 & 0 \\
+0 & 0 & 0.44 & 0 \\
+0 & 0 & 0 & 0.42  \\
 \end{bmatrix} \\
 \quad \\
 \begin{bmatrix}
-1 & 0.61 & 0.64 \\
-0.61 & 1 & 0.59 \\
-0.64 & 0.59 & 1
+1 & 0.53 & 0.57 & 0.57 \\
+0.53 & 1 & 0.54 & 0.56 \\
+0.57 & 0.54 & 1 & 0.56 \\
+0.57 & 0.56 & 0.56 & 1 \\
 \end{bmatrix} &= 
 \begin{bmatrix}
-0.67 & 0.61 & 0.64 \\
-0.61 & 0.56 & 0.59 \\
-0.64 & 0.59 & 0.62
+0.56 & 0.54 & 0.56 & 0.57 \\
+0.54 & 0.53 & 0.54 & 0.55 \\
+0.56 & 0.54 & 0.56 & 0.57 \\
+0.57 & 0.55 & 0.57 & 0.58 \\
 \end{bmatrix} &+
 \begin{bmatrix}
-0.33 & 0 & 0 \\
-0 & 0.44 & 0 \\
-0 & 0 & 0.38
+0.44 & 0 & 0 & 0 \\
+0 & 0.47 & 0 & 0 \\
+0 & 0 & 0.44 & 0 \\
+0 & 0 & 0 & 0.42  \\
 \end{bmatrix} \\
 \end{align}
 $$
 
-
-## As a diagram
-
-![](img_sandbox/diag_efa1.png)
-
-## As a diagram (PCA)
-
-![](img_sandbox/diag_pca.png)
-
-## As a diagram (PCA)
-
-![](img_sandbox/diag_pca2.png)
 
 
 ## We make assumptions when we use models
@@ -337,6 +347,12 @@ $$
     2.  The residuals/errors should not correlate with the factor
     3.  Relationships between items and factors should be linear, although there are models that can account for nonlinear relationships
         
+## We make assumptions when we use models (2)
+
+![](img_sandbox/diag_efa1.png)
+
+
+
 
 
 # What does an EFA look like?
@@ -423,15 +439,9 @@ cor(eg_data) |>
 :::
 ::::
 
-## What does an EFA look like?
+## EFA in R
 
 ::::{.columns}
-:::{.column width="50%"}
-```{r}
-#| echo: false
-gt::gt(egitems)
-```
-:::
 :::{.column width="50%"}
 ```{r}
 #| echo: true
@@ -441,12 +451,27 @@ myfa <- fa(eg_data, nfactors = 2,
 myfa
 ```
 :::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+gt::gt(egitems)
+```
+:::
 ::::
 
 ## What does an EFA look like?
 
 
 ::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: true
+library(psych)
+myfa <- fa(eg_data, nfactors = 2, 
+           fm = "ml", rotate = "oblimin")
+myfa
+```
+:::
 :::{.column width="50%" style="font-size:.8em" .incremental}
 
 -   **Factor loadings**, like PCA loadings, show the relationship of each measured variable to each factor.
@@ -460,15 +485,6 @@ myfa
 
     - Square of a factor loading tells us how much item variance is explained by a factor
 
-:::
-:::{.column width="50%"}
-```{r}
-#| echo: true
-library(psych)
-myfa <- fa(eg_data, nfactors = 2, 
-           fm = "ml", rotate = "oblimin")
-myfa
-```
 :::
 ::::
 
@@ -486,10 +502,10 @@ So how do we move from data and correlations to a factor analysis?
 6. _if the aim is to develop a scale for future use_ - consider removing "problematic" items and start over again.
 
 
-# Suitability of data, factor extraction methods {background-color="white"}
+# Item Suitability, Factor Extraction background-color="white"}
 
 1. check suitability of items.
-2. decide on factor extraction method and rotation.  
+2. decide on factor extraction method<span style="opacity:.4"> and rotation.</span>  
 3. <p style="opacity:.4">examine plausible number of factors.</p>  
 4. <p style="opacity:.4">based on 3, choose the range to examine from $n_{min}$ factors to $n_{max}$ factors.</p>  
 5. <p style="opacity:.4">do EFA, extracting from $n_{min}$ to $n_{max}$ factors. Compare each of these 'solutions' in terms of structure, variance explained, and --- by examining how the factors from each solution relate to the observed items --- assess how much theoretical sense they make.</p>  
@@ -511,7 +527,7 @@ In short "is the data correlated?".
 - For PCA, we discussed the use of the eigen-decomposition
     - this isn't estimation, this is just a calculation
 
-- For EFA, we have a model (with error), so we need to estimate the model parameters (the factor loadings)
+- For EFA, we have a model (with error), so we need to **estimate** the model parameters (the factor loadings)
 
 
 ## Extraction Methods (2)  
@@ -851,13 +867,13 @@ p3
 ## Rotational Indeterminacy
 
 
-- **Rotational indeterminacy** means that there are an infinite number of pairs of factor loadings and factor score matrices which will fit the data **equally well**, and are thus **indistinguishable** by any numeric criteria
+**Rotational indeterminacy** means that there are an infinite number of pairs of factor loadings and factor score matrices which will fit the data **equally well**, and are thus **indistinguishable** by any numeric criteria
 
-- $$\mathbf{\Sigma}=\mathbf{\Lambda}\color{orange}{\mathbf{\Phi}}\mathbf{\Lambda'}+\mathbf{\Psi}$$
+$$\mathbf{\Sigma}=\mathbf{\Lambda}\color{orange}{\mathbf{\Phi}}\mathbf{\Lambda'}+\mathbf{\Psi}$$
 
-- There is no **unique solution** to the factor problem
+There is no **unique solution** to the factor problem
     
-- We can not numerically tell rotated solutions apart, so **theoretical coherence** of the solution plays a big role!  
+We can not numerically tell rotated solutions apart, so **theoretical coherence** of the solution plays a big role!  
     
 <!-- ## The impact of rotation -->
 
@@ -927,17 +943,15 @@ p3
 
 ## How do I choose which rotation?
 
--   Clear recommendation: always to choose oblique.
+Easy recommendation: always to choose oblique.
 
--   Why?
+Why?
 
-    -   It is very unlikely factors have correlations of 0
-    -   If they are close to zero, this is allowed within oblique
-        rotation
-    -   The whole approach is exploratory, and the constraint is
-        unnecessary.
+- It is very unlikely factors have correlations of 0
+- If they are close to zero, this is allowed within oblique rotation
+- The whole approach is exploratory, and the constraint is unnecessary.
 
--   However, there is a catch...
+- However, there is a catch...
 
 
 ## Interpretation and oblique rotation
@@ -1282,7 +1296,7 @@ fa3$Phi
 library(gt)
 gt(egitems) |>
   tab_style(
-    style = cell_fill(color = "lightgrey"),
+    style = cell_text(color = "grey"),
     locations = cells_body(rows = 5)
   )
 ```

@@ -217,7 +217,7 @@ pp <- plot_model(full_model, type = "diag")
 :::{.column width="50%"}
 $\varepsilon$  
 `resid(model)`  
-mean zero, constant variance  
+zero mean, constant variance  
 
 ```{r}
 #| echo: false
@@ -230,7 +230,7 @@ pp[[1]]
 :::{.column width="50%"}
 $\color{orange}{\zeta}$  
 `ranef(model)`  
-mean zero, constant variance  
+zero mean, constant variance  
 
 ```{r}
 #| echo: false
@@ -327,14 +327,8 @@ ggplot(rans, aes(sample = x1)) +
 :::
 ::::
 
-## for a quick check
 
-```{r}
-#| echo: true
-performance::check_model(model)
-```
-
-## posterior predictions
+## "posterior" predictions
 
 ```{r}
 #| echo: true
@@ -373,7 +367,7 @@ Assumptions are the things *we* assume when 'using' a model.
 
 # Troubleshooting
 
-## Same old study {.smaller}
+## Same old study
 
 ```{r}
 #| echo: false
@@ -393,11 +387,6 @@ d3 <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv")
 head(d3)
 ```
 
-```{r}
-#| echo: true
-library(ICC)
-ICCbare(x = ppt, y = ACE, data = d3)
-```
 :::
 
 :::{.column width="50%"}
@@ -408,7 +397,6 @@ ICCbare(x = ppt, y = ACE, data = d3)
 library(ggExtra)
 library(patchwork)
 ggplot(d3, aes(x=visit, y=ACE, col=condition)) + 
-  geom_point()+
   geom_path(aes(group=ppt))+
   guides(col="none")+
   facet_wrap(~condition)
@@ -420,6 +408,7 @@ ggplot(d3, aes(x=visit, y=ACE, col=condition)) +
 
 ```{r}
 #| echo: true
+#| fig-asp: .6
 mymodel <- lmer(ACE ~ visit * condition + (1 | ppt), data = d3)
 performance::check_model(mymodel)
 ```
@@ -829,10 +818,6 @@ dotplot_diag(infl2$cooksd, cutoff = 0.201, index=infl2$ppt)
 :::
 ::::
 
-
-
-
-
 ## The process will depend on the design
 
 - In this context (observations within participants) - it makes sense to think about level-2 (participant) _first_.  
@@ -851,42 +836,14 @@ infl2 |> arrange(desc(cooksd)) |>
 :::
 
 :::{.column width="50%"}
-- `mdffits` is a measure of multivariate "difference in fixed effects"
 ```{r}
 #| echo: true
 infl2 |> arrange(desc(mdffits)) |>
   head()
 ```
-
+- `mdffits` is a measure of multivariate "difference in fixed effects"
 :::
 ::::
-
-
-## Sensitivity Analysis
-
-"What would happen to my conclusions & estimates if I ... "
-
-```{r}
-#| echo: true
-deleted_ppt <- case_delete(mymodel, level = "ppt", type = "fixef", delete = c("PPT_2"))
-```
-
-::::{.columns}
-:::{.column width="50%"}
-```{r}
-#| echo: true
-deleted_ppt$fixef.original
-```
-:::
-
-:::{.column width="50%"}
-```{r}
-#| echo: true
-deleted_ppt$fixef.delete
-```
-:::
-::::
-
 
 ## Sensitivity Analysis?
 
@@ -963,7 +920,7 @@ ggplot(dat, aes(x=iq))+geom_histogram(binwidth = 2)+
 :::
 
 :::{.column width="50%"}
-We can re-center this so that the mean becomes zero:
+We can re-center this so that 100 (the mean) becomes zero:
 ```{r}
 #| echo: false
 #| fig-asp: .8
@@ -1010,8 +967,7 @@ ggplot(dat, aes(x=iq3))+geom_histogram(binwidth = 2)+
 
 ::::{.columns}
 :::{.column width="50%"}
-Suppose we have a variable for which the mean is 100.  
-The standard deviation is 15
+Suppose we have a variable for which the mean is 100. The standard deviation is 15
 ```{r}
 #| echo: false
 #| fig-asp: .8
@@ -1073,6 +1029,7 @@ anova(m1,m2,m3,m4)
 ```{r}
 #| echo: false
 #| fig-align: "center"
+#| fig-height: 6
 set.seed(934)
 df <- tibble(
   x = rnorm(200,4,1),
@@ -1135,6 +1092,9 @@ p1 + p2 + p3 + p4
 :::
 ::::
 
+## Big Fish Little Fish
+
+![](img_sandbox/bigfishlittlefish.png)
 
 ## Big Fish Little Fish
 
@@ -1254,7 +1214,7 @@ __Grand mean__
 #| echo: false
 #| fig-asp: .8
 ggplot(bflp, aes(x=fish_weight, y=self_esteem, col=pond))+
-  geom_point(alpha=.7)+
+  geom_point(alpha=.7, size=3)+
   labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
   guides(color="none")+
   geom_vline(xintercept=mean(bflp$fish_weight),lty="dotted", lwd=1)
@@ -1269,9 +1229,11 @@ __Group means__
 #| fig-asp: .8
 bflp %>% group_by(pond) %>% summarise(s=sd(fish_weight), fish_weight = mean(fish_weight), self_esteem = mean(self_esteem)) %>% ungroup -> sdff
 ggplot(bflp, aes(x=fish_weight, y=self_esteem, group=pond, col=pond))+
-  geom_point(alpha=.7)+
-  geom_point(data=sdff,size=4)+
-  #geom_errorbarh(data=sdff,aes(xmin=fish_weight-(2*s), xmax=fish_weight+(2*s)))+
+  geom_point(alpha=.7,size=3)+
+  geom_segment(data=sdff,
+               aes(x = fish_weight, xend = fish_weight, 
+                   y = self_esteem-.1, yend = self_esteem+.1),
+               lwd=3) +
   labs(x="Fish Weight (kg)",y="Self Esteem Scale (1-5)")+
   guides(color="none")
 ```
@@ -1300,8 +1262,10 @@ library(gganimate)
 ggplot(bflpa, aes(x=fish_weight, y=self_esteem,color=pond)) +
   geom_point(alpha=.7)+
   geom_line(aes(group=pond), alpha=.1)+
-  geom_point(data=sdff,size=4)+
-  #geom_errorbarh(data=sdff,aes(x=0,xmin=0-(2*s), xmax=0+(2*s)), alpha=.5)+
+  geom_segment(data=sdff,
+               aes(x = fish_weight, xend = fish_weight, 
+                   y = self_esteem-.1, yend = self_esteem+.1),
+               lwd=3) +
   labs(x="Fish weight",y="Self Esteem Scale (1-5)")+
   guides(color="none") +
   transition_states(t) -> p
@@ -1787,7 +1751,7 @@ ggplot(alcgad, aes(x=gad, y=alcunits,color=factor(ppt))) +
 :::{.column width="50%"}
 ```{r}
 #| echo: false
-#| fig-asp: .8
+#| fig-height: 8
 p2
 ```
 :::
@@ -1795,7 +1759,7 @@ p2
 :::{.column width="50%"}
 ```{r}
 #| echo: false
-#| fig-asp: .8
+#| fig-height: 8
 p3
 ```
 :::
@@ -1808,7 +1772,7 @@ p3
 :::{.column width="50%"}
 ```{r}
 #| echo: false
-#| fig-asp: .8
+#| fig-height: 8
 p1
 ```
 :::
@@ -1816,6 +1780,7 @@ p1
 :::{.column width="50%"}
 ```{r}
 #| echo: false
+#| fig-height: 8
 tgudat %>% group_by(patient) %>% mutate(physm= mean(phys),physc = phys-physm) %>% ungroup %>%
 ggplot(., aes(x=physc, y=tgu,color=patient)) +
   geom_point()+
