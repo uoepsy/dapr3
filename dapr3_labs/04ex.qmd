@@ -54,9 +54,9 @@ tibble(
 
 
 `r qbegin(qcounter())`
-Remember that what we're interested in is **"whether levels of hunger are associated with levels of irritability (i.e., "the hangry hypothesis")"**.  
+Remember that what we're interested in is **"whether levels of hunger are associated with levels of irritability (i.e., the hangry hypothesis)."**
 
-Read in the data and fit the model below. How well does it address the research question?  
+Read in the data, call the data frame `hangry`, and fit the model below. How well does it address the research question?  
 ```{r}
 mod1 <- lmer(q_irritability ~ q_hunger + 
                 (1 + q_hunger | ppt), 
@@ -91,7 +91,7 @@ ggplot(hangry, aes(x = q_hunger, y = q_irritability, group = ppt)) +
   facet_wrap(~ppt)
 ```
 
-So if we try to interpret the fixed effect of our model above as "what happens to a persons' irritability when they are 1 more hungry?", we're not accurately estimating this because our model doesn't account for the fact that the numbers in `q_hunger` mean very different things for different people - for person 1 a hunger score of 60 might be "I'm really hungry", but for person 2 (who is usually in the 80s or 90s) it could mean "I'm not very hungry at all".  
+So if we try to interpret the fixed effect of our model above as "what happens to a persons' irritability when they are 1 more hungry?", we're not accurately estimating this because our model doesn't account for the fact that the numbers in `q_hunger` mean very different things for different people - for person 1 a hunger score of 60 might be "I'm really hungry", but for person 2 (who usually has a hunger score in the 80s or 90s), 60 could mean "I'm not very hungry at all".  
 
 `r solend()`
 
@@ -101,7 +101,7 @@ So if we try to interpret the fixed effect of our model above as "what happens t
 ::: {.callout-note collapse="true"}
 #### within effects, between effects, and smushed effects
 
-Research Question: **"whether levels of hunger are associated with levels of irritability (i.e., "the hangry hypothesis")"**.  
+Research Question: **are levels of hunger associated with levels of irritability (i.e., the hangry hypothesis)?**  
 
 Think about the relationship between irritability and hunger. How should we interpret this research aim?  
 
@@ -121,8 +121,8 @@ To disaggregate the 'within' and 'between' effects of hunger on irritability, we
 
 Add to the data these two columns: 
 
-1. a column which contains the average hungriness score for each participant.
-2. a column which contains the deviation from each person's hunger score to that person's average hunger score. 
+1. a column which contains the average hungriness score for each participant. Call this column `hunger_btwn_ppts`, since we'll use it to look at the between-person effect of hunger on irritability.
+2. a column which contains the deviation from each person's hunger score to that person's average hunger score. (In other words, each hunger score minus that person's average hunger score.) Call this column `hunger_wi_ppts`, since we'll use it to look at the within-person effect of hunger on irritability.
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -135,8 +135,8 @@ You'll find `group_by() |> mutate()` very useful here, as seen in [Chapter 10 #g
 hangry <- 
     hangry |> group_by(ppt) |>
         mutate(
-            avg_hunger = mean(q_hunger),
-            hunger_gc = q_hunger - avg_hunger
+            hunger_btwn_ppts = mean(q_hunger),
+            hunger_wi_ppts = q_hunger - hunger_btwn_ppts
         )
 head(hangry)
 ```
@@ -147,8 +147,8 @@ head(hangry)
 `r qbegin(qcounter())`
 For each of the new variables you just added, plot the irritability scores against those variables.  
 
-- Does it look like hungry people are more irritable than less hungry people?  
-- Does it look like when people are more hungry than normal, they are more irritable? 
+- Does it look like hungry people are more irritable than less hungry people? (This is the between effect, because we're looking at differences *between* people's average hungriness.)
+- Does it look like when people are more hungry than normal, they are more irritable? (This is the within effect, because we're looking at deviations *within* each individual person's hungriness.)
 
 :::{.callout-tip collapse="true"}
 #### Hints
@@ -160,9 +160,20 @@ You might find `stat_summary()` useful here for plotting the between effect (see
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-We might find it easier to look at a plot where each participant is represented as their mean plus an indication of their range of irritability scores:  
+
+Let's start just by making a scatterplot of each person's average hunger, plotted against all of their irritability scores.
+
 ```{r fig.asp=.5}
-ggplot(hangry,aes(x=avg_hunger,y=q_irritability))+
+ggplot(hangry,aes(x=hunger_btwn_ppts,y=q_irritability))+
+  geom_point()
+```
+
+The reason we kind of see the points forming vertical columns is because each person's mean hunger score is located at a single point on the x axis, while their irritability scores take on different values.
+
+This is a lot of data, though.
+We might find it easier to look at a plot where each participant is represented as their mean irritability, along with an indication of the standard error of their irritability scores:  
+```{r fig.asp=.5}
+ggplot(hangry,aes(x=hunger_btwn_ppts,y=q_irritability))+
     stat_summary(geom="pointrange")
 ```
 It's hard to see any clear relationship between a persons' average hunger and their irritability scores here.  
@@ -170,28 +181,28 @@ It's hard to see any clear relationship between a persons' average hunger and th
 It is also a bit difficult to get at the relationship between participant-centered hunger and irritability, because there are a lot of different lines (one for each participant). To make it easier to get an idea of what's happening, we'll make the plot fit a simple lm() (a straight line) for each participants' data.  
 
 ```{r}
-ggplot(hangry,aes(x=hunger_gc,y=q_irritability, group=ppt)) +
+ggplot(hangry,aes(x=hunger_wi_ppts,y=q_irritability, group=ppt)) +
   geom_point(alpha = .2) + 
   geom_smooth(method=lm, se=FALSE, lwd=.2)
 ```
 
-It looks like most of these lines are going upwards, but there's a fair bit of variability in people's slopes.  
+It looks like most of these lines are sloping upwards, but there's a fair bit of variability in people's slopes: some people's lines are going up, some are going down.
 
-So we can actually make a guess at what we're going to see when we model. We'll probably have a positive fixed effect of `hunger_gc` (i.e. *A* below will be positive), and the by-participant variation in these slopes will be quite large relative to the fixed effect (i.e *B* below will be quite large in comparison to *A*)
+So we can actually make a guess at what we're going to see when we model. We'll probably have a positive fixed effect of `hunger_wi_ppts` (i.e. *A* below will be positive), and the by-participant variation in these slopes will be quite large relative to the fixed effect (i.e *B* below will be quite large in comparison to *A*)
  
 ```
 Random effects:
- Groups   Name        Variance Std.Dev. Corr 
- ppt      (Intercept)      ...      ... 
-          hunger_gc        ...      *B*
- Residual                  ...      ...    
+ Groups   Name             Variance Std.Dev. Corr 
+ ppt      (Intercept)           ...      ... 
+          hunger_wi_ppts        ...      *B*
+ Residual                       ...      ...    
 
 ...
 
 Fixed effects:
             Estimate Std. Error t value
 (Intercept)      ...        ...     ...
-hunger_gc        *A*        ...     ...
+hunger_wi_ppts   *A*        ...     ...
 ...              ...        ...     ...
 ```
 
@@ -201,15 +212,17 @@ hunger_gc        *A*        ...     ...
 
 `r qbegin(qcounter())`
 
-We have taken the raw hunger scores and separated them into two parts (raw hunger scores = participants' average hunger score + observation level deviations from those averages), that represent two different aspects of the relationship between hunger and irritability.  
+We have taken the raw hunger scores and separated them into two parts (raw hunger scores = participants' average hunger score + observation-level deviations from those averages).
+Those two parts represent two different aspects of the relationship between hunger and irritability.  
 
-Adjust your model specification to include these two separate variables as predictors, instead of the raw hunger scores.  
+Adjust your model specification to include these two separate variables (`hunger_btwn_ppts` and `hunger_wi_ppts`) as predictors, instead of the raw hunger scores.  
+Include the appropriate random effects.
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
 - We can only put one of these variables in the random effects `(1 + hunger | participant)`. Think about the fact that each participant has only *one* value for their average hungriness.  
-- If the model fails to converge, and it's a fairly simple model (i.e one or two random slopes), then often you can switch optimizer (see [Chapter 2 #convergence-warnings-singular-fits](https://uoepsy.github.io/lmm/02_lmm.html#convergence-warnings-singular-fits){target="_blank"}). For instance, try adding `control = lmerControl(optimizer = "bobyqa")` to the model.  
+- If the model fails to converge, and if it's a fairly simple model (i.e one or two random slopes), then often you can switch optimizer (see [Chapter 2 #convergence-warnings-singular-fits](https://uoepsy.github.io/lmm/02_lmm.html#convergence-warnings-singular-fits){target="_blank"}). For instance, try adding `control = lmerControl(optimizer = "bobyqa")` to the model.  
 
 :::
 
@@ -220,8 +233,8 @@ With the defaults, this model doesn't converge
 ```{r}
 #| message: true
 #| error: true
-hangrywb <- lmer(q_irritability ~ avg_hunger + hunger_gc + 
-                (1 + hunger_gc | ppt), 
+hangrywb <- lmer(q_irritability ~ hunger_btwn_ppts + hunger_wi_ppts + 
+                (1 + hunger_wi_ppts | ppt), 
                 data = hangry)
 ```
 ```
@@ -232,8 +245,8 @@ In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
 
 Changing the optimizer helps:  
 ```{r}
-hangrywb <- lmer(q_irritability ~ avg_hunger + hunger_gc + 
-                (1 + hunger_gc | ppt), 
+hangrywb <- lmer(q_irritability ~ hunger_btwn_ppts + hunger_wi_ppts + 
+                (1 + hunger_wi_ppts | ppt), 
                 data = hangry,
                 control = lmerControl(optimizer = "bobyqa"))
 ```
@@ -272,11 +285,13 @@ summary(allopts)$fixef
 
 
 `r qbegin(qcounter())`
-Write down an interpretation of each of the fixed effects
+
+Write down what each of the fixed effects means.
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-Here they are
+Here are the fixed effects:
 ```{r}
 fixef(hangrywb)
 ```
@@ -287,8 +302,8 @@ broom.mixed::tidy(hangrywb,effects="fixed") |>
   transmute(
     term,est=round(estimate,3),
     interpretation=c(
-      "estimated irritability score for someone with an average hunger of 0, and not deviating from that average (i.e. hunger_gc = 0)",
-      "estimated difference in irritability between two people who differ in average hunger level by 1 (e.g., a person with average hunger of 11 vs someone with average hunger level of 10), when they are at their average (hunger_gc = 0)",
+      "estimated irritability score for someone with an average hunger of 0, and not deviating from that average (i.e. hunger_wi_ppts = 0)",
+      "estimated difference in irritability between two people who differ in average hunger level by 1 (e.g., a person with average hunger of 11 vs someone with average hunger level of 10), when they are at their average (hunger_wi_ppts = 0)",
       "estimated change in irritability score for every 1 more hungry a person is than they normally are"
     )
   ) |> gt::gt()
@@ -297,7 +312,7 @@ broom.mixed::tidy(hangrywb,effects="fixed") |>
 `r solend()`
 
 `r qbegin(qcounter())`
-Have a go at also writing an explanation for yourself of the random effects part of the output.  
+Have a go at also writing an explanation for yourself of the random effects part of the output (i.e., the stuff that comes out when you run the code `VarCorr(MODELNAMEHERE)`).  
 There's no formulaic way to interpret these, but have a go at describing in words what they represent, and how that adds to the picture your model describes.  
 
 Don't worry about making it read like a report - just write yourself an explanation!  
@@ -316,9 +331,9 @@ broom.mixed::tidy(hangrywb,effects="ran_pars") |>
     term,est=round(estimate,3),
     interpretation=c(
       "Participant level variability in irritability when they are at their average hunger level - i.e. when everybody is at their own average level of hunger, they vary in their irritability scores with a standard deviation of 7.",
-      "Participants vary quite a bit in how deviations from hunger are associated with irritability. They vary around the fixed effect of 0.19 with a standard deviation of 0.37. To think about what this means, imagine a normal distribution that is centered on 0.19 and has a standard deviation of 0.36. A fairly large portion of that distribution would fall below zero (i.e. have a negative slope). And we would also expect some slopes that are e.g., .5, .6 etc",
-      "this estimate is basically zero, but represents the relationship between participants relative standing at the intercept and their relative standing on the slopes. So participants who are more irritable than others when at their average hunger, tend to have slightly lower slopes",
-      "the residual variance doesn't really have much of an interpretation - it really just represents all the leftover stuff that the model doesn't explain. If we imagine all of the individual participant lines, this represents how spread out the individual observations are around those lines"
+      "Participants vary quite a bit in how deviations from hunger are associated with irritability. They vary around the fixed effect of 0.19 with a standard deviation of 0.37. To think about what this means, imagine a normal distribution that is centered on 0.19 and has a standard deviation of 0.36. A fairly large portion of that distribution would fall below zero (i.e. have a negative slope). And we would also expect some slopes that are e.g., .5, .6 etc.",
+      "This estimate is basically zero, but it represents the relationship between participants' relative standing at the intercept and their relative standing on the slopes. So participants who are more irritable than others when at their average hunger, tend to have very very slightly more negative slopes. In other words, people who are more irritable when at average hunger become irritable *slightly* slower, as they get hungrier, compared to people who are less irritable",
+      "the residual variance doesn't really have much of an interpretation - it really just represents all the leftover stuff that the model doesn't explain. If we imagine all of the individual participant lines, 4.77 represents how spread out (on the scale of irritability scores) the individual observations are around those lines"
     )
   ) |> gt::gt()
 ```
@@ -329,16 +344,19 @@ broom.mixed::tidy(hangrywb,effects="ran_pars") |>
 
 `r qbegin(qcounter())`
 A second dataset on the same variables is available at: [https://uoepsy.github.io/data/hangry2.csv](https://uoepsy.github.io/data/hangry2.csv).  
-These data are from people who were following a five-two diet, while the original dataset were from people who were not following any diet.  
+These data are from people who were following a five-two diet, while the original dataset were from people who were not following any diet.
+(On the five-two diet, people eat normally for five days a week, but then restrict their intake for two days a week.)
 
 Combine the datasets together so we can fit a model to see if the hangry effect differs between people on diets vs those who aren't.  
-
+Call the new dataframe `hangryfull`.
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-- Something like `bind_rows()` might help here. If you've not seen it before, remember that you can look up the help documentation in the bottom-right panel of RStudio
-- Be sure to keep an indicator of which group the data are in!!  
+- Something like `bind_rows()` might help here. If you've not seen it before, remember that you can look up the help documentation in the bottom-right panel of RStudio.
+- Be sure to keep an indicator of which group the data are in in a column called `diet`.
+  - For example, use `mutate()` to add an identifier column to each one before binding. 
+  - Or use the `.id` argument of `bind_rows()` to identify the original data frame. (Check the documentation to see how to use `.id`!)
 
 :::
 
@@ -351,7 +369,9 @@ Here are our two datasets:
 hangry1 <- read_csv("https://uoepsy.github.io/data/hangry1.csv")
 hangry2 <- read_csv("https://uoepsy.github.io/data/hangry2.csv")
 ```
-We could simply bind them together using `bind_rows()`
+
+If we simply bind them together using `bind_rows()` like this...
+
 ```{r}
 #| eval: false
 hangryfull <- 
@@ -360,7 +380,13 @@ hangryfull <-
     hangry2
   )
 ```
-but then we wouldn't know who was from which group! So we'll need to add a variable to each one first:
+
+
+... then we wouldn't know which data was from which group!
+
+There are a couple ways of adding identifiers to keep the non-diet data and the diet data apart.
+
+One way: Add a new identifier variable to each data frame first.
 
 ```{r}
 hangryfull <- 
@@ -370,6 +396,22 @@ hangryfull <-
   )
 head(hangryfull)
 ```
+
+Another way: Within `bind_rows()`, you can assign each data frame a name that represents its value in the identifier column. 
+And you can give the identifier column a name using the argument `.id`, as follows:
+
+```{r}
+#| eval: false
+hangryfull <-
+  bind_rows(
+  'N' = hangry1, 
+  'Y' = hangry2,
+  .id = 'diet'
+  )
+```
+
+Both methods have exactly the same result!
+You can pick your favourite way.
 
 
 `r solend()`
@@ -381,8 +423,14 @@ Does the relationship between hunger and irritability depend on whether or not p
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-Which relationship between hunger and irritability are we talking about? The between effect or the within effect? It could be both!  
-We're going to need to create those two variables again for this combined dataset.  
+Which relationship between hunger and irritability are we talking about? The between effect or the within effect? It could be both!
+
+To fit the model we want, we'll need to create those two variables (`hunger_btwn_ppts` and `hunger_wi_ppts`) for this combined dataset again.
+
+This model will also require a variable that tells us whether people were on the diet or not (the identifier variable from before).
+We'll also need to figure out whether we can get random slopes over the new diet variable.
+Can we include random slopes for each participant over diet?
+Why or why not?
 
 :::
 
@@ -393,12 +441,12 @@ We're going to need to create those two variables again for this combined datase
 hangryfull <- 
     hangryfull |> group_by(ppt) |>
         mutate(
-            avg_hunger = mean(q_hunger),
-            hunger_gc = q_hunger - avg_hunger
+            hunger_btwn_ppts = mean(q_hunger),
+            hunger_wi_ppts = q_hunger - hunger_btwn_ppts
         )
 
-hangrywbdiet <- lmer(q_irritability ~ (avg_hunger + hunger_gc) * diet + 
-                (1 + hunger_gc | ppt), 
+hangrywbdiet <- lmer(q_irritability ~ (hunger_btwn_ppts + hunger_wi_ppts) * diet + 
+                (1 + hunger_wi_ppts | ppt), 
                 data = hangryfull,
                 control=lmerControl(optimizer="bobyqa"))
 
@@ -409,7 +457,8 @@ summary(hangrywbdiet, corr = FALSE)
 
 
 `r qbegin(qcounter())`
-Construct two plots showing the two model estimated interactions. This model is a bit of a confusing one, so plotting may help a bit with understanding what those interactions represent.   
+Construct two plots, one for each of the interactions that the model estimates.
+This model is a bit of a confusing one, so plotting may help a bit with understanding what those interactions represent.   
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -423,40 +472,41 @@ Construct two plots showing the two model estimated interactions. This model is 
 The `xlevels` bit here just gives us the little dataframe to plot with more levels at it, so that it gives us smoother lines. Try it with and without to see what I mean! 
 ```{r}
 library(effects)
-effect("avg_hunger*diet", hangrywbdiet, xlevels=20) |>
+effect("hunger_btwn_ppts*diet", hangrywbdiet, xlevels=20) |>
   as.data.frame() |>
-  ggplot(aes(x=avg_hunger, y=fit,col=diet))+
+  ggplot(aes(x=hunger_btwn_ppts, y=fit,col=diet))+
   geom_line()+
   geom_ribbon(aes(ymin=lower,ymax=upper,fill=diet),alpha=.4)+
   labs(x="participants' average hunger level")
 ```
-We saw in our original model that for the reference level of `diet`, the "N" group, there was no association between how hungry a person is _on average_ and their irritability. This is the red line we see in the plot above. In our full model this is the `avg_hunger` coefficient.  
+We saw in our original model that for the reference level of `diet`, the "N" group, there was no association between how hungry a person is _on average_ and their irritability. This is the red line we see in the plot above. In our full model this is the `hunger_btwn_ppts` coefficient.  
 
-We also saw the interaction `avg_hunger:dietY` indicates that irritability is estimated to increase by 0.47 more for those in the diet than it does for those not on the diet. So the blue line is should be going up more steeply than the red line (which is flat). And it is! 
+We also saw the interaction `hunger_btwn_ppts:dietY` indicates that irritability is estimated to increase by 0.47 more for those in the diet than it does for those not on the diet. So the blue line is should be going up more steeply than the red line (which is flat). And it is! 
 
 ```{r}
-effect("hunger_gc*diet", hangrywbdiet, xlevels=20) |>
+effect("hunger_wi_ppts*diet", hangrywbdiet, xlevels=20) |>
   as.data.frame() |>
-  ggplot(aes(x=hunger_gc, y=fit,col=diet))+
+  ggplot(aes(x=hunger_wi_ppts, y=fit,col=diet))+
   geom_line()+
   geom_ribbon(aes(ymin=lower,ymax=upper,fill=diet),alpha=.4)+
   labs(x="increase from participants' average hunger level")
 ```
-From the coefficient of `hunger_gc` we get the estimated amount by which irritability increases for every 1 more hungry that a person becomes (when they're in the diet "N" group). This is the slope of the red line - the `hunger_gc` coefficient from our full model.  
-The interaction `hunger_gc:fivetwo1` gave us the adjustment to get from the red line to the blue line. It is positive which matches with the fact that the blue line is steeper in this plot. 
+From the coefficient of `hunger_wi_ppts` we get the estimated amount by which irritability increases for every 1 more hungry that a person becomes (when they're in the diet "N" group). This is the slope of the red line - the `hunger_wi_ppts` coefficient from our full model.  
+The interaction `hunger_wi_ppts:fivetwo1` gave us the adjustment to get from the red line to the blue line. It is positive which matches with the fact that the blue line is steeper in this plot. 
+In other words, if people are on a diet, then as their hunger increases relative to their average, they become irritable faster than people who are not on a diet.
 
 `r solend()`
 
 
 `r qbegin(qcounter())`
-Provide tests of the fixed effects and write-up the results.  
+Run significance tests for the fixed effects, and write up the results.  
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
-hangrywbdiet.p <- lmerTest::lmer(q_irritability ~ (avg_hunger + hunger_gc) * diet + 
-                (1 + hunger_gc | ppt), 
+hangrywbdiet.p <- lmerTest::lmer(q_irritability ~ (hunger_btwn_ppts + hunger_wi_ppts) * diet + 
+                (1 + hunger_wi_ppts | ppt), 
                 data = hangryfull,
                 control=lmerControl(optimizer="bobyqa"))
 
@@ -473,21 +523,23 @@ res[,9][!grepl("<",res[,9])] <- paste0("=",res[,9][!grepl("<",res[,9])])
 res
 ```
 
-To investigate the association between irritability and hunger, and whether this relationship is different depending on whether or not participants are on a restricted diet such as the five-two, a multilevel linear model was fitted.  
-To disaggregate between the differences in irritability due to people being in general more/less hungry, and those due to people being more/less hungry than usual for them, irritability was regressed onto both participants' average hunger scores their relative hunger levels. Both of these were allowed to interact with whether or not participants were on the five-two diet. Random intercepts and slopes of relative-hunger level were included for participants. The model was fitting with restricted maximum likelihood estimation with the **lme4** package (Bates et al., 2015), using the _bobyqa_ optimiser from the **lme4**. $P$-values were obtained using the Satterthwaite approximation for degrees of freedom.  
+To investigate the association between irritability and hunger, and whether this relationship is different depending on whether or not participants are on the five-two diet, a multilevel linear model was fitted.  
+To disaggregate between the differences in irritability due to people being in general more/less hungry, and those due to people being more/less hungry than usual for them, irritability was regressed onto both participants' average hunger scores and their relative hunger levels. Both of these were allowed to interact with whether or not participants were on the five-two diet. Random intercepts and slopes over relative-hunger level were included for participants. The model was fitted with restricted maximum likelihood estimation with the **lme4** package (Bates et al., 2015), using the _bobyqa_ optimiser. $P$-values were obtained using the Satterthwaite approximation for degrees of freedom.  
 
-Results indicate that for people on no diet, being more hungry than normal was associated with greater irritability ($b = `r res[3,2]`,\ SE = `r res[3,3]`,\ t(`r res[3,8]`) = `r res[3,7]`,\ p`r res[3,9]`$), and that this was increased for those following the five-two diet ($b = `r res[6,2]`,\ SE = `r res[6,3]`,\ t(`r res[6,8]`) = `r res[6,7]`,\ p`r res[6,9]`$). 
-Although for those not on a specific diet there was no evidence for an association between irritability and being generally a more hungry person ($p`r res[2,9]`$), there a significant interaction was found between average hunger and being on the five-two diet ($b = `r res[5,2]`,\ SE = `r res[5,3]`,\ t(`r res[5,8]`) = `r res[5,7]`,\ p`r res[5,9]`$), suggesting that when dieting, hungrier people tend to be more irritable than less hungry people.  
-Results suggest that the 'hangry hypothesis' may occur _within_ people (when a person is more hungry than they usually are, they tend to be more irritable), but not necessarily between hungry/less hungry people. Dieting was found to increase the association of both between-person hunger and within-person hunger with irritability.  
+Results indicate that for people on no diet, being more hungry than normal was associated with greater irritability ($b = `r res[3,2]`,\ SE = `r res[3,3]`,\ t(`r res[3,8]`) = `r res[3,7]`,\ p`r res[3,9]`$), and that this association was further increased for those following the five-two diet ($b = `r res[6,2]`,\ SE = `r res[6,3]`,\ t(`r res[6,8]`) = `r res[6,7]`,\ p`r res[6,9]`$). 
+
+For those not on a specific diet, there was no evidence for an association between irritability and being generally a more hungry person ($p`r res[2,9]`$).
+However, there was a significant interaction between average hunger and being on the five-two diet ($b = `r res[5,2]`,\ SE = `r res[5,3]`,\ t(`r res[5,8]`) = `r res[5,7]`,\ p`r res[5,9]`$), suggesting that when dieting, hungrier people tend to be more irritable than less hungry people.  
+Results suggest that the 'hangry hypothesis' may occur _within_ people (when a person is more hungry than they usually are, they tend to be more irritable), but not necessarily between hungry/less hungry people. Dieting was found to increase the association with irritability of both between-person hunger and within-person hunger.
 
 ```{r}
 #| echo: false
-p1 <- effect("avg_hunger*diet", hangrywbdiet, xlevels=20) |>
+p1 <- effect("hunger_btwn_ppts*diet", hangrywbdiet, xlevels=20) |>
   as.data.frame() |>
-  ggplot(aes(x=avg_hunger, y=fit,col=diet))+
+  ggplot(aes(x=hunger_btwn_ppts, y=fit,col=diet))+
   stat_summary(
     data = broom.mixed::augment(hangrywbdiet),
-    aes(x = avg_hunger, y = .fitted),
+    aes(x = hunger_btwn_ppts, y = .fitted),
     geom = "pointrange", alpha=.3) +
   geom_line()+
   geom_ribbon(aes(ymin=lower,ymax=upper,fill=diet),alpha=.4)+
@@ -495,17 +547,17 @@ p1 <- effect("avg_hunger*diet", hangrywbdiet, xlevels=20) |>
        y="estimated irritability")
 
 predfr = hangryfull |> 
-  distinct(ppt,diet,avg_hunger) |>
-  mutate(hunger_gc = list(seq(-31,23,1))) |>
-  unnest(hunger_gc)
+  distinct(ppt,diet,hunger_btwn_ppts) |>
+  mutate(hunger_wi_ppts = list(seq(-31,23,1))) |>
+  unnest(hunger_wi_ppts)
 predfr$.fitted = predict(hangrywbdiet,newdata = predfr)
 
-p2 <- effect("hunger_gc*diet", hangrywbdiet, xlevels=20) |>
+p2 <- effect("hunger_wi_ppts*diet", hangrywbdiet, xlevels=20) |>
   as.data.frame() |>
-  ggplot(aes(x=hunger_gc, y=fit,col=diet))+
+  ggplot(aes(x=hunger_wi_ppts, y=fit,col=diet))+
   geom_line(
     data = predfr, 
-    aes(x = hunger_gc, y = .fitted, group = ppt), alpha = .3) +
+    aes(x = hunger_wi_ppts, y = .fitted, group = ppt), alpha = .3) +
   geom_line()+
   geom_ribbon(aes(ymin=lower,ymax=upper,fill=diet),alpha=.4)+
   labs(x="increase from participants' average hunger level",
