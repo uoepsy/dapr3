@@ -1285,7 +1285,8 @@ knitr::include_graphics("img_sandbox/center.gif")
 
 ::::{.columns}
 :::{.column width="50%"}
-<center> __$x_{ij} - \bar{x}_i$__ </center><br>
+
+<center>**Within group**<br> __$x_{ij} - \bar{x}_i$__ </center><br>
 ```{r}
 #| echo: false
 bflp %>% group_by(pond) %>%
@@ -1304,7 +1305,7 @@ ggplot(bflpdat, aes(x=xbari, y=self_esteem,color=pond)) +
 :::
 :::{.column width="50%" .fragment}
 
-<center> __$\bar{x}_i$__ </center><br>
+<center>**Between group**<br> __$\bar{x}_i$__ </center><br>
 
 ```{r}
 #| echo: false
@@ -1360,11 +1361,11 @@ $$
 bflp <- 
   bflp |> group_by(pond) |>
     mutate(
-      fw_pondm = mean(fish_weight),
-      fw_pondc = fish_weight - mean(fish_weight)
+      fw_between_pond = mean(fish_weight),
+      fw_within_pond = fish_weight - mean(fish_weight)
     ) |> ungroup()
 
-mod_wb <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+mod_wb <- lmer(self_esteem ~ fw_between_pond + fw_within_pond + 
               (1 | pond), data=bflp)
 fixef(mod_wb)
 ```
@@ -1381,17 +1382,17 @@ fixef(mod_wb)
 #| fig-asp: 0.8
 #| fig-align: "center"
 broom.mixed::augment(mod_wb) %>%
-  ggplot(.,aes(x=fw_pondm, y=self_esteem, group=pond))+
+  ggplot(.,aes(x=fw_between_pond, y=self_esteem, group=pond))+
   geom_point() + #geom_line(alpha=.2) +
   geom_abline(intercept=fixef(mod_wb)[1], slope=fixef(mod_wb)[2]) -> p1
 
 broom.mixed::augment(mod_wb) %>%
-  ggplot(.,aes(x=fw_pondc, y=self_esteem, group=pond))+
+  ggplot(.,aes(x=fw_within_pond, y=self_esteem, group=pond))+
   geom_point() + #geom_line(alpha=.2) +
-  geom_abline(intercept=fixef(mod_wb)[1]+(fixef(mod_wb)[2]*mean(bflp$fw_pondm)), slope=fixef(mod_wb)[3]) -> p2
+  geom_abline(intercept=fixef(mod_wb)[1]+(fixef(mod_wb)[2]*mean(bflp$fw_between_pond)), slope=fixef(mod_wb)[3]) -> p2
 
 broom.mixed::augment(mod_wb) %>%
-  ggplot(.,aes(x=fw_pondc + fw_pondm, y=.fitted, group=pond))+
+  ggplot(.,aes(x=fw_within_pond + fw_between_pond, y=.fitted, group=pond))+
   geom_point() + geom_line(alpha=.2) -> p3
 
 (p1+p2)/p3
@@ -1413,11 +1414,11 @@ $$
 bflp <- 
   bflp |> group_by(pond) |>
     mutate(
-      fw_pondm = mean(fish_weight),
-      fw_pondc = fish_weight - mean(fish_weight)
+      fw_between_pond = mean(fish_weight),
+      fw_within_pond = fish_weight - mean(fish_weight)
     ) |> ungroup()
 
-mod_wb <- lmer(self_esteem ~ fw_pondm + fw_pondc + 
+mod_wb <- lmer(self_esteem ~ fw_between_pond + fw_within_pond + 
               (1 | pond), data=bflp)
 fixef(mod_wb)
 ```
@@ -1603,12 +1604,12 @@ ggplot(., aes(x=gadm, y=alcunits)) +
 alcgad <- 
   alcgad |> group_by(ppt) |>
   mutate(
-    gadm=mean(gad),
-    gadmc=gad-gadm
+    gad_between = mean(gad),
+    gad_within = gad - mean(gad)
   ) |> ungroup()
 
-alcmod <- lmer(alcunits ~ gadm + gadmc + 
-                 (1 + gadmc | ppt), 
+alcmod <- lmer(alcunits ~ gad_between + gad_within +
+                 (1 + gad_within | ppt), 
                data=alcgad)
 ```
 :::
@@ -1808,9 +1809,10 @@ p1 / p2
 :::{.column width="50%"}
 ```{r}
 #| echo: true
-alcmod.int <- lmer(alcunits ~ (gadm + gadmc)*intervention + 
-                 (1 | ppt), 
-               data=alcgad)
+alcmod.int <- lmer(alcunits ~ intervention * 
+                     (gad_between + gad_within) +
+                     (1 | ppt), 
+                   data=alcgad)
 ```
 :::
 
