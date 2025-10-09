@@ -1,0 +1,148 @@
+---
+title: "Confirmatory Factor Analysis (CFA)"
+editor_options: 
+  chunk_output_type: console
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+
+```{r}
+#| label: setup
+#| include: false
+library(tidyverse)
+library(patchwork)
+library(psych)
+library(lavaan)
+source('_theme/theme_quarto.R')
+```
+
+# Course Overview
+
+```{r}
+#| results: "asis"
+block1_name = "multilevel modelling<br>working with group structured data"
+block1_lecs = c("regression refresher",
+                "the multilevel model",
+                "more complex groupings",
+                "centering, assumptions, and diagnostics",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures"
+block2_lecs = c(
+  "measurement and dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "reliability and validity",
+  "recap & exam prep"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
+```
+
+# This week {transition="slide"}
+
+
+
+## Measurement error
+
+> All measurement is befuddled by error
+>
+> <p align="right">
+>
+> McNemar (1946, p.294)
+>
+> </p>
+
+-   Every measurement we take contains some error, goal is to minimise
+    it
+-   Error can be:
+
+    - **Random** = Unpredictable. Inconsistent values due to something specific to the measurement occasion
+
+    - **Systematic** = Predictable. Consistent alteration of the
+        observed score due to something constant about the measurement
+        tool
+
+
+
+
+```{r}
+library(tidyverse)
+grp1 = t(replicate(25, 
+          tibble(
+  item =letters[1:10],
+  true = 1:10+rnorm(10,0,.3),
+  measure = round(rnorm(10,true,.1),1)
+))) |> as_tibble() |>
+  mutate(ppt = 1:25) |> 
+  unnest(everything())
+  
+
+grp2 = t(replicate(25, 
+          tibble(
+  item =letters[1:10],
+  true = 1:10+rnorm(10,0,.3),
+  measure = round(rnorm(10,true,.4),1)
+))) |> as_tibble() |>
+  mutate(ppt = 26:50) |> 
+  unnest(everything())
+
+df <- bind_rows(grp1,grp2,.id="group") |>
+  mutate(
+    measure2 = ifelse(item=="a" & group==1, true+rnorm(1,0,.1),
+                      ifelse(
+                        item=="a" & group==2, true+rnorm(1,0,.3),NA))
+  )
+
+ggplot(df |> filter(!is.na(measure2)),aes(x=measure,y=measure2))+
+  geom_point()+
+  facet_wrap(~group,scales="free")
+
+df
+```
+
+
+
+# get students to measure 2 properties for 10 things
+   # - e.g., length and angles of lines
+  # split in two groups. one with fewer increments on scale
+
+# then get them to rate set of properties of group of people
+
+# go back to thing A, ask them to measure again
+
+#  test re-test
+# correlation thing A measurements, split by group
+
+
+# inter rater
+# rating of properties across raters
+
+```{r}
+ratings <- tibble(
+  ppt = 1:50,
+  pA = rbinom(50,8,p=.7)+1,
+  pB = rbinom(50,8,p=.8)+1,
+  pC = rbinom(50,8,p=.9)+1,
+)
+ratings2 = as.data.frame(t(ratings[,2:4]))
+library(psych)
+ICC(ratings2)
+
+lme4::lmer(value~1+(1|name), data = ratings |> pivot_longer(2:4)) |> sjPlot::tab_model()
+
+
+ratings <- tibble(
+  ppt = 1:50,
+  pA = rbinom(50,8,p=.3)+1,
+  pB = rbinom(50,8,p=.4)+1,
+  pC = rbinom(50,8,p=.5)+1,
+)
+
+```
+
+
+
+
