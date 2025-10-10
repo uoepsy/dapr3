@@ -290,6 +290,8 @@ Question 1
 <div class="blue">
 <p>Before you expand each of the boxes below, think about how comfortable you feel with each concept.<br>
 This content is very cumulative, which means often going back to try to isolate the place which we need to focus efforts in learning.</p>
+<p><strong>Study tip:</strong> Choose a topic in one of the boxes below, but don’t expand the box yet. Instead, grab a pen and paper, and first spend two minutes writing down everything you can think of about that topic. After those two minutes, you can expand the box and see if you covered the key information. Write down anything you missed. Another day, try writing about the same topic again, and see if you can include anything you missed the first time.</p>
+<p><strong>Why does this work?</strong> Research on learning has shown that if you test yourself at recalling ideas (and especially if you repeatedly test yourself across several days or weeks), you’ll get better at remembering and understanding these ideas in the long term.</p>
 </div>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
@@ -312,7 +314,7 @@ Simple Linear Regression
 <ul>
 <li><code>lm(outcome ~ predictor, data = dataframe)</code></li>
 </ul>
-<p><em>Note:</em> this is the same as <code>lm(outcome ~ 1 + predictor, data = dataframe)</code>. The <code>1 +</code> is always there unless we specify otherwise (e.g., by using <code>0 +</code>).</p>
+<p><em>Note:</em> this is the same as <code>lm(outcome ~ 1 + predictor, data = dataframe)</code>. The <code>1 +</code> (which represents the intercept, <span class="math inline">\(b_0\)</span>) is always there, even if we don’t explicitly write it. (It’s possible to tell R to remove it, e.g., by explicitly writing <code>0 + predictor</code>, but realistically you probably won’t ever want to fit a model with no intercept.)</p>
 </div>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
@@ -332,14 +334,20 @@ Simple Linear Regression
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Clustered (multi-level) data
+Multi-level data
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
 <div id="callout-2" class="callout-2-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>When our data is clustered (or ‘grouped’) such that datapoints are no longer independent, but belong to some grouping such as that of multiple observations from the same subject, we have multiple sources of random variability. A simple regression does not capture this.</p>
-<p>If we separate out our data to show an individual plot for each grouping (in this data the grouping is by subjects), we can see how the fitted regression line from <code>lm()</code> is assumed to be the same for each group.</p>
+<p>If our dataset contains multiple observations from the same subject, for example, or multiple observations of the same stimulus, then those data points are not independent. For example:</p>
+<ul>
+<li>Subject A may behave a particular consistent way, and Subject B may behave a <em>different</em> particular consistent way. So, one data point from Subject A will be closer to the other data points from Subject A than it will be to the data points from Subject B.</li>
+<li>Similarly, Stimulus A may provoke a particular reaction, while Stimulus B may provoke a <em>different</em> particular reaction. So a data point from Stimulus A will look more like the other data from Stimulus A than it will to the data from Stimulus B.</li>
+</ul>
+<p>This is one way for data points to be non-independent. But a simple regression assumes independence. So, we need some extra way to take this non-independence into account. And we do that using random effects.</p>
+<p>In other words: when our data is ‘clustered’ or ‘grouped’ such that datapoints are no longer independent, but belong to some grouping such as that of multiple observations from the same subject, we have multiple sources of random variability. A simple regression does not capture this.</p>
+<p>To illustrate how a simple regression falls short: If we separate out our data to show an individual plot for each grouping (in this data the grouping is by subjects), we can see how the fitted regression line from <code>lm()</code> is assumed to be the same for each group.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -364,7 +372,7 @@ Random intercepts
 </div>
 <div id="callout-3" class="callout-3-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>By including a random-intercept term, we are letting our model estimate random variability around an average parameter (represented by the fixed effects) for the clusters.</p>
+<p>By including a random-intercept term, we are letting our model estimate some variability around the average intercept parameter. The variability reflects how the intercept should be adjusted (nudged up or down) to better suit the data from different members of each group.</p>
 <div class="frame">
 <p><strong>Formula:</strong><br>
 Level 1:</p>
@@ -376,14 +384,18 @@ Level 1:</p>
 <li><span class="math inline">\(b_{0i} = \gamma_{00} + \zeta_{0i}\)</span></li>
 </ul>
 <p>Where the expected values of <span class="math inline">\(\zeta_{0}\)</span>, and <span class="math inline">\(\epsilon\)</span> are 0, and their variances are <span class="math inline">\(\sigma_{0}^2\)</span> and <span class="math inline">\(\sigma_\epsilon^2\)</span> respectively. We will further assume that these are normally distributed.</p>
-<p>We can now see that the intercept estimate <span class="math inline">\(b_{0i}\)</span> for a particular group <span class="math inline">\(i\)</span> is represented by the combination of a mean estimate for the parameter (<span class="math inline">\(\gamma_{00}\)</span>) and a random effect for that group (<span class="math inline">\(\zeta_{0i}\)</span>).</p>
+<p>(“Random intercepts” are called “random” because the adjustments to the intercept are modelled as <em>random</em> samples from an underlying normal distribution with mean 0 and standard deviation <span class="math inline">\(\sigma_0\)</span>.)</p>
+<div class="imp">
+<p>Remember, variance is just standard deviation squared!</p>
+</div>
+<p>We can now see that the intercept estimate <span class="math inline">\(b_{0i}\)</span> for a particular group <span class="math inline">\(i\)</span> is represented by the combination of a mean estimate for the parameter (<span class="math inline">\(\gamma_{00}\)</span>) and a random effect (that is, an adjustment, a nudge) for that group (<span class="math inline">\(\zeta_{0i}\)</span>).</p>
 <p><strong>R command:</strong></p>
 <ul>
 <li><code>lmer(outcome ~ predictor + (1 | grouping), data = dataframe)</code></li>
 </ul>
 </div>
-<p>Notice how the fitted line of the random intercept model has an adjustment for each subject.<br>
-Each subject’s line has been moved up or down accordingly.</p>
+<p>Notice how the fitted line of the random intercept model has been adjusted for each subject.<br>
+Each subject’s line has been moved up or down. The intercepts can be different, but the slopes are all the same.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -393,6 +405,17 @@ Each subject’s line has been moved up or down accordingly.</p>
 </div>
 </div>
 </div>
+<p>Another way of comparing the estimates of the random intercept model is to plot all the by-subject lines (the colourful lines) and overlay the fixed effect line (the thick green line):</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="05ex_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Here, we see that the green fixed effect line is the average of all the by-subject lines, and that all the by-subject lines have the exact same slope as the fixed effect line—they’ve just been nudged up or down.</p>
 </div>
 </div>
 </div>
@@ -409,18 +432,25 @@ Pooling &amp; Shrinkage
 <div id="callout-4" class="callout-4-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>If you think about it, we might have done a similar thing to the random intercept with the tools we already had at our disposal, by using <code>lm(y~x+subject)</code>. This would give us a coefficient for the difference between each subject and the reference level intercept, or we could extend this to <code>lm(y~x*subject)</code> to give us an adjustment to the slope for each subject.</p>
-<p>However, the estimate of these models will be slightly different:</p>
+<p>However, the estimate of these models will be slightly different. The green lines are the predictions from the model with a random intercept by subject. The purple lines (sometimes hidden behind the green one) are the predictions from the model with a fixed effect of subject.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
-<p><strong>Why?</strong> One of the benefits of multilevel models is that our cluster-level estimates are shrunk towards the average depending on a) the amount of across-cluster variation and b) the number of datapoints in clusters.</p>
-<p>In another way, we can think of the multilevel model as “borrowing strength” from what we know about e.g., clusters 1-19 to inform what we think about cluster 20. This also gets termed “partial pooling” because we are partially combining all the information across clusters to get an average, but still allowing those clusters to vary.</p>
+<p><strong>Why is the purple line for <code>sub_373</code> below the green line? Why is the purple line for <code>sub_374</code> above the green line?</strong> The short answer: “shrinkage”. The green lines (which come from the random intercept model) are “shrunk” closer to the average line than the purple lines (which come from the fixed effect model).</p>
+<!-- TODO: confusing "cluster" vocab here -->
+<p>In general, when we use multilevel models, the estimates for each member of a group are shrunk toward the average. (How much they are shrunk by depends on how variable the members of a group are, as well as how many data points each member contributes.)</p>
+<p>Shrinkage is a benefit of multilevel models for a couple reasons:</p>
+<ul>
+<li>Shrinkage makes our estimates a bit more conservative (it’s harder to get extreme estimates when they are shrunk toward the average).</li>
+<li>Shrinkage means that we can make a more educated guess about the estimates for members of a group, based on the estimates from everyone else in the group.</li>
+</ul>
+<p>You could think of it like this: In the example above, the multilevel model “borrows information” or “borrows strength” from subjects <code>sub_352</code>, <code>sub_369</code>, and all the others, to inform its estimates for <code>sub_373</code> and about <code>sub_374</code>. “Borrowing information” or “borrowing strength” also gets termed “partial pooling”, because we are partially combining (that is, partially pooling) all the information across members of a group to get an average, but still allowing those group members to vary a little.</p>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 14%">
@@ -437,18 +467,18 @@ Pooling &amp; Shrinkage
 <tbody>
 <tr class="odd">
 <td>lm(y~x)</td>
-<td>complete</td>
-<td>all information across clusters is combined (pooled) together and a line is fitted</td>
+<td>complete pooling</td>
+<td>all information from all members of a group is combined (pooled) together, and a line is fit that doesn’t take grouping into account at all</td>
 </tr>
 <tr class="even">
 <td>lm(y~group + x)</td>
-<td>no</td>
-<td>information is split up into clusters, and cluster differences are estimated. observations from cluster <span class="math inline">\(i\)</span> contribute <em>only</em> to estimates about cluster <span class="math inline">\(i\)</span></td>
+<td>no pooling</td>
+<td>information is divided between the members of the group, and differnences between group members are estimated. Observations from group <span class="math inline">\(i\)</span> contribute <em>only</em> to estimates about group <span class="math inline">\(i\)</span></td>
 </tr>
 <tr class="odd">
-<td>lmer(y~x+(1|group))</td>
-<td>partial</td>
-<td>information is combined (pooled) but cluster-level variation is modelled. cluster level estimates are shrunk towards the average depending upon how distinct the clustering is, and how much data a cluster has</td>
+<td>lmer(y~x+(1</td>
+<td>group))</td>
+<td>partial pooling</td>
 </tr>
 </tbody>
 </table>
@@ -480,6 +510,10 @@ Level 1:</p>
 <li><span class="math inline">\(b_{1i} = \gamma_{10} + \zeta_{1i}\)</span></li>
 </ul>
 <p>Where the expected values of <span class="math inline">\(\zeta_0\)</span>, <span class="math inline">\(\zeta_1\)</span>, and <span class="math inline">\(\epsilon\)</span> are 0, and their variances are <span class="math inline">\(\sigma_{0}^2\)</span>, <span class="math inline">\(\sigma_{1}^2\)</span>, <span class="math inline">\(\sigma_\epsilon^2\)</span> respectively. We will further assume that these are normally distributed.</p>
+<p>(Like random intercepts, “random slopes” are called “random” because the adjustments to the slope are modelled as <em>random</em> samples from an underlying normal distribution with mean 0 and standard deviation <span class="math inline">\(\sigma_1\)</span>.)</p>
+<div class="imp">
+<p>Remember, variance is just standard deviation squared!</p>
+</div>
 <p>As with the intercept <span class="math inline">\(b_{0i}\)</span>, the slope of the predictor <span class="math inline">\(b_{1i}\)</span> is now modelled by a mean <span class="math inline">\(\gamma_{10}\)</span> and a random effect for each group (<span class="math inline">\(\zeta_{1i}\)</span>).</p>
 <p><strong>R command:</strong></p>
 <ul>
@@ -491,7 +525,7 @@ Level 1:</p>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -511,17 +545,18 @@ Model parameters: Fixed effects
 </div>
 <div id="callout-6" class="callout-6-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
+<p>Fixed effects are the parameters estimated for the average group, around which the random effects can vary.</p>
 <p>The plot below show the fitted values for each subject from the random slopes model <code>lmer(outcome ~ predictor + (1 + predictor | grouping), data = dataframe)</code></p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>The thick green line shows the fixed intercept and slope around which the groups all vary randomly.</p>
+<p>The thick green line shows the fixed intercept and slope around which the members of the group all vary randomly.</p>
 <p>The <em>fixed effects</em> are the parameters that define the thick green line, and we can extract them using the <code>fixef()</code> function:</p>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fixef</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -530,7 +565,6 @@ Model parameters: Fixed effects
     405.790      -0.672 </code></pre>
 </div>
 </div>
-<p>The fixed effects are the estimated intercept and slopes for the average group, around which groups vary.</p>
 </div>
 </div>
 </div>
@@ -546,18 +580,24 @@ Model parameters: Variance components
 </div>
 <div id="callout-7" class="callout-7-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>As well as estimating the fixed effects, multilevel models are also defined by the “variance components”. These are the variances and covariances of the random effects. Looking at these we can ask: how much do groups vary in around the fixed intercept? and around the fixed slope? Do groups with higher intercepts also have higher slopes (this is the correlation).</p>
-<p>We can think of these as the width of the distributions of group deviations from each fixed effect</p>
+<p>Variance components are the variances and covariances of the random effects. A multilevel model estimates variance components as well as fixed effects.</p>
+<p>The reason we call random effects “random” is because the adjustments to the fixed effects are modelled as random samples from an underlying normal distribution. The width of these distributions represents how much the group tends to deviate from each fixed effect. We can think of the width of these distributions as the variance components.</p>
+<!-- TODO MAYBE: Change the normal distributions in `pltints` and `pltslops` from standard normals to normals with the same SDs as the output of `VarCorr()` below ? -->
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
 <p>We can extract these using the <code>VarCorr()</code> function, and we can also see them in the “random effects” part of the <code>summary()</code> output from a model.</p>
+<p>Looking at these variance components, we can ask:</p>
+<ul>
+<li>How much do members of a group vary around the fixed intercept? And around the fixed slope? (This is answered by the standard deviation.)</li>
+<li>Do members of a group with higher intercepts also have higher slopes? (This is the correlation between random intercept and random slope.)</li>
+</ul>
 <div class="cell" data-layout-align="center">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">VarCorr</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -579,49 +619,48 @@ Model parameters: Variance components
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Group-specific random effects
+Extracting group-member-specific random effects
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
 <div id="callout-8" class="callout-8-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>The plots below show the fitted values for each subject from each model that we have gone through in these expandable boxes (simple linear regression, random intercept, and random intercept &amp; slope):</p>
+<!-- The plots below show the fitted values for each subject from each model that we have gone through in these expandable boxes (simple linear regression, random intercept, and random intercept & slope):  -->
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| fig-width: 12 -->
+<!-- plotdata2<- -->
+<!--   ggplot(dat, aes(x=x1,y=outcome, col=subject))+ -->
+<!--   geom_point(alpha=0.5)+geom_path(alpha=0.5)+ -->
+<!--   theme_classic()+ -->
+<!--   theme(plot.title = element_text(hjust = 0.5), legend.position = "none")+ -->
+<!--   scale_y_continuous(breaks=NULL)+scale_x_continuous(breaks=NULL)+ -->
+<!--   labs(title="- The data (by subject) - ", y="y", x="x")+ -->
+<!--   NULL -->
+<!-- #(plot_data + plotdata2 ) / (plot_lm2 + plot_ri + plot_rs) -->
+<!-- plot_lm2 + plot_ri + plot_rs -->
+<!-- ``` -->
+<!-- In the random-intercept model (center panel), the differences from each of the subjects' intercepts to the fixed intercept (thick green line) have mean 0 and standard deviation $\sigma_0$.  The standard deviation (and variance, which is $\sigma_0^2$) is what we see in the random effects part of our model summary (or using the `VarCorr()` function).   -->
+<!-- ``` -->
+<!-- Random effects: -->
+<!--  Groups   Name        Variance Std.Dev. -->
+<!--  subject  (Intercept) 5207     72.2     -->
+<!--  Residual             1512     38.9     -->
+<!-- Number of obs: 185, groups:  subject, 20 -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| out-width: "400px" -->
+<!-- knitr::include_graphics("images/varcors.PNG") -->
+<!-- ``` -->
+<!-- In the random-slope model (right panel), the same is true for the differences from each subjects' slope to the fixed slope.  -->
+<!-- As our fixed effects are: -->
+<!-- ```{r} -->
+<!-- fixef(random_slopes_model) -->
+<!-- ``` -->
+<p>We can extract each group member’s deviations from the group average (i.e., from the fixed effect) using the <code>ranef()</code> function.</p>
 <div class="cell" data-layout-align="center">
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-11-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>In the random-intercept model (center panel), the differences from each of the subjects’ intercepts to the fixed intercept (thick green line) have mean 0 and standard deviation <span class="math inline">\(\sigma_0\)</span>. The standard deviation (and variance, which is <span class="math inline">\(\sigma_0^2\)</span>) is what we see in the random effects part of our model summary (or using the <code>VarCorr()</code> function).</p>
-<pre><code>Random effects:
- Groups   Name        Variance Std.Dev.
- subject  (Intercept) 5207     72.2    
- Residual             1512     38.9    
-Number of obs: 185, groups:  subject, 20</code></pre>
-<div class="cell" data-layout-align="center">
-<div class="cell-output-display">
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="images/varcors.PNG" class="img-fluid quarto-figure quarto-figure-center figure-img" width="400"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>In the random-slope model (right panel), the same is true for the differences from each subjects’ slope to the fixed slope. As our fixed effects are:</p>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">fixef</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>(Intercept)          x1 
-    405.790      -0.672 </code></pre>
-</div>
-</div>
-<p>We can extract the deviations for each group from the fixed effect estimates using the <code>ranef()</code> function. These are the deviations from the overall intercept (<span class="math inline">\(\widehat \gamma_{00} = 405.79\)</span>) and slope (<span class="math inline">\(\widehat \gamma_{10} = -0.672\)</span>) for each subject <span class="math inline">\(i\)</span>.<br>
-So the first entry, <code>sub_308</code>, has an intercept 31.33 above the fixed intercept of 405.79, and has a slope that is -1.44 below the fixed slope of -0.672.</p>
-<div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ranef</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ranef</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$subject
         (Intercept)      x1
@@ -649,6 +688,11 @@ sub_374      -52.20  4.6051
 with conditional variances for "subject" </code></pre>
 </div>
 </div>
+<p>What do these numbers mean?</p>
+<p>These are the differences between the line that fits each subject’s data and the line defined by the fixed intercept and the fixed slope. So the first entry, the line that fits the data from <code>sub_308</code> has an intercept that’s 31.33 higher than the fixed intercept and a slope that is 1.44 below the fixed slope.</p>
+<p>If we wanted to find the parameters of each subject’s line, we could compute them with this information and the model’s fixed effects. But the next drop-down box shows us how to find those parameters more simply.</p>
+<!-- These are the deviations from the overall intercept ($\widehat \gamma_{00} = 405.79$) and slope ($\widehat \gamma_{10} = -0.672$) for each subject $i$.   -->
+<!-- So the first entry, `sub_308`, has an intercept 31.33 above the fixed intercept of 405.79, and has a slope that is -1.44 below the fixed slope of -0.672.   -->
 </div>
 </div>
 </div>
@@ -658,15 +702,15 @@ with conditional variances for "subject" </code></pre>
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Group-specific coefficients
+Extracting group-member-specific coefficients
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
 <div id="callout-9" class="callout-9-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>We can see the estimated intercept and slope for each subject <span class="math inline">\(i\)</span> specifically, using the <code>coef()</code> function.</p>
+<p>We can see the estimated intercept and slope for each subject specifically, using the <code>coef()</code> function.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">coef</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$subject
         (Intercept)     x1
@@ -695,14 +739,14 @@ attr(,"class")
 [1] "coef.mer"</code></pre>
 </div>
 </div>
-<p>Notice that the above are the fixed effects + random effects estimates, i.e.&nbsp;the overall intercept and slope + deviations for each subject.</p>
+<p>Let’s confirm that the outcome of <code>coef()</code> is the same as taking the fixed effects and then adding each subject’s random effects (as seen in the previous drop-down box).</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">int =</span> <span class="fu">fixef</span>(random_slopes_model)[<span class="dv">1</span>] <span class="sc">+</span> </span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ranef</span>(random_slopes_model)<span class="sc">$</span>subject[,<span class="dv">1</span>],</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">slope =</span> <span class="fu">fixef</span>(random_slopes_model)[<span class="dv">2</span>] <span class="sc">+</span> </span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ranef</span>(random_slopes_model)<span class="sc">$</span>subject[,<span class="dv">2</span>]</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cbind</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">int =</span> <span class="fu">fixef</span>(random_slopes_model)[<span class="dv">1</span>] <span class="sc">+</span> </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ranef</span>(random_slopes_model)<span class="sc">$</span>subject[,<span class="dv">1</span>],</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">slope =</span> <span class="fu">fixef</span>(random_slopes_model)[<span class="dv">2</span>] <span class="sc">+</span> </span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ranef</span>(random_slopes_model)<span class="sc">$</span>subject[,<span class="dv">2</span>]</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>      int  slope
  [1,] 437 -2.112
@@ -727,6 +771,7 @@ attr(,"class")
 [20,] 354  3.933</code></pre>
 </div>
 </div>
+<p>Yes, both of these outcomes are the same.</p>
 </div>
 </div>
 </div>
@@ -744,15 +789,15 @@ Plotting random effects
 <div class="callout-body-container callout-body">
 <p>The quick and easy way to plot your random effects is to use the <code>dotplot.ranef.mer()</code> function in <code>lme4</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>randoms <span class="ot">&lt;-</span> <span class="fu">ranef</span>(random_slopes_model, <span class="at">condVar=</span><span class="cn">TRUE</span>)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dotplot.ranef.mer</span>(randoms)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>randoms <span class="ot">&lt;-</span> <span class="fu">ranef</span>(random_slopes_model, <span class="at">condVar=</span><span class="cn">TRUE</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="fu">dotplot.ranef.mer</span>(randoms)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>$subject</code></pre>
 </div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -803,8 +848,8 @@ Assumptions, Influence
 </div>
 <div id="callout-11" class="callout-11-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>In the simple linear model <span class="math inline">\(\color{red}{y} = \color{blue}{b_0 + b_1(x)} \color{black}{+ \varepsilon}\)</span>, we distinguished between the systematic model part <span class="math inline">\(b_0 + b_1(x)\)</span>, around which observations randomly vary (the <span class="math inline">\(\varepsilon\)</span> part) - i.e.&nbsp;<span class="math inline">\(\color{red}{\text{outcome}} = \color{blue}{\text{model}}\)</span> <span class="math inline">\(+ \text{error}\)</span>.</p>
-<p>In the multi-level model, our random effects are another source of random variation: <span class="math inline">\(\color{red}{\text{outcome}}\)</span> = <span class="math inline">\(\color{blue}{\text{model}}\)</span> <span class="math inline">\(+ \text{group-error} + \text{individual-error}\)</span>. As such, random effects are another form of residual, and our assumptions of zero mean constant variance apply at both levels of residuals (see <a href="#fig-assump" class="quarto-xref">Figure&nbsp;1</a>).</p>
+<p>For a simple linear model, <span class="math inline">\(\color{red}{y} = \color{blue}{b_0 + b_1(x)} \color{black}{+ \varepsilon}\)</span>, we distinguish between the systematic model part (<span class="math inline">\(b_0 + b_1(x)\)</span>) and the errors, which randomly vary around the systematic model (<span class="math inline">\(\varepsilon\)</span>). In words, we can summarise the linear model expression as <span class="math inline">\(\color{red}{\text{outcome}} = \color{blue}{\text{model}}\)</span> <span class="math inline">\(+ \text{error}\)</span>.</p>
+<p>In the multi-level model, another source of error (i.e., of variation) come from our random effects: <span class="math inline">\(\color{red}{\text{outcome}}\)</span> = <span class="math inline">\(\color{blue}{\text{model}}\)</span> <span class="math inline">\(+ \text{group-error} + \text{individual-error}\)</span>. As such, random effects are another form of residual. Our assumptions of “zero mean, constant variance” apply at both levels of residuals (see <a href="#fig-assump" class="quarto-xref">Figure&nbsp;1</a>).</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div id="fig-assump" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
@@ -813,7 +858,7 @@ Assumptions, Influence
 <img src="images/assump.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%">
 </div>
 <figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-assump-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
-Figure&nbsp;1: The black dashed lines show our model assumptions.
+Figure&nbsp;1: The black dashed lines show our model assumptions. We assume that the intercept adjustments are normally distributed (the large normal distribution at the y axis), and we further assume that the residuals between the individual data points and the subject-level line are also normally distributed with equal variance across the range of the predictor (the smaller normal distributions around one of the subject-level lines).
 </figcaption>
 </figure>
 </div>
@@ -828,12 +873,12 @@ Figure&nbsp;1: The black dashed lines show our model assumptions.
 </ul>
 <p>We can also use the <code>check_model()</code> function from the <strong>performance</strong> package to get lots of info at once:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(performance)</span>
-<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">check_model</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(performance)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="fu">check_model</span>(random_slopes_model)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -841,6 +886,7 @@ Figure&nbsp;1: The black dashed lines show our model assumptions.
 </div>
 </div>
 </div>
+<!-- RESUME -->
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-12-contents" aria-controls="callout-12" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
@@ -854,10 +900,10 @@ Inference
 <div id="callout-12" class="callout-12-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
 <p>To get p-values for our coefficients, there are lots of different ways (see <a href="https://uoepsy.github.io/lmm/03_inference.html" target="_blank">Optional Chapter 3</a> if you’re interested).<br>
-For DAPR3, we are recommending using the “Satterthwaite” method, which can be done by re-fitting the model the <strong>lmerTest</strong> package:</p>
+For DAPR3, we are recommending using the “Satterthwaite” method, which can be done by re-fitting the model using the <strong>lmerTest</strong> package:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>random_slopes_model2 <span class="ot">&lt;-</span> lmerTest<span class="sc">::</span><span class="fu">lmer</span>( outcome <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> x1 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">+</span>x1<span class="sc">|</span>subject), <span class="at">data=</span>dat)</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(random_slopes_model2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>random_slopes_model2 <span class="ot">&lt;-</span> lmerTest<span class="sc">::</span><span class="fu">lmer</span>( outcome <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> x1 <span class="sc">+</span> (<span class="dv">1</span><span class="sc">+</span>x1<span class="sc">|</span>subject), <span class="at">data=</span>dat)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(random_slopes_model2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
 lmerModLmerTest]
@@ -889,13 +935,14 @@ Correlation of Fixed Effects:
 x1 -0.370</code></pre>
 </div>
 </div>
-<p>We can also conduct model comparisons by doing a likelihood ratio test. This can be useful to test multiple coefficients at once. The clearest way to think about this is to start with the full model and remove the bits you want to test.</p>
-<p>Typically, as we are interested in testing the <em>fixed</em> part, our ‘restricted model’ might have random slopes of predictors that are not in the fixed effects, which looks weird but is okay because we’re just using that model as a comparison point:</p>
+<p>If we want to test multiple coefficients at once, then we can conduct model comparisons by doing a likelihood ratio test. We start with a full model, and then create a more restricted comparison model by removing the bits that we want to test.</p>
+<p>In the example below, the full model is <code>outcome ~ 1 + x1 + x2 + (1 + x1 | subject)</code>. If we wanted to test whether the predictors <code>x1</code> and <code>x2</code> contribute significantly to the model, then we would create a restricted model for comparison by removing those terms. That gives us <code>outcome ~ 1 + (1 + x1 | subject)</code>.</p>
+<p>You’ll notice that <code>x1</code> still appears in the random effect: we’re still getting a random slope over <code>x1</code> by subject, even though <code>x1</code> is no longer in the fixed effects. This looks a little weird, but when doing model comparison, it’s OK to have random slopes of predictors that aren’t in the fixed effects.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>model2 <span class="ot">&lt;-</span> <span class="fu">lmer</span>( outcome <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> x1 <span class="sc">+</span> x2<span class="sc">+</span> (<span class="dv">1</span><span class="sc">+</span>x1<span class="sc">|</span>subject), <span class="at">data=</span>dat)</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>model2<span class="fl">.0</span> <span class="ot">&lt;-</span> <span class="fu">lmer</span>( outcome <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span><span class="sc">+</span>x1<span class="sc">|</span>subject), <span class="at">data=</span>dat)</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(model2<span class="fl">.0</span>, model2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>model2 <span class="ot">&lt;-</span> <span class="fu">lmer</span>( outcome <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> x1 <span class="sc">+</span> x2<span class="sc">+</span> (<span class="dv">1</span><span class="sc">+</span>x1<span class="sc">|</span>subject), <span class="at">data=</span>dat)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>model2<span class="fl">.0</span> <span class="ot">&lt;-</span> <span class="fu">lmer</span>( outcome <span class="sc">~</span> <span class="dv">1</span> <span class="sc">+</span> (<span class="dv">1</span><span class="sc">+</span>x1<span class="sc">|</span>subject), <span class="at">data=</span>dat)</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="fu">anova</span>(model2<span class="fl">.0</span>, model2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </div>
 </div>
@@ -906,23 +953,27 @@ x1 -0.370</code></pre>
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Visualising Model Fitted values
+Visualising group-member-specific fitted values
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
 <div id="callout-13" class="callout-13-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>The model fitted (or “model predicted”) values can be obtained using <code>predict()</code> (returning just the values) or <code>broom.mixed::augment()</code> (returning the values attached to the data that is inputted to the model).</p>
-<p>To plot, them, we would typically like to plot the fitted values for each group (e.g.&nbsp;subject)</p>
+<p>The model fitted (or “model predicted”) values can be obtained a couple ways.</p>
+<ul>
+<li><code>predict()</code> returns just the predicted values, which is a little inconvenient because you’d have to map them back to the original data that you gave to the model.</li>
+<li><code>broom.mixed::augment()</code> returns the predicted values <em>as well as</em> the data that you gave to the model.</li>
+</ul>
+<p>We would typically like to plot the fitted values for each member of the grouping variable (e.g., for each subject):</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom.mixed)</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(random_slopes_model) <span class="sc">|&gt;</span></span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>x1, <span class="at">y=</span>.fitted, <span class="at">group=</span>subject))<span class="sc">+</span></span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(broom.mixed)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(random_slopes_model) <span class="sc">|&gt;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>x1, <span class="at">y=</span>.fitted, <span class="at">group=</span>subject))<span class="sc">+</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -936,7 +987,7 @@ Visualising Model Fitted values
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Visualising Fixed Effects
+Visualising fixed effects along with the group-member-specific fitted values
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
@@ -944,36 +995,36 @@ Visualising Fixed Effects
 <div class="callout-body-container callout-body">
 <p>If we want to plot the fixed effects from our model, we have to do something else. A good option is to use the <strong>effects</strong> package to construct a dataframe of the linear prediction across the values of a predictor, plus confidence intervals. We can then pass this to <code>ggplot()</code>, giving us all the control over the aesthetics.</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># when you want more control</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(effects)</span>
-<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>ef <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">effect</span>(<span class="at">term=</span><span class="st">"x1"</span>,<span class="at">mod=</span>random_slopes_model))</span>
-<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ef, <span class="fu">aes</span>(<span class="at">x=</span>x1,<span class="at">y=</span>fit, <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper))<span class="sc">+</span></span>
-<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()<span class="sc">+</span></span>
-<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">alpha=</span>.<span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># when you want more control</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(effects)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>ef <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">effect</span>(<span class="at">term=</span><span class="st">"x1"</span>,<span class="at">mod=</span>random_slopes_model))</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(ef, <span class="fu">aes</span>(<span class="at">x=</span>x1,<span class="at">y=</span>fit, <span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper))<span class="sc">+</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>()<span class="sc">+</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">alpha=</span>.<span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>We might then want to combine this with out plot of fitted values to make a plot that shows both the estimates for the average group (this is the fixed effects part) <em>and</em> the amount to which groups vary around that average (this we can see with the fitted values plot)</p>
+<p>We might then want to combine this with our plot of fitted values to make a plot that shows both the estimates for the average group (this is the fixed effects part) <em>and</em> the amount to which groups vary around that average (this we can see with the fitted values plot)</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># when you want more control</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(effects)</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>ef <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">effect</span>(<span class="at">term=</span><span class="st">"x1"</span>,<span class="at">mod=</span>random_slopes_model))</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(random_slopes_model) <span class="sc">|&gt;</span></span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>x1))<span class="sc">+</span></span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y=</span>.fitted,<span class="at">group=</span>subject), <span class="at">alpha=</span>.<span class="dv">1</span>) <span class="sc">+</span> </span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> ef, <span class="fu">aes</span>(<span class="at">y=</span>fit))<span class="sc">+</span></span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">data =</span> ef, <span class="fu">aes</span>(<span class="at">y=</span>fit,<span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), </span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">col=</span><span class="st">"red"</span>, <span class="at">fill=</span><span class="st">"red"</span>,<span class="at">alpha=</span>.<span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># when you want more control</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(effects)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>ef <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(<span class="fu">effect</span>(<span class="at">term=</span><span class="st">"x1"</span>,<span class="at">mod=</span>random_slopes_model))</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="fu">augment</span>(random_slopes_model) <span class="sc">|&gt;</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x=</span>x1))<span class="sc">+</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y=</span>.fitted,<span class="at">group=</span>subject), <span class="at">alpha=</span>.<span class="dv">1</span>) <span class="sc">+</span> </span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="at">data =</span> ef, <span class="fu">aes</span>(<span class="at">y=</span>fit))<span class="sc">+</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="at">data =</span> ef, <span class="fu">aes</span>(<span class="at">y=</span>fit,<span class="at">ymin=</span>lower,<span class="at">ymax=</span>upper), </span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>              <span class="at">col=</span><span class="st">"red"</span>, <span class="at">fill=</span><span class="st">"red"</span>,<span class="at">alpha=</span>.<span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="05ex_files/figure-html/unnamed-chunk-23-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
+<p><img src="05ex_files/figure-html/unnamed-chunk-21-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:100.0%"></p>
 </figure>
 </div>
 </div>
@@ -987,14 +1038,13 @@ Visualising Fixed Effects
 <i class="callout-icon"></i>
 </div>
 <div class="callout-title-container flex-fill">
-Nested and Crossed structures
+Nested variables
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
 <div id="callout-15" class="callout-15-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>The same principle we have seen for one level of clustering can be extended to clustering at different levels (for instance, observations are clustered within subjects, which are in turn clustered within groups).</p>
-<p>Consider the example where we have observations for each student in every class within a number of schools:</p>
+<p>In the following schematic, we have observations from several children, who are each from a particular school.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
@@ -1004,52 +1054,59 @@ Nested and Crossed structures
 </div>
 </div>
 </div>
-<p><strong>Question:</strong> Is “Class 1” in “School 1” the same as “Class 1” in “School 2”?</p>
-<p>No.<br>
-The classes in one school are distinct from the classes in another <strong>even though they are named the same</strong>.</p>
-<p>The classes-within-schools example is a good case of <strong>nested random effects</strong> - one factor level (one group in a grouping varible) appears <em>only within</em> a particular level of another grouping variable.</p>
-<p>In R, we can specify this using:</p>
-<p><code>(1 | school) + (1 | class:school)</code><br>
+<p>Every school contains multiple children, and each child appears only in a single school. So, the child variable is “nested” within the school variable.</p>
+<p>In R, we specify random effects for nested variables using the syntax</p>
+<p><code>(1 | school) + (1 | child:school)</code><br>
 or<br>
-<code>(1 | school) + (1 | school:class)</code></p>
-<p>Consider another example, where we administer the same set of tasks at multiple time-points for every participant.</p>
-<p><strong>Question:</strong> Are tasks nested within participants?</p>
-<p>No.<br>
-Tasks are seen by multiple participants (and participants see multiple tasks).</p>
-<p>We could visualise this as the below:</p>
+<code>(1 | school) + (1 | school:child)</code></p>
+<p>The specific order of the variables around the colon symbol doesn’t matter. (But if you think about nesting like “child within school”, then maybe the <code>child:school</code> order is more intuitive.)</p>
+</div>
+</div>
+</div>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Crossed variables
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<p>In the following schematic, we have observations from several participants who have each taken part in several tasks.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="images/structure_crossednew.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="1200"></p>
+<p><img src="images/structure_fullycrossed.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="1200"></p>
 </figure>
 </div>
 </div>
 </div>
-<p>In the sense that these are not nested, they are <strong>crossed</strong> random effects.</p>
-<p>In R, we can specify this using:</p>
-<p><code>(1 | subject) + (1 | task)</code></p>
-<div class="blue">
-<p><strong>Nested vs Crossed</strong></p>
-<p><em>Nested:</em> Each group belongs uniquely to a higher-level group.</p>
-<p><em>Crossed:</em> Not-nested.</p>
-</div>
-<p>Note that in the schools and classes example, had we changed data such that the classes had unique IDs (e.g., see below), then the structures <code>(1 | school) + (1 | class)</code> and <code>(1 | school) + (1 | school:class)</code> would give the same results.</p>
+<p>Because we have data from every participant for every task, we describe the participant and task variables as “fully crossed”.</p>
+<p><br></p>
+<p>In contrast: the following schematic shows observations from several participants, who have each only done a subset of the tasks.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="images/structure_nestedlabnew.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="1200"></p>
+<p><img src="images/structure_partiallycrossed.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="1200"></p>
 </figure>
 </div>
 </div>
 </div>
+<p>We have some data from every participant, and we have some data from every task, but it’s not the case that every participant took part in every task. In this case, we describe the participant and task variables as “partially crossed” or “not fully crossed”.</p>
+<p><br></p>
+<p>In R, we specify random effects for both fully crossed and partially crossed variables as follows:</p>
+<p><code>(1 | ppt) + (1 | task)</code></p>
 </div>
 </div>
 </div>
 <hr>
 <div class="callout callout-style-simple callout-tip no-icon callout-titled">
-<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-16-contents" aria-controls="callout-16" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-17-contents" aria-controls="callout-17" aria-expanded="false" aria-label="Toggle callout">
 <div class="callout-icon-container">
 <i class="callout-icon no-icon"></i>
 </div>
@@ -1058,9 +1115,11 @@ MLM in a nutshell
 </div>
 <div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
 </div>
-<div id="callout-16" class="callout-16-contents callout-collapse collapse">
+<div id="callout-17" class="callout-17-contents callout-collapse collapse">
 <div class="callout-body-container callout-body">
-<p>MLM allows us to model effects in the linear model as <em>varying</em> between groups. Our coefficients we remember from simple linear models (the <span class="math inline">\(b\)</span>’s) are modelled as a distribution that has an overall mean around which our groups vary. We can see this in <a href="#fig-unlmm" class="quarto-xref">Figure&nbsp;2</a>, where both the intercept and the slope of the line are modelled as varying by-groups. <a href="#fig-unlmm" class="quarto-xref">Figure&nbsp;2</a> shows the overall line in blue, with a given group’s line in green.</p>
+<p>MLM allows us to model effects in the linear model as <em>varying</em> for different groups.</p>
+<p><strong>Important terminology note:</strong> in this box, “group” is used to mean “a single member of a grouping variable”, e.g., an individual participant in a study, whereas in the flash cards above, “group” was used to mean the grouping variable itself, e.g., <code>participant</code>.</p>
+<p>The coefficients we remember from simple linear models (the <span class="math inline">\(b\)</span>’s) are now modelled as a distribution: their mean is the effect for the average group, and the variance defines how much the groups vary around the mean. We can see this in <a href="#fig-unlmm" class="quarto-xref">Figure&nbsp;2</a>, where both the intercept and the slope of the line are modelled as varying by-groups. <a href="#fig-unlmm" class="quarto-xref">Figure&nbsp;2</a> shows the overall line in blue, with a given group’s line in green.</p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
 <div id="fig-unlmm" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
@@ -1109,9 +1168,9 @@ Figure&nbsp;2: Multilevel Model. Each group (e.g.&nbsp;the group in the green li
 \]</span></p>
 <p>We fit these models using the R package <strong>lme4</strong>, and the function <code>lmer()</code>. Think of it like building your linear model <code>lm(y ~ 1 + x)</code>, and then allowing effects (i.e.&nbsp;things on the right hand side of the <code>~</code> symbol) to vary by the grouping of your data. We specify these by adding <code>(vary these effects | by these groups)</code> to the model:</p>
 <div class="cell" data-layout-align="center">
-<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(y <span class="sc">~</span> x <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> x <span class="sc">|</span> group), <span class="at">data =</span> df)</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lme4)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">lmer</span>(y <span class="sc">~</span> x <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> x <span class="sc">|</span> group), <span class="at">data =</span> df)</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(m1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Linear mixed model fit by REML ['lmerMod']
 Formula: y ~ x + (1 + x | group)
