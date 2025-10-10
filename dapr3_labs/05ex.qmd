@@ -77,6 +77,15 @@ We can account for this variability by allowing the outcome to be lower/higher f
 :::blue
 Before you expand each of the boxes below, think about how comfortable you feel with each concept.  
 This content is very cumulative, which means often going back to try to isolate the place which we need to focus efforts in learning. 
+
+**Study tip:** Choose a topic in one of the boxes below, but don't expand the box yet.
+Instead, grab a pen and paper, and first spend two minutes writing down everything you can think of about that topic.
+After those two minutes, you can expand the box and see if you covered the key information.
+Write down anything you missed.
+Another day, try writing about the same topic again, and see if you can include anything you missed the first time.
+
+**Why does this work?**
+Research on learning has shown that if you test yourself at recalling ideas (and especially if you repeatedly test yourself across several days or weeks), you'll get better at remembering and understanding these ideas in the long term.
 :::
 
 
@@ -92,7 +101,8 @@ This content is very cumulative, which means often going back to try to isolate 
   
 + `lm(outcome ~ predictor, data = dataframe)`  
   
-*Note:* this is the same as `lm(outcome ~ 1 + predictor, data = dataframe)`. The `1 +` is always there unless we specify otherwise (e.g., by using `0 +`).
+*Note:* this is the same as `lm(outcome ~ 1 + predictor, data = dataframe)`. The `1 +` (which represents the intercept, $b_0$) is always there, even if we don't explicitly write it.
+(It's possible to tell R to remove it, e.g., by explicitly writing `0 + predictor`, but realistically you probably won't ever want to fit a model with no intercept.)
 
 :::
 
@@ -105,10 +115,25 @@ plot_data + plot_lm
 :::
 
 ::: {.callout-note collapse="true"}
-## Clustered (multi-level) data
+## Multi-level data
 
-When our data is clustered (or 'grouped') such that datapoints are no longer independent, but belong to some grouping such as that of multiple observations from the same subject, we have multiple sources of random variability. A simple regression does not capture this.  
+If our dataset contains multiple observations from the same subject, for example, or multiple observations of the same stimulus, then those data points are not independent.
+For example:
 
+- Subject A may behave a particular consistent way, and Subject B may behave a *different* particular consistent way.
+So, one data point from Subject A will be closer to the other data points from Subject A than it will be to the data points from Subject B.
+- Similarly, Stimulus A may provoke a particular reaction, while Stimulus B may provoke a *different* particular reaction.
+So a data point from Stimulus A will look more like the other data from Stimulus A than it will to the data from Stimulus B.
+
+This is one way for data points to be non-independent.
+But a simple regression assumes independence.
+So, we need some extra way to take this non-independence into account.
+And we do that using random effects.
+
+In other words: when our data is 'clustered' or 'grouped' such that datapoints are no longer independent, but belong to some grouping such as that of multiple observations from the same subject, we have multiple sources of random variability.
+A simple regression does not capture this.  
+
+To illustrate how a simple regression falls short:
 If we separate out our data to show an individual plot for each grouping (in this data the grouping is by subjects), we can see how the fitted regression line from `lm()` is assumed to be the same for each group.  
   
 ```{r}
@@ -122,7 +147,9 @@ plot_lm_fac
 ::: {.callout-note collapse="true"}
 ## Random intercepts
 
-By including a random-intercept term, we are letting our model estimate random variability around an average parameter (represented by the fixed effects) for the clusters.
+By including a random-intercept term, we are letting our model estimate some variability around the average intercept parameter.
+The variability reflects how the intercept should be adjusted (nudged up or down) to better suit the data from different members of each group.
+
 
 :::frame 
 
@@ -137,7 +164,14 @@ Level 2:
 
 Where the expected values of $\zeta_{0}$, and $\epsilon$ are 0, and their variances are $\sigma_{0}^2$ and $\sigma_\epsilon^2$ respectively. We will further assume that these are normally distributed.
 
-We can now see that the intercept estimate $b_{0i}$ for a particular group $i$ is represented by the combination of a mean estimate for the parameter ($\gamma_{00}$) and a random effect for that group ($\zeta_{0i}$).
+("Random intercepts" are called "random" because the adjustments to the intercept are modelled as _random_ samples from an underlying normal distribution with mean 0 and standard deviation $\sigma_0$.)
+
+:::imp
+Remember, variance is just standard deviation squared!  
+:::
+
+
+We can now see that the intercept estimate $b_{0i}$ for a particular group $i$ is represented by the combination of a mean estimate for the parameter ($\gamma_{00}$) and a random effect (that is, an adjustment, a nudge) for that group ($\zeta_{0i}$).
 
 **R command:**  
   
@@ -145,8 +179,9 @@ We can now see that the intercept estimate $b_{0i}$ for a particular group $i$ i
   
 :::
 
-Notice how the fitted line of the random intercept model has an adjustment for each subject.  
-Each subject's line has been moved up or down accordingly. 
+Notice how the fitted line of the random intercept model has been adjusted for each subject.  
+Each subject's line has been moved up or down.
+The intercepts can be different, but the slopes are all the same.
 
 ```{r}
 #| echo: false
@@ -156,6 +191,16 @@ Each subject's line has been moved up or down accordingly.
 plot_lm_fac + plot_ri_fac
 ```
 
+Another way of comparing the estimates of the random intercept model is to plot all the by-subject lines (the colourful lines) and overlay the fixed effect line (the thick green line):
+
+```{r}
+#| echo: false
+plot_ri
+```
+
+Here, we see that the green fixed effect line is the average of all the by-subject lines, and that all the by-subject lines have the exact same slope as the fixed effect line—they've just been nudged up or down.
+
+
 :::
 
 ::: {.callout-note collapse="true"}
@@ -164,22 +209,38 @@ plot_lm_fac + plot_ri_fac
 If you think about it, we might have done a similar thing to the random intercept with the tools we already had at our disposal, by using `lm(y~x+subject)`.
 This would give us a coefficient for the difference between each subject and the reference level intercept, or we could extend this to `lm(y~x*subject)` to give us an adjustment to the slope for each subject.  
   
-However, the estimate of these models will be slightly different:  
+However, the estimate of these models will be slightly different.
+The green lines are the predictions from the model with a random intercept by subject.
+The purple lines (sometimes hidden behind the green one) are the predictions from the model with a fixed effect of subject.
 
 ```{r}
 #| echo: false
 plot_shrinkage
 ```
 
-**Why?** One of the benefits of multilevel models is that our cluster-level estimates are shrunk towards the average depending on a) the amount of across-cluster variation and b) the number of datapoints in clusters.   
+**Why is the purple line for `sub_373` below the green line? Why is the purple line for `sub_374` above the green line?**
+The short answer: "shrinkage".
+The green lines (which come from the random intercept model) are "shrunk" closer to the average line than the purple lines (which come from the fixed effect model).
 
-In another way, we can think of the multilevel model as "borrowing strength" from what we know about e.g., clusters 1-19 to inform what we think about cluster 20. This also gets termed "partial pooling" because we are partially combining all the information across clusters to get an average, but still allowing those clusters to vary.  
+<!-- TODO: confusing "cluster" vocab here -->
+
+In general, when we use multilevel models, the estimates for each member of a group are shrunk toward the average.
+(How much they are shrunk by depends on how variable the members of a group are, as well as how many data points each member contributes.)
+
+Shrinkage is a benefit of multilevel models for a couple reasons:
+
+- Shrinkage makes our estimates a bit more conservative (it's harder to get extreme estimates when they are shrunk toward the average).
+- Shrinkage means that we can make a more educated guess about the estimates for members of a group, based on the estimates from everyone else in the group.
+
+You could think of it like this:
+In the example above, the multilevel model "borrows information" or "borrows strength" from subjects `sub_352`, `sub_369`, and all the others, to inform its estimates for `sub_373` and about `sub_374`.
+"Borrowing information" or "borrowing strength" also gets termed "partial pooling", because we are partially combining (that is, partially pooling) all the information across members of a group to get an average, but still allowing those group members to vary a little.
 
 | model | pooling  | explanation |
 | ------ | -------- | ---------------------------- |
-| lm(y~x) | complete | all information across clusters is combined (pooled) together and a line is fitted |
-| lm(y~group + x) | no  | information is split up into clusters, and cluster differences are estimated. observations from cluster $i$ contribute _only_ to estimates about cluster $i$  |
-| lmer(y~x+(1\|group)) | partial  | information is combined (pooled) but cluster-level variation is modelled. cluster level estimates are shrunk towards the average depending upon how distinct the clustering is, and how much data a cluster has |
+| lm(y~x) | complete pooling | all information from all members of a group is combined (pooled) together, and a line is fit that doesn't take grouping into account at all |
+| lm(y~group + x) | no pooling | information is divided between the members of the group, and differnences between group members are estimated. Observations from group $i$ contribute _only_ to estimates about group $i$  |
+| lmer(y~x+(1|group)) | partial pooling | information is combined (pooled), but group-level variation is modelled. Estimates for each member of a group are shrunk towards the average, depending upon how variable the group memebrs are, and how much data each group member contributes |
 
 
 :::
@@ -200,6 +261,13 @@ Level 2:
 + $b_{1i} = \gamma_{10} + \zeta_{1i}$  
 
 Where the expected values of $\zeta_0$, $\zeta_1$, and $\epsilon$ are 0, and their variances are $\sigma_{0}^2$, $\sigma_{1}^2$, $\sigma_\epsilon^2$ respectively. We will further assume that these are normally distributed.
+
+(Like random intercepts, "random slopes" are called "random" because the adjustments to the slope are modelled as _random_ samples from an underlying normal distribution with mean 0 and standard deviation $\sigma_1$.)
+
+:::imp
+Remember, variance is just standard deviation squared!  
+:::
+
 
 As with the intercept $b_{0i}$, the slope of the predictor $b_{1i}$ is now modelled by a mean $\gamma_{10}$ and a random effect for each group ($\zeta_{1i}$). 
 
@@ -225,6 +293,8 @@ plot_ri_fac + plot_rs_fac
 ::: {.callout-note collapse="true"}
 ## Model parameters: Fixed effects
 
+Fixed effects are the parameters estimated for the average group, around which the random effects can vary.
+
 The plot below show the fitted values for each subject from the random slopes model `lmer(outcome ~ predictor + (1 + predictor | grouping), data = dataframe)`  
 
 ```{r}
@@ -232,7 +302,7 @@ The plot below show the fitted values for each subject from the random slopes mo
 plot_rs
 ```
 
-The thick green line shows the fixed intercept and slope around which the groups all vary randomly.  
+The thick green line shows the fixed intercept and slope around which the members of the group all vary randomly.  
 
 The *fixed effects* are the parameters that define the thick green line, and we can extract them using the `fixef()` function:
 
@@ -240,16 +310,19 @@ The *fixed effects* are the parameters that define the thick green line, and we 
 fixef(random_slopes_model)
 ```
 
-The fixed effects are the estimated intercept and slopes for the average group, around which groups vary.  
 ::: 
 
 ::: {.callout-note collapse="true"}
 ## Model parameters: Variance components
 
-As well as estimating the fixed effects, multilevel models are also defined by the "variance components". These are the variances and covariances of the random effects. 
-Looking at these we can ask: how much do groups vary in around the fixed intercept? and around the fixed slope? Do groups with higher intercepts also have higher slopes (this is the correlation).  
+Variance components are the variances and covariances of the random effects.
+A multilevel model estimates variance components as well as fixed effects.
 
-We can think of these as the width of the distributions of group deviations from each fixed effect
+The reason we call random effects "random" is because the adjustments to the fixed effects are modelled as random samples from an underlying normal distribution.
+The width of these distributions represents how much the group tends to deviate from each fixed effect.
+We can think of the width of these distributions as the variance components.
+
+<!-- TODO MAYBE: Change the normal distributions in `pltints` and `pltslops` from standard normals to normals with the same SDs as the output of `VarCorr()` below ? -->
 
 ```{r}
 #| echo: false
@@ -257,6 +330,11 @@ plot_rs / (pltints + pltslops)
 ```
 
 We can extract these using the `VarCorr()` function, and we can also see them in the "random effects" part of the `summary()` output from a model.  
+
+Looking at these variance components, we can ask: 
+
+- How much do members of a group vary around the fixed intercept? And around the fixed slope? (This is answered by the standard deviation.)
+- Do members of a group with higher intercepts also have higher slopes? (This is the correlation between random intercept and random slope.)
 
 ```{r}
 VarCorr(random_slopes_model)
@@ -268,68 +346,84 @@ Remember, variance is just standard deviation squared!
 
 :::
 
+
+
 ::: {.callout-note collapse="true"}
-## Group-specific random effects
-
-The plots below show the fitted values for each subject from each model that we have gone through in these expandable boxes (simple linear regression, random intercept, and random intercept & slope): 
-
-```{r}
-#| echo: false
-#| fig-width: 12
-plotdata2<-
-  ggplot(dat, aes(x=x1,y=outcome, col=subject))+
-  geom_point(alpha=0.5)+geom_path(alpha=0.5)+
-  theme_classic()+
-  theme(plot.title = element_text(hjust = 0.5), legend.position = "none")+
-  scale_y_continuous(breaks=NULL)+scale_x_continuous(breaks=NULL)+
-  labs(title="- The data (by subject) - ", y="y", x="x")+
-  NULL
-
-#(plot_data + plotdata2 ) / (plot_lm2 + plot_ri + plot_rs)
-plot_lm2 + plot_ri + plot_rs
-```
-
-In the random-intercept model (center panel), the differences from each of the subjects' intercepts to the fixed intercept (thick green line) have mean 0 and standard deviation $\sigma_0$.  The standard deviation (and variance, which is $\sigma_0^2$) is what we see in the random effects part of our model summary (or using the `VarCorr()` function).  
-
-```
-Random effects:
- Groups   Name        Variance Std.Dev.
- subject  (Intercept) 5207     72.2    
- Residual             1512     38.9    
-Number of obs: 185, groups:  subject, 20
-```
+## Extracting group-member-specific random effects
 
 
-```{r}
-#| echo: false
-#| out-width: "400px"
-knitr::include_graphics("images/varcors.PNG")
-```
+<!-- The plots below show the fitted values for each subject from each model that we have gone through in these expandable boxes (simple linear regression, random intercept, and random intercept & slope):  -->
 
-In the random-slope model (right panel), the same is true for the differences from each subjects' slope to the fixed slope. As our fixed effects are:
-```{r}
-fixef(random_slopes_model)
-```
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| fig-width: 12 -->
+<!-- plotdata2<- -->
+<!--   ggplot(dat, aes(x=x1,y=outcome, col=subject))+ -->
+<!--   geom_point(alpha=0.5)+geom_path(alpha=0.5)+ -->
+<!--   theme_classic()+ -->
+<!--   theme(plot.title = element_text(hjust = 0.5), legend.position = "none")+ -->
+<!--   scale_y_continuous(breaks=NULL)+scale_x_continuous(breaks=NULL)+ -->
+<!--   labs(title="- The data (by subject) - ", y="y", x="x")+ -->
+<!--   NULL -->
 
-We can extract the deviations for each group from the fixed effect estimates using the `ranef()` function. These are the deviations from the overall intercept ($\widehat \gamma_{00} = `r b1[1]`$) and slope ($\widehat \gamma_{10} = `r b1[2]`$) for each subject $i$.  
-So the first entry, `sub_308`, has an intercept 31.33 above the fixed intercept of `r b1[1]`, and has a slope that is -1.44 below the fixed slope of `r b1[2]`.  
+<!-- #(plot_data + plotdata2 ) / (plot_lm2 + plot_ri + plot_rs) -->
+<!-- plot_lm2 + plot_ri + plot_rs -->
+<!-- ``` -->
+
+<!-- In the random-intercept model (center panel), the differences from each of the subjects' intercepts to the fixed intercept (thick green line) have mean 0 and standard deviation $\sigma_0$.  The standard deviation (and variance, which is $\sigma_0^2$) is what we see in the random effects part of our model summary (or using the `VarCorr()` function).   -->
+
+<!-- ``` -->
+<!-- Random effects: -->
+<!--  Groups   Name        Variance Std.Dev. -->
+<!--  subject  (Intercept) 5207     72.2     -->
+<!--  Residual             1512     38.9     -->
+<!-- Number of obs: 185, groups:  subject, 20 -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- #| out-width: "400px" -->
+<!-- knitr::include_graphics("images/varcors.PNG") -->
+<!-- ``` -->
+
+<!-- In the random-slope model (right panel), the same is true for the differences from each subjects' slope to the fixed slope.  -->
+
+<!-- As our fixed effects are: -->
+
+<!-- ```{r} -->
+<!-- fixef(random_slopes_model) -->
+<!-- ``` -->
+
+We can extract each group member's deviations from the group average (i.e., from the fixed effect) using the `ranef()` function.
+
 ```{r}
 ranef(random_slopes_model)
 ```
+
+What do these numbers mean?
+
+These are the differences between the line that fits each subject's data and the line defined by the fixed intercept and the fixed slope.
+So the first entry, the line that fits the data from `sub_308` has an intercept that's 31.33 higher than the fixed intercept and a slope that is 1.44 below the fixed slope.
+
+If we wanted to find the parameters of each subject's line, we could compute them with this information and the model's fixed effects.
+But the next drop-down box shows us how to find those parameters more simply.
+
+<!-- These are the deviations from the overall intercept ($\widehat \gamma_{00} = `r b1[1]`$) and slope ($\widehat \gamma_{10} = `r b1[2]`$) for each subject $i$.   -->
+<!-- So the first entry, `sub_308`, has an intercept 31.33 above the fixed intercept of `r b1[1]`, and has a slope that is -1.44 below the fixed slope of `r b1[2]`.   -->
 ::: 
 
 
 
 ::: {.callout-note collapse="true"}
-## Group-specific coefficients
+## Extracting group-member-specific coefficients
 
-We can see the estimated intercept and slope for each subject $i$ specifically, using the `coef()` function.  
+We can see the estimated intercept and slope for each subject specifically, using the `coef()` function.  
 
 ```{r}
 coef(random_slopes_model)
 ```
 
-Notice that the above are the fixed effects + random effects estimates, i.e. the overall intercept and slope + deviations for each subject.
+Let's confirm that the outcome of `coef()` is the same as taking the fixed effects and then adding each subject's random effects (as seen in the previous drop-down box).
 
 ```{r}
 cbind(
@@ -339,6 +433,9 @@ cbind(
     ranef(random_slopes_model)$subject[,2]
 )
 ```
+
+Yes, both of these outcomes are the same.
+
 ::: 
 
 
@@ -386,14 +483,18 @@ dotplot.ranef.mer(randoms)
 ::: {.callout-note collapse="true"}
 ## Assumptions, Influence
 
-In the simple linear model $\color{red}{y} = \color{blue}{b_0 + b_1(x)} \color{black}{+ \varepsilon}$, we distinguished between the systematic model part $b_0 + b_1(x)$, around which observations randomly vary (the $\varepsilon$ part) - i.e. $\color{red}{\text{outcome}} = \color{blue}{\text{model}}$ $+ \text{error}$.  
 
-In the multi-level model, our random effects are another source of random variation: $\color{red}{\text{outcome}}$ = $\color{blue}{\text{model}}$ $+ \text{group-error} + \text{individual-error}$. As such, random effects are another form of residual, and our assumptions of zero mean constant variance apply at both levels of residuals (see @fig-assump).   
+For a simple linear model, $\color{red}{y} = \color{blue}{b_0 + b_1(x)} \color{black}{+ \varepsilon}$, we distinguish between the systematic model part ($b_0 + b_1(x)$) and the errors, which randomly vary around the systematic model ($\varepsilon$).
+In words, we can summarise the linear model expression as $\color{red}{\text{outcome}} = \color{blue}{\text{model}}$ $+ \text{error}$.
+
+In the multi-level model, another source of error (i.e., of variation) come from our random effects: $\color{red}{\text{outcome}}$ = $\color{blue}{\text{model}}$ $+ \text{group-error} + \text{individual-error}$.
+As such, random effects are another form of residual.
+Our assumptions of "zero mean, constant variance" apply at both levels of residuals (see @fig-assump).   
 
 ```{r}
 #| echo: false
 #| label: fig-assump
-#| fig-cap: "The black dashed lines show our model assumptions."
+#| fig-cap: "The black dashed lines show our model assumptions. We assume that the intercept adjustments are normally distributed (the large normal distribution at the y axis), and we further assume that the residuals between the individual data points and the subject-level line are also normally distributed with equal variance across the range of the predictor (the smaller normal distributions around one of the subject-level lines)."
 knitr::include_graphics("images/assump.png")
 ```
 
@@ -410,20 +511,29 @@ check_model(random_slopes_model)
 
 :::
 
+<!-- RESUME -->
+
 ::: {.callout-note collapse="true"}
 ## Inference
 
 To get p-values for our coefficients, there are lots of different ways (see [Optional Chapter 3](https://uoepsy.github.io/lmm/03_inference.html){target="_blank"} if you're interested).   
-For DAPR3, we are recommending using the "Satterthwaite" method, which can be done by re-fitting the model the **lmerTest** package:  
+For DAPR3, we are recommending using the "Satterthwaite" method, which can be done by re-fitting the model using the **lmerTest** package:  
 
 ```{r}
 random_slopes_model2 <- lmerTest::lmer( outcome ~ 1 + x1 + (1+x1|subject), data=dat)
 summary(random_slopes_model2)
 ```
 
-We can also conduct model comparisons by doing a likelihood ratio test. This can be useful to test multiple coefficients at once. The clearest way to think about this is to start with the full model and remove the bits you want to test.   
+If we want to test multiple coefficients at once, then we can conduct model comparisons by doing a likelihood ratio test.
+We start with a full model, and then create a more restricted comparison model by removing the bits that we want to test.
 
-Typically, as we are interested in testing the _fixed_ part, our 'restricted model' might have random slopes of predictors that are not in the fixed effects, which looks weird but is okay because we're just using that model as a comparison point:  
+In the example below, the full model is `outcome ~ 1 + x1 + x2 + (1 + x1 | subject)`.
+If we wanted to test whether the predictors `x1` and `x2` contribute significantly to the model, then we would create a restricted model for comparison by removing those terms.
+That gives us `outcome ~ 1 + (1 + x1 | subject)`.
+
+You'll notice that `x1` still appears in the random effect: we're still getting a random slope over `x1` by subject, even though `x1` is no longer in the fixed effects.
+This looks a little weird, but when doing model comparison, it's OK to have random slopes of predictors that aren't in the fixed effects.
+
 ```{r}
 #| eval: false
 model2 <- lmer( outcome ~ 1 + x1 + x2+ (1+x1|subject), data=dat)
@@ -437,11 +547,14 @@ anova(model2.0, model2)
 
 
 ::: {.callout-note collapse="true"}
-## Visualising Model Fitted values
+## Visualising group-member-specific fitted values
 
-The model fitted (or "model predicted") values can be obtained using `predict()` (returning just the values) or `broom.mixed::augment()` (returning the values attached to the data that is inputted to the model).   
+The model fitted (or "model predicted") values can be obtained a couple ways.
 
-To plot, them, we would typically like to plot the fitted values for each group (e.g. subject)
+- `predict()` returns just the predicted values, which is a little inconvenient because you'd have to map them back to the original data that you gave to the model.
+- `broom.mixed::augment()` returns the predicted values _as well as_ the data that you gave to the model.
+
+We would typically like to plot the fitted values for each member of the grouping variable (e.g., for each subject):
 
 ```{r}
 library(broom.mixed)
@@ -454,7 +567,7 @@ augment(random_slopes_model) |>
 :::
 
 ::: {.callout-note collapse="true"}
-## Visualising Fixed Effects
+## Visualising fixed effects along with the group-member-specific fitted values
 
 If we want to plot the fixed effects from our model, we have to do something else. A good option is to use the __effects__ package to construct a dataframe of the linear prediction across the values of a predictor, plus confidence intervals. We can then pass this to `ggplot()`, giving us all the control over the aesthetics.  
 
@@ -467,7 +580,7 @@ ggplot(ef, aes(x=x1,y=fit, ymin=lower,ymax=upper))+
   geom_ribbon(alpha=.3)
 ```
 
-We might then want to combine this with out plot of fitted values to make a plot that shows both the estimates for the average group (this is the fixed effects part) _and_ the amount to which groups vary around that average (this we can see with the fitted values plot)
+We might then want to combine this with our plot of fitted values to make a plot that shows both the estimates for the average group (this is the fixed effects part) _and_ the amount to which groups vary around that average (this we can see with the fitted values plot)
 
 ```{r}
 # when you want more control
@@ -484,14 +597,10 @@ augment(random_slopes_model) |>
 
 :::
 
-
-
 ::: {.callout-note collapse="true"}
-## Nested and Crossed structures
+## Nested variables
 
-The same principle we have seen for one level of clustering can be extended to clustering at different levels (for instance, observations are clustered within subjects, which are in turn clustered within groups). 
-
-Consider the example where we have observations for each student in every class within a number of schools:  
+In the following schematic, we have observations from several children, who are each from a particular school.
 
 ```{r}
 #| echo: false
@@ -499,64 +608,67 @@ Consider the example where we have observations for each student in every class 
 knitr::include_graphics("images/structure_nestednew.png")
 ```
 
-**Question:** Is "Class 1" in "School 1" the same as "Class 1" in "School 2"?  
+Every school contains multiple children, and each child appears only in a single school.
+So, the child variable is "nested" within the school variable.
+
+In R, we specify random effects for nested variables using the syntax 
   
-No.  
-The classes in one school are distinct from the classes in another **even though they are named the same**.  
-  
-The classes-within-schools example is a good case of **nested random effects** - one factor level (one group in a grouping varible) appears *only within* a particular level of another grouping variable.  
-  
-In R, we can specify this using:  
-  
-`(1 | school) + (1 | class:school)`  
+`(1 | school) + (1 | child:school)`  
 or   
-`(1 | school) + (1 | school:class)`  
+`(1 | school) + (1 | school:child)`  
 
-  
-Consider another example, where we administer the same set of tasks at multiple time-points for every participant.  
-  
-**Question:** Are tasks nested within participants?  
-  
-No.  
-Tasks are seen by multiple participants (and participants see multiple tasks).  
-  
-We could visualise this as the below:  
-```{r}
-#| echo: false
-#| out-width: "1200px"
-knitr::include_graphics("images/structure_crossednew.png")
-```
-
-In the sense that these are not nested, they are **crossed** random effects.  
-  
-In R, we can specify this using:  
-
-`(1 | subject) + (1 | task)`  
-
-:::blue
-**Nested vs Crossed**  
-
-*Nested:* Each group belongs uniquely to a higher-level group.   
-
-*Crossed:* Not-nested. 
+The specific order of the variables around the colon symbol doesn't matter.
+(But if you think about nesting like "child within school", then maybe the `child:school` order is more intuitive.)
 
 :::
 
-Note that in the schools and classes example, had we changed data such that the classes had unique IDs (e.g., see below), then the structures `(1 | school) + (1 | class)` and `(1 | school) + (1 | school:class)` would give the same results.  
+
+::: {.callout-note collapse="true"}
+## Crossed variables
+
+In the following schematic, we have observations from several participants who have each taken part in several tasks.
+
 ```{r}
 #| echo: false
 #| out-width: "1200px"
-knitr::include_graphics("images/structure_nestedlabnew.png")
+knitr::include_graphics("images/structure_fullycrossed.png")
 ```
 
+Because we have data from every participant for every task, we describe the participant and task variables as "fully crossed".
+
+<br>
+
+In contrast: the following schematic shows observations from several participants, who have each only done a subset of the tasks.
+
+```{r}
+#| echo: false
+#| out-width: "1200px"
+knitr::include_graphics("images/structure_partiallycrossed.png")
+```
+
+We have some data from every participant, and we have some data from every task, but it's not the case that every participant took part in every task.
+In this case, we describe the participant and task variables as "partially crossed" or "not fully crossed".
+
+<br>
+
+In R, we specify random effects for both fully crossed and partially crossed variables as follows:
+
+`(1 | ppt) + (1 | task)`
+
 :::
+
 
 ---
 
 ::: {.callout-tip collapse="true" icon=false appearance="simple"}
 ## MLM in a nutshell
 
-MLM allows us to model effects in the linear model as _varying_ between groups. Our coefficients we remember from simple linear models (the $b$'s) are modelled as a distribution that has an overall mean around which our groups vary. We can see this in @fig-unlmm, where both the intercept and the slope of the line are modelled as varying by-groups. @fig-unlmm shows the overall line in blue, with a given group's line in green.  
+MLM allows us to model effects in the linear model as _varying_ for different groups.
+
+**Important terminology note:** in this box, "group" is used to mean "a single member of a grouping variable", e.g., an individual participant in a study, whereas in the flash cards above, "group" was used to mean the grouping variable itself, e.g., `participant`.
+
+The coefficients we remember from simple linear models (the $b$'s) are now modelled as a distribution: their mean is the effect for the average group, and the variance defines how much the groups vary around the mean. 
+We can see this in @fig-unlmm, where both the intercept and the slope of the line are modelled as varying by-groups. @fig-unlmm shows the overall line in blue, with a given group's line in green.  
 
 
 ```{r}
