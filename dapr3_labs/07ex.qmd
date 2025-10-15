@@ -1,0 +1,506 @@
+---
+title: "W7 Exercises: Scale Scores & PCA"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(ggdist)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+
+```{r}
+#| include: false
+set.seed(765)
+N = 482
+A = matrix(runif(6^2,0,.4), ncol=6)
+diag(A) = 1
+SS = crossprod(A)
+SS[4,c(1,2,3,5,6)] <- SS[c(1,2,3,5,6),4] <- runif(5,0,.4)
+Xmat = MASS::mvrnorm(N, mu=rnorm(6,0,1), Sigma = SS)
+Xmat = apply(Xmat, 2, function(x) as.numeric(cut(x,5)))
+Xmat[,5:6] = apply(Xmat[,5:6],2,\(x) 6-x)
+cor(Xmat)
+# online = rep(c("online","casino"),e=N/2)
+online = rbinom(N,1, plogis(psych::principal(Xmat,nfactors=1)$scores[,1]))
+online = ifelse(online == 1, "online","casino")
+
+lp = model.matrix(~psych::principal(Xmat,nfactors=1)$scores[,1] * online) %*% c(-15,-1.4,+1.3,-3.5)
+net = rnorm(N,lp,10.3) |> round()
+
+df = as.data.frame(cbind(online, Xmat, net))
+names(df) = c("online",paste0("imp_",1:6),"gain")
+df$gain = as.numeric(df$gain)
+
+gdat <- df |> mutate(across(
+  starts_with("imp"),
+  ~case_match(.,
+              "1" ~ "Strongly Disagree",
+              "2" ~ "Disagree",
+              "3" ~ "Neither Disagree nor Agree",
+              "4" ~ "Agree",
+              "5" ~ "Strongly Agree"))
+)
+#write_csv(gdat, file="../../data/gamblers.csv")
+```
+
+# Gambler's fallacy
+
+
+:::frame
+__Dataset: gamblers.csv__
+
+A researcher is interested in assessing if people who gamble will tend to lose more if they are more 'impulsive', and whether this might depend on whether they are gambling online or in a casino.  
+
+They recruited `r nrow(gdat)` participants (`r table(gdat$online)[1]` in a casino, and `r table(gdat$online)[2]` on an online gambling site). Each participant filled out a 6 question measure of "impulsivity", and then their total net gains (or losses) for the day were recorded (in £). All people were only playing the game BlackJack.  
+
+Our research question: **does greater impulsivity lead to bigger losses when comparing online gamblers to casino gamblers?**    
+
+__Dataset:__ The data can be found at [https://uoepsy.github.io/data/gamblers.csv](https://uoepsy.github.io/data/gamblers.csv){target="_blank"}  
+
+```{r}
+#| echo: false
+#| label: tbl-datadic
+#| tbl-cap: "gamblers.csv Data Dictionary"
+qitems = c("I often act on the spur of the moment without thinking.","I find it hard to resist temptations.","I make decisions quickly, even when they have serious consequences.","I find it hard to stay focused on tasks that take a long time to finish.","I prefer safe activities rather than risky things just for fun.","I am usually patient and can wait for what I want.")
+
+tibble(
+  variable=names(gdat),
+  description=c("whether the person was gambling in a casino or online",
+                qitems,
+                "net losses or gains upon leaving/logging out")
+) |> gt::gt()
+```
+
+:::
+
+
+`r qbegin(qcounter())`
+Read in the data and have a look at it. 
+
+- What does each _row_ represent?  
+- What measurement(s) show us a person's impulsivity?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here's the data:
+```{r}
+gdat <- read_csv("https://uoepsy.github.io/data/gamblers.csv")
+head(gdat)
+```
+
+Each row is a participant, for each person there are 6 columns all measuring the construct of "impulsivity".  
+And for each of those columns, there's a whole load of words in there! 
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+First things first, our questionnaire software has given us the responses all in the descriptors used for each point of the likert scale, which is a bit annoying.  
+Convert them all to numbers, which we can then work with.  
+
+| What we have | What we want |
+| ------------ | ------------ |
+| Strongly Agree | 5 |
+| Agree | 4 |
+| Agree | 4 |
+| Strongly Disagree | 1 |
+| Neither Disagree nor Agree | 3 |
+| Agree | 4 |
+| Disagree | 2 |
+| ... | ... |
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See [1: Data Wrangling for Questionnaires#variable-recoding](https://uoepsy.github.io/lv/01_datawrangle.html#variable-recoding){target="_blank"}.  
+
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We want to turn _all_ of the variables from `imp_1` to `imp_6` into numbers.  
+
+To do it with one variable:  
+```{r}
+#| eval: false
+gdat |> mutate(
+  imp_1 = case_match(imp_1,
+                     "Strongly Disagree" ~ 1,
+                     "Disagree" ~ 2,
+                     "Neither Disagree nor Agree" ~ 3,
+                     "Agree" ~ 4,
+                     "Strongly Agree" ~ 5
+  )
+)
+```
+
+And we can do it to _all_ at once with `across()`.  
+
+```{r}
+gdat <- gdat |> mutate(
+  across(c(imp_1:imp_6),
+         ~case_match(.,
+                     "Strongly Disagree" ~ 1,
+                     "Disagree" ~ 2,
+                     "Neither Disagree nor Agree" ~ 3,
+                     "Agree" ~ 4,
+                     "Strongly Agree" ~ 5
+         ))
+  )
+
+head(gdat)
+```
+
+`r solend()`
+
+
+
+`r qbegin(qcounter())`
+Just looking at the impulsivity questions, create a correlation matrix of 6 variables.  
+What do you notice? Does it make sense given the wording of the questions?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+```{r}
+cor(gdat[,2:7])
+```
+
+
+Correlations are all positive except for those with Q5 and Q6. Q5 and Q6 are positively related, but they are negatively related to the other questions.  
+
+This makes sense given the way the questions are worded - if people are impulsive, they will be more likely to _disagree_ to Q5 and Q6, but _agree_ with the others:  
+
+```{r}
+qitems
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Reverse score questions 5 and 6.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+- See [1: Data Wrangling for Questionnaires#reverse-coding](https://uoepsy.github.io/lv/01_datawrangle.html#reverse-coding){target="_blank"}
+- __Be careful__!! if you have some code that reverse scores a question, and you run it twice, you will essentially reverse-reverse score the question, and it goes back to the original ordering!  
+
+:::
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+There's only 2, so let's do this individually for each question:  
+```{r}
+gdat <- gdat |> 
+  mutate(
+    imp_5 = 6 - imp_5,
+    imp_6 = 6 - imp_6,
+)
+head(gdat)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Take a look at the correlation of the impulsivity questions again.  
+What has changed?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The negative correlations are now positive!  
+```{r}
+cor(gdat[,2:7])
+```
+`r solend()`
+
+
+`r qbegin(qcounter())`
+We're finally getting somewhere! Let's create a score for "impulsivity".  
+
+The description of the questionnaire says that we should take the __sum__ of the scores on each question, to get an overall measure of impulsivity.  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+The function `rowSums()` should help us here! See an example in [1: Data Wrangling for Questionnaires#row-scoring](https://uoepsy.github.io/lv/01_datawrangle.html#row-scoring){target="_blank"}
+ 
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+gdat$impulsivity <- rowSums(gdat[,2:7])
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Provide some descriptive statistics for the impulsivity scale scores of people at the two locations (online vs casino).  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+The `describe()` and `describeBy()` functions from the __psych__ package can often pretty useful for this kind of thing. Alternatively, `data |> group_by(...) |> summarise(....)`!  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+library(psych)
+describeBy(gdat$impulsivity, group=gdat$online)
+```
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Does greater impulsivity lead to bigger losses when comparing online gamblers to casino gamblers?  
+
+Using the scale scores that you just computed, create a plot to show how impulsivity is associated with gains/losses of gamblers in the two places (casino vs online).  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Something like this should do the trick:  
+```{r}
+ggplot(gdat,aes(x=impulsivity,y=gain,col=online))+
+  geom_point(size = 3, alpha = .3)+
+  geom_smooth(method=lm)
+```
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+Based on the plot in the previous question, if you fit the model `lm(gain ~ impulsivity * online)` to this data (where `impulsivity` is the scale score), what coefficients would the model estimate?
+would the sign of each coefficient be positive or negative?  
+
+Once you’ve made a good effort to predict the answers to these questions, fit the model and see if your predictions are borne out. (If your predictions are different from the outcomes, reflect on why the outcomes are the way they are.)
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+Here's the model:  
+```{r}
+mod1 <- lm(gain ~ online * impulsivity, data = gdat)
+```
+
+It's going to estimate 4 things:
+
+```{r}
+tibble(
+  estimate = c("intercept","onlineonline","impulsivity","onlineonline:impulsivity"),
+  prediction = c("around zero/slightly negative","positive","negative","negative"),
+  explanation = c("the 'online' variable is coded with casino as the reference level, so the intercept is going to be the height of the casino line where impulsivity is 0. so it looks like it will be around 0, or a bit below.",
+                 "this coefficient will tell us the difference between casino and online when impulsivity is zero. the blue line in the plot is going to be higher than the red line when impulsivity is zero, so this coefficient will be positive",
+                 "this is going to be how gains/losses change when impulsivity increases, specifically for the casino group. so in my plot it is the slope of the red line. it's going to be decreasing",
+                 "this is going to be how the association between impulsivity and gains/losses changes when we move from casino to online. We know this association is negative in the casino group, and the online group looks like it is even more steeply downwards, so this is going to be a negative coefficient"
+                 )
+) |> gt::gt()
+```
+
+```{r}
+summary(mod1)$coefficients
+```
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Take a look again at the wordings of the questions on impulsivity. Do you think they _equally_ represent the construct of 'impulsivity'?  
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(gdat)[2:7],
+  description=c(qitems)
+) |> gt::gt()
+```
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This is a very subjective question. "Impulsivity" will mean subtly different things to each one of us. The idea is that we want to get at whatever idea it is that is shared across us when we use this word. To me, one of these questions feels a little less closely linked to being an 'impulsive' behaviour than the others.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+I'm going to rank them in order of how much I think each question captures "impulsivity" _to me_.  
+
+I hope that some of you disagree with me about this ranking - that's what makes measurement ~~frustrating~~ fun!  
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(gdat)[2:7],
+  description=c(qitems)
+) |> mutate(jo_r = c(1,4,2,6,5,3),
+            my_thoughts = c("clearly impulsivity",
+                            "'temptations' here makes me immediately think of edible temptations! which is one manifestation of impulsivity i guess!",
+                            "could be impulsivity, could be that you're really good at making decisions",
+                            "this doesn't really feel like it is as clearly impulsivity. lots of things can distract us from tasks. boredom?",
+                            "is risk taking the same as impulsivity? you can take calculated risks? people do 'risky' sports like climbing for fun, but not out of impulsivity?",
+                            "similar to the one below, impatience and impulsivity kind of go hand in hand, but this is not quite so clearly the definition of impulsivity as the first two"
+                            )
+            ) |>
+  arrange(jo_r) |> select(-jo_r) |> gt::gt()
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Okay, so if we're not very happy that our 6 questions are equally representative of "impulsivity" (or maybe groups of questions capture different distinct aspects of the construct?), what are we going to do?  
+
+Let's start by doing a Principal Component Analysis (PCA) on the 6 items, and extracting 6 components.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+See [2: Dimension Reduction#the-key-methods](https://uoepsy.github.io/lv/02_dimension_reduction.html#the-key-methods){target="_blank"} for the demonstration!  
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+imppca <- principal(gdat[,2:7], nfactors = 6, rotate = "none")
+imppca
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Take a look at the 'variance accounted for' by each component (you could use a scree plot to show this too!), and think back to our research question, which has absolutely nothing to do with whether "impulsivity" is one thing, or two things, or 6 things...  
+
+How many components do *you* want to keep?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Our research question, remember is asking "does greater impulsivity lead to bigger losses when comparing online gamblers to casino gamblers?"  
+
+We're getting bogged down in the weeds of what do we even mean by 'impulsivity'?? I would make a case that our research question kind of pre-supposes that "impulsivity" is just _one_ thing. If we reduce these 6 questions down to two or more things, then our research question becomes a little bit more complex to answer, with lots of nuance about what _sort_ of impulsivity we're talking about. So from a purely pragmatic standpoint, I am really hoping we can just keep one thing, and call that thing "impulsivity"!  
+
+As it stands, the scree plot is in our favour. It shows a kink (or 'elbow', if you'd prefer) at 2 components, suggesting that we would be fine to keep just one. 
+
+```{r}
+scree(gdat[,2:7])
+```
+
+The numbers going into the scree plot are shown in the 'variance accounted for' bit of the PCA. These tell us that if we keep just one component, then we are capturing 47% of the variability in the questionnaire. If we kept two, then we would capture 64%, 3 would capture 77%, and so on, until we just keep 6 and we're capturing 100%.  
+
+```{r}
+imppca$Vaccounted
+```
+
+There's no "right" answer here as to how much we should keep. 47% makes it feel like we're losing more than we're capturing (which we are), but that might just be what we have to do!  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Extract the scores for the first principal component, and attach them to your dataset as a new set of scores for "impulsivity".  
+
+Attend also to the loadings for that first component - is it related more to the questions you felt were more clearly asked about 'impulsivity'?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+To extract the scores, see [2: Dimension Reduction#the-key-methods](https://uoepsy.github.io/lv/02_dimension_reduction.html#the-key-methods){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Here are the scores added to our data:  
+```{r}
+gdat$pc1 <- imppca$scores[,1]
+```
+
+And here are the loadings for that first component. It's less related to `imp_4` and `imp_2`, and more related to `imp_1` and `imp_3` (this kind of fits in with my view that these two questions are more obviously asking about "impulsivity" to me).  
+
+```{r}
+sort(imppca$loadings[,1])
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Forgetting about your scale scores, make a new plot using the PCA scores instead, and re-fit the linear model you fitted earlier using these new scores. What changes?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+There's much more variability in the `pc1` values than the scale score values. This makes sense, because if the principal component scores are some weighting of each variable, then we're going to end up with far more possible scores.  
+
+```{r}
+library(patchwork)
+
+p1 <- ggplot(gdat,aes(x=impulsivity,y=gain,col=online))+
+  geom_point(size = 3, alpha = .3)+
+  geom_smooth(method=lm) +
+  labs(title="scale scores")
+
+p2 <- ggplot(gdat,aes(x=pc1,y=gain,col=online))+
+  geom_point(size = 3, alpha=.3)+
+  geom_smooth(method=lm) +
+  labs(title="PC scores")
+
+p1 + p2 + plot_layout(guides="collect")
+```
+
+Note that the better measurement of "impulsivity" by the PCA (weighting our scores more towards `imp_1` and `imp_3`) results in a significant interaction here. 
+
+It's also worth noting that the `online [online]` coefficient is also significant, but that is because the PCA scores are standardised, whereas the scale scores are not. So "0" means something very different on those two measures.  
+
+```{r}
+mod2 <- lm(gain ~ online * pc1, data = gdat)
+
+sjPlot::tab_model(mod1, mod2)
+```
+`r solend()`
+
+
+
+
+
