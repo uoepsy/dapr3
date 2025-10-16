@@ -189,14 +189,30 @@ What do you notice? Does it make sense given the wording of the questions?
 cor(gdat[,2:7])
 ```
 
-
 Correlations are all positive except for those with Q5 and Q6. Q5 and Q6 are positively related, but they are negatively related to the other questions.  
+
+If you're like Elizabeth and you have a hard time making sense of a matrix full of numbers, then the function `heatmap()` might be your friend.
+It represents the correlation matrix as colours.
+Cells representing strong positive correlations appear darker, and cells representing strong negative correlations appear lighter.
+
+```{r}
+cor(gdat[,2:7]) |>
+  heatmap()
+```
+
+There's a dark diagonal line down the middle, which represents the perfect correlation between an item and itself.
+The cells at the intersections of Q5 and Q6 are fairly dark, and the cells at the intersections of Q1–Q4 are also fairly dark (the positive correlations).
+Where Q5 and Q6 meet Q1–Q4, the cells are fairly light (the negative correlations).
+In addition to the bracketing structure at the plot margins (in technical terms a "dendrogram"), this visual approach to a correlation matrix shows that Q5 and Q6 tend to pattern together in one way, and that the other four Qs tend to pattern together in another way.
 
 This makes sense given the way the questions are worded - if people are impulsive, they will be more likely to _disagree_ to Q5 and Q6, but _agree_ with the others:  
 
 ```{r}
 qitems
 ```
+
+
+
 
 `r solend()`
 
@@ -243,7 +259,7 @@ cor(gdat[,2:7])
 
 
 `r qbegin(qcounter())`
-We're finally getting somewhere! Let's create a score for "impulsivity".  
+We're finally getting somewhere! Let's create a score for "impulsivity" and add it as a new column onto the existing data frame.
 
 The description of the questionnaire says that we should take the __sum__ of the scores on each question, to get an overall measure of impulsivity.  
 
@@ -283,6 +299,20 @@ The `describe()` and `describeBy()` functions from the __psych__ package can oft
 ```{r}
 library(psych)
 describeBy(gdat$impulsivity, group=gdat$online)
+```
+
+The tidyverse way:
+
+```{r}
+gdat |>
+  group_by(online) |>
+  summarise(
+    mean = mean(impulsivity),
+    median = median(impulsivity),
+    min = min(impulsivity),
+    max = max(impulsivity),
+    sd = sd(impulsivity)
+  )
 ```
 
 
@@ -345,6 +375,8 @@ summary(mod1)$coefficients
 `r qbegin(qcounter())`
 Take a look again at the wordings of the questions on impulsivity. Do you think they _equally_ represent the construct of 'impulsivity'?  
 
+If you're stuck, think about whether each question might be measuring something else, in addition to (or instead of?) impulsivity.
+
 ```{r}
 #| echo: false
 tibble(
@@ -378,7 +410,7 @@ tibble(
                             "could be impulsivity, could be that you're really good at making decisions",
                             "this doesn't really feel like it is as clearly impulsivity. lots of things can distract us from tasks. boredom?",
                             "is risk taking the same as impulsivity? you can take calculated risks? people do 'risky' sports like climbing for fun, but not out of impulsivity?",
-                            "similar to the one below, impatience and impulsivity kind of go hand in hand, but this is not quite so clearly the definition of impulsivity as the first two"
+                            "similar to imp_2, impatience and impulsivity kind of go hand in hand, but this is not quite so clearly the definition of impulsivity as the first two"
                             )
             ) |>
   arrange(jo_r) |> select(-jo_r) |> gt::gt()
@@ -388,9 +420,11 @@ tibble(
 
 
 `r qbegin(qcounter())`
-Okay, so if we're not very happy that our 6 questions are equally representative of "impulsivity" (or maybe groups of questions capture different distinct aspects of the construct?), what are we going to do?  
+Okay, so if we're not very happy that our 6 questions are equally representative of "impulsivity" (or maybe groups of questions capture distinct aspects of the construct?), we might not want to work with the plain old sum of impulsivity scores that we used above.
 
-Let's start by doing a Principal Component Analysis (PCA) on the 6 items, and extracting 6 components.  
+What are we going to do?  
+
+Let's start by doing a Principal Component Analysis (PCA) on the 6 original items, and extracting 6 components.  
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -462,16 +496,22 @@ And here are the loadings for that first component. It's less related to `imp_4`
 sort(imppca$loadings[,1])
 ```
 
+The nice result of this is that, if we use these scores and loadings in subsequent analyses, the questions that are better at targeting the construct we care about are going to be weighted more heavily than the questions that are worse at targeting that construct.
+The PCA scores are therefore a more accurate way of representing impulsivity than the un-weighted summed score we computed above.
+
 `r solend()`
 
 
 `r qbegin(qcounter())`
-Forgetting about your scale scores, make a new plot using the PCA scores instead, and re-fit the linear model you fitted earlier using these new scores. What changes?  
+Using your PCA scores, not the old summed scale scores, create a plot that shows the relationship between impulsivity and financial loss or gain in the two different locations (casino and online).
+What changes, compared to the old plot?
+
+Next, fit a new linear model that uses the PCA scores, not the old summed scale scores, to address the question of how impulsivity might affect gains in different locations.
+What changes, compared to the old model?
+
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
-
-There's much more variability in the `pc1` values than the scale score values. This makes sense, because if the principal component scores are some weighting of each variable, then we're going to end up with far more possible scores.  
 
 ```{r}
 library(patchwork)
@@ -489,15 +529,24 @@ p2 <- ggplot(gdat,aes(x=pc1,y=gain,col=online))+
 p1 + p2 + plot_layout(guides="collect")
 ```
 
-Note that the better measurement of "impulsivity" by the PCA (weighting our scores more towards `imp_1` and `imp_3`) results in a significant interaction here. 
-
-It's also worth noting that the `online [online]` coefficient is also significant, but that is because the PCA scores are standardised, whereas the scale scores are not. So "0" means something very different on those two measures.  
+There are more different `pc1` values than there are different scale score values.
+The scale score values can only be integers (that is, whole numbers), while the `pc1` values can be decimal numbers too.
+This makes sense, because if the principal component scores are some weighting of each variable, then we're going to end up with far more possible scores.  
 
 ```{r}
 mod2 <- lm(gain ~ online * pc1, data = gdat)
 
 sjPlot::tab_model(mod1, mod2)
 ```
+
+
+Note that the better measurement of "impulsivity" by the PCA (weighting our scores more towards `imp_1` and `imp_3`) results in a significant interaction here. 
+
+It's also worth noting that the `online [online]` coefficient in the new model is also significant, but that is because the PCA scores are standardised, whereas the scale scores are not. So "0" means something very different on those two measures.  
+
+
+
+
 `r solend()`
 
 
