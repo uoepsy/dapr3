@@ -43,10 +43,15 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=6)
 ![](img_sandbox/halfway.gif){width=300}
 :::
 
+# A confession
+
+![](img_sandbox/comfort.jpg)
+
 # This week {transition="slide"}
 
 - Measurement!
 - Multi-item measures
+- Scoring (Scale scores and "PCA")
 
 # Measurement
 
@@ -370,9 +375,7 @@ When we confuse testing with measurement:
 - We'll talk about this more in later weeks, can you think of any examples of bad measurement?
 
 
-## What do we do? 
-
-:::{.incremental}
+## So what... 
 
 - psychological constructs are complex, multifaceted, and abstract
 
@@ -380,7 +383,27 @@ When we confuse testing with measurement:
 
 - hence: multi-item measures  
 
-:::
+
+## as always, more terminlogy  
+
+
+- __things that capture lots of constructs__  
+*survey, questionnaire, battery, instrument, test, protocol*
+
+- __things that capture a single (often but not necessarily unidimensional) construct__  
+*scale, subscale, multi-item measure, measure, test, instrument*
+
+- __individual things that each elicit a participant's input__  
+*item, question, statement, prompt, measure*
+
+- __ways in which each participant inputs on each individual thing are translated to numbers__  
+*scale, response scale, likert scale, response options*
+
+- __analytical outcomes__  
+*variable, score, response*
+
+
+
 
 # Some questions
 
@@ -393,7 +416,12 @@ https://app.wooclap.com/events/ECPZGP/votes?view=desktop&mobile=false
 
 "Dear [Insert LLM name here],   
 
-here is what we think 'creativity' is. Can you give me 10 items for a questionnaire that capture the different aspects of creativity.   
+here is what we think 'creativity' is.  
+
+...  
+...  
+  
+Can you give me 10 items for a questionnaire that capture the different aspects of creativity.   
 
 Give me statements that people can rate their agreement with.  
 
@@ -416,7 +444,10 @@ Josiah King"
 
 # Dimension Reduction  
 
-[INSERT QR CODE HERE FOR THE SURVEY!]  
+https://edin.ac/3WjlBWW
+
+![](img_sandbox/creativityq.png){width=200px}  
+
 
 
 ## groups! dependencies! but not as we know it
@@ -525,9 +556,48 @@ Cons:
 
 -   **Correlation** = Standardised version of covariance
 
+```{r}
+#| echo: false
+#| layout: [[33],[33],[33]]
 
-## Cov Cor  
+set.seed(986543)
+vv = tibble(x = rnorm(10,100,34))
+set.seed(5)
+cc = tibble(x=vv$x,
+            y=rnorm(10,.4*vv$x,5))
+cc2 = tibble(x=vv$x,
+             y=mean(cc$y) - (cc$y - mean(cc$y))
+            )
 
+p1 <- ggplot(vv, aes(x=x,y=0))+geom_point(size=3,alpha=.6)+
+  scale_y_continuous(NULL,breaks=NULL)+
+  geom_point(x=mean(vv$x),y=0,col="red",shape=4,size=3)
+
+p2 <- ggplot(cc, aes(x=x,y=y))+
+  geom_point(size=3,alpha=.6)+
+  geom_vline(xintercept=mean(cc$x),col="red",lty="dotted",
+             lwd=1)+
+  geom_hline(yintercept=mean(cc$y),col="red",lty="dotted",
+             lwd=1)+
+  ylim(14,64)
+
+p3 <- ggplot(cc2, aes(x=x,y=y))+
+  geom_point(size=3,alpha=.6)+
+  geom_vline(xintercept=mean(cc2$x),col="red",lty="dotted",
+             lwd=1)+
+  geom_hline(yintercept=mean(cc2$y),col="red",lty="dotted",
+             lwd=1)+
+  ylim(14,64)
+
+p1
+p2
+p3
+
+```
+
+## Covariance/Correlation Matrices
+
+**Assumption throughout this block:** covariance between two items is because they measure the same thing(s) (in theory!)  
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -538,7 +608,7 @@ gt::gt(lsat_word[1:6,])
 
 :::
 :::{.column width="50%"}
-**Assumption throughout this block:** covariance between two items is because they measure the same thing(s) (in theory!)  
+
 
 ```{r}
 #| echo: true
@@ -642,11 +712,10 @@ gt::gt(lsat_word[1:10,])
 
 ```{r}
 #| echo: true
-library(pheatmap)
 lifesat_data10 |>
   select(-ppt) |>
   cor() |> 
-  pheatmap()
+  heatmap()
 ```
 
 Think: "buckets" of co-variation!  
@@ -672,17 +741,15 @@ tibble(
 ```{r}
 #| echo: true
 #| eval: false
-library(pheatmap)
 lifesat_data10 |>
   select(-ppt) |>
   cor() |> 
-  pheatmap()
+  heatmap()
 ```
 ```{r}
 qd3 = lifesat_data10[,c(1,2,7,3,8,4,9,5,10,6)+1]
 names(qd3) = paste0("Q",1:10)
-pheatmap::pheatmap(cor(qd3),
-                   cluster_cols=F,cluster_rows=F)
+heatmap(cor(qd3), Colv=NA,Rowv=NA)
 ```
 Visibility of the "buckets" depends on ordering of the items!  
 :::
@@ -724,9 +791,8 @@ Rate agreement on:
 :::
 ::::
 
-::::{.columns}
-:::{.column width="33%"}
 ```{r}
+#| layout: [[33],[33],[33]]
 library(rgl)
 library(psych)
 set.seed(4)
@@ -743,10 +809,8 @@ plot3d(x, box = FALSE,
        xlab="Q1",ylab="Q2",zlab="Q3")
 # plot3d(ellipse3d(cov(mydata), centre = colMeans(mydata)), col = "#A41AE4", alpha = 0.4, add = TRUE)
 rglwidget()
-```
-:::
-:::{.column width="33%"}
-```{r}
+
+
 set.seed(4)
 xx <- runif(100,0,7*24)
 x <- cbind(xx, xx/24, xx/24/7)
@@ -755,10 +819,7 @@ names(mydata) <- c("M","P","S")
 plot3d(x, box = FALSE, 
        xlab="hours",ylab="days",zlab="weeks")
 rglwidget()
-```
-:::
-:::{.column width="33%"}
-```{r}
+
 set.seed(4)
 R = matrix(c(1,.7,.7,
              .7,1,.7,
@@ -774,8 +835,7 @@ plot3d(x, box = FALSE,
 # plot3d(ellipse3d(cov(mydata), centre = colMeans(mydata)), col = "#A41AE4", alpha = 0.4, add = TRUE)
 rglwidget()
 ```
-:::
-::::
+
 
 
 ## how many dimensions can you think in? 
@@ -813,9 +873,8 @@ Rate agreement on:
 :::
 ::::
 
-::::{.columns}
-:::{.column width="33%"}
 ```{r}
+#| layout: [[33],[33],[33]]
 set.seed(4)
 R = matrix(c(1,.0,0,
              0,1,0,
@@ -842,10 +901,8 @@ plot3d(
     a=principal(x,nfactors=3,cov=TRUE,rotate="none")$loadings[,3],
            col="blue"), lwd=2, add=TRUE)
 rglwidget()
-```
-:::
-:::{.column width="33%"}
-```{r}
+
+
 set.seed(4)
 xx <- runif(100,0,7*24)
 x <- cbind(xx, xx/24, xx/24/7)
@@ -858,10 +915,7 @@ plot3d(
              a=c(1,1/24,1/24/7),
              col="green"),lwd=2, add=TRUE)
 rglwidget()
-```
-:::
-:::{.column width="33%"}
-```{r}
+
 set.seed(4)
 R = matrix(c(1,.7,.7,
              .7,1,.7,
@@ -889,8 +943,6 @@ plot3d(
            col="blue"), lwd=2, add=TRUE)
 rglwidget()
 ```
-:::
-::::
 
 
 ## Principal Component Analysis (PCA)
@@ -1112,20 +1164,24 @@ scree(lifesat_data6[,-1])
 
 ## the reduction: how many components do we keep? 
 
+
+::::{.columns}
+:::{.column width="50%"}
 parallel analysis  
 
 ```{r}
 fa.parallel(lifesat_data6[,-1], fa = "pc", n.iter = 500)
 ```
-
-## the reduction: how many components do we keep? 
+:::
+:::{.column width="50%"}
 
 minimum average partial  
 
 ```{r}
 VSS(lifesat_data6[,-1], plot = FALSE)
 ```
-
+:::
+::::
 
 ## Scoring
 
@@ -1157,27 +1213,35 @@ mypca$scores
 
 ```{r}
 #| include: false
-set.seed(1182)
-#eseed=round(runif(1,1,1e4))
-#set.seed(eseed)
-SS = matrix(runif(36,0.7,1), ncol = 6)
-SS[1:5,6] <- SS[6,1:5] <- runif(5,.1,.3)
+set.seed(7945)
+  
+  SS = matrix(runif(36,0.5,1), ncol = 6)
+  SS[1:5,6] <- SS[6,1:5] <- runif(5,.1,.3)
+  SS[sample(1:6,1),sample(1:6,1)] <- runif(1,.1,.5)
+  SS[sample(1:6,1),sample(1:6,1)] <- runif(1,.1,.5)
+  SS[sample(1:6,1),sample(1:6,1)] <- runif(1,.1,.5)
+  SS[sample(1:6,1),sample(1:6,1)] <- runif(1,.1,.5)
+  SS[sample(1:6,1),sample(1:6,1)] <- runif(1,.1,.5)
+  SS[sample(1:6,1),sample(1:6,1)] <- runif(1,.1,.5)
+  SS = crossprod(SS)
+  
+  diag(SS) <- diag(SS)*2
+  
+  mystudy <- MASS::mvrnorm(n=75, mu=rep(0,6),Sigma = SS) |> as_tibble() |>
+    mutate(across(everything(), ~as.numeric(cut(.,7))))
+  names(mystudy) <- paste0("Q",1:6)
+  mypca <- principal(mystudy, nfactors = 1, rotate = "none")  
+  
+  effsize <- rnorm(1,-.61,.5)
+  
+  mystudy <- mystudy |>
+    mutate(
+      BART = round(rnorm(n(),10+effsize*mypca$scores+.3*Q6,2.9))
+    )
 
-mystudy <- MASS::mvrnorm(n=75, mu=rep(0,6),Sigma = crossprod(SS)) |> as_tibble() |>
-  mutate(across(everything(), ~as.numeric(cut(.,7))))
-names(mystudy) <- paste0("Q",1:6)
-mypca <- principal(mystudy, nfactors = 1, rotate = "none")  
-mystudy <- mystudy |>
-  mutate(
-    BART = round(rnorm(n(),10+-2*mypca$scores+.9*Q6,3))
-  )
-# lm(BART ~ Q1 + Q2 + Q3 + Q4 + Q5 + Q6, data = mystudy) |> summary()
-# library(modelsummary)
-# modelsummary(
-#   list(lm(mystudy$BART~mypca$scores[,1]),
-#   lm(mystudy$BART~rowSums(mystudy[,1:6]))),
-#   statistic="{p.value}"
-# )
+  # mod0<- lm(BART ~ Q1 + Q2 + Q3 + Q4 + Q5 + Q6, data = mystudy)
+  # mod1<- lm(mystudy$BART~mypca$scores[,1])
+  # mod2<- lm(mystudy$BART~rowSums(mystudy[,1:6]))
 
 ```
 
@@ -1227,7 +1291,7 @@ head(mystudy)
 ```
 
 :::
-:::{.column width="50%" .fragment}
+:::{.column width="50%"}
 ```{r}
 #| echo: true
 library(car)
@@ -1275,7 +1339,7 @@ summary(mod)
 :::
 ::::
 
-## Using Scale Scores (3)
+## Using Scale Scores
 
 ```{r}
 #| echo: false
