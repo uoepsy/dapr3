@@ -1,0 +1,162 @@
+---
+title: "creativity_workthrough"
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include = FALSE}
+# options for code chunks:
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+# print only 3 digits
+options(digits = 3)
+
+# libraries
+library(tidyverse)
+library(psych)
+library(gt) # my preferred package for tables 
+
+# data
+load(url("https://uoepsy.github.io/dapr3/2526/misc/creativity.rdata"))
+```
+
+We got `r nrow(crdat)` responses to the questionnaire, which contained 10 questions:  
+
+```{r items}
+tibble(
+  variable = paste0("creativity_",1:10),
+  wording = critems
+) |> gt()
+```
+
+```{r cleaning}
+crdat <- crdat |> 
+  mutate(across(creativity_1:creativity_10,
+                ~case_match(.,
+                            "strongly agree"~7,
+                            "agree"~6,
+                            "somewhat agree"~5,
+                            "neither agree nor disagree"~4,
+                            "somewhat disagree"~3,
+                            "disagree"~2,
+                            "strongly disagree"~1,
+                            ))) |>
+  mutate(H = ifelse(grepl("left",tolower(handedness)),1,0)) |>
+  select(creativity_1:creativity_10,H)
+```
+
+items showed some deviations from normality, with a number of questions (3, 8, and 9) showing clear negative skew:  
+
+```{r}
+describe(crdat[,1:10])[,c(3,4,8,9,11)]
+multi.hist(crdat[,1:10])
+```
+
+```{r}
+```
+
+correlations (visualised below) ranged in magnitude from near zero to 0.75, with the majority being weak (0 - 0.2).  
+```{r}
+# tabulating the absolute values of correlations
+cmat <- cor(crdat[,1:10])
+cmat <- cmat[lower.tri(cmat)]
+corstab <- cut(abs(cmat), breaks=c(0,.2,.5,.8,1))
+barplot(table(corstab), main = "correlations between items")
+# the heatmap
+cor(crdat[,1:10]) |> heatmap()
+```
+
+KMO values indicate that we may have some problematic items here. The overall mean sampling adequacy was not great at all (`r round(KMO(crdat[,1:10])$MSA,2)`).  
+
+Initial evaluation of scree plots indicated factor solutions from 1 to 3 factors should be investigated. MAP suggested `r which.min(VSS(crdat[,1:10],plot=F)$map)` and parallel analysis suggested `r fa.parallel(crdat[,1:10], plot = F)$nfact`.  
+```{r}
+scree(crdat[,1:10])
+```
+
+We examined 1, 2 and 3 factor solutions, with oblique rotations to allow any sub-dimensions of 'creativity' to be correlated. Due to the deviations from normality some of the items, we used principal axis factoring (PAF) to extract the factors. 
+
+```{r}
+m1 = fa(crdat[,1:10],nfactors=1,fm="pa")
+m2 = fa(crdat[,1:10],nfactors=2,rotate="oblimin",fm="pa")
+m3 = fa(crdat[,1:10],nfactors=3,rotate="oblimin",fm="pa")
+
+print(m1$loadings,cutoff=.3)
+print(m2$loadings,cutoff=.3, sort=T)
+print(m3$loadings,cutoff=.3)
+
+
+
+KMO(full[,1:10])
+cortest.bartlett(full[,1:10])
+
+scree(full[,1:10])
+fa.parallel(full[,1:10])
+VSS(full[,1:10],plot=F)
+
+m1 = fa(full[,1:10],nfactors=1,fm="ml")
+m2 = fa(full[,1:10],nfactors=2,rotate="oblimin",fm="ml")
+m3 = fa(full[,1:10],nfactors=3,rotate="oblimin",fm="ml")
+
+print(m1$loadings,cutoff=.3)
+print(m2$loadings,cutoff=.3, sort=T)
+print(m3$loadings,cutoff=.3)
+
+# remove q8
+cscale = full[,c(1:7,9:10)]
+KMO(cscale)
+cortest.bartlett(cscale)
+
+scree(cscale)
+fa.parallel(cscale)
+VSS(cscale,plot=F)
+
+m1 = fa(cscale,nfactors=1,fm="ml")
+m2 = fa(cscale,nfactors=2,rotate="oblimin",fm="ml")
+m3 = fa(cscale,nfactors=3,rotate="oblimin",fm="ml")
+
+print(m1$loadings,cutoff=.3)
+print(m2$loadings,cutoff=.3, sort=T)
+print(m3$loadings,cutoff=.3)
+
+m2
+
+# remove q5
+cscale = full[,c(1:4,6:7,9:10)]
+KMO(cscale)
+cortest.bartlett(cscale)
+
+scree(cscale)
+fa.parallel(cscale)
+VSS(cscale,plot=F)
+
+m1 = fa(cscale,nfactors=1,fm="minres")
+m2 = fa(cscale,nfactors=2,rotate="oblimin",fm="ml")
+m3 = fa(cscale,nfactors=3,rotate="oblimin",fm="minres")
+
+print(m1$loadings,cutoff=.3)
+print(m2$loadings,cutoff=.3, sort=T)
+print(m3$loadings,cutoff=.3)
+
+# remove q3, 7
+cscale = full[,c(1,2,4,6,9:10)]
+KMO(cscale)
+cortest.bartlett(cscale)
+
+scree(cscale)
+fa.parallel(cscale)
+VSS(cscale,plot=F)
+
+m1 = fa(cscale,nfactors=1,fm="minres")
+m2 = fa(cscale,nfactors=2,rotate="oblimin",fm="minres")
+m3 = fa(cscale,nfactors=3,rotate="oblimin",fm="minres")
+
+print(m1$loadings,cutoff=.3)
+print(m2$loadings,cutoff=.3, sort=T)
+print(m3$loadings,cutoff=.3)
+
+qitems[c(1,2,4,6,9,10)]
+
+full$cscale = factor.scores(cscale, m1)$scores
+lm(cscale~H,full) |> summary()
+```
+
