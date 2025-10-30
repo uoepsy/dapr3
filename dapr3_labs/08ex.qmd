@@ -1,5 +1,5 @@
 ---
-title: "W9 Exercises: EFA"
+title: "W8 Exercises: EFA"
 params: 
     SHOW_SOLS: TRUE
     TOGGLE: TRUE
@@ -28,8 +28,6 @@ qcounter <- function(){
 
 
 # Conduct Problems  
-
-
 
 :::frame
 __Data: Conduct Problems__  
@@ -77,8 +75,7 @@ cpdata <- cpdata[,-1]
 
 Here's a correlation matrix. There's no obvious blocks of items here, but we can see that there are some fairly high correlations, as well as some weaker ones. All are positive.  
 ```{r}
-library(ggcorrplot)
-ggcorrplot(cor(cpdata))
+heatmap(cor(cpdata))
 ```
 
 The Bartlett's test comes out with a p-value of 0 (which isn't possible, but it's been rounded for some reason). This suggests that we reject the null of this test (that our correlation matrix is proportional to the identity matrix). This is good. It basically means "we have some non-zero correlations"!  
@@ -329,131 +326,53 @@ knitr::kable(loadings, digits = 2)
 :::
 
 `r solend()`
-<br>
 
-# Dimensions of Apathy
+
+# The Creativity Scale
 
 :::frame
-__Dataset: radakovic_das.csv__  
+__Dataset: creativity.rdata__  
 
-Apathy is lack of motivation towards goal-directed behaviours. It is pervasive in a majority of psychiatric and neurological diseases, and impacts everyday life. Traditionally, apathy has been measured as a one-dimensional construct, it may be that multiple different types of demotivation provides a better explanation.
+In the lecture in Week 7, we did a very quick crowd-sourcing of "what we think 'creativity' is", and then we turned these into questionnaire items, and we completed the questionnaire (well, some of us completed it!).  
 
-We have data on 250 people who have responded to 24 questions about apathy, that can be accessed at [https://uoepsy.github.io/data/radakovic_das.csv](https://uoepsy.github.io/data/radakovic_das.csv){target="_blank"}.  Information on the items can be seen in the table below.  
-
-::: {.callout-note collapse="true"}
-#### DAS Dictionary
-
-All items are measured on a 6-point Likert scale of Always (0), Almost Always (1), Often (2), Occasionally (3), Hardly Ever (4), and Never (5). Certain items (indicated in the table below with a `-` direction) are reverse scored to ensure that higher scores indicate greater levels of apathy. 
-
+The data can be loaded into your R environment using: 
 ```{r}
-#| echo: false
-qnames = c("I need a bit of encouragement to get things started","I contact my friends","I express my emotions","I think of new things to do during the day","I am concerned about how my family feel","I find myself staring in to space","Before I do something I think about how others would feel about it","I plan my days activities in advance","When I receive bad news I feel bad about it","I am unable to focus on a task until it is finished","I lack motivation","I struggle to empathise with other people","I set goals for myself","I try new things","I am unconcerned about how others feel about my behaviour","I act on things I have thought about during the day","When doing a demanding task, I have difficulty working out what I have to do","I keep myself busy","I get easily confused when doing several things at once","I become emotional easily when watching something happy or sad on TV","I find it difficult to keep my mind on things","I am spontaneous","I am easily distracted","I feel indifferent to what is going on around me")
-revitems = c(10,3,5,7,9,20,2,4,8,13,14,16,18,22)
-Exitems = c(1,6,10,11,17,19,21,23)
-Emitems = c(3,5,7,9,12,15,20,24)
-BCIitems = c(2,4,8,13,14,16,18,22)
-
-tibble(
-  item = 1:24,
-  direction = case_when(
-    item %in% revitems ~ "-",
-    TRUE ~ "+"
-  ),
-  # dimension = case_when(
-  #   item %in% Exitems ~ "Executive",
-  #   item %in% Emitems ~ "Emotional",
-  #   item %in% BCIitems ~ "Initiation"
-  # ),
-  question = qnames
-) |> gt::gt()
+#| eval: false
+load(url("https://uoepsy.github.io/dapr3/2526/misc/creativity.rdata"))
 ```
 
-:::
+After you run this, you should find two things in your environment:  
+
+- `crdat` = the raw data from Qualtrics
+- `critems` = the wordings of each question. This can be useful because if you want to quickly remember what the 4th question was, you can just type `critems[4]` in your console and it will print it out.  
 
 :::
 
 `r qbegin(qcounter())`
-Here is some code that does the following:  
+Our task is going to be to conduct EFA to explore the underlying structure of our scale. As this is a completely new scale that we have just pulled out of our hats, we will feel free to consider removing "problematic" items (and then going back to the start of the EFA process but using the reduced set).  
 
-- reads in the data 
-- renames the variables as "q1", "q2", "q3", ... and so on
-- recodes the variables so that instead of words, the responses are coded as numbers
+This will involve making **lots** of decisions along the way.  
 
-```{r}
-rdas <- read_csv("https://uoepsy.github.io/data/radakovic_das.csv")
+You can find an analysis here:  
 
-names(rdas) <- paste0("q",1:24)
+- [Rmd](https://uoepsy.github.io/dapr3/2526/misc/creativity.Rmd){target="_blank"}
+- [html](https://uoepsy.github.io/dapr3/2526/misc/creativity.html){target="_blank"}
 
-rdas <- rdas |> 
-  mutate(across(q1:q24, ~case_match(.,
-    "Always" ~ 0,
-    "Almost Always" ~ 1,
-    "Often" ~ 2,
-    "Occasionally" ~ 3,
-    "Hardly Ever" ~ 4,
-    "Never" ~ 5
-  )))
-```
+Go through the code and jot down all the decision points, and ask yourself: 1. why did we make those decisions, and 2. what other decisions _could_ we have made?  
 
-
-What number of underlying dimensions best explain the variability in the questionnaire?  
-
-Check the suitability of the items before conducting exploratory factor analysis to address this question. Decide on an optimal factor solution and provide a theoretical name for each factor. We're not doing scale development here, so ideally we don't want to get rid of items.  
-
-Once you've tried, have a look at [this paper by Radakovic & Abrahams](https://www.pure.ed.ac.uk/ws/portalfiles/portal/25353052/abrahams_accepted_man_2_.pdf){target="_blank"} that is essentially what you've just done! (the data isn't the same, ours is fake!).  
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-Here are all the item correlations:  
-```{r}
-library(pheatmap)
-cor(rdas, use = "complete") |> pheatmap()
-```
-everything is pretty high in the KMO factor adequacy:  
-```{r}
-KMO(rdas)
-```
-
-How many factors should we consider?  
-```{r}
-scree(rdas)
-vss(rdas, plot = FALSE)
-fa.parallel(rdas)
-```
-
-| criterion | suggestion |
-| --------- | ---------- |
-| kaiser | 2 |
-| scree plot | 3 |
-| parallel analysis | 3 |
-| MAP | 2 | 
-
-Seems like we should consider a 2 factor and a 3 factor solution. 
-I reckon any underlying dimensions of apathy are likely to be quite related to one another, so we'll use an oblique rotation.  
-```{r}
-apath2 <- fa(rdas, nfactors = 2, rotate = "oblimin", fm = "ml")
-apath3 <- fa(rdas, nfactors = 3, rotate = "oblimin", fm = "ml")
-```
-
-The three factor model explains 30% of the variance, but there are various items that seem to load across all 3 factors (q2, q15, q16), and for some of these none of them are 'salient' (i.e. above 0.3).  
-```{r}
-print(apath3$loadings, sort=TRUE)
-```
-
-The two factor solution explains 26% of the variance, and only one item (q2) is below 0.3 (and only just!). 
-```{r}
-print(apath2$loadings, sort=TRUE)
-```
-
-Hard to decide here. I think I need to know more about "apathy" to make an informed decision about the items.  
-[Radakovic & Abrahams](https://www.pure.ed.ac.uk/ws/portalfiles/portal/25353052/abrahams_accepted_man_2_.pdf){target="_blank"} end up with 3 factors:  
-
-  
-- "Executive" - this is similar to the second factor ("ML1") in our 3-factor model   
-- "Emotional" - this is like the first factor ("ML2") in our 3-factor model  
-- "Initiation" - the third factor ("ML3") in our 3-factor model  
+- correlations were low, overall KMO was low, and we decided to just carry on regardless. We could have stopped here and gone back to the drawing board - rewritten our items (more carefully) and collected new data.
+- our subjective reading of the scree plot led us to 1-3 factors. you could argue there's a kink at the 5th point, but then you could also argue that this is all below the eigenvalue of 1. Eigenvalues below 1 are dimensions that are essentially capturing less variability in the data than a single variable would.  
+- there were decision points when we fit the 3 models to go with principal axis factoring and to use an oblique rotation. The skew wasn't *terrible*, so many researchers might not have worried too much and just gone with ML.
+- we viewed the 2 factor model as looking more suitable. why? the 1 factor model had a lot of items with no salient loadings. the 3 factor model had a factor (PA3) which had only 2 items with it as the primary loading (creativity_2 was cross loading on PA2 and PA3). So the third factor looked like it was under-identified. We also said that we didn't mind about losing 7% of the variance.  
+- A clear decision point is removal of creativity_8. There were various things that fed into this choice - it had low KMO, and low correlations, and in the factor models was not loading on to any factor apart from in the 3-factor solution, where it PA3 was defined mainly by creativity_8 and not much else. So it sort of feels like responses to this question are capturing something different from the others. In addition (and very importantly!), when we read the wording of the question, it didn't scream "creativity".  
+- After removing creativity_8, most of the same decisions came all over again. We then got to the decision of creativity_5, which didn't have a salient loading in either the 1 or 2 factor solutions. The wording of this question is more closely related to the idea of "creativity", but perhaps it's not worded very well. The *ability* to connect ideas from different areas isn't quite the same thing as having the creative *idea* to do so. 
+- finally, once we removed creativity_5, by keeping the 2-factor solution we made a decision that both of these factors represented useful aspects of "creativity". This is actually a decision that often gets overlooked in research --- we do all the stats to develop a scale and then forget to stop at the end and just think about whether what we've ended up with actually looks like what we wanted.^[missing this step leads to the jingle-jangle fallacies, because we would now go out and tell everyeon that this scale measures 'creativity'!]. You might look at the two sets of questions and see something else. We named our factors "novel" and "art", and I could see a very valid argument that neither of these really capture the vague idea of what I think of as "creativity". Artistic expression does not necessitate creativity? Nor novelty for the sake of novelty.  
 
 
 `r solend()`
+
 

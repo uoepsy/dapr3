@@ -7,7 +7,7 @@ editor_options:
 
 ```{r setup, include = FALSE}
 # options for code chunks:
-knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
 # print only 3 digits
 options(digits = 3)
 
@@ -20,9 +20,13 @@ library(gt) # my preferred package for tables
 load(url("https://uoepsy.github.io/dapr3/2526/misc/creativity.rdata"))
 ```
 
+Bear in mind that we really rushed the process of creating this set of questions (see [the lecture slides](https://uoepsy.github.io/dapr3/2526/lectures/07dimensions.html#/dont-do-this-at-home){target="_blank"}), and we've not really given much (any) time into slow and deliberate thinking about what exactly we mean by 'creativity'. 
+
+So it's very possible (and likely) that things here will be messy, and we might not get much of use out of it!  
+
 We got `r nrow(crdat)` responses to the questionnaire, which contained 10 questions:  
 
-```{r items}
+```{r items, echo=FALSE}
 tibble(
   variable = paste0("creativity_",1:10),
   wording = critems
@@ -30,6 +34,7 @@ tibble(
 ```
 
 ```{r cleaning}
+# some data cleaning! 
 crdat <- crdat |> 
   mutate(across(creativity_1:creativity_10,
                 ~case_match(.,
@@ -41,122 +46,172 @@ crdat <- crdat |>
                             "disagree"~2,
                             "strongly disagree"~1,
                             ))) |>
-  mutate(H = ifelse(grepl("left",tolower(handedness)),1,0)) |>
-  select(creativity_1:creativity_10,H)
+  select(creativity_1:creativity_10,handedness)
 ```
+
+# item suitability 
 
 items showed some deviations from normality, with a number of questions (3, 8, and 9) showing clear negative skew:  
 
 ```{r}
+# get some means, sds, and skew etc
 describe(crdat[,1:10])[,c(3,4,8,9,11)]
+# this makes some nice little histograms
 multi.hist(crdat[,1:10])
-```
-
-```{r}
 ```
 
 correlations (visualised below) ranged in magnitude from near zero to 0.75, with the majority being weak (0 - 0.2).  
 ```{r}
 # tabulating the absolute values of correlations
+# get the cor matrix
 cmat <- cor(crdat[,1:10])
+# get the lower triangle bit of it
 cmat <- cmat[lower.tri(cmat)]
+# cut the absolute values, using some conventional cutoffs for sizes of correlations
 corstab <- cut(abs(cmat), breaks=c(0,.2,.5,.8,1))
+# and plot them!  
 barplot(table(corstab), main = "correlations between items")
-# the heatmap
+
+
+# let's also make a heatmap
 cor(crdat[,1:10]) |> heatmap()
 ```
 
 KMO values indicate that we may have some problematic items here. The overall mean sampling adequacy was not great at all (`r round(KMO(crdat[,1:10])$MSA,2)`).  
 
-Initial evaluation of scree plots indicated factor solutions from 1 to 3 factors should be investigated. MAP suggested `r which.min(VSS(crdat[,1:10],plot=F)$map)` and parallel analysis suggested `r fa.parallel(crdat[,1:10], plot = F)$nfact`.  
+Let's go ahead and examine the possible numbers of factors.  
+Initial evaluation of scree plots indicates (to me) that solutions from 1 to 3 factors should be investigated. MAP suggested `r which.min(VSS(crdat[,1:10],plot=F)$map)` and parallel analysis suggested `r fa.parallel(crdat[,1:10], plot = F)$nfact`.  
 ```{r}
 scree(crdat[,1:10])
 ```
 
-We examined 1, 2 and 3 factor solutions, with oblique rotations to allow any sub-dimensions of 'creativity' to be correlated. Due to the deviations from normality some of the items, we used principal axis factoring (PAF) to extract the factors. 
+# initial factor models  
+
+We'll look at 1, 2 and 3 factor solutions, with oblique rotations to allow any sub-dimensions of 'creativity' to be correlated. Due to the deviations from normality some of the items, we'll use principal axis factoring (PAF) to extract the factors. 
 
 ```{r}
 m1 = fa(crdat[,1:10],nfactors=1,fm="pa")
 m2 = fa(crdat[,1:10],nfactors=2,rotate="oblimin",fm="pa")
 m3 = fa(crdat[,1:10],nfactors=3,rotate="oblimin",fm="pa")
 
-print(m1$loadings,cutoff=.3)
+print(m1$loadings,cutoff=.3, sort=T)
 print(m2$loadings,cutoff=.3, sort=T)
-print(m3$loadings,cutoff=.3)
+print(m3$loadings,cutoff=.3, sort=T)
 
+m2$Vaccounted
+m3$Vaccounted
+```
 
+The 2-factor solution looks cleanest to me, and we're only explaining 7% more variance with the 3-factor solution.  
+In the 2 factor solution it kind of looks like the questions on the first factor are "doing new things", and the questions on the second factor are the "artistic expression" questions.  
+There's a weird question (q2) that loads on both..  
+and question 8 doesn't load on to either!  
 
-KMO(full[,1:10])
-cortest.bartlett(full[,1:10])
-
-scree(full[,1:10])
-fa.parallel(full[,1:10])
-VSS(full[,1:10],plot=F)
-
-m1 = fa(full[,1:10],nfactors=1,fm="ml")
-m2 = fa(full[,1:10],nfactors=2,rotate="oblimin",fm="ml")
-m3 = fa(full[,1:10],nfactors=3,rotate="oblimin",fm="ml")
-
-print(m1$loadings,cutoff=.3)
-print(m2$loadings,cutoff=.3, sort=T)
-print(m3$loadings,cutoff=.3)
+factor 1
+```{r}
+critems[c(1,4,6,9,10,2)]
+```
+factor 2
+```{r}
+critems[c(3,7,2)]
+```
+It's hard to know if this question is really capturing part of "creativity" to me.
+```{r}
+critems[8]
+```
 
 # remove q8
-cscale = full[,c(1:7,9:10)]
-KMO(cscale)
-cortest.bartlett(cscale)
 
-scree(cscale)
-fa.parallel(cscale)
-VSS(cscale,plot=F)
+Let's remove question 8 and re-do all the steps.  
+```{r}
 
-m1 = fa(cscale,nfactors=1,fm="ml")
-m2 = fa(cscale,nfactors=2,rotate="oblimin",fm="ml")
-m3 = fa(cscale,nfactors=3,rotate="oblimin",fm="ml")
+KMO(crdat[,c(1:7,9:10)])
+cortest.bartlett(crdat[,c(1:7,9:10)])
 
-print(m1$loadings,cutoff=.3)
+scree(crdat[,c(1:7,9:10)])
+# fa.parallel(crdat[,c(1:7,9:10)])
+# # suggests 2
+# VSS(crdat[,c(1:7,9:10)],plot=F)
+# # suggests 1
+
+m1 = fa(crdat[,c(1:7,9:10)], nfactors=1,fm="pa")
+m2 = fa(crdat[,c(1:7,9:10)], nfactors=2,rotate="oblimin",fm="pa")
+
+print(m1$loadings,cutoff=.3, sort=T)
 print(m2$loadings,cutoff=.3, sort=T)
-print(m3$loadings,cutoff=.3)
-
-m2
-
-# remove q5
-cscale = full[,c(1:4,6:7,9:10)]
-KMO(cscale)
-cortest.bartlett(cscale)
-
-scree(cscale)
-fa.parallel(cscale)
-VSS(cscale,plot=F)
-
-m1 = fa(cscale,nfactors=1,fm="minres")
-m2 = fa(cscale,nfactors=2,rotate="oblimin",fm="ml")
-m3 = fa(cscale,nfactors=3,rotate="oblimin",fm="minres")
-
-print(m1$loadings,cutoff=.3)
-print(m2$loadings,cutoff=.3, sort=T)
-print(m3$loadings,cutoff=.3)
-
-# remove q3, 7
-cscale = full[,c(1,2,4,6,9:10)]
-KMO(cscale)
-cortest.bartlett(cscale)
-
-scree(cscale)
-fa.parallel(cscale)
-VSS(cscale,plot=F)
-
-m1 = fa(cscale,nfactors=1,fm="minres")
-m2 = fa(cscale,nfactors=2,rotate="oblimin",fm="minres")
-m3 = fa(cscale,nfactors=3,rotate="oblimin",fm="minres")
-
-print(m1$loadings,cutoff=.3)
-print(m2$loadings,cutoff=.3, sort=T)
-print(m3$loadings,cutoff=.3)
-
-qitems[c(1,2,4,6,9,10)]
-
-full$cscale = factor.scores(cscale, m1)$scores
-lm(cscale~H,full) |> summary()
 ```
+
+cleaner, but q5 isn't loading on either now.. 
+
+```{r}
+critems[5]
+```
+
+
+# remove q5  
+
+Let's remove question 5.. 
+```{r}
+# remove q5
+KMO(crdat[,c(1:4,6,7,9,10)])
+cortest.bartlett(crdat[,c(1:4,6,7,9,10)])
+
+scree(crdat[,c(1:4,6,7,9,10)])
+# fa.parallel(crdat[,c(1:4,6,7,9,10)])
+# # suggests 2
+# VSS(crdat[,c(1:4,6,7,9,10)],plot=F)
+# # suggests 1
+
+m1 = fa(crdat[,c(1:4,6,7,9,10)], nfactors=1,fm="pa")
+m2 = fa(crdat[,c(1:4,6,7,9,10)], nfactors=2, rotate="oblimin",fm="pa")
+
+
+print(m1$loadings,cutoff=.3, sort=T)
+print(m2$loadings,cutoff=.3, sort=T)
+
+```
+
+Here are the questions that load on to each factor.  
+For factor 1, they all seem to be concerned with new things. 
+```{r}
+critems[c(1,4,6,9,10)]
+```
+For the second factor, these three questions seem to be the ones which have a bit of an arts-related concept (artistic expression, seeing beauty things, unusual imagination etc.)  
+```{r}
+critems[c(3,7,2)]
+```
+
+
+
+
+
+# get some scores
+
+```{r}
+fscores <- factor.scores(crdat[,c(1:4,6,7,9,10)], m2, method = "Bartlett")$scores
+
+crdat <- crdat |> mutate(
+  novel = fscores[,1],
+  art = fscores[,2]
+)
+```
+
+```{r}
+ggplot(crdat, aes(x=handedness,y=novel))+
+  geom_jitter(height=0,width=.1)+
+  stat_summary(geom="pointrange", position = position_nudge(x=.2))
+
+ggplot(crdat, aes(x=handedness,y=art))+
+  geom_jitter(height=0,width=.1)+
+  stat_summary(geom="pointrange", position = position_nudge(x=.2))
+
+```
+
+neither of these are significantly different between left and right handed people. An important thing to note here is **"that absence of evidence is not evidence of absence".** So we should not write this up as "study suggests L/R handed people do not differ in creativity".  
+Rather it should say "study finds no evidence that L/R handed people differ in creativity".  
+```{r}
+t.test(novel ~ handedness, data = crdat)
+t.test(art ~ handedness, data = crdat)
+```
+
 
