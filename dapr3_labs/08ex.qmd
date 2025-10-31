@@ -1,7 +1,7 @@
 ---
 title: "W8 Exercises: EFA"
 params: 
-    SHOW_SOLS: TRUE
+    SHOW_SOLS: FALSE
     TOGGLE: TRUE
 editor_options: 
   chunk_output_type: console
@@ -46,21 +46,21 @@ A researcher is developing a new brief measure of Conduct Problems. She has coll
 1. Threatening others
 
 
-Our task is to use the dimension reduction techniques we learned about in the lecture to help inform how to organise the items she has developed into subscales.  
+Our task is to use  the dimension reduction techniques we learned about in the lecture to help inform how to organise the items she has developed into subscales.  
 
-The data can be found at [https://uoepsy.github.io/data/conduct_probs_scale.csv](https://uoepsy.github.io/data/conduct_probs_scale.csv){target="_blank"} 
+The data can be found at [https://uoepsy.github.io/data/conduct_ninepoint.csv](https://uoepsy.github.io/data/conduct_ninepoint.csv){target="_blank"} 
 
 :::
 
 `r qbegin(qcounter())`
 Read in the dataset.  
-Create a correlation matrix for *the items*, and inspect the items to check their suitability for exploratory factor analysis
+Create a correlation matrix for *the items*, and inspect the items to check their suitability for exploratory factor analysis.
 
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-Take a look at [Reading 9# Initial Checks](r09_efa.html#initial-checks){target="_blank"}.
+Take a look at [the readings here](https://uoepsy.github.io/lv/03_efa.html#initial-checks){target="_blank"}.
 
 :::
 
@@ -68,28 +68,44 @@ Take a look at [Reading 9# Initial Checks](r09_efa.html#initial-checks){target="
 `r qend()` 
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
 ```{r}
-cpdata <- read.csv("https://uoepsy.github.io/data/conduct_probs_scale.csv")
-# discard the first column
+cpdata <- read.csv("https://uoepsy.github.io/data/conduct_ninepoint.csv")
+# discard the first column, which only contains IDs
 cpdata <- cpdata[,-1]
 ```
 
-Here's a correlation matrix. There's no obvious blocks of items here, but we can see that there are some fairly high correlations, as well as some weaker ones. All are positive.  
+Here's a correlation matrix visualised with `heatmap()`.
+Dark colours mean strong correlations, lighter colours mean weaker ones.
+Looks like we're dealing with two obvious blocks of items here.
+
 ```{r}
 heatmap(cor(cpdata))
 ```
 
-The Bartlett's test comes out with a p-value of 0 (which isn't possible, but it's been rounded for some reason). This suggests that we reject the null of this test (that our correlation matrix is proportional to the identity matrix). This is good. It basically means "we have some non-zero correlations"!  
+Next: Bartlett's test checks whether our correlation matrix is different from the identity matrix (a matrix of all 0s except for 1s on the diagonal).
+It comes out with a p-value of 0 (which isn't a possible p-value, so this must have been rounded down for some reason).
+But it's definitely below 0.05, so we can reject the null that the correlation matrix is proportional to the identity matrix.
+This is good.
+It basically means "we have some non-zero correlations"!  
+
 ```{r}
 library(psych)
 cortest.bartlett(cor(cpdata), n=450)
 ```
 
-The overall sampling adequacy is 0.87, which is pretty good! (or rather, which is 'meritorious'!).  MSA for all items is >.8
+
+Next: The KMO sampling adequacy tells us how "factorable" the correlation matrix is—how well can we take it apart into potential subfactors?
+The overall MSA (representing sampling adequacy) is 0.87, which is pretty good!
+(Or in the official terms of the KMO measure: 'meritorious'!).
+And for each individual item, the MSA is above 0.8. 
+Also good.
+
 ```{r}
 KMO(cpdata)  
 ```
 
-Finally, all the relationships here look fairly linear:
+
+Finally: All the relationships here look fairly linear, which is good, because correlations are based on linear relationships.
+
 ```{r}
 pairs.panels(cpdata)
 ```
@@ -106,7 +122,9 @@ This question can be answered in the same way as we did for PCA - use a scree pl
 
 `r solbegin(label="Scree", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-The scree plot shows a kink at 3, which suggests retaining 2 components. 
+A scree plot shows how much variance is explained by each additional factor.
+The scree plot shows a kink at 3, which suggests retaining 2 components: the components before the kink.
+
 ```{r}
 scree(cpdata)
 ```
@@ -114,7 +132,17 @@ scree(cpdata)
 `r solend()`
 `r solbegin(label="MAP", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-The MAP suggests retaining 2 factors. I'm just extracting the actual `map` values here to save having to show all the other output. We can see that the 2nd entry is the smallest: 
+The Minimum Average Partial (MAP) test goes through all components in turn, removing each of them from the correlation matrix and seeing what impact that has on the remaining correlations.
+The values that it computes for each component are the "average squared partial correlation" between the remaining components.
+
+One of the values in this list will be the smallest.
+That small value represents the point at which removing a component removes important shared variance, rather than removing variable-specific variance.
+
+In short, we want to find the smallest MAP value and choose the corresponding number of factors.
+
+I'm just extracting the actual `map` values here.
+We can see that the second entry is the smallest, so the MAP test also suggests retaining two factors.
+
 ```{r}
 VSS(cpdata, plot = FALSE, n = ncol(cpdata))$map
 ```
@@ -123,7 +151,11 @@ VSS(cpdata, plot = FALSE, n = ncol(cpdata))$map
 `r solend()`
 `r solbegin(label="Parallel Analysis", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-Parallel analysis suggests 2 factors as well:
+Parallel analysis involves comparing the observed dataset to simulated datasets in which the variables are totally uncorrelated.
+We want to keep the components that look different from the simulated data.
+
+Parallel analysis suggests two factors as well.
+
 ```{r}
 fa.parallel(cpdata, fa = "both")
 ```
@@ -131,7 +163,8 @@ fa.parallel(cpdata, fa = "both")
 `r solend()`
 `r solbegin(label="Making a decision", slabel=F, show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-Again, a quite clear picture that 2 factors is preferred:  
+Again, a quite clear picture that two factors is preferred:  
+
 ```{r}
 #| echo: false
 tibble(
@@ -143,13 +176,15 @@ tibble(
 `r solend()`
 
 `r qbegin(qcounter())`
-Use the function `fa()` from the **psych** package to conduct and EFA to extract 2 factors (this is what *we* suggest based on the various tests above, but *you* might feel differently - the ideal number of factors is subjective!). Use a suitable rotation (`rotate = ?`) and extraction method (`fm = ?`).  
+Use the function `fa()` from the **psych** package to conduct and EFA to extract two factors.
+(We made the choice of two factors based on the various tests above, but you might feel differently—the ideal number of factors is totally subjective!)
+Use a suitable rotation (`rotate = ?`) and extraction method (`fm = ?`).  
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
 Would you expect factors to be correlated? If so, you'll want an oblique rotation.  
-See [R9#doing-an-efa](r09_efa.html#doing-an-efa){target="_blank"}.  
+See [the readings here](https://uoepsy.github.io/lv/03_efa.html#doing-efa-comparing-solutions){target="_blank"}.  
 
 :::
 
@@ -157,7 +192,9 @@ See [R9#doing-an-efa](r09_efa.html#doing-an-efa){target="_blank"}.
 
 `r qend()` 
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
 For example, you could choose an oblimin rotation to allow factors to correlate. Let's use MLE as the estimator.  
+
 ```{r}
 conduct_efa <- fa(cpdata, nfactors=2, rotate='oblimin', fm="ml")
 ```
@@ -179,6 +216,7 @@ Will give you lots and lots of information.
 You can extract individual parts using:  
 
 - `myfa$loadings` for the loadings
+- `myfa$complexity` for the complexity (essentially the number of factors that a given item loads onto)
 - `myfa$Vaccounted` for the variance accounted for by each factor
 - `myfa$Phi` for the factor correlation matrix
 
@@ -189,11 +227,6 @@ You can find a quick guide to reading the `fa` output here: [efa_output.pdf](htt
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-Things look pretty good here. Each item has a clear primary loading on to one of the factors, and the complexity for all items is 1 (meaning they're clearly link to just one of the factors). The `h2` column is showing that the 2 factor solution is explaining 39%+ of the variance in each item.  Both factors are well determined, having a at least 3 salient loadings.  
-
-The 2 factors together explain 57% of the variance in the data - both factors explain a similar amount (29% for factor 1, 28% for factor 2). 
-
-We can also see that there is a moderate correlation between the two factors. Use of an oblique rotation was appropriate - if the correlation had been very weak, then it might not have differed much from if we used an orthogonal rotation.  
 
 ```{r}
 #| eval: false
@@ -205,18 +238,36 @@ conduct_efa
 ```
 
 
+Things look pretty good here: 
+
+- Each item has a clear primary loading on to one of the factors. This is even easier to see if we just pull out the loadings, because loadings below 0.3 are hidden:
+
+```{r}
+conduct_efa$loadings
+```
+
+
+- The `h2` column is showing that the 2 factor solution is explaining at minimu 35% of the variance in each item, often more.
+- The complexity for all items is 1 (meaning each item is clearly linked to just one of the factors).
+- Both factors are well determined, having at least 3 salient loadings.  
+- The proportion of variance explained shows us that the two factors together explain 53% of the variance in the data. And both factors explain a similar amount: 27% for factor 1, 26% for factor 2.
+- We can also see that there is a moderate correlation between the two factors. Use of an oblique rotation was appropriate - if the correlation had been very weak, then it might not have differed much from if we used an orthogonal rotation.  
+
+
 `r solend()`
 
 
 
 `r qbegin(qcounter())`
-Look back to the description of the items, and suggest a name for your factors based on the patterns of loadings.  
-
+This is the fun part!
+Look back at what each item is asking about, and suggest a name for your factors based on the patterns of loadings.
+What underlying construct do you think each of the two factors might be picking up on?
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-To sort the loadings, you can use
+To sort and group the loadings together in a more readable way, you can use
+
 ```{r}
 #| eval: false
 print(myfa$loadings, sort = TRUE)
@@ -226,13 +277,16 @@ print(myfa$loadings, sort = TRUE)
 
 `r qend()` 
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
-You can inspect the loadings using:
 ```{r}
 print(conduct_efa$loadings, sort=TRUE)
 ```
+
 We can see that, ordered like this, we have five items that have high loadings for one factor and another five items that have high loadings for the other.  
   
-The five items for factor 2 all have in common that they are non-aggressive forms of conduct problems. The five items for factor 1 are all more aggressive behaviours. We could, therefore, label our factors: 'aggressive' and 'non-aggressive' conduct problems.
+The five items for factor 1 all have in common that they are more aggressive kinds of misbehaviour.
+On the other hand, the five items for factor 2 are non-aggressive kinds of misbehaviour.
+We could, therefore, label our factors as 'aggressive' and 'non-aggressive' conduct problems.
+
 `r solend()`
 
 `r qbegin(qcounter())`
@@ -263,13 +317,13 @@ We're looking here to assess:
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-The 1-factor model explains 37% of the variance (as opposed to the 57% explained by the 2 factor solution), and all items load fairly high on the factor. The downside here is that we're not discerning between different types of conduct problems that we did in the 2 factor solution.  
+The 1-factor model explains 35% of the variance (as opposed to the 53% explained by the 2 factor solution), and all items load fairly high on the factor. The downside here is that we're not discerning between different types of conduct problems that we did in the 2 factor solution.  
 ```{r}
 conduct_1 <- fa(cpdata, nfactors=1, fm="ml")
 conduct_1
 ```
 
-The 3-factor model explains 60% of the variance (only 3% more than the 2-factor model). Notably, the third factor is not very clearly defined - it only has 1 salient loading (possibly 2 if we consider the 0.3 to be salient, but that item is primarily loaded on the 2nd factor). 
+The 3-factor model explains 58% of the variance (only 5% more than the 2-factor model). Notably, the third factor is not very clearly defined - it only has 1 salient loading (possibly 2 if we consider the 0.3 to be salient, but that item is primarily loaded on the 2nd factor). 
 ```{r}
 conduct_3 <- fa(cpdata, nfactors=3, rotate='oblimin', fm="ml")
 conduct_3
@@ -281,14 +335,18 @@ conduct_3
 
 
 `r qbegin(qcounter())`
-Write a brief paragraph or two that summarises your method and the results from your chosen optimal factor structure for the 10 conduct problems.  
+Write a few short paragraphs that summarises your choices, your method, and the results from your chosen optimal factor structure for the 10 conduct problems.  
 
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-Write about the process that led you to the number of factors. Discuss the patterns of loadings and provide definitions of the factors. 
+Write about the process that led you to the number of factors you chose.
+Discuss the patterns of loadings and provide definitions of the factors. 
 
+**There is no one correct way to write this up!**
+
+Try thinking of it like this: If you were describing what you did to another researcher who wanted to reproduce your workflow and understand your decisions, what would you say? 
 :::
 
 
@@ -302,9 +360,23 @@ An example summary would be:
 
 :::int 
 
-First, the data were checked for their suitability for factor analysis. Normality was checked using visual inspection of histograms, linearity was checked through the inspection of the linear and lowess lines for the pairwise relations of the variables, and factorability was confirmed using a KMO test, which yielded an overall KMO of $.87$ with no variable KMOs $<.50$. 
-An exploratory factor analysis was conducted to inform the structure of a new conduct problems test. Inspection of a scree plot alongside parallel analysis (using principal components analysis; PA-PCA) and the MAP test were used to guide the number of factors to retain. All three methods suggested retaining two factors; however, a one-factor and three-factor solution were inspected to confirm that the two-factor solution was optimal from a substantive and practical perspective, e.g., that it neither blurred important factor distinctions nor included a minor factor that would be better combined with the other in a one-factor solution. These factor analyses were conducted using maximum likelihood estimation and (for the two- and three-factor solutions) an oblimin rotation, because it was expected that the factors would correlate. Inspection of the factor loadings and correlations reinforced that the two-factor solution was optimal: both factors were well-determined, including 5 loadings $>|0.3|$ and the one-factor model blurred the distinction between different forms of conduct problems. 
-The factor loadings are provided in @tbl-loadingtab^[You should provide the table of factor loadings. It is conventional to omit factor loadings $<|0.3|$; however, be sure to ensure that you mention this in a table note.]. Based on the pattern of factor loadings, the two factors were labelled 'aggressive conduct problems' and 'non-aggressive conduct problems'. These factors had a  correlation of $r=.43$. Overall, they accounted for 57% of the variance in the items, suggesting that a two-factor solution effectively summarised the variation in the items.
+First we checked whether the data were suitable for factor analysis.
+We checked normality using visual inspection of histograms, linearity by inspecting linear and loess lines for the pairwise associations between variables, and factorability using a KMO test, which yielded an overall KMO of $.83$ and no variable KMOs $<.50$.
+
+We conducted an exploratory factor analysis to inform the structure of a new test for conduct problems.
+To help us decide how many factors to retain, we used a scree plot, parallel analysis (using principal components analysis; PA-PCA), and the MAP test.
+All three methods suggested that we retain two factors.
+However, we also checked a one-factor solution and a three-factor solution to confirm that the two-factor solution was indeed most appropriate.
+We didn't want to risk our two-factor solution blurring important distinctions between factors, nor including a minor secondary factor that would be more sensibly combined with the primary one.
+
+We extracted all factors using maximum likelihood estimation and (for the two- and three-factor solutions) an oblimin rotation, because we expected that the factors would be correlated.
+
+Our two-factor solution accounted for 53% of the variance in the items.
+This suggests that the two-factor solution is the most effective of the three soluions we tried (the one-factor solution explained only 35% of variance, while the three-factor solution explained 58%, only 5% more than the two-factor solution).
+Both of the factors in the two-factor solution were well-determined, each including five loadings above 0.3, and they have a correlation of $r=.42$.
+
+The factor loadings above 0.3 are shown in @tbl-loadingtab^[You should provide the table of factor loadings. It is conventional to omit factor loadings $<|0.3|$; however, be sure to ensure that you mention this in a table note.].
+Based on the pattern of factor loadings, we interpreted the two factors as 'aggressive conduct problems' (factor ML1) and 'non-aggressive conduct problems' (factor ML2).
 
 
 ```{r}
@@ -370,7 +442,7 @@ Go through the code and jot down all the decision points, and ask yourself: 1. w
 - we viewed the 2 factor model as looking more suitable. why? the 1 factor model had a lot of items with no salient loadings. the 3 factor model had a factor (PA3) which had only 2 items with it as the primary loading (creativity_2 was cross loading on PA2 and PA3). So the third factor looked like it was under-identified. We also said that we didn't mind about losing 7% of the variance.  
 - A clear decision point is removal of creativity_8. There were various things that fed into this choice - it had low KMO, and low correlations, and in the factor models was not loading on to any factor apart from in the 3-factor solution, where it PA3 was defined mainly by creativity_8 and not much else. So it sort of feels like responses to this question are capturing something different from the others. In addition (and very importantly!), when we read the wording of the question, it didn't scream "creativity".  
 - After removing creativity_8, most of the same decisions came all over again. We then got to the decision of creativity_5, which didn't have a salient loading in either the 1 or 2 factor solutions. The wording of this question is more closely related to the idea of "creativity", but perhaps it's not worded very well. The *ability* to connect ideas from different areas isn't quite the same thing as having the creative *idea* to do so. 
-- finally, once we removed creativity_5, by keeping the 2-factor solution we made a decision that both of these factors represented useful aspects of "creativity". This is actually a decision that often gets overlooked in research --- we do all the stats to develop a scale and then forget to stop at the end and just think about whether what we've ended up with actually looks like what we wanted.^[missing this step leads to the jingle-jangle fallacies, because we would now go out and tell everyeon that this scale measures 'creativity'!]. You might look at the two sets of questions and see something else. We named our factors "novel" and "art", and I could see a very valid argument that neither of these really capture the vague idea of what I think of as "creativity". Artistic expression does not necessitate creativity? Nor novelty for the sake of novelty.  
+- finally, once we removed creativity_5, by keeping the 2-factor solution we made a decision that both of these factors represented useful aspects of "creativity". This is actually a decision that often gets overlooked in research --- we do all the stats to develop a scale and then forget to stop at the end and just think about whether what we've ended up with actually looks like what we wanted.^[missing this step leads to the jingle-jangle fallacies, because we would now go out and tell everyone that this scale measures 'creativity'!]. You might look at the two sets of questions and see something else. We named our factors "novel" and "art", and I could see a very valid argument that neither of these really capture the vague idea of what I think of as "creativity". Artistic expression does not necessitate creativity? Nor novelty for the sake of novelty.  
 
 
 `r solend()`
