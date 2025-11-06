@@ -1,0 +1,619 @@
+---
+title: "W9 Exercises: CFA"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+library(lavaan)
+```
+
+
+# Exercises for the Enthusiastic
+
+:::frame
+__Dataset: radakovic_das.csv__  
+
+Apathy is lack of motivation towards goal-directed behaviours. It is pervasive in a majority of psychiatric and neurological diseases, and impacts everyday life. Traditionally, apathy has been measured as a one-dimensional construct but is in fact composed of different types of demotivation.
+
+Dimensional Apathy Scale (DAS)
+The Dimensional Apathy Scale (DAS) is a multidimensional assessment for demotivation, in which 3 subtypes of apathy are assessed:  
+
+- **Executive:** lack of motivation for planning, attention or organisation
+- **Emotional:** lack of emotional motivation (indifference, affective or emotional neutrality, flatness or blunting)
+- **Initiation:** lack of motivation for self-generation of thoughts and/or actions
+
+The DAS measures these subtypes of apathy and allows for quick and easy assessment, through self-assessment, observations by informants/carers or administration by researchers or healthcare professionals.  
+
+You can find data for the DAS when administered to 250 healthy adults at [https://uoepsy.github.io/data/radakovic_das.csv](https://uoepsy.github.io/data/radakovic_das.csv){target="_blank"}, and information on the items is below.  
+
+::: {.callout-note collapse="true"}
+#### DAS Dictionary
+
+All items are measured on a 6-point Likert scale of Always (0), Almost Always (1), Often (2), Occasionally (3), Hardly Ever (4), and Never (5). Certain items (indicated in the table below with a `-` direction) are reverse scored to ensure that higher scores indicate greater levels of apathy. 
+
+```{r}
+#| echo: false
+qnames = c("I need a bit of encouragement to get things started","I contact my friends","I express my emotions","I think of new things to do during the day","I am concerned about how my family feel","I find myself staring in to space","Before I do something I think about how others would feel about it","I plan my days activities in advance","When I receive bad news I feel bad about it","I am unable to focus on a task until it is finished","I lack motivation","I struggle to empathise with other people","I set goals for myself","I try new things","I am unconcerned about how others feel about my behaviour","I act on things I have thought about during the day","When doing a demanding task, I have difficulty working out what I have to do","I keep myself busy","I get easily confused when doing several things at once","I become emotional easily when watching something happy or sad on TV","I find it difficult to keep my mind on things","I am spontaneous","I am easily distracted","I feel indifferent to what is going on around me")
+revitems = c(10,3,5,7,9,20,2,4,8,13,14,16,18,22)
+Exitems = c(1,6,10,11,17,19,21,23)
+Emitems = c(3,5,7,9,12,15,20,24)
+BCIitems = c(2,4,8,13,14,16,18,22)
+
+tibble(
+  item = 1:24,
+  direction = case_when(
+    item %in% revitems ~ "-",
+    TRUE ~ "+"
+  ),
+  dimension = case_when(
+    item %in% Exitems ~ "Executive",
+    item %in% Emitems ~ "Emotional",
+    item %in% BCIitems ~ "Initiation"
+  ),
+  question = qnames
+) |> gt::gt()
+```
+
+:::
+
+:::
+
+`r qbegin(qcounter())`
+Read in the data. 
+It will need a little bit of tidying before we can get to fitting a CFA.  
+Remember that most of the actions needed for working with those sort of data are described in the [Chapter on Data Wrangling for Questionnaires](https://uoepsy.github.io/lv/01_datawrangle.html){target="_blank"}.  
+
+`r qend()`
+`r solbegin(show=TRUE, label="1 - Read and check", slabel=FALSE, toggle=params$TOGGLE)`
+
+First let's just read in the dataset:
+```{r}
+rdas <- read_csv("https://uoepsy.github.io/data/radakovic_das.csv")
+head(rdas)
+```
+
+The names we're getting are useful in that they show the items, but they're horrible to have to use in R, so we will ideally replace them with easy to use names. 
+Note also that the data is being read in as the actual response option - e.g., "Almost Always" - and we want to treat these as a numeric scale. So those will have to change too.  
+
+`r solend()`
+`r solbegin(show=TRUE, label="2 - Renaming variables", slabel=FALSE, toggle=params$TOGGLE)`
+
+I like to make a "data dictionary" whenever I get data like this. While I want to rename the variables to make it easier for me to use, I also want to keep track of what the questions were.  
+Here I make a "tibble" (the function `data.frame()` would work too, tibble is just tidyverse version). I indicate what I am going to rename things as ("q1","q2", ..., "q24"), and then I have the current names of the variables
+```{r}
+rdas_dict <- tibble(
+  variable = paste0("q",1:24),
+  item = names(rdas)
+)
+```
+
+Doing this is really useful because I can't keep track in my head of what "q5" was.  
+If I want to know, then I can just do: 
+```{r}
+rdas_dict[5,]
+```
+
+Now let's actually change the names in our data to what we said we would:  
+```{r}
+names(rdas) <- paste0("q", 1:24)
+```
+
+`r solend()`
+`r solbegin(show=TRUE, label="3 - Recoding responses", slabel=FALSE, toggle=params$TOGGLE)`
+
+Okay, so we have all our data in words, not numbers. Views on how to treat Likert data are mixed, but it's very common to treat it as continuous in Psychology.  
+
+Let's check the response values we have. Just in question 1 for now:  
+```{r}
+unique(rdas$q1)
+```
+
+A little trick that we can use to find the unique values in an entire dataset is to quickly convert the dataframe into one big long vector. Technically, a dataframe is a "list of vectors", and the function `unlist()` will remove this structure.  
+So we can find all the unique values in all the questions with:  
+```{r}
+unique(unlist(rdas))
+```
+
+Perfect. So we know we have uniformity of spelling. It happens less often these days as questionnaire software is improving, but you might occasionally encounter typos in _some_ of the questions, or things with and without capital letters (R is a bit thick, and doesn't recognise that "Often" and "often" are the same thing).  
+Note that we have the 6 responses that we would expect given the description of the scale, but we also have some `NA` values, and some `[NO ENTRY]` values. Not sure how those got there.  
+We want to turn each "Always" in to 0, each "Almost Always" in to 1, "Often" in to 2, and so on. If we simply leave out the "[NO ENTRY]", then this will be turned into a missing value `NA`, which is handy.  
+
+```{r}
+rdas <- rdas |> 
+  mutate(across(q1:q24, ~case_match(.,
+    "Always" ~ 0,
+    "Almost Always" ~ 1,
+    "Often" ~ 2,
+    "Occasionally" ~ 3,
+    "Hardly Ever" ~ 4,
+    "Never" ~ 5
+  )))
+head(rdas)
+```
+
+`r solend()`
+`r solbegin(show=TRUE, label="4 - Removing missingness", slabel=FALSE, toggle=params$TOGGLE)`
+
+We haven't learned about more sophisticated methods of handling missing data, so for now we will just remove any rows in which there is missingness - i.e., we'll do "listwise deletion":  
+
+```{r}
+compl_rdas <- na.omit(rdas)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Specify the model.  
+
+```{r}
+#| eval: false
+dasmod <- "
+
+
+
+
+
+"
+```
+
+Before you estimate the model, how many degrees of freedom do you think the model will have?  
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You'll have to use the data dictionary to figure out which items are associated with with dimensions.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+Here is the model structure, according to the list of items in the dictionary.  
+I'm calling my factors "Em", "Ex", and "BCI" for "emotional", "executive" and "behavioural/cognitive initiation" respectively. The factor correlations will be estimated by default, but I like to write things explicitly. 
+```{r}
+dasmod = "
+Em =~ q1 + q6 + q10 + q11 + q17 + q19 + q23
+Ex =~ q3 + q5 + q7 + q9 + q12 + q15 + q20 + q24
+BCI =~ q2 + q4 + q8 + q13 + q14 + q16 + q18 + q22
+Em ~~ Ex
+Em ~~ BCI
+Ex ~~ BCI
+"
+```
+
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Estimate the model using `cfa()`.  
+You can choose whether you want to standardise the latent factors or fix the first loading of each factor to be 1 (it's the same model, just scaled differently).  
+
+Examine the model fit - does it fit well?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+There's a whole section on "model fit" in the [CFA chapter](https://uoepsy.github.io/lv/05_cfa.html#model-fit){target="_blank"}!  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
+Let's fit the model!  
+```{r}
+dasmod.est = cfa(dasmod, compl_rdas, std.lv=TRUE)
+```
+
+And examine the global fit: 
+```{r}
+fitmeasures(dasmod.est)[c("srmr","rmsea","tli","cfi")]
+```
+
+All looks pretty good! Cut-offs for SRMR tend to vary, with some using <0.08, or <0.09, and some being stricter with <0.05. Remember, these criteria are somewhat arbitrary.  
+
+Modification indices suggest a whole bunch of items that could have some associations beyond that modelled in the factors, but these are all weak correlations at around 0.2.  
+```{r}
+modindices(dasmod.est, sort=TRUE) |> head()
+```
+
+These are the top 3 being suggested. I can't see any obvious link between any of these that would make me think they are related beyond their measuring of 'apathy'.  
+```{r}
+rdas_dict[c(3,6),]
+rdas_dict[c(1,9),]
+rdas_dict[c(19,20),]
+```
+
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Are all the theorised paths significant?  
+Are the loadings all "big enough"? Think back to 'salient' being defined as $>|0.3|$ in EFA - these were standardised loadings (where everything - both latent variables and observed variables - is standardised).  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+The easy way here is to just look at `summary()` of the model.  
+
+Be aware, however, that depending on how you have scaled the latent variable, the significance tests might be more or less meaningful.  
+In the summary of lavaan models, the significance tests that are displayed are all with the null hypothesis that "the estimate is 0". 
+
+So the Z-values (and so p-values) are different depending on the scaling. This is because with the marker method, the estimated factor loadings are "relative to the first loading", whereas with a standardised latent factor, they are all "with the factor variance set to 1"  
+
+```{r}
+#| include: false
+set.seed(975)
+df = simulateData("F1=~.7*item1+.2*item2+.6*item3",200)
+cfa("F1=~item1+item2+item3",df,std.lv=TRUE) |>
+  summary()
+
+cfa("F1=~item1+item2+item3",df) |>
+  summary()
+```
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r}
+#| eval: false
+cfa("F1=~item1+item2+item3", somedata, std.lv=TRUE) |>
+  summary()
+```
+```
+...
+Latent Variables:
+                   Estimate  Std.Err  z-value  P(>|z|)
+  F1 =~                                               
+    item1             0.850    0.285    2.985    0.003
+    item2             0.158    0.070    2.264    0.024
+    item3             0.519    0.179    2.906    0.004
+```
+
+:::
+:::{.column width="50%"}
+```{r}
+#| eval: false
+cfa("F1=~item1+item2+item3", somedata) |>
+  summary()
+```
+```
+...
+Latent Variables:
+                   Estimate  Std.Err  z-value  P(>|z|)
+  F1 =~                                               
+    item1             1.000                           
+    item2             0.186    0.124    1.506    0.132
+    item3             0.611    0.405    1.509    0.131
+```
+:::
+::::
+
+
+
+:::
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
+```{r}
+summary(dasmod.est, std = TRUE)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Make a diagram of the model.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You can do this manually, which is probably worth it whenever you want to use these sort of diagrams in a proper write up, but there are some quick packages that do this in a rough-and-ready way. Check out the `semPaths()` function from the **semPlot** package [Chapter 5 CFA#making diagrams](https://uoepsy.github.io/lv/05_cfa.html#making-diagrams){target="_blank"}.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
+```{r}
+library(semPlot)
+semPaths(dasmod.est, whatLabels = "std", rotation=2)
+```
+
+`r solend()`
+
+`r qbegin(paste0("Optional Question ", qcounter()), qlabel=FALSE)`
+Much like for EFA, we can estimate individuals' scores on the latent factors. In lavaan, the function `lavPredict()` will get us some estimates.  
+
+However, for a clinician administering the DAS to a patient, this option is not available. Instead, it is common that scores on the individual items associated with a given factor are used to create a sum score or a mean score which can be used in a practical setting (e.g., scores above a given threshold might indicate cause for concern).  
+
+Calculate sum scores for each of the dimensions of apathy. 
+
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+You'll need to reverse some items first! See [Questionnaire Data Wrangling #reverse-coding](00_qdata.html#reverse-coding){target="_blank"}.  
+
+:::
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+According to the table of items, the ones which need to be reverse scored are:  
+```{r}
+reversed <- c(2,3,4,5,7,8,9,10,13,14,16,18,20,22)
+```
+
+For these items, we want 5s to become 0s, 4s become 1s, and so on.. 
+```{r}
+compl_rdas[, reversed] <- apply(
+  compl_rdas[, reversed], MARGIN = 2, function(x) 5-x)
+```
+
+__Note:__ The above code works nicely because our dataset is currently ordered such that the first column is item 1, 2nd column is item 2, and so on. This means we can use _numbers_ to index the appropriate variables, rather than _names_. It would need adjusting if, for instance, our first column contained "participant ID", and our items only began later.  
+
+Here are the sets of items associated with each dimension: 
+```{r}
+Exitems <- c(1,6,10,11,17,19,21,23)
+Emitems <- c(3,5,7,9,12,15,20,24)
+BCIitems <- c(2,4,8,13,14,16,18,22)
+```
+
+Again, because the item numbers correspond to the column positions in our data, we can just do rowSums indexing on those column numbers to get our scores:  
+```{r}
+compl_rdas$ExSCORE <- rowSums(compl_rdas[,Exitems])
+compl_rdas$EmSCORE <- rowSums(compl_rdas[,Emitems])
+compl_rdas$BCIScore <- rowSums(compl_rdas[,BCIitems])
+```
+
+`r solend()`
+
+`r qbegin(paste0("Optional Question ", qcounter()), qlabel = FALSE)`
+How might you think about a sum/mean score in terms of a diagram?  
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
+Computing sum scores can feel like a 'model free' calculation, but actually it **does** pre-suppose a factor structure, and a much more constrained one than those we have been estimating. For a full explanation of this, see ["Thinking twice about sum scores", McNeish & Wolf 2020](https://doi.org/10.3758/s13428-020-01398-0){target="_blank"}. 
+
+```{r}
+#| echo: false
+#| out-width: "100%"
+knitr::include_graphics("images/diag_sumscore.png")
+```
+
+`r solend()`
+
+
+# "DOOM" Scrolling 
+
+:::frame
+__Dataset: doom.csv__  
+
+The "Domains of Online Obsession Measure" (DOOM) is a fictitious scale that aims to assess the sub types of addictions to online content. It was developed to measure 2 separate domains of online obsession: items 1 to 9 are representative of the "emotional" relationships people have with their internet usage (i.e. how it makes them feel), and items 10 to 15 reflect "practical" relationship (i.e., how it connects or interferes with their day-to-day life). Each item is measured on a 7-point likert scale from "strongly disagree" to "strongly agree".  
+
+We administered this scale to 476 participants in order to assess the validity of the 2 domain structure of the online obsession measure that we obtained during scale development.  
+
+The data are available at [https://uoepsy.github.io/data/doom.csv](https://uoepsy.github.io/data/doom.csv){target="_blank"}, and the table below shows the individual item wordings.  
+
+```{r}
+#| echo: false
+
+
+doomqs <- c("i just can't stop watching videos of animals",
+"i spend hours scrolling through tutorials but never actually attempt any projects.",
+"cats are my main source of entertainment.",
+"life without the internet would be boring, empty, and joyless",
+"i try to hide how long i’ve been online",
+"i avoid thinking about things by scrolling on the internet",
+"everything i see online is either sad or terrifying",
+"all the negative stuff online makes me feel better about my own life",
+"i feel better the more 'likes' i receive",
+"most of my time online is spent communicating with others",
+"my work suffers because of the amount of time i spend online",
+"i spend a lot of time online for work",
+"i check my emails very regularly",
+"others in my life complain about the amount of time i spend online",
+"i neglect household chores to spend more time online")
+
+doom <- read_csv("https://uoepsy.github.io/data/doom.csv")
+tibble(
+  variable = names(doom),
+  question = doomqs
+) |> gt::gt()
+```
+
+:::
+
+
+`r qbegin(qcounter())`
+Read in the data. It's all been cleaned already, so we can go straight to modelling.  
+
+Assess whether the 2 domain model of online obsession provides a good fit to this validation sample of 476 participants.   
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This is essentially asking you to:  
+
+1. specify the model
+2. estimate the model
+3. get some model fit metrics
+
+:::
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+From the visual of the correlation matrix, you can see the vague outline of two groups of items correlations. Note there's a little overlap.. 
+```{r}
+doom <- read_csv("https://uoepsy.github.io/data/doom.csv")
+heatmap(cor(doom))
+```
+
+first we write our model: 
+```{r}
+moddoom <- "
+# emotional domain
+emot =~ item_1 + item_2 + item_3 + item_4 + item_5 + item_6 + item_7 + item_8 + item_9
+# practical domain
+pract =~ item_10 + item_11 + item_13 + item_14 + item_15
+# correlated domains (will be estimated by default)
+emot ~~ pract
+"
+```
+Then we fit it to the data:  
+```{r}
+moddoom.est <- cfa(moddoom, data = doom)
+```
+Then we inspect that fitted model object.   
+I'm just going to extract the fit indices here first.  
+```{r}
+fitmeasures(moddoom.est)[c("rmsea","srmr","cfi","tli")]
+```
+Uh-oh.. they don't look great. 
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Are there any areas of local misfit (certain parameters that are not in the model (and are therefore fixed to zero) but that could improve model fit _if they were_ estimated?).  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Check out the section of [Chapter 5 CFA#model-modifications](https://uoepsy.github.io/lv/05_cfa.html#model-modifications){target="_blank"} for how to check for little areas of misfit. 
+
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
+I'm printing out just the `head()`, so that I can look at the few parameters with the greatest modification indices.  
+
+```{r}
+modindices(moddoom.est, sort=TRUE) |>
+  head()
+```
+
+The top three parameters jump out immediately to me.  
+
+`item_1` and `item_3` have a suggested correlation of c0.5, as do `item_7` and `item_8`. In addition, it's suggested that including a loading (estimated to be about 0.6) from `item_10` to the `emot` factor would improve the model fit.  
+
+`r solend()`
+
+
+
+`r qbegin(qcounter())`
+__Beware:__ there's a slightly blurred line here that we're about to step over, and move from confirmatory back to 'exploratory'.  
+
+Look carefully at the item wordings,do any of the suggested modifications make theoretical sense? Add them to the model and re-fit it. Does this new model fit well?  
+
+::: {.callout-caution collapse="true"}
+#### model modifications are exploratory!!
+
+It's likely you will have to make a couple of modifications in order to obtain a model that fits well to this data.  
+
+__BUT...__ we could simply keep adding suggested parameters to our model and we will eventually end up with a perfectly fitting model.  
+
+It's very important to think critically here about _why_ such modifications may be necessary. 
+
+- The initial model may have failed to capture the complexity of the underlying relationships among variables. For instance, suggested residual covariances, representing unexplained covariation among observed variables, may indicate misspecification in the initial model. 
+- The structure of the construct is genuinely different in your population from the initial one in which the scale is developed (this could be a research question in and of itself - i.e. does the structure of "anxiety" differ as people age, or differ between cultures?)
+
+Modifications to a CFA model should be made judiciously, with careful consideration of theory as well as quantitative metrics. The goal is to develop a model that accurately represents the underlying structure of the data while maintaining theoretical coherence and generalizability.  
+
+:::
+
+In this case, the likely reason for the poor fit of the "DOOM" scale, is that the person who made the items (ahem, me) doesn't really know anything about the construct they are talking about, and didn't put much care into constructing the items!  
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+```{r}
+#| echo: false
+tibble(
+  variable = c("item_1","item_3","item_7","item_8","item_10"),
+  question = doomqs[c(1,3,7,8,10)]
+) |> gt::gt()
+```
+
+- `item_1 ~~ item_3`. These questions are both about animals. It would make sense that these are related over and above the underlying "emotional internet usage" factor. 
+- `item_7 ~~ item_8`. These are both about viewing negative content online, so it makes sense here that they would be related beyond the 'emotional' factor. 
+- `emot =~ item_10`. This item is about communicating with others. It currently loads highly on the `pract` factor too. It maybe makes sense here that "communicating with others" will capture both a practical element of internet usage _and_ an emotional one. 
+
+There are three main proposed adjustments from our initial model:  
+
+- `item_1 ~~ item_3`
+- `item_7 ~~ item_8`
+- `emot =~ item_10`
+
+Putting them all in at once could be a mistake. Partly because we want to make the __minimal__ adjustments necessary, and partly because whenever we adjust a model it affects the modification indices, so we should add things one-by-one and re-check `modindices()` each time. It's a bit like [Whac-A-Mole](https://en.wikipedia.org/wiki/Whac-A-Mole){target="_blank"} - you make one modification and then a whole new area of misfits appears!  
+
+Let's adjust our model.  
+Let's put the covariance between `item_1` and `item_3` in. I personally went for this first because they seem more similar to me than `item_7` and `item_8` do. 
+```{r}
+moddoom2 <- "
+# emotional domain
+emot =~ item_1 + item_2 + item_3 + item_4 + item_5 + item_6 + item_7 + item_8 + item_9
+# practical domain
+pract =~ item_10 + item_11 + item_13 + item_14 + item_15
+# correlated domains (will be estimated by default)
+emot ~~ pract
+item_1 ~~ item_3
+"
+```
+Then fit it to the data:  
+```{r}
+moddoom2.est <- cfa(moddoom2, data = doom)
+
+fitmeasures(moddoom2.est)[c("rmsea","srmr","cfi","tli")]
+```
+
+The fit is still not great, but it's better (it was always going to be!), and the same suggested correlations are present in modification indices:  
+```{r}
+modindices(moddoom2.est, sort=TRUE) |>
+  head()
+```
+
+```{r}
+moddoom3 <- "
+# emotional domain
+emot =~ item_1 + item_2 + item_3 + item_4 + item_5 + item_6 + item_7 + item_8 + item_9
+# practical domain
+pract =~ item_10 + item_11 + item_13 + item_14 + item_15
+# correlated domains (will be estimated by default)
+emot ~~ pract
+item_1 ~~ item_3
+item_7 ~~ item_8
+"
+
+moddoom3.est <- cfa(moddoom3, data = doom)
+
+fitmeasures(moddoom3.est)[c("rmsea","srmr","cfi","tli")]
+```
+
+Whoop! It fits well! It may well be that if we inspect modification indices again, we still see that `emot =~ item_10` would improve our model fit. 
+I'm more reluctant to include that one as doing so will change slightly the meaning of our latent factor `emot`. So it becomes much harder to defend that we are testing the same theoretical model.  
+
+The other thing to remember is that we could simply keep adding parameters until we run out of degrees of freedom, and our model would "fit better". But such a model would not be useful. It would not generalise well, becaue it runs the risk of being overfitted to the nuances of this specific sample.
+
+`r solend()`

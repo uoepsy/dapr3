@@ -7,6 +7,12 @@ editor:
     wrap: 72
 ---
 
+```{css, echo = FALSE}
+.output {
+max-height: 500px;
+overflow-y: scroll;
+}
+```
 
 ```{r}
 #| label: setup
@@ -16,6 +22,7 @@ library(patchwork)
 library(psych)
 library(lavaan)
 source('_theme/theme_quarto.R')
+knitr::opts_chunk$set()
 ```
 
 # Course Overview
@@ -41,6 +48,10 @@ source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
 course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
 ```
 
+## Week 8 TR;DL
+
+- TODO
+
 # This week {transition="slide"}
 
 - CFA vs EFA
@@ -53,117 +64,887 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
 
 ## What is your quest?  
 
-too many correlated variables. need to reduce >> PCA
 
-want to understand underlying structure of a set of correlated variables >> EFA
+- I have too many correlated variables. I just need to reduce **&#8594; PCA**
 
-want to test a theoretical structure underlying a set of variables >> CFA
+- I want to understand the underlying structure of my set of correlated variables **&#8594; EFA**
 
-## EFA in diagrams
+- I have a theoretical structure underlying a set of correlated variables.  I want to test it **&#8594; CFA**
 
-non rotated
-rotated
+- I need a way to get a single score for a construct **&#8594; mean scores/sum scores/PCA/EFA/CFA**
 
-## CFA in diagrams
 
-absence of arrows = theoretical constraint
+## In diagrams: EFA
+
+![](img_sandbox/diag_efa1.png)
+
+
+## In diagrams: EFA (oblique rotation)
+
+![](img_sandbox/diag_efa2.png)
+
+## In diagrams: CFA
+
+![](img_sandbox/diag_cfa.png)
+
+## In diagrams: CFA
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/diag_cfa2.png)
+:::
+:::{.column width="50%"}
+
+- Some arrows are absent
+- This is what imposes our theory
+
+:::{.fragment}
+- The reason that $y_1$ and $y_2$ are correlated is because:  
+    - they both represent $F_1$  
+- The reason that $y_1$ and $y_6$ are correlated is because:
+    - $y_1$ is a manifestation of $F_1$,
+    - $y_6$ is a manifestation of $F_2$, 
+    - and $F_1$ and $F_2$ are correlated  
+:::
+
+:::
+::::
+
+## In diagrams: residuals in CFA
+
+different ways people choose to draw the same thing...  
+
+![](img_sandbox/diag_resid.png)
+
 
 # CFA in R
 
-## lavaan package
+## The steps of CFA^[and Structural Equation Modelling (SEM) in general]
 
-"latent variable analysis"
-
-## steps
-
-1. specify
-2. estimate
-
-steps of SEM?
-- measures, assumptions, data
-- specification
-- identification
-- estimation
-- fit
-- possible respecification
-- interpretation
-
-## example
+1. measures, assumptions, data
+2. **specification**
+3. identification
+4. **estimation**
+5. fit
+6. possible respecification **&#x26A0;**	
+7. interpretation
 
 
+## the lavaan package
 
-# evaluating model fit
+- "**la**tent **va**riable **an**alysis"  
 
-## it's a model! how well does it fit?  
+- general modelling framework that estimates models that may include latent variables  
 
-outcome = model + error
-cov matrix = set of parameters in the model + error
-cov matrix = model implied cov matrix + error
+## Typically done in 2 steps   
 
-## diagrams imply things! 
+::::{.columns}
+:::{.column width="50%"}
+Previously:  
+
+- `lm(formula, data = mydata)`
+- `glm(formula, data = mydata)`
+- `lmer(formula, data = mydata)`
+
+:::
+:::{.column width="50%"}
+With **{lavaan}**:   
+
+- Specify model formula in quotation marks:  
+`mymod <- "................"`  
+
+- Estimate^[estimation is generally good ol' max likelihood!] formula with a fitting function such as:    
+`mymod.est <- cfa(mymod, data = mydata)`
 
 
-there's a whole logic to these diagrams that we won't go into.  
-(see reading examples optional)
+:::
+::::
 
-## degrees of freedom
+## lavaan operators
 
-## identified over and under
+|  Formula type|  Operator|  Mnemonic|
+|--:|--:|--:|
+|  latent variable definition|  `=~`|  "is measured by"|
+|  (residual) (co)variance |  `~~`|  "covaries with"|
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/diag_cfa2.png)
+:::
+:::{.column width="50%" style="font-size:3em"}
+<br>
+<br>
+```
+F1 =~ y1 + y2 + y3
+F2 =~ y4 + y5 + y6
+F1 ~~ F2
+```
+
+:::
+::::
+
+
+## example: QRI  
+
+```{r}
+library(lavaan)
+qritems <- c("To what extent could you turn to this person for advice about problems?","To what extent could you count on this person for help with a problem?","To what extent can you really count on this person to distract you from your worries when you feel under stress?","To what extent can you count on this person to listen to you when you are very angry at someone else?","How often do you have to work hard to avoid conflict with this person?","How much do you argue with this person?","How much would you like this person to change?","How often does this person make you feel angry?","How positive a role does this person play in your life?","How significant is this relationship in your life?","How close will your relationship be with this person in 10 years?","How much would you miss this person if the two of you could not see or talk with each other for a month?")
+  
+dgp = "support =~ .725*s1 + .725*s2 + .7*s3 + .615*s4
+conflict =~ .725*c1 + .675*c2 + .68*c3 + .67*c4
+depth =~ .8*d1 + .79*d2 + .785*d3 + .68*d4
+support ~~ -.57*conflict
+support ~~ .63*depth
+conflict ~~ -.5*depth
+c2 ~~ .4*c4
+"
+set.seed(60298)
+simulateData(dgp, sample.nobs = 374) |>
+  apply(2, \(x) as.numeric(cut(x,7))) |> as.data.frame() -> qri
+qri = qri[,sample(1:ncol(qri))]
+```
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/qri_expl.png)
+:::
+:::{.column width="50%"}
+
+```{r}
+tibble(
+  var = c(paste0("s",1:4),paste0("c",1:4),paste0("d",1:4)),
+  wording = qritems
+) |> gt::gt()
+```
+
+:::
+::::
+
+## example: QRI  
+
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/qri_example/Slide1.PNG)
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: true
+qri <- read.csv("https://uoepsy.github.io/data/qri.csv")
+head(qri)
+```
+
+```{r}
+#| echo: true
+mymod <- "
+support =~ s1 + s2 + s3 + s4
+conflict =~ c1 + c2 + c3 + c4
+depth =~ d1 + d2 + d3 + d4
+
+support ~~ conflict
+support ~~ depth
+conflict ~~ depth
+"
+
+mymod.est <- cfa(mymod, data = qri, std.lv = TRUE)
+```
+
+:::
+::::
+
+
+
+
+## example: QRI
+
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/qri_example/Slide2.PNG)
+:::
+:::{.column width="50%"}
+```{r}
+#| class: output
+#| echo: true
+summary(mymod.est)
+```
+:::
+::::
+
+## example: QRI
+
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/qri_example/Slide3.PNG)
+:::
+:::{.column width="50%"}
+```{r}
+#| class: output
+#| echo: true
+summary(mymod.est)
+```
+:::
+::::
+
+## latent variable scaling
+
+
+::::{.columns}
+:::{.column width="50%"}
+- the latent factor is unobserved
+
+- its scale doesn't exist - we need to fix it to something.  
+
+We can... 
+
+**fix its variance to 1 (as previous slides).**  
+
+:::
+:::{.column width="50%"}
+`std.lv = TRUE` >> latent variables are standardised
+```{r}
+#| echo: true
+#| class: output
+mymod.est <- cfa(mymod, data = qri, std.lv = TRUE)
+summary(mymod.est)
+```
+:::
+::::
+
+## latent variable scaling (marker method)
+
+::::{.columns}
+:::{.column width="50%"}
+- the latent factor is unobserved
+
+- its scale doesn't exist - we need to fix it to something.  
+
+We can... 
+
+**fix it to having the same scale as one of the items (defaults to the first one).**  
+
+
+:::
+:::{.column width="50%"}
+the default in lavaan  
+```{r}
+#| echo: true
+#| class: output
+mymod.est <- cfa(mymod, data = qri)
+summary(mymod.est)
+```
+:::
+::::
+
+## latent variable scaling (its all the same)
+
+```{r}
+#| echo: true
+mymod.est <- cfa(mymod, data = qri)
+mymod.est1 <- cfa(mymod, data = qri, std.lv = TRUE)
+
+lavTestLRT(mymod.est, mymod.est1)
+```
+
+
+
+
+## standardisation
+
+- Back with EFA, we were working with correlations
+    - everything was already standardised  
+- Now we are working with covariances
+    - model parameters depend on the scales of the variables  
+
+
+## standardisation
+
+- `Std.lv` column = latent variables are standardised, observed variables aren't  
+- `Std.all` column = both latent variables and observed variables are standardised 
+
+```{r}
+#| echo: true
+#| class: output
+mymod.est <- cfa(mymod, data = qri)
+summary(mymod.est, std = TRUE)
+```
+
+
+# model fit & idenfication
+
+## The steps of CFA^[and Structural Equation Modelling (SEM) in general]
+
+1. measures, assumptions, data
+2. *specification  &#x2713;*
+3. **identification**
+4. *estimation  &#x2713;*
+5. **fit**
+6. possible respecification **&#x26A0;**	
+7. interpretation
+
+
+## what is model fit?
+
+**"how well does my model reproduce my outcome?"**
+
+## Previous models (lm, lmer):   
+
+- outcome = a single variable
+
+$$
+\begin{align}
+\text{outcome} &= \text{model} &+ \text{error} \\
+\quad \\
+\text{observed variable} & = \text{coefficients and predictor variables} &+ \text{error} \\
+\quad \\
+\text{observed variable} & = \text{model predicted values} &+ \text{error} \\
+\end{align}
+$$
+
+<!-- ## Previous models (lm, lmer) (2) -->
+
+<!-- ::::{.columns} -->
+
+<!-- :::{.column width="50%"} -->
+<!-- Our model $\hat{\textrm{f}}\textrm{itted}$ to some data:   -->
+
+<!-- $\color{red}{y_i} = \color{blue}{5 \cdot{} 1 + 2 \cdot{} x_i} + \hat\varepsilon_i$   -->
+
+<!-- For the observation where $x = 1.2$ and $y = 9.9$:   -->
+
+<!--   - $\color{red}{9.9}$ is the value we observe when $x=1.2$    -->
+<!--   - $(\color{blue}{5 \cdot{}} 1 + \color{blue}{2 \cdot{}} 1.2) = 7.4$ is the value the model _predicts_ when $x=1.2$    -->
+<!--   - $\color{red}{9.9} = 7.4 + 2.5$   -->
+
+<!-- ::: -->
+<!-- :::{.column width="50%"} -->
+<!-- ```{r} -->
+<!-- #| label: errplot -->
+<!-- x <- tibble(x=c(-1,4)) -->
+<!-- f <- function(x) {5+2*x} -->
+<!-- p1 <- x |> ggplot(aes(x=x)) + -->
+<!--   stat_function(fun=f,size=1,colour="blue") + -->
+<!--   geom_segment(aes(x=0,xend=0,y=0,yend=f(0)),colour="blue", lty="dotted") + -->
+<!--   geom_segment(aes(x=0,xend=1,y=f(0),yend=f(0)),colour="blue",linetype="dotted") + -->
+<!--   geom_segment(aes(x=1,y=f(0),xend=1,yend=f(1)),colour="blue",linetype="dotted") + -->
+<!--   geom_point(x=0,y=f(0),col="blue",size=3)+ -->
+<!--   annotate("text",x=0.5,y=3,hjust=0,label=expression(paste(b[0], " (intercept)")), -->
+<!--            size=8,parse=TRUE,colour="blue") + -->
+<!--   geom_segment(x=.5,xend=0.01,y=3,yend=4.9,arrow = arrow(length=unit(0.30,"cm")),col="blue")+ -->
+<!--   geom_segment(x=1.02,xend=1.02,y=5,yend=7,col="blue")+ -->
+<!--   geom_segment(x=c(1,1),xend=c(1.02,1.02),y=c(5,7),yend=c(5,7),col="blue")+ -->
+<!--   annotate("text",x=1,y=6,hjust=-.1,label=expression(paste(b[1], " (slope)")), -->
+<!--            size=8,parse=TRUE,colour="blue") + -->
+<!--     ggtitle(expression(paste(b[0]," = 5, ",b[1]," = 2")))+ -->
+<!--   scale_y_continuous(breaks=0:13)+ -->
+<!--   scale_x_continuous(limits = c(-0.3, 4), breaks=0:4) -->
+<!-- xX <-1.2 -->
+<!-- yY <- 9.9 -->
+<!-- p1 + #ylab(expression(paste(hat(y)," = ",5 %.% 1 + 2 %.% x))) + -->
+<!--   geom_point(aes(x=xX,y=yY),size=3,colour="red") + -->
+<!--   geom_segment(aes(x=xX,xend=xX,y=f(xX),yend=yY),linetype="dotted",colour="black") + -->
+<!--   annotate("text",1.1,8.6,hjust=1,label=expression(paste(epsilon[i]," (residual)")),colour="black",size=8)+ -->
+<!--   ggtitle(expression(paste("y = ", 5 %.% 1 + 2 %.% x))) -->
+<!-- ``` -->
+
+<!-- ::: -->
+<!-- :::: -->
+
+<!-- ## Previous models (lm, lmer) (3) -->
+
+<!-- Measures of "model fit":   -->
+
+<!-- - $R^2$ - proportion of variance in an outcome that is explained by predictors -->
+<!-- - reduction in residual SS (leading to an $F$ statistic - i.e., `anova(mod1, mod2)`)  -->
+
+
+## CFA^[and SEM]
+
+- outcome = a covariance matrix
+
+$$
+\begin{align}
+\text{outcome} &= \text{model} &+ \text{error} \\
+\quad \\
+\text{observed covariance matrix} & = \text{model parameters} &+ \text{error} \\
+\quad \\
+\text{observed covariance matrix} & = \text{model implied covariance matrix} &+ \text{error} \\
+\end{align}
+$$
+
+## what are the model parameters?  
+
+the estimated paths on the diagram!   
+
+![](img_sandbox/qri_example/Slide3.PNG)
+
+## how does a diagram imply a covariance?  
+
+![](img_sandbox/intropathtrace/Slide1.png)
+
+## how does a diagram imply a covariance? (2) 
+
+![](img_sandbox/intropathtrace/Slide2.png)
+
+## how does a diagram imply a covariance? (3) 
+
+![](img_sandbox/intropathtrace/Slide3.png)
+
+## identifiability
+
+![](img_sandbox/intropathtrace/Slide4.png)
+
+## identifiability (2)
+
+![](img_sandbox/intropathtrace/Slide5.png)
+
+## identifiability (3)
+
+![](img_sandbox/intropathtrace/Slide6.png)
+
+## identifiability (4)
+
+Conceptually:  
+
+- Back in linear regression world - with just two datapoints there is only one line we can draw.  
+    - we start with 2 datapoints, and we estimate 2 things (intercept and slope).   
+<br>
+
+- In CFA world, the same applies for a factor with 3 'indicators' (items)  
+    - we start with 6 values, and we estimate 6 things
+
+<br>
+
+To measure 'model fit' we need to observe more things than we estimate
+
+## degrees of freedom  
+
+::::{.columns}
+:::{.column width="50%"}
+### how many "knowns"?  
+
+- how many values in our covariance matrix?  
+
+- for $k$ variables this is $\frac{k(k+1)}{2}$  
+
+:::
+:::{.column width="50%"}
+### how many "unknowns"?
+
+- how many parameters are we estimating with our model?  
+    
+:::
+::::
+
+<br><br>
+
+:::{.center-x}
+degrees of freedom = knowns - unknowns
+:::
+
+## example: QRI
+
+::::{.columns}
+:::{.column width="50%" style="font-size:.7em"}
+### how many "knowns"?  
+
+```{r}
+#| echo: true
+cor(qri) |>
+  round(2)
+```
+
+
+:::
+:::{.column width="50%"}
+### how many "unknowns"?
+
+![](img_sandbox/qri_example/Slide3.png){width="350px"}
+
+:::
+::::
+
+
+## example: QRI
+
+::::{.columns}
+:::{.column width="50%"}
+### how many "knowns"?  
+
+**78** variances and covariances  
+
+- 12 observed variables
+- (12 x 13) / 2 = 78
+
+
+:::
+:::{.column width="50%"}
+### how many "unknowns"?
+
+**27** estimated parameters
+
+- 12 factor loadings
+- 12 residual variances
+- 3 factor correlations
+- ~~3 factor variances~~ (fixed to 1) 
+
+
+:::
+::::
+
+
+```{r}
+#| class: output
+#| echo: true
+summary(mymod.est)
+```
 
 
 ## model fit
 
+Pretty much all based on:  
+$$
+\begin{align}
+\text{observed covariance matrix}\,\,\, vs \,\,\, \text{model implied covariance matrix}\\
+\end{align}
+$$
+
+typically also incorporate degrees of freedom (these represent model complexity/parsimony)  
 
 ## fit indices
 
+there are loooooooaddds of different metrics...   
 
-## parameter estimates
+::::{.columns}
+:::{.column width="50%"}
+__"absolute fit"__  
+
+"how far from perfect fit?"  
+
+smaller is better  
+
+| fit index | common threshold |
+| ----------- | ---------------- |
+|  RMSEA      |   <0.05      |
+| SRMR |   <0.05/<0.08 |
+
+:::
+:::{.column width="50%"}
+__"incremental fit"__  
+
+"how much better than a null model^[the 'null model' here is one that has no paths between variables]?"  
+
+bigger is better
+
+| fit index | common threshold |
+| ----------- | ---------------- |
+|  TLI      |   >0.95      |
+| CFI |   >0.95 |
+
+:::
+::::
+
+<br><br>
+
+:::{.myblock}
+**In R:**  
+
+`fitmeasures(mymod.est)[c("rmsea","srmr","cfi","tli")]`  
+```
+ rmsea   srmr    cfi    tli 
+0.0397 0.0467 0.9619 0.9508 
+```
+:::
+
+## The steps of CFA^[and Structural Equation Modelling (SEM) in general]
+
+1. measures, assumptions, data
+2. *specification  &#x2713;*
+3. *identification &#x2713;*
+4. *estimation  &#x2713;*
+5. *fit &#x2713;*
+6. **possible respecification &#x26A0;**	
+7. interpretation
+
+# model respecification
+
+## modification indices  
+
+"how much better would my model fit if we included parameter x?"  
+<br>
+but.. 
+
+- adding in parameters will *always* improve model fit  
+- and we lose degrees of freedom 
+    - <span style="color: red;">&#x2B06;</span>model complexity, <span style="color: red;">&#x2B07;</span> model simplicity
+- these should be theoretically justified
+
+## modindices()
+
+- `lhs`, `op`, `rhs` = the parameter
+- `mi` = change in fit
+- `epc`, `sepc.lv`, `sepc.all`, `sepc.nox` = expected value of parameter (under various forms of standardisation)
+
+```{r}
+#| echo: true
+#| class: output
+modindices(mymod.est, sort = TRUE)
+```
+
+## modification indices
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/qri_example/Slide4.png)
+
+:::
+:::{.column width="50%"}
+```{r}
+library(gt)
+tibble(
+  var = c(paste0("s",1:4),paste0("c",1:4),paste0("d",1:4)),
+  wording = qritems
+) |> gt() |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#F9E3D6"),
+      cell_text(style = "italic")
+      ),
+    locations = cells_body(
+      columns = 1:2,
+      rows = c(6,8)
+    )
+  )
+```
+:::
+::::
 
 
-# latent variable scaling
 
 
-# the gateway to structural equation modelling
+## modification indices
 
-## tracing paths
+Less contentious uses:  
 
-there's a logic to the diagrams - do-calculus. 
-    mainly for back of envelope thinking 
-    helps with any part of a study that is observed not manipulated/randomly allocated
-    essentially a way of helping to figure out how to get at the unbiased estimate of the thing we are interested in
-there's an algebra to the paths
-    when paths are linear
-    "covariance algebra" and "path tracing" tells us what the model implied covariances are
-    kind of wild but we could get regression estimates from just a cov matrix
+- residual covariances for items within a factor
+    - essentially asserts that the two observed variables share some of their specific variance  
 
-opens the door to
+More contentious uses:  
 
-1) testing theoretical models (draw lines between variables, "how well does this reproduce the cov matrix?"). wild west.
-and
-2) estimating paths between constructs while explicitly modelling measurement error
+- adding cross-loadings (could argue that an item loading on two factors is not a clean indicator, and so should be removed)
+
+- residual covariances for items on different factors - harder to defend
+
+- changing paths between the latent variables - very definitely changing your theory! 
+ 
+
+
+## &#x26A0; model modification is exploratory! &#x26A0;
+
+re-specifying a model is no longer confirmatory
+
+it is exploratory again! 
+
+gaahhhh
+
+## interpretation
+
+there are so many parts to these models that often the "interpretation" such as it is, will boil down to:  
+
+1. does it fit well? (and did you have to specify additional paths?)
+2. are all the theorised parameters significant?
+3. are the standardised factor loadings big enough? (e.g., $>|.3|$)
+
+And then the bit we might be more interested in, things like:  
+
+- does F1 correlate with F2?  
+
+## that seemed like a lot of work  
+
+All of this, just to test if a theoretical model of a measurement tool is replicated in your sample?  
+
+# CFA is a gateway... 
+
+## beyond this point 
+
+stuff beyond here definitely won't be in the exam or in the quiz.   
+
+![](img_sandbox/monsters.jpg)
+
+## graphical models 
+
+- there's a formal logic to diagrams ("do-calculus"). 
+
+- mainly for back-of-envelope thinking 
+
+- essentially a way of helping to figure out how to get at an unbiased estimate of the thing we are interested in.
+
+- helps with thinking about any part of a study that is observed not manipulated/randomly allocated
+
+- I surreptitiously introduced you to this way of thinking in back in Week 1! 
+
+![](img_sandbox/dags.png)
+
+## Structural Equation Models (SEM)
+### (essentially just diagrams where the paths are linear associations)
+
+- there's a formal algebra to the linear paths
+
+- this "covariance algebra" tells us what the model implied covariances are
+    - we can also do it by tracing along paths in the diagram!  
+
+**Uses:**  
+
+1. Testing theories beyond just those about measurement. Essentially, draw lines between variables and ask "how well does this reproduce the cov matrix?". 
+2. Estimating paths between constructs while explicitly modelling measurement error
+
 
 ## error error everywhere  
 
-all this error, what should we do? model it!  
+- all this error, what should we do? model it!  
 
-## structural vs measurement parts
+- models have structural parts, and measurement parts
+
+- all gets estimated at once  
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/semexamples/Slide3.png)
+:::
+:::{.column width="50%" style="font-size:1.2em"}
+<br>
+```
+# measurement model
+Y =~ y1 + y2 + y3 + ...
+X =~ x1 + x2 + x3 + ...
+# regressions
+Y ~ X + Z
+# covariances
+X ~~ Z
+```
+:::
+::::
 
 
-## all measured at once
+## common uses of SEM
 
-## example
-
-
-## 
-
+**"Nomological Net"**   
+Do things correlate with other things we expect them to correlate with?  
+*Good for assessing if our measure is measuring the thing we want it to measure!*
 
 
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/semexamples/Slide1.png)
+:::
+:::{.column width="50%" style="font-size:1.2em"}
+<br>
+```
+# measurement model
+F1 =~ y1 + y2 + y3 + ...
+F2 =~ x1 + x2 + x3 + ...
+F3 =~ w1 + w2 + w3 + ...
+# latent variable covariances
+F1 ~~ F2
+F1 ~~ F3
+F2 ~~ F3
+```
+:::
+::::
+
+
+## common uses of SEM
+
+**Measurement Invariance**  
+Do factor loadings differ between groups/timepoints/contexts?
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/semexamples/Slide2.png)
+:::
+:::{.column width="50%" style="font-size:1.2em"}
+<br>
+```
+F1 =~ y1 + y2 + y3 + ...
+```
+<br>
+```
+m1 <- cfa(model, data, group = "mygroups")
+m2 <- cfa(model, data, group = "mygroups", 
+                 group.equal = "loadings")  
+  
+semTools::compareFit(m1,m2)
+```
+
+:::
+::::
+
+## common uses of SEM
+
+**Mediation**  
+How much of X -> Y is because of X -> M and M -> Y?    
+
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/semexamples/Slide4.png)
+
+:::
+:::{.column width="50%" style="font-size:1.2em"}
+<br>
+```
+Y ~ a*M + c*X
+M ~ b*X
+indirect := a*b
+direct := c
+```
+<br>
+```
+sem(model, data)
+```
+
+:::{.myblock style="text-align:left;font-size:.8em"}
+
+**&#x26A0;** mediation is almost always **incredibly** problematic. Many people dismiss it altogether as essentially useless because confounding is *everywhere*.  
+
+cross-sectional observational mediation = "three correlations in a trenchcoat"^[See Julia Rohrer's great blog post: https://www.the100.ci/2025/03/20/reviewer-notes-thats-a-very-nice-mediation-analysis-you-have-there-it-would-be-a-shame-if-something-happened-to-it/ ]
+
+
+:::
+
+
+:::
+::::
 
 
 
+## common uses of SEM
 
+**Latent Growth Curves**  
+The same as `lmer(Y ~ TimePoint + (1 + TimePoint | Person))`
 
+::::{.columns}
+:::{.column width="50%"}
+![](img_sandbox/semexamples/Slide5.png)
 
+:::
+:::{.column width="50%" style="font-size:1.2em"}
+<br>
+```
+int =~ 1*Time1 + 1*Time2 + 1*Time3 + ...
+slope =~ 0*Time1 + 1*Time2 + 2*Time3 + ...
+int ~~ slope
+```
+<br>
+```
+growth(model, data)
+```
+
+![](img_sandbox/lvranef.gif)
+
+:::
+::::
 
 
 
