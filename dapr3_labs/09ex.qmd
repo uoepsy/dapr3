@@ -34,8 +34,7 @@ __Dataset: radakovic_das.csv__
 
 Apathy is lack of motivation towards goal-directed behaviours. It is pervasive in a majority of psychiatric and neurological diseases, and impacts everyday life. Traditionally, apathy has been measured as a one-dimensional construct but is in fact composed of different types of demotivation.
 
-Dimensional Apathy Scale (DAS)
-The Dimensional Apathy Scale (DAS) is a multidimensional assessment for demotivation, in which 3 subtypes of apathy are assessed:  
+**The Dimensional Apathy Scale (DAS)** is a multidimensional assessment for demotivation, in which 3 subtypes of apathy are assessed:  
 
 - **Executive:** lack of motivation for planning, attention or organisation
 - **Emotional:** lack of emotional motivation (indifference, affective or emotional neutrality, flatness or blunting)
@@ -73,6 +72,12 @@ tibble(
 ) |> gt::gt()
 ```
 
+Here are the item numbers that correspond to each dimension.
+
+- Executive: 1, 6, 10, 11, 17, 19, 21, 23
+- Emotional: 3, 5, 7, 9, 12, 15, 20, 24
+- Initiation: 2, 4, 8, 13, 14, 16, 18, 22
+
 :::
 
 :::
@@ -80,12 +85,27 @@ tibble(
 `r qbegin(qcounter())`
 Read in the data. 
 It will need a little bit of tidying before we can get to fitting a CFA.  
+
+Here's what you should consider doing:
+
+- Rename the variables to easy-to-read strings like `q1`, `q2`, `q3`, etc.
+- Set up a data dictionary that records the text of the item `q1` corresponds to, the text that `q2` corresponds to, etc.
+- Recode the Likert scale labels to numbers.
+- Check if there is missing data and if there is, removing those observations.
+
+
+Here's what you *don't* need to do:
+
+- Reverse-code the questions with a negative direction—they'll just end up with loadings in the opposite direction, and that's fine!
+
+
 Remember that most of the actions needed for working with those sort of data are described in the [Chapter on Data Wrangling for Questionnaires](https://uoepsy.github.io/lv/01_datawrangle.html){target="_blank"}.  
 
 `r qend()`
 `r solbegin(show=TRUE, label="1 - Read and check", slabel=FALSE, toggle=params$TOGGLE)`
 
 First let's just read in the dataset:
+
 ```{r}
 rdas <- read_csv("https://uoepsy.github.io/data/radakovic_das.csv")
 head(rdas)
@@ -163,7 +183,9 @@ compl_rdas <- na.omit(rdas)
 
 
 `r qbegin(qcounter())`
-Specify the model.  
+Specify the model.
+
+For reference, check out [the example in the readings](https://uoepsy.github.io/lv/05_cfa.html#cfa-in-r---the-lavaan-package).
 
 ```{r}
 #| eval: false
@@ -176,23 +198,24 @@ dasmod <- "
 "
 ```
 
-Before you estimate the model, how many degrees of freedom do you think the model will have?  
+Before you estimate the model, how many degrees of freedom do you think the model will have?
+Remember that degrees of freedom in CFA models is the the number of values that we know minus the number of parameters for the model to estimate (in short: knowns minus unknowns).
 
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-You'll have to use the data dictionary to figure out which items are associated with with dimensions.  
+You'll have to use the data dictionary to see which items are associated with which dimensions.
 
 :::
 
 `r qend()`
-`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+`r solbegin(show=params$SHOW, label="1 - Specifying the model", slabel=FALSE, toggle=params$TOGGLE)`
 Here is the model structure, according to the list of items in the dictionary.  
 I'm calling my factors "Em", "Ex", and "BCI" for "emotional", "executive" and "behavioural/cognitive initiation" respectively. The factor correlations will be estimated by default, but I like to write things explicitly. 
 ```{r}
 dasmod = "
-Em =~ q1 + q6 + q10 + q11 + q17 + q19 + q23
+Em =~ q1 + q6 + q10 + q11 + q17 + q19 + q21 + q23
 Ex =~ q3 + q5 + q7 + q9 + q12 + q15 + q20 + q24
 BCI =~ q2 + q4 + q8 + q13 + q14 + q16 + q18 + q22
 Em ~~ Ex
@@ -202,6 +225,64 @@ Ex ~~ BCI
 ```
 
 
+`r solend()`
+`r solbegin(show=params$SHOW, label="2 - Computing degrees of freedom", slabel=FALSE, toggle=params$TOGGLE)`
+
+Degrees of freedom is computed as the number of "knowns" minus the number of "unknowns".
+
+Let's start with figuring out the number of "knowns": the number of values in the dataset.
+This number comes from the observed covariance matrix.
+Let's imagine a smaller dataset with only five items.
+It'll create a covariance matrix like this:
+
+```
+var
+covar   var
+covar   covar   var
+covar   covar   covar   var
+covar   covar   covar   covar   var
+```
+
+
+How many values are in this matrix?
+In the first row, there's 1, plus the second row with 2, plus the third row with 3, plus the fourth row with 4, plus the fifth row with 5.
+In other words, there are
+
+```{r}
+sum(1:5)
+```
+
+values in this covariance matrix.
+
+For the present scenario with 24 items, we will have
+
+```{r}
+sum(1:24)
+```
+
+values in the covariance matrix.
+(Twenty-four of these will be each item's own variance, and the other 276 will be covariances between items.)
+
+Now let's look at the number of "unknowns": the number of parameters the model has to estimate.
+This number comes from the number of latent variables and how they relate to each item.
+
+- Each latent variable has its own variance, and there are three latent variables, so the model will have three latent factor variances.
+- Each item will load onto one latent variable, and there are 24 items, so the model will have 24 factor loadings.
+- Each item will have residual factor variances, and there are 24 items, so the model will have 24 residual factor variances.
+
+Adding these up, we get
+
+```{r}
+3 + 24 + 24
+```
+
+unknown parameters.
+
+Finally, let's subtract the knowns from the unknowns to get the degrees of freedom:
+
+```{r}
+300 - 51
+```
 
 `r solend()`
 
@@ -210,12 +291,16 @@ Ex ~~ BCI
 Estimate the model using `cfa()`.  
 You can choose whether you want to standardise the latent factors or fix the first loading of each factor to be 1 (it's the same model, just scaled differently).  
 
-Examine the model fit - does it fit well?  
+Examine the model fit - does it fit well?
+
+What modifications do the model indices suggest? Are the top three suggestions theoretically reasonable, in your opinion?
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
 There's a whole section on "model fit" in the [CFA chapter](https://uoepsy.github.io/lv/05_cfa.html#model-fit){target="_blank"}!  
+
+And there's also a whole section on [model modifications](https://uoepsy.github.io/lv/05_cfa.html#model-modifications).
 
 :::
 
@@ -235,6 +320,7 @@ fitmeasures(dasmod.est)[c("srmr","rmsea","tli","cfi")]
 All looks pretty good! Cut-offs for SRMR tend to vary, with some using <0.08, or <0.09, and some being stricter with <0.05. Remember, these criteria are somewhat arbitrary.  
 
 Modification indices suggest a whole bunch of items that could have some associations beyond that modelled in the factors, but these are all weak correlations at around 0.2.  
+
 ```{r}
 modindices(dasmod.est, sort=TRUE) |> head()
 ```
@@ -252,17 +338,20 @@ rdas_dict[c(19,20),]
 
 `r qbegin(qcounter())`
 Are all the theorised paths significant?  
-Are the loadings all "big enough"? Think back to 'salient' being defined as $>|0.3|$ in EFA - these were standardised loadings (where everything - both latent variables and observed variables - is standardised).  
+Are the loadings all "big enough"?
+Think back to 'salient' being defined as $>|0.3|$ in EFA - these were standardised loadings (where everything - both latent variables and observed variables - is standardised).  
+<!-- EP TODO: rephrase this bit -- is the threshold still 0.3 in CFA? -->
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
 The easy way here is to just look at `summary()` of the model.  
 
-Be aware, however, that depending on how you have scaled the latent variable, the significance tests might be more or less meaningful.  
-In the summary of lavaan models, the significance tests that are displayed are all with the null hypothesis that "the estimate is 0". 
+Be aware, however, that depending on how you have scaled the latent variable, the significance tests might be more or less meaningful/interesting.
+In the summary of lavaan models, the significance tests that are displayed are all with the null hypothesis that "the estimate is 0".
+So the z-values (and so p-values) are different depending on the scaling. This is because with the marker method, the estimated factor loadings are "relative to the first loading", whereas with a standardised latent factor, they are all "with the factor variance set to 1".
 
-So the Z-values (and so p-values) are different depending on the scaling. This is because with the marker method, the estimated factor loadings are "relative to the first loading", whereas with a standardised latent factor, they are all "with the factor variance set to 1"  
+Notice how in these two example models that are the same except for the scaling, the p-values are totally different:
 
 ```{r}
 #| include: false
@@ -321,6 +410,8 @@ Latent Variables:
 ```{r}
 summary(dasmod.est, std = TRUE)
 ```
+
+<!-- EP TODO: Write some prose that describes the take-aways from this output. -->
 
 `r solend()`
 
