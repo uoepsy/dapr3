@@ -1,7 +1,7 @@
 ---
 title: "W9 Exercises: CFA"
 params: 
-    SHOW_SOLS: TRUE
+    SHOW_SOLS: FALSE
     TOGGLE: TRUE
 editor_options: 
   chunk_output_type: console
@@ -215,8 +215,8 @@ Here is the model structure, according to the list of items in the dictionary.
 I'm calling my factors "Em", "Ex", and "BCI" for "emotional", "executive" and "behavioural/cognitive initiation" respectively. The factor correlations will be estimated by default, but I like to write things explicitly. 
 ```{r}
 dasmod = "
-Em =~ q1 + q6 + q10 + q11 + q17 + q19 + q21 + q23
-Ex =~ q3 + q5 + q7 + q9 + q12 + q15 + q20 + q24
+Ex =~ q1 + q6 + q10 + q11 + q17 + q19 + q21 + q23
+Em =~ q3 + q5 + q7 + q9 + q12 + q15 + q20 + q24
 BCI =~ q2 + q4 + q8 + q13 + q14 + q16 + q18 + q22
 Em ~~ Ex
 Em ~~ BCI
@@ -351,80 +351,127 @@ rdas_dict[c(19,20),]
 
 
 `r qbegin(qcounter())`
-Are all the theorised paths significant?  
-Are the loadings all "big enough"?
-Like in EFA, our reference value for "big enough" is $>|0.3|$.
+Are the (*standardised*) loadings all "big enough"?  
+There's no clear threshold that people use here - it depends a lot on the field, and on the wordings of specific items. As a minimum, the same value we used in EFA ($\geq|0.3|$) would be nice.  
 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-The easy way here is to just look at `summary()` of the model.  
-
-Be aware, however, that depending on how you have scaled the latent variable, the significance tests might be more or less meaningful/interesting.
-In the summary of lavaan models, the significance tests that are displayed are all with the null hypothesis that "the estimate is 0".
-So the z-values (and so p-values) are different depending on the scaling. This is because with the marker method, the estimated factor loadings are "relative to the first loading", whereas with a standardised latent factor, they are all "with the factor variance set to 1".
-
-Notice how in these two example models that are the same except for the scaling, the p-values are totally different:
-
-```{r}
-#| include: false
-set.seed(975)
-df = simulateData("F1=~.7*item1+.2*item2+.6*item3",200)
-cfa("F1=~item1+item2+item3",df,std.lv=TRUE) |>
-  summary()
-
-cfa("F1=~item1+item2+item3",df) |>
-  summary()
-```
-
-::::{.columns}
-:::{.column width="50%"}
-
-```{r}
-#| eval: false
-cfa("F1=~item1+item2+item3", somedata, std.lv=TRUE) |>
-  summary()
-```
-```
-...
-Latent Variables:
-                   Estimate  Std.Err  z-value  P(>|z|)
-  F1 =~                                               
-    item1             0.850    0.285    2.985    0.003
-    item2             0.158    0.070    2.264    0.024
-    item3             0.519    0.179    2.906    0.004
-```
-
-:::
-:::{.column width="50%"}
-```{r}
-#| eval: false
-cfa("F1=~item1+item2+item3", somedata) |>
-  summary()
-```
-```
-...
-Latent Variables:
-                   Estimate  Std.Err  z-value  P(>|z|)
-  F1 =~                                               
-    item1             1.000                           
-    item2             0.186    0.124    1.506    0.132
-    item3             0.611    0.405    1.509    0.131
-```
-:::
-::::
-
+See [Chapter 5#interpretation](https://uoepsy.github.io/lv/05_cfa.html#interpretation){target="_blank"}.  
 
 
 :::
 `r qend()`
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
 
+I'm not going to print all of this right now because there's so much output, but here's how we would find standardised loadings. We can find them in the `Std.all` column.  
 ```{r}
+#| eval: false
+summary(dasmod.est, std = TRUE)
+```
+```
+Latent Variables:
+                   Estimate  Std.Err  z-value  P(>|z|)   Std.lv  Std.all
+  Ex =~                                                                 
+    q1                0.679    0.064   10.623    0.000    0.679    0.694
+    q6                0.461    0.076    6.078    0.000    0.461    0.433
+    ...
+    ...
+```
+
+The standardised loadings are all (*just*) greater than $|0.3|$. Questions 13 and 15 are very close... 
+
+```{r}
+rdas_dict[c(13,15),]
+```
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Do the factors correlate in the way you would expect?  
+
+Is more emotional apathy associated with more executive apathy? and with more initiation apathy?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+One of the key things here is figuring out which direction the factor loadings are going. Depending on how many reverse-coded items we have loaded on to a factor, the directions could all just flip, because the latent variable doesn't know which direction it is looking - a latent variable on which being high = "more apathy" and low = "less apathy" is just a mirror image of one in which being high = "less apathy" and being low = "more apathy".  
+
+:::
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+Here are the correlations we're interested in. Note that what we are seeing is that while `Em` and `BCI` are positively correlated with one another, being high on `Ex` is associated with being low on both `Em` and `BCI`.  
+```{r}
+#| eval: false
+summary(dasmod.est, std = TRUE)
+```
+```
+...
+Covariances:
+                   Estimate  Std.Err  z-value  P(>|z|)   Std.lv  Std.all
+  Ex ~~                                                                 
+    Em               -0.159    0.083   -1.927    0.054   -0.159   -0.159
+  Em ~~                                                                 
+    BCI               0.263    0.085    3.095    0.002    0.263    0.263
+  Ex ~~                                                                 
+    BCI              -0.642    0.064  -10.010    0.000   -0.642   -0.642
+```
+
+
+If we look at the loadings for the Executive apathy factor, they are all positive other than `q10`. According to our data dictionary, this `q10` is negatively worded, and the others are all positively worded. So being higher on the `Ex` factor means more Executive Apathy, which is what we want.  
+
+By contrast, both `Em` and `BCI` have positive loadings for the questions that are negatively worded according to the data dictionary. Note that **all** of the initiation apathy questions in the data dictionary are in the other direction. So what we are getting is that being higher the `BCI` factor means having *less* Initiation Apathy. So it's back to front. The same applies to the `Em` factor.  
+
+So actually, all forms of apathy are *positively* correlated (because more of each type is associated with more of the other types).  
+`r solend()`
+
+`r qbegin(qcounter())`
+Reverse code the items that are negatively directed towards apathy. 
+
+We can see the data dictionary for which ones these are, but they are questions 2, 3, 4, 5, 7, 8, 9, 10, 13, 14, 16, 18, 20, and 22.  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+Remember we saw how to do this in [TODO](label){target="_blank"}
+
+:::
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+According to the table of items, the ones which need to be reverse scored are:  
+```{r}
+reversed <- c(2,3,4,5,7,8,9,10,13,14,16,18,20,22)
+```
+
+For these items, we want 5s to become 0s, 4s become 1s, and so on. 
+
+The tidyverse solution shown in the readings and solutions to previous labs will work just fine, but if you're curious, here's a different way to accomplish the same thing using functions from base R:
+
+```{r}
+compl_rdas[, reversed] <- apply(
+  compl_rdas[, reversed], MARGIN = 2, function(x) 5-x)
+```
+
+__Note:__ The above code works nicely because our dataset is currently ordered such that the first column is item 1, 2nd column is item 2, and so on. This means we can use _numbers_ to index the appropriate variables, rather than _names_. It would need adjusting if, for instance, our first column contained "participant ID", and our items only began later.  
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Refit the model now that you've reverse coded those questions.  
+Challenge: what do you predict will happen? What will happen to the loadings? and to the factor correlations?  
+
+`r qend()`
+`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+
+My prediction here is now that for all the items, higher scores represent _more_ apathy, that means all the loadings will be positive, and the correlations between factors too. 
+The magnitudes will be the same as before, just not negative!   
+
+```{r}
+dasmod.est = cfa(dasmod, compl_rdas, std.lv=TRUE)
 summary(dasmod.est, std = TRUE)
 ```
 
-<!-- TODO: Write a sentence or two to describe the key take-aways from this output. -->
 
 `r solend()`
 
@@ -474,22 +521,6 @@ You'll need to reverse some items first! See [Questionnaire Data Wrangling #reve
 :::
 `r qend()`
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
-According to the table of items, the ones which need to be reverse scored are:  
-```{r}
-reversed <- c(2,3,4,5,7,8,9,10,13,14,16,18,20,22)
-```
-
-For these items, we want 5s to become 0s, 4s become 1s, and so on. 
-
-The tidyverse solution shown in the readings and solutions to previous labs will work just fine, but if you're curious, here's a different way to accomplish the same thing using functions from base R:
-
-```{r}
-compl_rdas[, reversed] <- apply(
-  compl_rdas[, reversed], MARGIN = 2, function(x) 5-x)
-```
-
-__Note:__ The above code works nicely because our dataset is currently ordered such that the first column is item 1, 2nd column is item 2, and so on. This means we can use _numbers_ to index the appropriate variables, rather than _names_. It would need adjusting if, for instance, our first column contained "participant ID", and our items only began later.  
-
 Here are the sets of items associated with each dimension: 
 ```{r}
 Exitems <- c(1,6,10,11,17,19,21,23)
