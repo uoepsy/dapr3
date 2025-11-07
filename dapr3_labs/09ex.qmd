@@ -198,8 +198,8 @@ dasmod <- "
 "
 ```
 
-Before you estimate the model, how many degrees of freedom do you think the model will have?
-Remember that degrees of freedom in CFA models is the the number of values that we know minus the number of parameters for the model to estimate (in short: knowns minus unknowns).
+Challenge: Before you estimate the model, how many degrees of freedom do you think the model will have?
+([The readings](https://uoepsy.github.io/lv/05_cfa.html#degrees-of-freedom) will help here!)
 
 
 ::: {.callout-tip collapse="true"}
@@ -312,7 +312,21 @@ Let's fit the model!
 dasmod.est = cfa(dasmod, compl_rdas, std.lv=TRUE)
 ```
 
-And examine the global fit: 
+
+The standard test of model fit is a chi-squared test which compares the observed covariance matrix to the model-implied covariance matrix.
+Ideally, these two matrices will be fairly similar, so we want a non-significant result.
+
+We can get the test statistic and p-value from the model's chi-squared test as follows:
+
+```{r}
+summary(dasmod.est)$test$standard
+```
+
+So a chi-squared test with 249 degrees of freedom results in a test statistic of 274.8, associated with a p-value of 0.125.
+The take-away is that our observed covariance matrix is not significantly different from the model-implied covariance matrix—yay!
+
+Next, let's check the additional measures of global fit: 
+
 ```{r}
 fitmeasures(dasmod.est)[c("srmr","rmsea","tli","cfi")]
 ```
@@ -339,8 +353,7 @@ rdas_dict[c(19,20),]
 `r qbegin(qcounter())`
 Are all the theorised paths significant?  
 Are the loadings all "big enough"?
-Think back to 'salient' being defined as $>|0.3|$ in EFA - these were standardised loadings (where everything - both latent variables and observed variables - is standardised).  
-<!-- EP TODO: rephrase this bit -- is the threshold still 0.3 in CFA? -->
+Like in EFA, our reference value for "big enough" is $>|0.3|$.
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -411,7 +424,7 @@ Latent Variables:
 summary(dasmod.est, std = TRUE)
 ```
 
-<!-- EP TODO: Write some prose that describes the take-aways from this output. -->
+<!-- TODO: Write a sentence or two to describe the key take-aways from this output. -->
 
 `r solend()`
 
@@ -422,27 +435,36 @@ Make a diagram of the model.
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-You can do this manually, which is probably worth it whenever you want to use these sort of diagrams in a proper write up, but there are some quick packages that do this in a rough-and-ready way. Check out the `semPaths()` function from the **semPlot** package [Chapter 5 CFA#making diagrams](https://uoepsy.github.io/lv/05_cfa.html#making-diagrams){target="_blank"}.  
+For a quick look at the structure of the model, try the `semPaths()` function from the **semPlot** package [Chapter 5 CFA#making diagrams](https://uoepsy.github.io/lv/05_cfa.html#making-diagrams){target="_blank"}.
+
+If you were going to use this sort of diagram in a proper write-up, though, it'd be better to make a nicer graphic manually (e.g., in Powerpoint, your favourite graphics software, or [semdiag](https://semdiag.psychstat.org)).
 
 :::
 
 `r qend()`
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
 
+Here's one example:
+
 ```{r}
 library(semPlot)
 semPaths(dasmod.est, whatLabels = "std", rotation=2)
 ```
 
+There are lots of options in `semPaths()`, so if you can make your graphic more elaborate than this one, then be our guest!
+
 `r solend()`
 
 `r qbegin(paste0("Optional Question ", qcounter()), qlabel=FALSE)`
-Much like for EFA, we can estimate individuals' scores on the latent factors. In lavaan, the function `lavPredict()` will get us some estimates.  
+<!-- Much like for EFA, we can estimate individuals' scores on the latent factors. In lavaan, the function `lavPredict()` will get us some estimates.   -->
 
-However, for a clinician administering the DAS to a patient, this option is not available. Instead, it is common that scores on the individual items associated with a given factor are used to create a sum score or a mean score which can be used in a practical setting (e.g., scores above a given threshold might indicate cause for concern).  
+<!-- However, for a clinician administering the DAS to a patient, this option is not available. Instead, it is common that scores on the individual items associated with a given factor are used to create a sum score or a mean score which can be used in a practical setting (e.g., scores above a given threshold might indicate cause for concern).   -->
 
-Calculate sum scores for each of the dimensions of apathy. 
+Imagine that you're a clinician administering the DAS to a patient.
+In clinical settings, it's common practice to skip the complex factor analysis we've been doing here and just create a sum score or a mean score that describe a patient's responses.
+Then clinicians can check whether the score is above some threshold to see whether there's cause for concern.
 
+For each of the dimensions of apathy in the data, calculate sum scores for each of the 250 participants.
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -457,7 +479,10 @@ According to the table of items, the ones which need to be reverse scored are:
 reversed <- c(2,3,4,5,7,8,9,10,13,14,16,18,20,22)
 ```
 
-For these items, we want 5s to become 0s, 4s become 1s, and so on.. 
+For these items, we want 5s to become 0s, 4s become 1s, and so on. 
+
+The tidyverse solution shown in the readings and solutions to previous labs will work just fine, but if you're curious, here's a different way to accomplish the same thing using functions from base R:
+
 ```{r}
 compl_rdas[, reversed] <- apply(
   compl_rdas[, reversed], MARGIN = 2, function(x) 5-x)
@@ -483,16 +508,28 @@ compl_rdas$BCIScore <- rowSums(compl_rdas[,BCIitems])
 
 `r qbegin(paste0("Optional Question ", qcounter()), qlabel = FALSE)`
 How might you think about a sum/mean score in terms of a diagram?  
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+What does a sum or mean score imply about how each item is weighted compared to the others?
+How is this different from what a more sophisticated method like EFA or CFA can do?
+
+:::
+
 `r qend()`
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
 
-Computing sum scores can feel like a 'model free' calculation, but actually it **does** pre-suppose a factor structure, and a much more constrained one than those we have been estimating. For a full explanation of this, see ["Thinking twice about sum scores", McNeish & Wolf 2020](https://doi.org/10.3758/s13428-020-01398-0){target="_blank"}. 
+Computing sum scores can feel like a 'model free' calculation, but actually it **does** pre-suppose a factor structure, and a much more constrained one than those we have been estimating.
+Specifically, we're assuming that all items contribute equally to an underlying factor, rather than being weighted differently, and that all items also have the same variance as one another.
 
 ```{r}
 #| echo: false
 #| out-width: "100%"
 knitr::include_graphics("images/diag_sumscore.png")
 ```
+
+For a full explanation of this idea, see ["Thinking twice about sum scores", McNeish & Wolf 2020](https://doi.org/10.3758/s13428-020-01398-0){target="_blank"}. 
 
 `r solend()`
 
@@ -577,17 +614,30 @@ Then we fit it to the data:
 moddoom.est <- cfa(moddoom, data = doom)
 ```
 Then we inspect that fitted model object.   
-I'm just going to extract the fit indices here first.  
+
+Let's look at the chi-squared test.
+
+```{r}
+summary(moddoom.est)$test$standard
+```
+
+First bad sign: the p-value is so close to zero that it's just been rounded down to display as 0. 
+This means that the chi-squared test rejects the null hypothesis that the observed covariance matrix is similar to the model-implied covariance matrix.
+Ideally, we'd want a non-significant p-value here.
+
+OK, let's extract the fit indices.
 ```{r}
 fitmeasures(moddoom.est)[c("rmsea","srmr","cfi","tli")]
 ```
-Uh-oh.. they don't look great. 
+Uh-oh.. they also don't look great. 
 
 `r solend()`
 
 
 `r qbegin(qcounter())`
-Are there any areas of local misfit (certain parameters that are not in the model (and are therefore fixed to zero) but that could improve model fit _if they were_ estimated?).  
+Are there any areas of local misfit?
+
+In other words, are there certain parameters that are not in the model (and are therefore fixed to zero) but that could improve model fit _if they were_ estimated?  
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -609,7 +659,15 @@ modindices(moddoom.est, sort=TRUE) |>
 
 The top three parameters jump out immediately to me.  
 
-`item_1` and `item_3` have a suggested correlation of c0.5, as do `item_7` and `item_8`. In addition, it's suggested that including a loading (estimated to be about 0.6) from `item_10` to the `emot` factor would improve the model fit.  
+For one: The modification index values are all quite large.
+These values show how much the model's chi-squared test statistic would change if we were to include this parameter in the model.
+
+For another, consider the values in the `sepc.all` column.
+
+- When the operator in the `op` column is `~~` (that is, when the proposed term is a correlation), then the value in `sepc.all` can be interpreted like a correlation coefficient.
+`item_1` and `item_3` have a suggested correlation of about 0.45, as do `item_7` and `item_8`.
+
+- When the operator is `=~` (that is, when the proposed term is a new factor loading), then the value in `sepc.all` can be interpreted as a standardised factor loading. For `emot =~ item_10`, a factor loading of 0.6 is worth considering, since it's well above our threshold for "interestingness" of 0.3.
 
 `r solend()`
 
@@ -618,7 +676,10 @@ The top three parameters jump out immediately to me.
 `r qbegin(qcounter())`
 __Beware:__ there's a slightly blurred line here that we're about to step over, and move from confirmatory back to 'exploratory'.  
 
-Look carefully at the item wordings,do any of the suggested modifications make theoretical sense? Add them to the model and re-fit it. Does this new model fit well?  
+Look carefully at the item wordings.
+Do any of the suggested modifications make theoretical sense?
+
+Add the top three modifications to the model. Does the new model fit well?
 
 ::: {.callout-caution collapse="true"}
 #### model modifications are exploratory!!
@@ -679,11 +740,15 @@ moddoom2.est <- cfa(moddoom2, data = doom)
 fitmeasures(moddoom2.est)[c("rmsea","srmr","cfi","tli")]
 ```
 
-The fit is still not great, but it's better (it was always going to be!), and the same suggested correlations are present in modification indices:  
+The fit is still not great, but it's better (it was always going to be!).
+And the other suggested correlations are still present in modification indices:
+
 ```{r}
 modindices(moddoom2.est, sort=TRUE) |>
   head()
 ```
+
+Let's add both of those other correlations into the model and fit it:
 
 ```{r}
 moddoom3 <- "
