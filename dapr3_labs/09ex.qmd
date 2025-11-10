@@ -91,12 +91,8 @@ Here's what you should consider doing:
 - Rename the variables to easy-to-read strings like `q1`, `q2`, `q3`, etc.
 - Set up a data dictionary that records the text of the item `q1` corresponds to, the text that `q2` corresponds to, etc.
 - Recode the Likert scale labels to numbers.
+- Reverse-code the questions with a negative direction. Note, you don't **need** to this, as they'll just end up with loadings in the opposite direction, but I would strongly recommend it for interpretation purposes.  
 - Check if there is missing data and if there is, removing those observations.
-
-
-Here's what you *don't* need to do:
-
-- Reverse-code the questions with a negative direction—they'll just end up with loadings in the opposite direction, and that's fine!
 
 
 Remember that most of the actions needed for working with those sort of data are described in the [Chapter on Data Wrangling for Questionnaires](https://uoepsy.github.io/lv/01_datawrangle.html){target="_blank"}.  
@@ -171,7 +167,25 @@ head(rdas)
 ```
 
 `r solend()`
-`r solbegin(show=TRUE, label="4 - Removing missingness", slabel=FALSE, toggle=params$TOGGLE)`
+`r solbegin(show=TRUE, label="4 - Reverse Coding", slabel=FALSE, toggle=params$TOGGLE)`
+According to the table of items, the ones which need to be reverse scored are:  
+```{r}
+reversed <- c(2,3,4,5,7,8,9,10,13,14,16,18,20,22)
+```
+
+For these items, we want 5s to become 0s, 4s become 1s, and so on. 
+
+The tidyverse solution shown in the readings and solutions to previous labs will work just fine, but if you're curious, here's a different way to accomplish the same thing using functions from base R:
+
+```{r}
+rdas[, reversed] <- apply(
+  rdas[, reversed], MARGIN = 2, function(x) 5-x)
+```
+
+__Note:__ The above code works nicely because our dataset is currently ordered such that the first column is item 1, 2nd column is item 2, and so on. This means we can use _numbers_ to index the appropriate variables, rather than _names_. It would need adjusting if, for instance, our first column contained "participant ID", and our items only began later.  
+
+`r solend()`
+`r solbegin(show=TRUE, label="5 - Removing missingness", slabel=FALSE, toggle=params$TOGGLE)`
 
 We haven't learned about more sophisticated methods of handling missing data, so for now we will just remove any rows in which there is missingness - i.e., we'll do "listwise deletion":  
 
@@ -180,7 +194,6 @@ compl_rdas <- na.omit(rdas)
 ```
 
 `r solend()`
-
 
 `r qbegin(qcounter())`
 Specify the model.
@@ -205,7 +218,7 @@ Challenge: Before you estimate the model, how many degrees of freedom do you thi
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-You'll have to use the data dictionary to see which items are associated with which dimensions.
+You'll have to use the data dictionary to see which items are associated with which dimensions. And we can also see the data dictionary for which ones are negatively worded towards apathy (questions 2, 3, 4, 5, 7, 8, 9, 10, 13, 14, 16, 18, 20, and 22).  
 
 :::
 
@@ -293,7 +306,7 @@ You can choose whether you want to standardise the latent factors or fix the fir
 
 Examine the model fit - does it fit well?
 
-What modifications do the model indices suggest? Are the top three suggestions theoretically reasonable, in your opinion?
+What modifications do the modification indices suggest? Are the top three suggestions theoretically reasonable, in your opinion?
 
 ::: {.callout-tip collapse="true"}
 #### Hints
@@ -359,7 +372,6 @@ There's no clear threshold that people use here - it depends a lot on the field,
 
 See [Chapter 5#interpretation](https://uoepsy.github.io/lv/05_cfa.html#interpretation){target="_blank"}.  
 
-
 :::
 `r qend()`
 `r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
@@ -396,7 +408,9 @@ Is more emotional apathy associated with more executive apathy? and with more in
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-One of the key things here is figuring out which direction the factor loadings are going. Depending on how many reverse-coded items we have loaded on to a factor, the directions could all just flip, because the latent variable doesn't know which direction it is looking - a latent variable on which being high = "more apathy" and low = "less apathy" is just a mirror image of one in which being high = "less apathy" and being low = "more apathy".  
+If you *didn't* reverse code the appropriate items, then this might get confusing, because we'd have to look at factor loadings to know in which direction the factor is going (i.e., are higher numbers "more apathy" or "less apathy"?).  
+
+If you *did* reverse code the appropriate items, then you're golden, because you made them all point towards "more" apathy.   
 
 :::
 `r qend()`
@@ -411,68 +425,19 @@ summary(dasmod.est, std = TRUE)
 Covariances:
                    Estimate  Std.Err  z-value  P(>|z|)   Std.lv  Std.all
   Ex ~~                                                                 
-    Em               -0.159    0.083   -1.927    0.054   -0.159   -0.159
+    Em                0.159    0.083    1.927    0.054    0.159    0.159
   Em ~~                                                                 
     BCI               0.263    0.085    3.095    0.002    0.263    0.263
   Ex ~~                                                                 
-    BCI              -0.642    0.064  -10.010    0.000   -0.642   -0.642
+    BCI               0.642    0.064   10.010    0.000    0.642    0.642
 ```
 
 
-If we look at the loadings for the Executive apathy factor, they are all positive other than `q10`. According to our data dictionary, this `q10` is negatively worded, and the others are all positively worded. So being higher on the `Ex` factor means more Executive Apathy, which is what we want.  
+<!-- If we look at the loadings for the Executive apathy factor, they are all positive other than `q10`. According to our data dictionary, this `q10` is negatively worded, and the others are all positively worded. So being higher on the `Ex` factor means more Executive Apathy, which is what we want.   -->
 
-By contrast, both `Em` and `BCI` have positive loadings for the questions that are negatively worded according to the data dictionary. Note that **all** of the initiation apathy questions in the data dictionary are in the other direction. So what we are getting is that being higher the `BCI` factor means having *less* Initiation Apathy. So it's back to front. The same applies to the `Em` factor.  
+<!-- By contrast, both `Em` and `BCI` have positive loadings for the questions that are negatively worded according to the data dictionary. Note that **all** of the initiation apathy questions in the data dictionary are in the other direction. So what we are getting is that being higher the `BCI` factor means having *less* Initiation Apathy. So it's back to front. The same applies to the `Em` factor.   -->
 
-So actually, all forms of apathy are *positively* correlated (because more of each type is associated with more of the other types).  
-`r solend()`
-
-`r qbegin(qcounter())`
-Reverse code the items that are negatively directed towards apathy. 
-
-We can see the data dictionary for which ones these are, but they are questions 2, 3, 4, 5, 7, 8, 9, 10, 13, 14, 16, 18, 20, and 22.  
-
-::: {.callout-tip collapse="true"}
-#### Hints
-
-Remember we saw how to do this in [TODO](label){target="_blank"}
-
-:::
-`r qend()`
-`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
-According to the table of items, the ones which need to be reverse scored are:  
-```{r}
-reversed <- c(2,3,4,5,7,8,9,10,13,14,16,18,20,22)
-```
-
-For these items, we want 5s to become 0s, 4s become 1s, and so on. 
-
-The tidyverse solution shown in the readings and solutions to previous labs will work just fine, but if you're curious, here's a different way to accomplish the same thing using functions from base R:
-
-```{r}
-compl_rdas[, reversed] <- apply(
-  compl_rdas[, reversed], MARGIN = 2, function(x) 5-x)
-```
-
-__Note:__ The above code works nicely because our dataset is currently ordered such that the first column is item 1, 2nd column is item 2, and so on. This means we can use _numbers_ to index the appropriate variables, rather than _names_. It would need adjusting if, for instance, our first column contained "participant ID", and our items only began later.  
-
-`r solend()`
-
-`r qbegin(qcounter())`
-Refit the model now that you've reverse coded those questions.  
-Challenge: what do you predict will happen? What will happen to the loadings? and to the factor correlations?  
-
-`r qend()`
-`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
-
-My prediction here is now that for all the items, higher scores represent _more_ apathy, that means all the loadings will be positive, and the correlations between factors too. 
-The magnitudes will be the same as before, just not negative!   
-
-```{r}
-dasmod.est = cfa(dasmod, compl_rdas, std.lv=TRUE)
-summary(dasmod.est, std = TRUE)
-```
-
-
+<!-- So actually, all forms of apathy are *positively* correlated (because more of each type is associated with more of the other types).   -->
 `r solend()`
 
 
@@ -516,11 +481,11 @@ For each of the dimensions of apathy in the data, calculate sum scores for each 
 ::: {.callout-tip collapse="true"}
 #### Hints
 
-You'll need to reverse some items first! See [Questionnaire Data Wrangling #reverse-coding](00_qdata.html#reverse-coding){target="_blank"}.  
+Good ol' `rowSums()` to the rescue!  
 
 :::
 `r qend()`
-`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+`r solbegin(show=TRUE, toggle=TRUE)`
 Here are the sets of items associated with each dimension: 
 ```{r}
 Exitems <- c(1,6,10,11,17,19,21,23)
@@ -549,7 +514,7 @@ How is this different from what a more sophisticated method like EFA or CFA can 
 :::
 
 `r qend()`
-`r solbegin(show=params$SHOW, toggle=params$TOGGLE)`
+`r solbegin(show=TRUE, toggle=TRUE)`
 
 Computing sum scores can feel like a 'model free' calculation, but actually it **does** pre-suppose a factor structure, and a much more constrained one than those we have been estimating.
 Specifically, we're assuming that all items contribute equally to an underlying factor, rather than being weighted differently, and that all items also have the same variance as one another.
