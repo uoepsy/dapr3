@@ -1,5 +1,5 @@
 ---
-title: "Confirmatory Factor Analysis (CFA)"
+title: "Validity and Reliability"
 editor_options: 
   chunk_output_type: console
 editor: 
@@ -37,112 +37,1046 @@ block2_lecs = c(
   "recap & exam prep"
   )
 
-source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
-course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=8)
+#source("https://raw.githubusercontent.com/uoepsy/junk/main/R/course_table.R")
+#course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=9)
 ```
+
+
+## Week 9 TR;DL
+
+- PCA is for reduction
+- EFA is for exploring the underlying structure of what is measured by a set of items
+- CFA is for testing an a priori theoretical structure of what is being measured by a set of items
+
+<br>
+
+- in diagrams, CFA is like EFA, but some arrows are absent (these paths are zero)
+- we test "model fit" by asking how well the model reproduces the observed covariance matrix
+- if it doesn't fit well, we can look at re-specifying our model. But this becomes exploratory!  
+
+![](img_sandbox/blurred.png)
 
 # This week {transition="slide"}
 
+- Construct validity in its various forms  
+- Reliability of measurement and how we estimate it
+
+
+
+## Initial thoughts
+
+
+- **Q:** what does it mean for a measurement to be a "valid" measurement of X?
+- **Q:** what does it mean for a measurement to be a "reliable" measurement of X?  
+
+<br>  
+
+:::woo
+https://app.wooclap.com/events/MNGADP/
+:::
+
+
+# Construct Validity
+
+## What is Construct Validity? 
+
+<br><br>
+
+:::{.myblock}
+
+Whether our measurement instrument actually measures the thing we think it measures.  
+
+:::
+
+## Procrastination Scale (Lay, 1986)
+
+::::{.columns}
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+tribble(
+  ~item, ~wording,
+"1.  "," I often find myself performing tasks that I had intended to do days before.",
+"2.* ","I do not do assignments until just before they are to be handed in.",
+"3.* ","When I am finished with a library book, I return it right away regardless of the date it is due.",
+"4.  "," When it is time to get up in the morning, I most often get right out of bed.",
+"5.  "," A letter may sit for days after I write it before mailing it.",
+"6.  "," I generally return phone calls promptly.",
+"7.  "," Even with jobs that require little else except sitting down and doing them, I find they seldom get done for days.",
+"8.  "," I usually make decisions as soon as possible.",
+"9.  "," I generally delay before starting on work I have to do.",
+"10.*"," I usually have to rush to complete a task on time."
+) |> mutate(across(1:2, ~trimws(.,which = "both"))) |> gt::gt()
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+tribble(
+  ~item, ~wording,
+"11. "," When preparing to go out, I am seldom caught having to do something at the last minute.",
+"12. "," In preparing for some deadline, I often waste time by doing other things.",
+"13.*"," I prefer to leave early for an appointment.",
+"14.*"," I usually start an assignment shortly after it is assigned.",
+"15. ","I often have a task finished sooner than necessary.",
+"16. ","I always seem to end up shopping for birthday or Christmas gifts at the last minute.",
+"17. ","I prefer dogs to cats.",
+"18. ","I usually accomplish all the things I plan to do in a day.",
+"19. ","I am continually saying I'll do it tomorrow.",
+"20. ","I usually take care of all the tasks I have to do before I settle down and relax for the evening. ",
+) |> mutate(across(1:2, ~trimws(.,which = "both"))) |> gt::gt()
+```
+:::
+::::
+
+:::aside
+I *have* edited one item!  
+:::
+
+## We just assessed.. face validity
+
+<br><br>
+
+:::{.myyellowblock}
+
+**Face validity:** The extent to which a measurement tool appears, on the surface, to measure what it claims to measure.  
+
+:::
+
+## biscuit time [face validity]
+
+![](img_sandbox/biscuits/Slide3.png)
+
+## Questionnaire Bias
+
+There's a big problem with many questionnaires - they are very prone to biases.  
+
+- selection bias (e.g., people who are severely depressed typically don't respond to questionnaires)
+- interviewer bias (e.g., confusing instructions, leading questions)
+- response bias
+    - extreme response bias (tends to choose the ends of the scale)
+    - neutral response bias (tends to choose the middle of the scale)
+    - acquiescence bias (tends to always agree)
+    - dissent bias (tends to always disagree)
+    - question order bias (responses depend on order of questions)
+    - social desirability/conformity bias (responds according to what they think is expected of them, rather than their own beliefs)
+
+## What about "subtle items"?  
+
+If a respondent knows the intended construct, they can answer accordingly.  
+
+People try and come up with 'subtle items' for which it's harder to 'fake good'.  
+
+- e.g., for procrastination: 
+"When I look at my future self, I feel like I'm looking at a stranger."  
+*(idea: disconnection from future self makes it easier to say 'that's a future me problem'!)*  
+
+:::{.fragment}
+
+Some weird real examples (not sure what construct they are supposed to map to!):  
+
+- "My father was a good man."
+- "My hands and feet are usually warm enough."
+- "I would like to be a florist."
+- "I sometimes enjoy teasing animals".
+
+:::
+
+## My new procrastination scale (Me, 2025)
+
+In order to procrastinate, i spent some time trying to make a new measure of procrastination!  
+
+What aspects of "procrastination" does this measure miss?   
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+tibble(
+  item=c(paste0("J",1:4),paste0("A",1:3),paste0("B",1:3)),
+  wording=c("I believe it is necessary to delay critical decisions until someone else can provide guidance.",
+            "It is better to put off exercising until I feel fully motivated and optimistic.",
+            "For work that requires creative thinking or imagination, it is better to wait until thoughts spontaneously arise",
+            "It is better to have a fully fledged out plan before starting a piece of work",
+            "I feel high levels of anxiety and self-reproach when I realize I have needlessly delayed a task.","I often choose a pleasurable, easy activity over a necessary, more difficult task.","Even when I know a delay will cause me pain later, I still struggle to begin the task now.","I often begin a task only hours before the final deadline.","I frequently find myself performing tasks that I intended to do several days earlier.","I regularly experience moments where I have to rush to complete a task on time.")
+)[1:4,] |> gt::gt()
+```
+:::
+:::{.column width="50%" .fragment}
+
+It turns out, theory suggests that 'procrastination' typically involves:  
+
+- the behaviour of delaying things
+- negative affect towards delaying things
+- attempts to (irrationally) justify delays
+
+
+:::
+::::
+
+
+## My new procrastination scale (Me, 2025)
+
+What aspects of "procrastination" does this measure miss?   
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+tibble(
+  item=c(paste0("J",1:4),paste0("A",1:3),paste0("B",1:3)),
+  wording=c("I believe it is necessary to delay critical decisions until someone else can provide guidance.",
+            "It is better to put off exercising until I feel fully motivated and optimistic.",
+            "For work that requires creative thinking or imagination, it is better to wait until thoughts spontaneously arise",
+            "It is better to have a fully fledged out plan before starting a piece of work",
+            "I feel high levels of anxiety and self-reproach when I realize I have needlessly delayed a task.","I often choose a pleasurable, easy activity over a necessary, more difficult task.","Even when I know a delay will cause me pain later, I still struggle to begin the task now.","I often begin a task only hours before the final deadline.","I frequently find myself performing tasks that I intended to do several days earlier.","I regularly experience moments where I have to rush to complete a task on time.")
+) |> gt::gt()
+```
+:::
+:::{.column width="50%"}
+
+By 'procrastination' we typically mean:  
+
+- the behaviour of delaying things
+- negative affect towards delaying things
+- attempts to (irrationally) justify delays
+
+
+:::
+::::
+
+## We just assessed.. content validity
+
+<br><br>
+
+:::{.myyellowblock}
+
+**Content validity:** The extent to which we have a representative sample of items to cover the content domains that our theory dictates exist.
+
+:::
+
+## biscuit time [content validity]
+
+![](img_sandbox/biscuits/Slide4.png)
+
+## My new procrastination scale (Me, 2025)
+
+
+::::{.columns}
+:::{.column width="50%"}
+I have my measure of "procrastination".  
+
+- **Q:** what measures will it hopefully correlate highly with?  
+    - *hint - we have already seen something in this lecture!*  
+- **Q:** what measures would it be problematic if our scale correlated highly with?  
+
+
+:::woo
+https://app.wooclap.com/events/MNGADP/
+:::
+
+
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+tibble(
+  item=c(paste0("J",1:4),paste0("A",1:3),paste0("B",1:3)),
+  wording=c("I believe it is necessary to delay critical decisions until someone else can provide guidance.",
+            "It is better to put off exercising until I feel fully motivated and optimistic.",
+            "For work that requires creative thinking or imagination, it is better to wait until thoughts spontaneously arise",
+            "It is better to have a fully fledged out plan before starting a piece of work",
+            "I feel high levels of anxiety and self-reproach when I realize I have needlessly delayed a task.","I often choose a pleasurable, easy activity over a necessary, more difficult task.","Even when I know a delay will cause me pain later, I still struggle to begin the task now.","I often begin a task only hours before the final deadline.","I frequently find myself performing tasks that I intended to do several days earlier.","I regularly experience moments where I have to rush to complete a task on time.")
+) |> gt::gt()
+```
+
+:::
+::::
+
+
+
+## We just assessed.. convergent/discriminant validity
+
+<br><br>
+
+:::{.myyellowblock}
+
+**Convergent validity:** The degree to which scores on a measurement tool are related to scores on other measures of the same construct.
+
+:::
+
+<br>
+
+:::{.myyellowblock}
+
+**Discriminant validity:** The extent to which scores on a measurement tool do not correlate strongly with measures of unrelated constructs.
+
+:::
+
+## biscuit time [convergent/discriminatnt validity]
+
+![](img_sandbox/biscuits/Slide5.png)
+
+## Validity of the validity procedure? gahh
+
+::::{.columns}
+:::{.column width="70%"}
+![](img_sandbox/biscuits/Slide10.png)
+:::
+:::{.column width="30%" .fragment}
+
+![](img_sandbox/push-loop-infinite.gif)
+
+:::
+::::
+
+
+
+## My new procrastination scale (Me, 2025)
+
+I measure a bunch of people on my "procrastination scale".    
+
+- **Q:** what trustworthy things do we hope scores correlate with?  
+- **Q:** what do we hope scores predict in the future?  
+
+<br>  
+
+:::woo
+https://app.wooclap.com/events/MNGADP/
+:::
+
+
+## We just assessed.. criterion validity
+
+<br><br>
+
+:::{.myyellowblock}
+
+**Criterion validity:** The degree to which scores on a measurement tool correlate with some independent, external standard (or 'criterion'). Very often this is the prediction of some future event.  
+
+:::
+
+## biscuit time [criterion validity]
+
+![](img_sandbox/biscuits/Slide6.png)
+
+## biscuit time [criterion validity] 2
+
+![](img_sandbox/biscuits/Slide7.png)
+
+## biscuit time [predictive validity]
+
+![](img_sandbox/biscuits/Slide8.PNG)
+
+## today's lecture is brought to you by..  
+ 
+![](img_sandbox/biscuits/Slide9.PNG)
+
+# ERRORRRRRRR
+
+![](img_sandbox/unexpected-error.jpg)
 
 
 ## Measurement error
 
 > All measurement is befuddled by error
->
-> <p align="right">
->
 > McNemar (1946, p.294)
->
-> </p>
 
--   Every measurement we take contains some error, goal is to minimise
-    it
+-   Every measurement we take contains some error, goal is to minimise it 
 -   Error can be:
-
     - **Random** = Unpredictable. Inconsistent values due to something specific to the measurement occasion
-
-    - **Systematic** = Predictable. Consistent alteration of the
-        observed score due to something constant about the measurement
-        tool
+    - **Systematic** = Predictable. Consistent alteration of the observed score due to something constant about the measurement tool
 
 
+## What is Reliability?
+
+<br><br>
+
+:::{.myblock}
+
+How consistently our measurement instrument measures whatever it is measuring.
+
+:::
 
 
+## One way to think about it.. 
+
+take two measurements - how close are they?  
 ```{r}
-library(tidyverse)
-grp1 = t(replicate(25, 
-          tibble(
-  item =letters[1:10],
-  true = 1:10+rnorm(10,0,.3),
-  measure = round(rnorm(10,true,.1),1)
-))) |> as_tibble() |>
-  mutate(ppt = 1:25) |> 
-  unnest(everything())
-  
-
-grp2 = t(replicate(25, 
-          tibble(
-  item =letters[1:10],
-  true = 1:10+rnorm(10,0,.3),
-  measure = round(rnorm(10,true,.4),1)
-))) |> as_tibble() |>
-  mutate(ppt = 26:50) |> 
-  unnest(everything())
-
-df <- bind_rows(grp1,grp2,.id="group") |>
-  mutate(
-    measure2 = ifelse(item=="a" & group==1, true+rnorm(1,0,.1),
-                      ifelse(
-                        item=="a" & group==2, true+rnorm(1,0,.3),NA))
-  )
-
-ggplot(df |> filter(!is.na(measure2)),aes(x=measure,y=measure2))+
+#| echo: false
+library(patchwork)
+tibble(
+  T_x = rnorm(100,50,5),
+  m1 = rnorm(100,T_x,1),
+  m2 = rnorm(100,T_x,1)
+) |>
+  ggplot(aes(x=m1,y=m2))+
   geom_point()+
-  facet_wrap(~group,scales="free")
+  labs(x="measurement 1",y="measurement 2")+
+  theme(axis.text = element_text(size=20))-> p1
 
-df
+tibble(
+  T_x = rnorm(100,50,5),
+  m1 = rnorm(100,T_x,6),
+  m2 = rnorm(100,T_x,6)
+) |>
+  ggplot(aes(x=m1,y=m2))+
+  geom_point()+
+  labs(x="measurement 1",y="measurement 2") +
+  theme(axis.text = element_text(size=20))-> p2
+
+p1 + p2
 ```
 
 
+## An Alternative Framing
 
-# get students to measure 2 properties for 10 things
-   # - e.g., length and angles of lines
-  # split in two groups. one with fewer increments on scale
-
-# then get them to rate set of properties of group of people
-
-# go back to thing A, ask them to measure again
-
-#  test re-test
-# correlation thing A measurements, split by group
-
-
-# inter rater
-# rating of properties across raters
+imagine we could see the "truth" - how much variance in our measurements is due to the true values?  
 
 ```{r}
-ratings <- tibble(
-  ppt = 1:50,
-  pA = rbinom(50,8,p=.7)+1,
-  pB = rbinom(50,8,p=.8)+1,
-  pC = rbinom(50,8,p=.9)+1,
-)
-ratings2 = as.data.frame(t(ratings[,2:4]))
-library(psych)
-ICC(ratings2)
-
-lme4::lmer(value~1+(1|name), data = ratings |> pivot_longer(2:4)) |> sjPlot::tab_model()
-
-
-ratings <- tibble(
-  ppt = 1:50,
-  pA = rbinom(50,8,p=.3)+1,
-  pB = rbinom(50,8,p=.4)+1,
-  pC = rbinom(50,8,p=.5)+1,
-)
-
+#| echo: false
+tibble(
+  T_x = rnorm(100,40,5),
+  `rel=1` = T_x,
+  `rel=.8` = rnorm(100, T_x, sqrt((1-.8)/.8)),
+  `rel=.5` = rnorm(100, T_x, sqrt((1-.5)/.5)),
+  `rel=.3` = rnorm(100, T_x, sqrt((1-.3)/.3))
+) |> #mutate(across(everything(),scale)) |>
+  pivot_longer(2:5) |>
+  ggplot(aes(x=T_x,y=value))+
+  geom_point()+
+  facet_grid(~name,scale="free_y")+
+  labs(x="True_X",y="measured_X") +
+  theme(axis.text = element_text(size=16))
 ```
 
 
+## A Diagram of Measurement
+
+![](img_sandbox/ctt/Slide2.png)
+
+## Reliability - A General Formula
+
+$$
+\text{Reliability} = 
+\frac{Var(\text{True Scores})}{Var(\text{True Scores})+Var(\text{Error})} =
+\frac{Var(\text{True Scores})}{Var(\text{Observed Scores})}
+$$
+
+
+:::{.fragment}
+
+$$
+\begin{align*}
+\rho_{XX'} &= \frac{Var(T_x)}{Var(X)} = \frac{Var(T_x)}{Var(T_x) + Var(e_x)} = 1 - \frac{Var(e_x)}{Var(X)} \\
+&X\text{ is observed score on scale }X \\
+&T_x\text{ is True scores} \\
+&e_x\text{ is error}
+\end{align*}
+$$
+
+
+:::
+
+:::aside
+**Optional** The correlation between two tests ends up at this same idea: $\rho_{X_1,X_2} = \frac{ Cov(X_1, X_2)}{\sqrt{ Var(X_1) \cdot Var(X_2)}}$ can be simplified to $\frac{Var(T_x)}{Var(T_x) + Var(E)}$
+:::
+
+
+
+
+
+
+
+## Why Care?
+
+```{r}
+#| echo: false
+df1 <- MASS::mvrnorm(n=100,
+              mu=c(0,0),
+              Sigma = matrix(c(1,0.8,0.8,1),nrow=2),
+              empirical=TRUE) |>
+  as.data.frame() |>
+  transmute(
+    X_1 = V1, Y_1 = V2,
+    X_0.8 = rnorm(100, X_1, sqrt((1-.8)/.8)),
+    Y_0.8 = rnorm(100, Y_1, sqrt((1-.8)/.8)),
+    X_0.5 = rnorm(100, X_1, sqrt((1-.5)/.5)),
+    Y_0.5 = rnorm(100, Y_1, sqrt((1-.5)/.5)),
+    X_0.3 = rnorm(100, X_1, sqrt((1-.3)/.3)),
+    Y_0.3 = rnorm(100, Y_1, sqrt((1-.3)/.3))
+  ) 
+
+  
+#  
+# library(gganimate)
+# df1 |> mutate(id=1:n()) |>
+#   pivot_longer(-id) |>
+#   separate(name,into=c("var","rel")) |>
+#   pivot_wider(names_from=var,values_from=value) |>
+#   ggplot(aes(x=X,y=Y))+
+#   geom_point()+
+#   transition_states(rel)+
+#   labs(title="{closest_state}")+
+#   ease_aes('sine-in-out')
+
+p1 <- ggplot(df1, aes(x=X_1,y=Y_1))+
+  geom_point()+
+  labs(x="TRUE X",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,1],df1[,2]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+p2 <- ggplot(df1, aes(x=X_0.8,y=Y_1))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.8,y=Y_1,yend=Y_1),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.8",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) =", round(cor(df1[,3],df1[,2]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+p3 <- ggplot(df1, aes(x=X_0.5,y=Y_1))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.5,y=Y_1,yend=Y_1),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.5",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,5],df1[,2]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+p4 <- ggplot(df1, aes(x=X_0.3,y=Y_1))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.3,y=Y_1,yend=Y_1),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.3",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,7],df1[,2]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+```
+
+```{r}
+#| echo: false
+p1 + plot_spacer()
+```
+
+## Why Care? (2) {visibility="uncounted"}
+
+```{r}
+#| echo: false
+p1 + p2
+```
+
+## Why Care? (3) {visibility="uncounted"}
+
+```{r}
+#| echo: false
+p1 + p3
+```
+
+## Why Care? (4) {visibility="uncounted"}
+
+```{r}
+#| echo: false
+p1 + p4
+```
+
+## Why Care? (5) {visibility="uncounted"}
+
+
+```{r}
+#| echo: false
+#  
+# library(gganimate)
+# df1 |> mutate(id=1:n()) |>
+#   pivot_longer(-id) |>
+#   separate(name,into=c("var","rel")) |>
+#   pivot_wider(names_from=var,values_from=value) |>
+#   ggplot(aes(x=X,y=Y))+
+#   geom_point()+
+#   transition_states(rel)+
+#   labs(title="{closest_state}")+
+#   ease_aes('sine-in-out')
+
+p1 <- ggplot(df1, aes(x=X_1,y=Y_1))+
+  geom_point()+
+  labs(x="TRUE X",
+       y="TRUE Y",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,1],df1[,2]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+p2 <- ggplot(df1, aes(x=X_0.8,y=Y_0.8))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.8,y=Y_1,yend=Y_0.8),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.8",
+       y="rel(Y) = 0.8",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,3],df1[,4]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+p3 <- ggplot(df1, aes(x=X_0.5,y=Y_0.5))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.5,y=Y_1,yend=Y_0.5),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.5",
+       y="rel(Y) = 0.5",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,5],df1[,6]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+p4 <- ggplot(df1, aes(x=X_0.3,y=Y_0.3))+
+  geom_point(aes(x=X_1,y=Y_1),col="red",alpha=.3)+
+  geom_segment(aes(x=X_1,xend=X_0.3,y=Y_1,yend=Y_0.3),col="red",alpha=.3)+
+  geom_point()+
+  labs(x="rel(X) = 0.3",
+       y="rel(Y) = 0.3",
+       subtitle=paste0("cor(x,y) = ",round(cor(df1[,7],df1[,8]),2))) +
+  xlim(min(apply(df1[,c(1,3,5,7)],2,min)),
+       max(apply(df1[,c(1,3,5,7)],2,max)))+
+  ylim(min(apply(df1[,c(2,4,6,8)],2,min)),
+       max(apply(df1[,c(2,4,6,8)],2,max))) +
+  theme(axis.text = element_blank())
+
+#(p1 + p2) / (p3 + p4)
+
+```
+
+```{r}
+#| echo: false
+p1 + p2
+```
+
+## Why Care? (6) {visibility="uncounted"}
+
+```{r}
+#| echo: false
+p1 + p3
+```
+
+## Why Care? (7)
+
+```{r}
+#| echo: false
+p1 + p4
+```
+
+
+## Corrections for attenuation due to unreliability
+
+With estimates of each measures reliability, we can "correct" correlations
+
+We assumes errors are uncorrelated with truth  
+
+
+$$
+r^*_{xy} = \frac{r_{xy}}{\sqrt{ \rho^2_{0x} \rho^2_{0y}}}
+$$
+
+$r^*_{xy}$ is the correlation between $x$ and $y$ after correcting for attenuation  
+$r_{xy}$ is the correlation before correcting for attenuation  
+$\rho^2_{0x}$ is the reliability of $x$  
+$\rho^2_{0y}$ is the reliability of $y$  
+
+
+# How to Estimate Reliability 
+
+## One 'test'
+
+![](img_sandbox/ctt/Slide2.png)
+
+## One 'test'
+
+:::{style="font-size:1.4em"}
+
+```{r}
+dd1 <- data.frame(
+  Observed_Score = rnorm(10,40,5),
+  True_score = rep("??",10),
+  Error = rep("??",10)
+) 
+
+pd <- dd1 |> mutate_if(is.numeric,~round(.,1)) |>
+  head() |>
+  rbind("...")
+row.names(pd)[7]<-"..."
+pd
+```
+:::
+
+
+
+## Two 'tests'
+
+![](img_sandbox/ctt/Slide3.png)
+
+
+
+## Where do different tests come from? 
+
+- take the same test twice
+- take different versions of the same test
+- get different people to administer the same test to the same people
+- multi-item measures
+    - kind of assumes the items within a measure are all different possible versions of the test
+    
+
+## How will we estimate reliability?   
+
+- take the same test twice - **ICC**
+- take different versions of the same test - **ICC**
+- get different people to administer the same test to the same people - **ICC**
+- multi-item measures - **alpha/omega**  
+    - kind of assumes the items within a measure are all different possible versions of the test
+    
+## Two 'tests'
+
+:::{style="font-size:1.4em"}
+```{r}
+#| echo: false
+Tx = rnorm(1e4,40,5)
+dd <- data.frame(
+  Error1 = rep("??",1e4),
+  Observed_Score1 = rnorm(1e4,Tx,1),
+  True_score = rep("??",1e4),
+  Observed_Score2 = rnorm(1e4,Tx,1),
+  Error2 = rep("??",1e4)
+) 
+pd <- dd |> mutate_if(is.numeric,~round(.,1)) |>
+  head() |>
+  rbind("...")
+row.names(pd)[7]<-"..."
+pd
+```
+:::
+
+
+## Two 'tests'
+
+:::{style="font-size:1.4em"}
+```{r}
+#| echo: false
+dd$True_score = rowMeans(dd[,c(2,4)])
+
+pd <- dd |> mutate_if(is.numeric,~round(.,1)) |>
+  head() |>
+  rbind("...")
+row.names(pd)[7]<-"..."
+pd
+```
+:::
+
+## Two 'tests'
+
+:::{style="font-size:1.4em"}
+```{r}
+#| echo: false
+dd$Error1 = dd[,2]-dd[,3]
+dd$Error2 = dd[,4]-dd[,3]
+
+dd1 <- dd |> mutate_if(is.numeric,~round(.,1)) |>
+  head() |>
+  rbind("...") |> rbind("...") |> rbind("...")
+
+ddv <- as.data.frame(t(apply(dd,2,var))) |> round(3) |> as.character()
+
+pd <- rbind(dd1,ddv)
+row.names(pd)[7:10]<-c("...","..",".","VAR")
+pd
+```
+:::
+
+
+## ICC
+
+There are various formulations of ICC, but the basic principle = ratio of *variance between groups* to *total variance*.  
+
+$$
+\begin{align}
+ICC &= \frac{\sigma^2_{b}}{\sigma^2_{b} + \sigma^2_{e}} \\ 
+\qquad \\
+\textrm{Where:}& \\ 
+\sigma^2_{b} &= \textrm{variance between clusters} \\ 
+\sigma^2_{e} &= \textrm{variance within clusters (residual variance)} 
+\end{align}
+$$
+
+:::{.myblock}
+
+in R: `ICC()` function from the **psych** package
+
+- lots of versions depending on how many 'judges rate each target' and whether we want to generalise to a larger population of 'judges'  
+
+:::
+
+
+## Reliability for multi-item measures  
+
+::::{.columns}
+:::{.column width="50%"}
+
+- We have a sample of all possible items we might use for measuring X  
+    - so sort of exchangeable tests
+
+- each item represents same Truth, to same degree (let's assume)
+
+- `cov(item1, item2)` is an estimate of `var(T)`
+  - and so is `cov(item2, item3)`
+  - and `cov(item3, item4)`, `cov(item1, item3)` ...
+
+So let's take the average covariance, and call that "truth"  
+
+
+:::
+:::{.column width="50%"}
+
+![](img_sandbox/ctt/Slide6.png)
+:::
+::::
+
+
+## ~~Cronbach's~~ Coefficient alpha   
+
+::::{.columns}
+:::{.column width="50%"}
+$$
+\begin{align*}
+\alpha=\frac{k}{k-1}\left( \frac{\sum\limits_{i\neq}\sum\limits_j\sigma_{ij}}{\sigma^2_X}     \right) = \frac{k^2 \,\,\,\overline{\sigma_{ij}}}{\sigma^2_X} \\
+k \text{ is the number of items in scale X} \\
+\sigma^2_X \text{ is the variance of all items in scale X} \\
+\sigma_{ij} \text{ is the covariance between items }i\text{ and }j \\
+\end{align*}
+$$
+:::
+
+:::{.column width="50%"}
+
+:::
+::::
+
+:::{.myblock}
+
+In R: the `alpha()` function from the **psych** package
+
+:::
+
+:::aside
+Actually came from Guttman 1945.  
+Cronbach 2004: *"to make so much use of an easily calculated translation of a well-established formula scarcely justifies the fame it has brought me. It is an embarrassment to me that the formula became conventionally known as Cronbach’s $\alpha$."*
+:::
+
+
+## ~~Cronbach's~~ Coefficient alpha   
+
+::::{.columns}
+:::{.column width="50%"}
+
+<div style="position: fixed; z-index: 1000; top: 175px; left: 250px; width: 200px; height: 200px; display: flex; justify-content: center; align-items: center;">
+<img src="img_sandbox/angryequ.png" style="max-width: 90%; max-height: 90%; height: auto;"></div>
+
+$$
+\begin{align*}
+\alpha=\frac{k}{k-1}\left( \frac{\sum\limits_{i\neq}\sum\limits_j\sigma_{ij}}{\sigma^2_X}     \right) = \frac{k^2 \,\,\,\overline{\sigma_{ij}}}{\sigma^2_X} \\
+k \text{ is the number of items in scale X} \\
+\sigma^2_X \text{ is the variance of all items in scale X} \\
+\sigma_{ij} \text{ is the covariance between items }i\text{ and }j \\
+\end{align*}
+$$
+:::
+
+:::{.column width="50%"}
+<br>
+$$
+\begin{align}
+&= \frac{\text{average covariance}}{\text{total score variance}}\\
+\quad \\
+&= \frac{\text{true variance}}{\text{total score variance}} \\
+\end{align}
+$$
+
+:::
+::::
+
+:::{.myblock}
+
+In R: the `alpha()` function from the **psych** package
+
+:::
+
+:::aside
+Actually came from Guttman 1945.  
+Cronbach 2004: *"to make so much use of an easily calculated translation of a well-established formula scarcely justifies the fame it has brought me. It is an embarrassment to me that the formula became conventionally known as Cronbach’s $\alpha$."*
+:::
+
+
+
+
+## The Assumed Measurement Model  
+
+![](img_sandbox/ctt/Slide6.png)
+
+
+## What If Instead...  
+
+![](img_sandbox/ctt/Slide7.png)
+
+## What If Instead...  
+
+![](img_sandbox/ctt/Slide9.png)
+
+## McDonald's Omega
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+$$
+\begin{align*}
+\omega_{total} = \frac{ \left( \sum\limits_{i=1}^{k}\lambda_i\right)^2 }{ \left(\sum\limits_{i=1}^{k}\lambda_i \right)^2 + \sum\limits_{i=1}^{k}\theta_{ii} } \\
+k \text{ is the number of items in scale}\\
+\lambda_i \text{ is the factor loading for item }i\\
+\theta_{ii}\text{ is the error variance for item }i\\
+\end{align*}
+$$
+:::
+
+:::{.column width="50%"}
+
+:::
+::::
+
+:::{.myblock}
+
+in R: the `omega()` from function from the **psych** package.  
+
+:::
+
+## McDonald's Omega
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+<div style="position: fixed; z-index: 1000; top: 175px; left: 250px; width: 200px; height: 200px; display: flex; justify-content: center; align-items: center;">
+<img src="img_sandbox/angryequ.png" style="max-width: 90%; max-height: 90%; height: auto;"></div>
+
+$$
+\begin{align*}
+\omega_{total} = \frac{ \left( \sum\limits_{i=1}^{k}\lambda_i\right)^2 }{ \left(\sum\limits_{i=1}^{k}\lambda_i \right)^2 + \sum\limits_{i=1}^{k}\theta_{ii} } \\
+k \text{ is the number of items in scale}\\
+\lambda_i \text{ is the factor loading for item }i\\
+\theta_{ii}\text{ is the error variance for item }i\\
+\end{align*}
+$$
+
+:::
+
+:::{.column width="50%"}
+
+
+<br>
+$$
+\small
+\begin{align}
+&= \frac{\text{factor loadings}^2}{\text{factor loadings}^2 + \text{error}}\\
+\quad \\
+&= \frac{\text{variance explained by factors}}{\text{variance explained by factors} + \text{error variance}}\\
+\quad \\
+&= \frac{\text{true variance}}{\text{true variance} + \text{error variance}} \\
+\end{align}
+$$
+
+
+:::
+::::
+
+:::{.myblock}
+
+in R: the `omega()` from function from the **psych** package.  
+
+:::
+
+
+# Pulling it together
+
+## Reliability is the ceiling for validity 
+
+
+::::{.columns}
+:::{.column width="50%"}
+
+:::woo
+https://app.wooclap.com/events/MNGADP/
+:::
+
+where would you put: 
+
+- weighing scales that always show "50kg"
+- weighing scales that just show a random number
+- weighing scales that show your weight +/- 0.0001g
+- weighing scales that show your weight +/- 3kg
+- weighing scales that show 5kg over your weight +/- 0.0001g
+
+
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+tibble(Validity=1:10,Reliability=1:10) |>
+ggplot(aes(x=Reliability,y=Validity))+
+  scale_x_continuous(labels=NULL)+
+  scale_y_continuous(labels=NULL)+
+  geom_line(lty="dotted")+
+  theme_minimal(base_size = 24) + 
+    theme(
+      axis.line = element_line(colour = "black", linewidth = 1.5),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.background = element_rect(fill = "white", colour = NA), 
+      plot.background = element_rect(fill = "white", colour = NA),
+      panel.border = element_blank() 
+    )
+```
+
+
+:::
+::::
+
+
+# measurement is always developing {background-color="white"}  
+
+**Reliability and Validity are properties of the sample, not of the scale/measurement tool**   
 
 
