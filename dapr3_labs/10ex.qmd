@@ -1,0 +1,275 @@
+---
+title: "W10 Exercises: Reliability & Validity"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+library(lavaan)
+```
+
+
+# Measuring pro-environmental orientation
+
+:::frame
+__Dataset: Sparks, Ehret, Brick, 2022__
+
+These data come from a [2022 Study](https://www.sciencedirect.com/science/article/pii/S0272494422000251){target="_blank"} that aimed to develop a new measure of environmental attitudes. Specifically, the data we are working with are from "Study 2" (It starts on page 6 of the article, but it's very similar to Study 1, so the whole thing is relevant).   
+
+To get the data, go to [https://osf.io/d4ume/files/tyj27?view_only=05d5cfb5a76a4f11b339290913da96f6](https://osf.io/d4ume/files/tyj27?view_only=05d5cfb5a76a4f11b339290913da96f6){target="_blank"} and click on the download button. You'll then have to point R to where it is located on your computer.  
+
+It contains lots and lots of variables. It seems like they have already reverse coded any of the necessary individual items (and renamed them with `_r` after them). They've also calculated and included the mean scores for each measure.  
+
+```{r}
+#| label: tbl-ssidict
+#| tbl-cap: "Overview of ssi_clean.csv variables"
+#| echo: false
+
+mes <- read_csv("data/ssi_clean.csv")
+list(
+  Demographics = names(mes)[c(3:10,15:17)],
+  `2000 Gallup Earth Day Poll Behaviours` = names(mes)[18:30],
+  `New Ecological Paradigm (NEP) Items` = names(mes)[31:45],
+  `Connectedness to Nature Scale (CNS) Items` = names(mes)[46:59],
+  `Moral Environmentalism Scale (MES) Items` = names(mes)[60:86],
+  `CNS Mean Score` = "CNS",
+  `NEP Mean Score` = "NEP",
+  `MES Mean Score` = "MES",
+  `Number of all pro-environmental behaviours (Gallup Poll)` = "PEB",
+  `Number of public pro-environmental behaviours (Gallup Poll)` = "public",
+  `Number of private pro-environmental behaviours (Gallup Poll)` = "private"
+) |> enframe() |> unnest(value) |>
+  group_by(what=name) |> 
+  summarise(
+    variables = paste0(value, collapse=", ")
+  ) -> sumtab
+
+gt::gt(sumtab[c(4,3,2,8,7,6,5,1,10,11,9),])
+```
+
+
+
+:::
+
+`r qbegin(qcounter())`
+The paper is reporting a new measure of environmental orientation. Which one is the new one?  
+What benefits do they think it has over the existing measures?  
+
+Take a look at the wordings of the items for their new measure, and for the existing measures (these are near the end of the paper). Do you agree?  
+`r qend()`
+`r solbegin(show=TRUE, toggle=params$TOGGLE)`
+Their new measure is the "Moral Environmentalism Scale" (MES). They suggest it may be an improvement over other measures because they tend to have a politically left-leaning ideology to the statements, whereas the MES is based on "moral foundations theory" (I'm not sure what that is, but they do go on to explain it somewhere I think).  
+
+Some of the item wordings of the MES are clearly specific to the US, which makes it less generalisable to other contexts. 
+I'll be honest - I can't fully see the political ideology in the wordings of the CNS and NEP scales! But then a) I'm not from the US, and b) there's the possibility depending on our own ideological leanings, it may be easier/harder to see the biases in the questions?
+
+`r solend()`
+
+
+
+`r qbegin(qcounter())`
+What did the authors report for the reliability of the three main measures?  
+
+Can you get these out from the data?  
+*note: I could get the same numbers for only 2 of the 3!* 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+The authors reported Cronbach's alpha, 
+
+> "MES had high internal reliability with a Cronbach’s alpha of .92. Cronbach’s alpha for the NEP was .82 and .78 for the CNS."
+
+Let's try! 
+```{r}
+library(tidyverse)
+library(psych)
+mes <- read_csv("data/ssi_clean.csv")
+
+alpha( mes |> select(mes1_r:mes27_r) )$total
+
+alpha( mes |> select(nep1:nep15) )$total
+
+alpha( mes |> select(cns1:cns14_r) )$total
+```
+
+Hmm.. things are matching up with the MES and the NEP, but not the CNS. We also seem to get a message suggesting that some of the items are possibly reverse coded.  
+
+But even if we let `alpha()` take care of that we still don't get the 0.78..  
+ah well.  
+```{r}
+alpha( mes |> select(cns1:cns14_r), check.keys = TRUE)$total
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+How did the authors assess convergent validity of the MES?  
+
+Can you do the same?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+> "Convergent validity was assessed through the zero-order correlations between the MES, CNS, and NEP."  
+> ...  
+> "The MES correlated strongly with the NEP, r(497) = 0.70, p< .001, and with the CNS, r(497) = 0.55, p < .001. CNS and NEP
+correlated moderately, r(998) = 0.46, p < .001. This overlap suggests that all three scales tapped into shared aspects of pro-environmental orientation."   
+
+I think "zero order" here means "without considering any other variables". So... just `cor()`?  
+
+I am going to assume these are between the mean scores for the scales. And we'll use the pairwise complete observations - i.e., all observations that have both CNS and NEP will be used to calculate the correlation between those two, and all that have both MES and CNS for those, and so on..  
+
+```{r}
+mes |>
+  select(MES,CNS,NEP) |>
+  cor(use = "pairwise.complete.obs")
+```
+
+We're close, but the correlation between CNS and NEP isn't *quite* the same (0.45 but it's reported as 0.46).  
+
+Let's check the numbers of observations:  
+```{r}
+mes |> select(MES,CNS) |> na.omit() |> nrow()
+mes |> select(NEP,CNS) |> na.omit() |> nrow()
+```
+
+Hmm... this all looks fine. The degrees of freedom reported for each of the correlations is $n-2$.  
+
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+How did they assess predictive validity? 
+
+Can you do the same?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+> "Predictive validity was assessed by examining how predictive they were of pro-environmental behavior in regression."   
+> ...  
+> "MES moderately correlated with pro-environmental behavior frequency, r(497) = 0.40, p < .001. The NEP had a weaker correlation with behavior r(998) = 0.26, p < .001. The CNS had the strongest correlation with behavior at r(998) = 0.46, p < .001."  
+
+But then they initially produce some correlations...  
+These all seem to match:  
+```{r}
+mes |>
+  select(MES,CNS,NEP,PEB) |>
+  cor(use = "pairwise") |> 
+  round(2)
+```
+
+Their regressions take this form:
+```{r}
+mod1 <- lm(PEB ~ MES + NEP + CNS + hhincome + Rep + age + female + Ideology + 
+     educ, data = mes)
+
+sjPlot::tab_model(mod1)
+```
+
+::: {.callout-caution collapse="true"}
+#### optional - issues with their conclusions
+
+Note that the authors also calculate something called "partial omega squared" for their regressions. We haven't actually seen these in DAPR, and they're nothing to do with McDonald's Omega - nothing to do with reliability.  
+
+These are essentially measures of "effect size" that are used to reflect "how much outcome variance is explained by a predictor".  
+
+The authors note: 
+
+> "The CNS had a larger effect on behavior than the MES (b=2.00 and b=1.41) ...
+...
+The MES explained 18% of the variance in behavior while the CNS explained 9%. The NEP had no unique effect."
+
+We can get these out using:
+```{r}
+library(effectsize)
+omega_squared(mod1, partial=TRUE)
+```
+
+Their main conclusion for Study 2 says:  
+
+> The main takeaway of Study 2 is the convergent and predictive validity of the MES. While the CNS more strongly predicted behavior demonstrated by its scaled coefficient, the partial omega squared value of MES indicated that it explained more of the variance in behavior than the CNS or NEP. 
+
+This is actually a mistake on their part. In their calculation of omega-squared, they have used "Type 1 sums of squares". In essence, this means **order matters**.  
+
+So their results show that:  
+
+1. *__not__ accounting for anything else,* MES explains 18% of the variance in pro-environmental behaviours
+2. *on top of the variance explained by MES*, NEP explains 0%,
+3. *on top of the variance explained by both MES and NEP*, CNS explains 9%. 
+
+The issue is that they have interpreted them all as if they were showing "unique" variance explained (i.e., they've interpreted them all like number 3 above), and are saying that MES explains more. But it only explains more here because they put it in at the start.  
+Order them differently and we'll get a different picture:  
+```{r}
+mod1a <- lm(PEB ~ CNS + NEP + MES + hhincome + Rep + age + female + Ideology + educ, data = mes)
+
+omega_squared(mod1a, partial = TRUE)
+```
+
+Or if we wanted to ask "does MES explain anything else beyond what demographics, CNS, NEP explain?"
+
+```{r}
+mod1b <- lm(PEB ~ hhincome + Rep + age + female + Ideology + educ + CNS + NEP + MES, data = mes)
+
+omega_squared(mod1b, partial = TRUE)
+```
+
+:::
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Do each of the 3 main scales look unidimensional to you?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+For this, let's just go back to scree plots!  
+
+```{r}
+mes |> select(mes1_r:mes27_r) |> scree()
+
+mes |> select(nep1:nep15) |> scree()
+
+mes |> select(cns1:cns14_r) |> scree()
+```
+
+`r solend()`
+
+
+# Where now?  
+
+`r qbegin(qcounter())`
+If you're at this point, then here's some options for where to direct your energy: 
+
+1) Find a paper from one of your other courses that uses a questionnaire to measure something. Anything. Find the paper that initially presented the measure and see how they approach assessing the validity and reliability of their measure.  
+2) Go back over the labs from the course and ask us any outstanding questions! 
+3) Write your own flashcards! Flashcards are great, but it's really act of _writing them_ that gets us thinking and helps us to consolidate understanding.   
+
+
+<!-- ::: {.callout-tip collapse="true"} -->
+<!-- #### For some suggestions of what flashcards to make   -->
+
+
+
+
+<!-- ::: -->
+
+
+`r qend()`
