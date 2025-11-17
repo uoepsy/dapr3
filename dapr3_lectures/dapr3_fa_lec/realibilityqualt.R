@@ -17,6 +17,8 @@ testretest <- dotdat |> select(starts_with("s1d"),starts_with("s2d")) |>
 testretest1 <- testretest |> filter(scale==1)
 testretest2 <- testretest |> filter(scale==2)
 
+psych::ICC(testretest2[,3:4])
+
 hdat <- dotdat |> select(starts_with("Q22")) |>
   mutate(id=1:n()) |> 
   pivot_longer(-id) |>
@@ -37,6 +39,9 @@ hdat <- dotdat |> select(starts_with("Q22")) |>
          ) |>
   pivot_wider(names_from=id,values_from=value,names_prefix = "rater_")
 
+psych::ICC(hdat[,2:ncol(hdat)])
+
+psych::ICC(hdat[-c(6,11),2:5])
 
 
 
