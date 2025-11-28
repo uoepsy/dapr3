@@ -1,7 +1,7 @@
 ---
 title: "W11 Exercises"
 params: 
-    SHOW_SOLS: FALSE
+    SHOW_SOLS: TRUE
     TOGGLE: TRUE
 editor_options: 
   chunk_output_type: console
@@ -103,45 +103,49 @@ tribble(
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-a. Describe the factor model that has been fitted **[2 marks]**  
+:::imp
+__Important__  
+This is not a "rubric", in the sense that 
+a) it is not an exhaustive list of possible things that could be mentioned and b) the bullet points below are not mapped to "marks"
+:::
+
+a. Describe the factor model that has been fitted  
 
     - 12 items, 4 factors extracted
     - oblique rotation allowing factors to correlate
     - estimated with maximum likelihood
   
-b. Describe the numerical solution of the fitted model **[4 marks]**  
+b. Describe the numerical solution of the fitted model  
 
     - explains 29% variance
     - Factors ML2 & ML1 both have $\geq 3$ salient/primary loadings
-        - salient = $\geq |0.3|$
-
+        - (salient = $\geq |0.3|$)
     - 3 complex items (y4, y5, y6)
     - some items (y5,y6) have no salient loadings
-
     - Factors ML1,2,3 correlated weak-moderate
     - Factor ML4 not strongly correlated with others
 
-c. Discuss the suitability of the selected number of factors **[4 marks]**   
+c. Discuss the suitability of the selected number of factors  
 
     - probably overextracting (too many factors)
     - because = lack of clarity/definition of ML3 & 4
         - both have only 1 item with salient loading
         - 3rd factor explaining only 6%, 4th factor only 2%
         - SSloadings for ML3 & ML4 are <1
-
     - complex items y5 & y6 are spread across ML3 & ML4 - a 3 factor solution may well make more sense
 
-d. Suggest and justify possible next steps **[2 marks]**   
+d. Suggest and justify possible next steps  
 
-    - examine 3 factor solution
+    - examine a 3 factor solution
     - item y4 = one to keep an eye on and possibly remove if still complex
+    - once satisfactory solution obtained, collect data on new sample and test if model replicates
 
-
-e. Label and define the factors **[3 marks]**  
+e. Label and define the factors  
 
     - ML1 = "environmental knowledge"
     - ML2 = "environmental behaviours"
-    - ML3/4 combined look like "environmental concern"
+    - ML3/4 not well defined enough to name
+    - combined ML3/4 look like might become "environmental concern". 
 
 `r solend()`
 
@@ -259,6 +263,7 @@ df = df |> transmute(
 df = df |>filter(interaction(class,ppt) %in%
               sample(unique(interaction(df$class,df$ppt)),166))
 
+
 mm = lmerTest::lmer(anger ~ week * journal + 
             (1 + week |class ) + 
             (1 + week |class:ppt), data=df)
@@ -293,27 +298,37 @@ res = broom.mixed::tidy(mm) |>
   )
 ```
 
+:::imp
+__Important__  
+This is not a "rubric", in the sense that 
+a) it is not an exhaustive list of possible things that could be mentioned and b) the bullet points below are not mapped to "marks"
+:::
 
-a. Interpret the fixed effects **[4 marks]**
+
+a. Interpret the fixed effects  
 
     - anger for someone who doesn't journal, at start (in "week 1", or "week 0" is fine here, give benefit of doubt) is `r res[1,4]`
-    - no significant change over the study period for those who don't journal 
-    - people to take the journal have lower anger _at the start_ by `r res[3,4]`
-    - journal group decreases in anger over the study by an additional `r res[4,4]` compared to no-journal group
+    - no significant change over the study period for those who don't journal - 1 week is associated with a non-sig `r res[2,4]` change in anger
+    - people who take the journal have significantly lower anger _at the start_ by `r res[3,4]`
+    - change in anger for every week is significantly different for the journal group compared to the no-journal group. the weekly change is `r res[4,4]` lower for the journal group than the no-journal group
+        - estimated weekly change for the journal group is $`r res[2,4]`+`r res[4,4]`=`r sum(res[c(2,4),4])`$
 
-b. Interpret the random effects **[4 marks]**
+b. Interpret the random effects  
 
     - both participants and classes vary in starting anger levels and in change in anger over study period
     - participants vary (both intercept and slopes of change) much more than classes
-    - high level of ppt variability relative to fixed slope
+    - high level of ppt variability relative to fixed slope.  
+        - we'd expect some ppts (even in the journal group) to _increase_ in anger
     - ppts who start more angry decrease less (positive correlation intercepts and slopes)
+    - initial levels of anger for classes is not related to class changes in anger
 
-c. Discuss the relevance of the findings, considering the context of the study design and researchers’ aims **[2 marks]**
+c. Discuss the relevance of the findings, considering the context of the study design and researchers’ aims  
 
-    - take journal = significant reduction in anger
-    - effect is small - over 10 weeks they only go down by `r (fixef(mm)[2]+fixef(mm)[4])*9`
+    - people who take journal significant reduction in anger compared to people who don't take it
+    - effect is small - weekly change of ~.2
+    - But over 10 weeks they only go down by `r sum(res[c(2,4),4])*10`. still not clinically meaningful, but if change continues linearly beyond the study period, then this would translate to meaningful change after ~15 weeks
     - difference in two groups at outset suggests two groups are not comparable
-    - self-selecting journal - maybe all we're doing is splitting up people who do/don't *want* to change
+        - self-selecting journal - maybe all we're doing is splitting up people who do/don't *want* to change
 
 
 ```{r}
@@ -341,11 +356,11 @@ Provide example levels for each of the three types of study: Cross-Sectional, Re
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-anything that makes sense here, obvious ones are:
+anything that makes sense here, more common ones are:
 
 | level | cross-sec | rpt measures | longitudinal |
 | ----- |---------- |-------------| -----------|
-| 2     |  department |   people |  people |
-| 1    | people | experimental items | timepoints |
+| 2     |  schools |   people |  people |
+| 1    | children | observations/scores/trials | timepoints |
 
 `r solend()`
