@@ -1,0 +1,382 @@
+---
+title: "01 playground"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r}
+library(tidyverse)
+library(simglm)
+```
+
+
+# group structure sim functions
+
+- when a bunch of data comes from
+  - same ppt
+  - same school
+  - same item
+  
+  
+```{r varying int one group}
+sim_int_1grp_1pred <- function(
+    seed=NULL,
+    b0=0, b1=1,
+    sigma2_u0=1,
+    sigma=1,
+    N=200, n_groups=20,
+    eq=TRUE
+){
+  #'  Quickly sim data for a basic model y~1+x+(1|g)
+  #' @param seed random seed to use
+  #' @param b0 fixed intercept
+  #' @param b1 fixed slope
+  #' @param sigma2_u0 random intercept variance
+  #' @param sigma residual sd
+  #' @param N how many obs
+  #' @param n_groups how many groups
+  #' @param eq equality of x between groups (if true, categ x1, else zscore)
+  
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  
+  g = rep(1:n_groups, e = N/n_groups)
+  
+  if(eq){
+    x1 = rep(1:(N/n_groups), n_groups)
+  } else {
+    x1 = rnorm(N)
+  }
+  
+  # intercept adjustments
+  u0 = rnorm(n_groups, mean = 0, sd = sqrt(sigma2_u0))[g]
+  
+  lp = (b0 + u0) + (b1 * x1)
+  
+  y = rnorm(N, mean = lp, sd = sigma)             # continuous target
+  y_bin = rbinom(N, size = 1, prob = plogis(lp))  # binary target
+  
+  data.frame(x1, g=factor(g), y, y_bin)
+}
+
+sim_int_1grp_1pred(seed = 1, N = 6, n_groups = 2, eq = T)
+```
+
+
+```{r varying int and slp one group}
+sim_intslp_1grp_1pred <- function(
+    seed=NULL,
+    b0=0, b1=1,
+    sigma2_u0=1, sigma2_u1=1,
+    rho=0,
+    sigma=1,
+    N=200, n_groups=20,
+    eq=TRUE
+){
+  #'  Quickly sim data for a basic model y~1+x+(1+x|g)
+  #' @param seed random seed to use
+  #' @param b0 fixed intercept
+  #' @param b1 fixed slope
+  #' @param sigma2_u0 random intercept variance
+  #' @param sigma2_u1 random slope var
+  #' @param rho int-slope correl
+  #' @param sigma residual SD
+  #' @param eq equality of x between groups (if true, categ x1, else zscore)
+  
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  
+  g = rep(1:n_groups, e = N/n_groups)
+  
+  if(eq){
+    x1 = rep(1:(N/n_groups), n_groups)
+  } else {
+    x1 = rnorm(N)
+  }
+  
+  Gcov = Matrix::nearPD(matrix(c(
+    sigma2_u0,
+    rho*sigma2_u0*sigma2_u1,
+    rho*sigma2_u0*sigma2_u1,
+    sigma2_u1
+  ),nrow=2))$mat
+  
+  res = MASS::mvrnorm(n_groups, mu=c(0,0), Sigma=Gcov)
+  u0  = res[,1][g]  # random intercepts
+  u1  = res[,2][g]  # random slopes
+  
+  lp = (b0 + u0) + (b1 + u1) * x1
+  
+  y = rnorm(N, mean = lp, sd = sigma)             # continuous target
+  y_bin = rbinom(N, size = 1, prob = plogis(lp))  # binary target
+  
+  data.frame(x1, g=factor(g), y, y_bin)
+}
+
+sim_intslp_1grp_1pred(seed = 2, N = 8, n_groups = 2, eq = T)
+```
+  
+  
+```{r varying int two grps crossed}
+sim_int_2grp_1pred <- function(
+    seed=NULL,
+    b0=0, b1=1,
+    sigma2_u0=1,
+    sigma2_w0=1,
+    sigma=1,
+    N=200,
+    n_groups_u=20,
+    n_groups_w=10,
+    eq=TRUE
+){
+  #' Quickly sim data for a basic crossed ranef model y~1+x+(1|g)+(1|h)
+  #' @param seed random seed to use
+  #' @param b0 fixed intercept
+  #' @param b1 fixed slope
+  #' @param sigma2_u0 random intercept variance for group g
+  #' @param sigma2_w0 random intercept variance for group h
+  #' @param sigma residual SD
+  #' @param N how many obs (multiple of n_groups_u AND n_groups_w)
+  #' @param n_groups_u how many groups of type g
+  #' @param n_groups_w how many groups of type h
+  #' @param eq equality of x between groups (if true, categ x1, else zscore)
+  
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  
+  g = rep(1:n_groups_u, e = N/n_groups_u)
+  h = rep(1:n_groups_w, e = N/n_groups_w)
+  
+  if(eq){
+    x1 = rep(1:(N/(n_groups_u*n_groups_w)), (n_groups_u*n_groups_w))
+  } else {
+    x1 = rnorm(N)
+  }
+  
+  # intercept adjustments
+  u0 = rnorm(n_groups_u, mean = 0, sd = sqrt(sigma2_u0))[g]
+  w0 = rnorm(n_groups_w, mean = 0, sd = sqrt(sigma2_w0))[h]
+
+  lp = (b0 + u0 + w0) + (b1 * x1)
+
+  y = rnorm(N, mean = lp, sd = sigma)             # continuous target
+  y_bin = rbinom(N, size = 1, prob = plogis(lp))  # binary target
+
+  data.frame(x1, g=factor(g), h=factor(h), y, y_bin)
+}
+
+sim_int_2grp_1pred(seed = 1, eq = T)
+```
+
+
+TODO FIXME: the function below is not working.
+there's some excessive repetition that's not quite right.
+try jo's simcrossed stuff.
+
+```{r varying int + slp two groups crossed}
+sim_intslp_2grp_1pred <- function(
+    seed=NULL,
+    b0=0, b1=1,
+    sigma2_u0=1,
+    sigma2_u1=1,
+    sigma2_w0=1,
+    sigma2_w1=1,
+    rho_u = 0,
+    rho_w = 0,
+    sigma=1,
+    N=200,
+    n_groups_u=20,
+    n_groups_w=10,
+    eq=TRUE
+){
+  #' Quickly sim data for a basic crossed ranef model y~1+x+(1|g)+(1|h)
+  #' @param seed random seed to use
+  #' @param b0 fixed intercept
+  #' @param b1 fixed slope
+  #' @param sigma2_u0 random intercept variance for group g
+  #' @param sigma2_w0 random intercept variance for group h
+  #' @param sigma2_u1 random slope variance for group g
+  #' @param sigma2_w1 random slope variance for group h
+  #' @param rho_u correl btwn int, slope for group g
+  #' @param rho_w correl btwn int, slope for group h
+  #' @param sigma residual SD
+  #' @param N how many obs (multiple of n_groups_u AND n_groups_w)
+  #' @param n_groups_u how many groups of type g
+  #' @param n_groups_w how many groups of type h
+  #' @param eq equality of x between groups (if true, categ x1, else zscore)
+  
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  
+  n_reps <- (N/n_groups_u)/n_groups_w
+  print(n_reps)
+  
+  g = rep(1:n_groups_u, e = N/n_groups_u)
+  h = rep(rep(1:n_groups_w, e = 2), N/n_groups_w)
+  
+  # print(g)
+  # print(h)
+  
+  if(eq){
+    x1 = rep(1:(N/(n_groups_u*n_groups_w)), (n_groups_u*n_groups_w))
+  } else {
+    x1 = rnorm(N)
+  }
+  
+  vcov_u = Matrix::nearPD(matrix(c(
+    sigma2_u0,
+    rho_u*sigma2_u0*sigma2_u1,
+    rho_u*sigma2_u0*sigma2_u1,
+    sigma2_u1
+  ),nrow=2))$mat
+  
+  vcov_w = Matrix::nearPD(matrix(c(
+    sigma2_w0,
+    rho_w*sigma2_w0*sigma2_w1,
+    rho_w*sigma2_w0*sigma2_w1,
+    sigma2_w1
+  ),nrow=2))$mat
+  
+  res_u = MASS::mvrnorm(n_groups_u, mu=c(0,0), Sigma=vcov_u)
+  res_w = MASS::mvrnorm(n_groups_w, mu=c(0,0), Sigma=vcov_w)
+  
+  u0  = res_u[,1][g]  # random intercepts for group g
+  u1  = res_u[,2][g]  # random slopes for group g
+  
+  w0  = res_w[,1][h]  # random intercepts for group h
+  w1  = res_w[,2][h]  # random slopes for group h
+  
+  lp = (b0 + u0 + w0) + (b1 + u1 + w1) * x1
+
+  y = rnorm(N, mean = lp, sd = sigma)             # continuous target
+  y_bin = rbinom(N, size = 1, prob = plogis(lp))  # binary target
+
+  data.frame(x1, g=factor(g), h=factor(h), y, y_bin)
+}
+
+sim_intslp_2grp_1pred(seed = 1, N = 64, n_groups_u = 4, n_groups_w = 8, eq = T)
+```
+
+
+^ if want btwn effects, then can just filter some combinations out!
+
+
+```{r nested}
+n_highergroup <- 10
+N <- 200
+
+df <- do.call(rbind,
+  lapply(rnorm(n_highergroup), \(x) sim_intslp_1grp_1pred(b0=x, N = N))
+)
+df$highergroup = rep(1:n_highergroup,e=N)
+ 
+lme4::lmer(y~1+x1+(1|highergroup)+(1+x1|highergroup:g),df)
+```
+
+
+# simdat for lec, labs
+
+## ppts w/i, conds btwn: main running example for lec 2
+
+```{r}
+n_ppts  <- 4
+n_items <- 8
+n_conds <- 4
+
+dat <- sim_intslp_2grp_1pred(
+  seed = 1, 
+  N = n_ppts * n_items * n_conds,
+  n_groups_u = n_ppts,
+  n_groups_w = n_items,
+  eq = T
+) |> rename(
+    cond = x1,
+    ppt_id = g,
+    item_id = h
+  ) |>
+  arrange(ppt_id)
+
+dat
+```
+
+
+```{r}
+# make item_id btwn conds, not within, so filter out half.
+# eg, if five items per condition: cond 1 has items 1:5, cond 2 has items 6:10
+dat <- dat |>
+  filter(
+    (cond == 1) & (item_id %in% 1:(n_items/2)) |
+    (cond == 2) & (item_id %in% ((n_items/2)+1):n_items)
+  )
+
+dat
+```
+
+why does ppt 1 never see cond 2? 
+
+
+Cosmetic tweaks:
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# graveyard
+
+simglm can't force_equal w/i ppt, rip
+
+```{r eval=F}
+set.seed(321) 
+
+sim_arguments <- list(
+  formula = y ~ 1 + sleep + (1 + sleep | ppt),
+  reg_weights = c(0.5, 0.3),
+  fixed = list(
+    # weight = list(var_type = 'continuous', mean = 180, sd = 30),
+    # age = list(var_type = 'ordinal', levels = 30:60),
+    sleep = list(
+      var_type = 'factor', 
+      levels = c('before', 'after'),
+      force_equal = TRUE
+    )
+  ),
+  randomeffect = list(
+    int_ppt = list(variance = 8, var_level = 2),
+    sleep_ppt = list(variance = 3, var_level = 2)
+    ),
+  sample_size = list(
+    level1 = 2,   # how many obs per ppt
+    level2 = 3   # how many ppts
+  )
+  # # the below args for binary outcome
+  # outcome_type = 'binary',
+  # model_fit = list(
+  #   model_function = 'glm',
+  #   family = binomial
+  # )
+)
+
+nested_data <- simulate_fixed(data = NULL, sim_arguments) |>
+  simulate_randomeffect(sim_arguments) |>
+  simulate_error(sim_arguments) |>
+  generate_response(sim_arguments)
+
+nested_data
+```
