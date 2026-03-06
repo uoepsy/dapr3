@@ -173,97 +173,99 @@ sim_int_2grp_1pred(seed = 1, eq = T)
 ```
 
 
-TODO FIXME: the function below is not working.
-there's some excessive repetition that's not quite right.
-try jo's simcrossed stuff.
+```{r varying int + slp with wi btw lots}
 
-```{r varying int + slp two groups crossed}
-sim_intslp_2grp_1pred <- function(
-    seed=NULL,
-    b0=0, b1=1,
-    sigma2_u0=1,
-    sigma2_u1=1,
-    sigma2_w0=1,
-    sigma2_w1=1,
-    rho_u = 0,
-    rho_w = 0,
-    sigma=1,
-    N=200,
-    n_groups_u=20,
-    n_groups_w=10,
-    eq=TRUE
-){
-  #' Quickly sim data for a basic crossed ranef model y~1+x+(1|g)+(1|h)
+simcross <- function(seed=NULL,b0=0,b1=1,b2=1,b3=2,n_ppts=6,n_itms=4,n_obs_per=4){
+  #' Quickly sim data for a big crossed ranef model 
+  #' y ~ 1 + a + b + c + (1 + a + b + c | ppt) + (1 + a + c | itm)
   #' @param seed random seed to use
   #' @param b0 fixed intercept
-  #' @param b1 fixed slope
-  #' @param sigma2_u0 random intercept variance for group g
-  #' @param sigma2_w0 random intercept variance for group h
-  #' @param sigma2_u1 random slope variance for group g
-  #' @param sigma2_w1 random slope variance for group h
-  #' @param rho_u correl btwn int, slope for group g
-  #' @param rho_w correl btwn int, slope for group h
-  #' @param sigma residual SD
-  #' @param N how many obs (multiple of n_groups_u AND n_groups_w)
-  #' @param n_groups_u how many groups of type g
-  #' @param n_groups_w how many groups of type h
-  #' @param eq equality of x between groups (if true, categ x1, else zscore)
-  
+  #' @param b1 fixed slope, binary within ppts and within items
+  #' @param b2 fixed slope, binary within ppts, btwn items
+  #' @param n_ppts how many ppts (or groups of one kind); must div by 2
+  #' @param n_itms how many itms (or groups of a diff kind); must div by 2
+  #' @param n_obs_per how many obs for each ppt/itm combo; must div by 2
+
   if(!is.null(seed)){
     set.seed(seed)
   }
   
-  n_reps <- (N/n_groups_u)/n_groups_w
-  print(n_reps)
+  N = n_ppts*n_itms
   
-  g = rep(1:n_groups_u, e = N/n_groups_u)
-  h = rep(rep(1:n_groups_w, e = 2), N/n_groups_w)
+  # init design matrix with all combinations of ppts and items
+  ds_mtx = expand.grid(ppts = 1:n_ppts, itms = 1:n_itms)
   
-  # print(g)
-  # print(h)
+  # set up binary predictor that varies within ppts, btwn items
+  # (eg, experimental condition?)
+  ds_mtx$wi_ppts_btw_itms = 0
+  ds_mtx$wi_ppts_btw_itms[1:(N/2)] = 1
   
-  if(eq){
-    x1 = rep(1:(N/(n_groups_u*n_groups_w)), (n_groups_u*n_groups_w))
-  } else {
-    x1 = rnorm(N)
-  }
+  # set up binary predictor that varies within ppts AND within items
+  # (eg, sentence version?)
+  ds_mtx$wi_itms_wi_ppts = c(
+    rep(rep(0:1,e=(n_ppts)/2), n_itms/2),
+    rep(rep(1:0,e=(n_ppts/2)), n_itms/2)
+  )
   
-  vcov_u = Matrix::nearPD(matrix(c(
-    sigma2_u0,
-    rho_u*sigma2_u0*sigma2_u1,
-    rho_u*sigma2_u0*sigma2_u1,
-    sigma2_u1
-  ),nrow=2))$mat
+  # if >1 obs per ppt/item combo, set up num predictor 
+  # which varies within ppts AND within items
+  ds_mtx$x = list(1:n_obs_per)
+  ds_mtx = tidyr::unnest(ds_mtx,x)
+  # this new pred can map to another wi/wi binary categ pred if desired
+  ds_mtx$xcat = ifelse(ds_mtx$x > (n_obs_per/2), "b", "a")
   
-  vcov_w = Matrix::nearPD(matrix(c(
-    sigma2_w0,
-    rho_w*sigma2_w0*sigma2_w1,
-    rho_w*sigma2_w0*sigma2_w1,
-    sigma2_w1
-  ),nrow=2))$mat
+  # define by-ppt int + slope vcov mtx (assume no correls)
+  # slopes that need adjusted:
+  # - wi_itms_wi_ppts – b1
+  # - wi_ppts_btw_itms – b2
+  # - x or xcat – b3
+  n_by_ppt_params <- 4
+  ppts_vcov <- matrix(0, nrow = n_by_ppt_params, ncol = n_by_ppt_params)
+  diag(ppts_vcov) <- 1
+  ppts_vcov <- Matrix::nearPD(ppts_vcov)$mat
   
-  res_u = MASS::mvrnorm(n_groups_u, mu=c(0,0), Sigma=vcov_u)
-  res_w = MASS::mvrnorm(n_groups_w, mu=c(0,0), Sigma=vcov_w)
+  # sample by-ppt adjustments and store as vectors, ready to add on
+  ppts_res <- MASS::mvrnorm(n_ppts, mu=rep(0, n_by_ppt_params), Sigma=ppts_vcov)
+  ppts_int <- ppts_res[,1][ds_mtx$ppts]
+  ppts_slp_b1 <- ppts_res[,2][ds_mtx$ppts]
+  ppts_slp_b2 <- ppts_res[,3][ds_mtx$ppts]
+  ppts_slp_b3 <- ppts_res[,4][ds_mtx$ppts]
   
-  u0  = res_u[,1][g]  # random intercepts for group g
-  u1  = res_u[,2][g]  # random slopes for group g
   
-  w0  = res_w[,1][h]  # random intercepts for group h
-  w1  = res_w[,2][h]  # random slopes for group h
+  # define by-item int + slope vcov mtx (assume no correls)
+  # slopes that need adjusted:
+  # - wi_itms_wi_ppts – b1
+  # - x or xcat – b3
+  n_by_itm_params <- 3
+  itms_vcov <- matrix(0, nrow = n_by_itm_params, ncol = n_by_itm_params)
+  diag(itms_vcov) <- 1
+  itms_vcov <- Matrix::nearPD(itms_vcov)$mat
   
-  lp = (b0 + u0 + w0) + (b1 + u1 + w1) * x1
-
-  y = rnorm(N, mean = lp, sd = sigma)             # continuous target
-  y_bin = rbinom(N, size = 1, prob = plogis(lp))  # binary target
-
-  data.frame(x1, g=factor(g), h=factor(h), y, y_bin)
+  # sample by-item adjustments and store as vectors, ready to add on
+  itms_res = MASS::mvrnorm(n_itms, mu=rep(0, n_by_itm_params), Sigma=itms_vcov)
+  itms_int <- itms_res[,1][ds_mtx$itms]
+  itms_slp_b1 <- itms_res[,2][ds_mtx$itms]
+  itms_slp_b3 <- itms_res[,3][ds_mtx$itms]
+  
+  lp = (b0 + ppts_int + itms_int) + 
+    (b1 + ppts_slp_b1 + itms_slp_b1) * ds_mtx$wi_itms_wi_ppts +
+    (b2 + ppts_slp_b2) * ds_mtx$wi_ppts_btw_itms + 
+    (b3 + ppts_slp_b3 + itms_slp_b3) * ds_mtx$x
+  
+  y = rnorm(
+    N*n_obs_per, 
+    mean = lp, 
+    sd = 1
+  ) 
+  
+  data.frame(ds_mtx, y)
 }
 
-sim_intslp_2grp_1pred(seed = 1, N = 64, n_groups_u = 4, n_groups_w = 8, eq = T)
+simcross(n_obs_per = 2)
 ```
 
 
-^ if want btwn effects, then can just filter some combinations out!
+^ if want other btwn effects, then can just filter some combinations out!
 
 
 ```{r nested}
@@ -279,104 +281,348 @@ lme4::lmer(y~1+x1+(1|highergroup)+(1+x1|highergroup:g),df)
 ```
 
 
+
+code from Jo for sim between data design matrix:
+
+```{r btwn ppt btwn item dsgn mtx}
+# how many participants am i getting, and how do they vary?
+ppts = 1:6
+# observed btween ppt predictor
+btw_ppt = rbinom(6,1,.5)
+ 
+# assuming everybody does the same expt, this can be seen as 
+# "for a given ppt, what do they see?":  
+items = 1:4
+btw_items = rep(0:1,e=max(items)/2)
+ 
+# all my ppts: 
+allp = data.frame(ppts,btw_ppt)
+# nested df for each ppts data: 
+allp$pdat = list(data.frame(items,btw_items))
+ 
+# unnest: 
+tidyr::unnest(allp, pdat)
+```
+
+
 # simdat for lec, labs
 
-## ppts w/i, conds btwn: main running example for lec 2
+
+
+## main running example for lec 2
+
+latin square, condition fully crossed w ppts and w items
+
+The story: masked priming, primed with a related word vs. when primed with a distractor
 
 ```{r}
 n_ppts  <- 4
-n_items <- 8
-n_conds <- 4
+n_items <- 20
 
-dat <- sim_intslp_2grp_1pred(
-  seed = 1, 
-  N = n_ppts * n_items * n_conds,
-  n_groups_u = n_ppts,
-  n_groups_w = n_items,
-  eq = T
-) |> rename(
-    cond = x1,
-    ppt_id = g,
-    item_id = h
+dat <- simcross(
+  seed=1,
+  b0=2, 
+  b1=1,  # wi_itms_wi_ppts
+  b2=1,  # wi_ppts_btw_itms
+  b3=2,  # x or xcat
+  n_ppts=n_ppts, n_itms=n_items,
+  n_obs_per=2
+) |>
+  select(ppts, itms, xcat, y) |>
+  rename(
+    ppt_id = ppts,
+    item_id = itms,
+    priming_cond = xcat,
+    logRT = y
   ) |>
-  arrange(ppt_id)
+  mutate(
+    priming_cond = ifelse(priming_cond == 'a', 'related_prime', 'distractor_prime'),
+    ppt_id = paste0('ppt', ppt_id),
+    item_id = paste0('item', item_id),
+  )
 
-dat
+dat |>
+  ggplot(aes(x = priming_cond, y = logRT)) +
+  geom_violin() +
+  geom_jitter () +
+  facet_wrap(~ ppt_id)
 ```
+
+
+
+Identify grouping structure:
+
+- we are looking only at categorical variables
+- we want to see: what categorical variables have values that are associated with more than one data point?
+
+```{r}
+dat |> head()
+```
+
+what cat vars do we have? (not including the outcome, if it's binary)
+- ppt_id
+- item_id
+- priming_cond
+
+we'll go through each of these.
+
+assuming data is set up for analysis using lm, with one column per variable and one row per observation, then we should just be able to count how many times each value shows up
+
+```{r}
+dat |>
+  group_by(ppt_id) |>
+  count()
+```
+
+can sense check by visually inspecting df. "ppt1" shows up with a bunch of different logRTs.
+
+```{r}
+dat |>
+  group_by(item_id) |>
+  count()
+```
+
+each item also appears multiple times.
+
+```{r}
+dat |>
+  group_by(priming_cond) |>
+  count()
+```
+
+and each priming condition shows up multiple times.
+
+So we have three groups that each contribute multiple data points:
+
+- `ppt_id`
+- `item_id`
+- `priming_cond`
+ 
+
+how do these groups relate to one another?
+
+```{r}
+dat |>
+  group_by(ppt_id, item_id, priming_cond) |>
+  count()
+```
+
+each ppt sees each item twice, once in the distractor prime condition and once in the related prime condition.
+
+
+
+## week 1 examples
+
+### lifesat ~ treatment + day + (1 + day | ppt)
+
+lifesat: continuous, measured after practicing each method daily for a week
+treatment: journal, meditation (btwn)
+day 
+
+```{r}
+half_ppts <- 18
+journal <- sim_int_1grp_1pred(seed=2, b0 = 1, b1=.1, N = half_ppts*7, n_groups = half_ppts) |>
+  mutate(
+    condition = 'journal',
+    ppt_id = paste0('j', g)
+  ) |>
+  select(-y_bin, -g) 
+meditate <- sim_int_1grp_1pred(seed=4, b0 = 1, b1=.5, N = half_ppts*7, n_groups = half_ppts) |>
+  mutate(
+    condition = 'meditate',
+    ppt_id = paste0('m', g)
+  ) |>
+  select(-y_bin, -g)
+
+lifesat_dat <- bind_rows(journal, meditate) |>
+  rename(day = x1) |>
+  mutate(lifesat = datawizard::rescale(y, to = c(15, 75))) |>
+  select(-y)
+
+lifesat_dat |>
+  ggplot(aes(x = day, y = lifesat, colour = condition)) +
+  geom_point() +
+  facet_wrap(~ ppt_id)
+```
+
+what categ vars in dataset?
+
+- condition
+- ppt_id
+
+
+what categ vars not an outcome or a predictor?
+
+- ppt_id
+
+
+what levels?
+
+```{r}
+lifesat_dat$ppt_id
+```
+
+is each level associated with more than one data point?
+
+```{r}
+lifesat_dat
+```
+
+one way: just look at the df. the answer is yes bc j1 appears more than 1x, j2 appears more than 1x, etc.
+
+another way, more efficient: use tidyverse to count how many times each ppt label appears.
+
+```{r}
+lifesat_dat |>
+  group_by(ppt_id) |>
+  count()
+```
+
+
+
+
+#### btwn ppt: day 7 only
+
+```{r}
+lifesat_dat_7 <- lifesat_dat |>
+  filter(day == 7) |>
+  select(-day)
+
+lifesat_dat_7 |>
+  ggplot(aes(x = condition, y = lifesat)) +
+  geom_violin()
+```
+
+
+what categ vars in dataset?
+
+```{r}
+lifesat_dat_7
+```
+
+- condition
+- ppt_id
+
+
+what categ vars not an outcome or a predictor?
+
+- ppt_id
+
+
+
+what levels?
+
+```{r}
+lifesat_dat_7$ppt_id
+```
+
+is each level associated with more than one data point?
+
+```{r}
+lifesat_dat_7 |>
+  group_by(ppt_id) |>
+  count()
+```
+
+nope, appears only 1x.
+
+
+### attentiveness ~ hour + (1 + hour | child)
+
+children's attentiveness at school across the day
+
+```{r}
+attent <- sim_int_1grp_1pred(seed=1, b0 = 2, b1=-.2, N = 140) |>
+  rename(
+    hour = x1,
+    child = g,
+    attentiveness = y
+  ) |>
+  select(-y_bin) |>
+  mutate(
+    hour = hour - 1,
+    child = factor(child),
+    attentiveness_z = attentiveness - mean(attentiveness)
+  )
+ 
+attent |>
+  ggplot(aes(x = hour, y = attentiveness_z)) +
+  geom_point() +
+  facet_wrap(~ child, labeller = label_both)
+```
+
+
+What categorical variables does your data contain?
+
+- child
+
+
+How many times does each each level of this variable appear in the data?
+
+```{r}
+attent |>
+  group_by(child) |>
+  count()
+```
+
+each child contributes seven data points to the data set.
+so the data has a grouping by child.
+
+
+### correct ~ trial_type + (1 + trial_type | ppt) + (1 | item)
+
+
+How does people's accuracy on an experimental task differ between conditions, and how is this difference affected by people's DASS scores?
 
 
 ```{r}
-# make item_id btwn conds, not within, so filter out half.
-# eg, if five items per condition: cond 1 has items 1:5, cond 2 has items 6:10
-dat <- dat |>
-  filter(
-    (cond == 1) & (item_id %in% 1:(n_items/2)) |
-    (cond == 2) & (item_id %in% ((n_items/2)+1):n_items)
-  )
-
-dat
+dass <- read_csv('../data/dass.csv')
+dass |> head(20)
 ```
 
-why does ppt 1 never see cond 2? 
+
+what categ vars in dataset?
+
+- ppt_id
+- target_id
+- condition
+- correct
 
 
-Cosmetic tweaks:
+what categ vars not an outcome or a predictor?
+
+- ppt_id
+- target_id 
+
+
+for each categ var, what levels does it have?
 
 ```{r}
-
+dass$ppt_id |> unique()
+dass$target_id |> unique()
 ```
 
+is each of those levels associated with more than one data point?
 
-
-
-
-
-
-
-
-
-
-
-
-# graveyard
-
-simglm can't force_equal w/i ppt, rip
-
-```{r eval=F}
-set.seed(321) 
-
-sim_arguments <- list(
-  formula = y ~ 1 + sleep + (1 + sleep | ppt),
-  reg_weights = c(0.5, 0.3),
-  fixed = list(
-    # weight = list(var_type = 'continuous', mean = 180, sd = 30),
-    # age = list(var_type = 'ordinal', levels = 30:60),
-    sleep = list(
-      var_type = 'factor', 
-      levels = c('before', 'after'),
-      force_equal = TRUE
-    )
-  ),
-  randomeffect = list(
-    int_ppt = list(variance = 8, var_level = 2),
-    sleep_ppt = list(variance = 3, var_level = 2)
-    ),
-  sample_size = list(
-    level1 = 2,   # how many obs per ppt
-    level2 = 3   # how many ppts
-  )
-  # # the below args for binary outcome
-  # outcome_type = 'binary',
-  # model_fit = list(
-  #   model_function = 'glm',
-  #   family = binomial
-  # )
-)
-
-nested_data <- simulate_fixed(data = NULL, sim_arguments) |>
-  simulate_randomeffect(sim_arguments) |>
-  simulate_error(sim_arguments) |>
-  generate_response(sim_arguments)
-
-nested_data
+```{r}
+dass |>
+  group_by(ppt_id) |>
+  count()
 ```
+
+yes
+
+```{r}
+dass |>
+  group_by(target_id) |>
+  count()
+```
+
+yes.
+
+
+
+
+
+
+
