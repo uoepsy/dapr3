@@ -1,0 +1,114 @@
+---
+title: "02 playground"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r}
+library(tidyverse)
+
+source('simfns.R')  # load simdat functions
+```
+
+
+# main running example for lec 2
+
+latin square, condition fully crossed w ppts and w items
+
+The story: masked priming, primed with a related word vs. when primed with a distractor
+
+```{r}
+n_ppts  <- 4
+n_items <- 20
+
+dat <- simcross(
+  seed=1,
+  b0=2, 
+  b1=1,  # wi_itms_wi_ppts
+  b2=1,  # wi_ppts_btw_itms
+  b3=2,  # x or xcat
+  n_ppts=n_ppts, n_itms=n_items,
+  n_obs_per=2
+) |>
+  select(ppts, itms, xcat, y) |>
+  rename(
+    ppt_id = ppts,
+    item_id = itms,
+    priming_cond = xcat,
+    logRT = y
+  ) |>
+  mutate(
+    priming_cond = ifelse(priming_cond == 'a', 'related_prime', 'distractor_prime'),
+    ppt_id = paste0('ppt', ppt_id),
+    item_id = paste0('item', item_id),
+  )
+
+dat |>
+  ggplot(aes(x = priming_cond, y = logRT)) +
+  geom_violin() +
+  geom_jitter () +
+  facet_wrap(~ ppt_id)
+```
+
+
+Identify grouping structure:
+
+- we are looking only at categorical variables
+- we want to see: what categorical variables have values that are associated with more than one data point?
+
+```{r}
+dat |> head()
+```
+
+what cat vars do we have? (not including the outcome, if it's binary)
+- ppt_id
+- item_id
+- priming_cond
+
+we'll go through each of these.
+
+assuming data is set up for analysis using lm, with one column per variable and one row per observation, then we should just be able to count how many times each value shows up
+
+```{r}
+dat |>
+  group_by(ppt_id) |>
+  count()
+```
+
+can sense check by visually inspecting df. "ppt1" shows up with a bunch of different logRTs.
+
+```{r}
+dat |>
+  group_by(item_id) |>
+  count()
+```
+
+each item also appears multiple times.
+
+```{r}
+dat |>
+  group_by(priming_cond) |>
+  count()
+```
+
+and each priming condition shows up multiple times.
+
+So we have three groups that each contribute multiple data points:
+
+- `ppt_id`
+- `item_id`
+- `priming_cond`
+ 
+
+how do these groups relate to one another?
+
+```{r}
+dat |>
+  group_by(ppt_id, item_id, priming_cond) |>
+  count()
+```
+
+each ppt sees each item twice, once in the distractor prime condition and once in the related prime condition.
+
+

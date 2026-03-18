@@ -183,7 +183,87 @@ simcross <- function(seed=NULL,b0=0,b1=1,b2=1,b3=2,n_ppts=6,n_itms=4,n_obs_per=4
 # simcross(n_obs_per = 2)
 # # ^ if want other btwn effects, then can just filter some combinations out!
   
+
+simcross_ixn <- function(seed=NULL,b0=0,b1=1,b2=1,b3=2,n_ppts=6,n_itms=4,n_obs_per=4){
+  #' Quickly sim data for crossed ranef model with a num:cat ixn
+  #' y ~ 1 + A + B + A:B + (1 + A | ppt) + (1 + B | word)
+  #' @param seed random seed to use
+  #' @param b0 fixed intercept
+  #' @param b1 fixed slope of A, numeric within ppts, btwn items (eg logfreq of word)
+  #' @param b2 fixed slope of B, binary btwn ppts, within items (eg btwn-ppt conditions with diff versions of same item)
+  #' @param b3 interaction between A and B
+  #' @param n_ppts how many ppts (or groups of one kind); must div by 2
+  #' @param n_itms how many itms (or groups of a diff kind); must div by 2
+  #' @param n_obs_per how many obs for each ppt/itm combo; must div by 2
   
+  if(!is.null(seed)){
+    set.seed(seed)
+  }
+  N = n_ppts*n_itms
+  # init design matrix with all combinations of ppts and items
+  ds_mtx = expand.grid(itms = 1:n_itms, ppts = 1:n_ppts)
+  
+  # set up binary predictor that varies btwn ppts, within items
+  # (eg, experimental condition, let's say sum-coded)
+  ds_mtx$btw_ppts_wi_itms = -1 
+  ds_mtx$btw_ppts_wi_itms[1:(N/2)] = 1
+  
+  # set up numeric (z-score) predictor that varies within ppts, btwn items
+  # (eg, word freq)
+  ds_mtx <- tibble(
+    itms = 1:n_itms,
+    wi_ppts_btw_itms = rnorm(n_itms)
+  ) |>
+    merge(ds_mtx)
+  
+  # set up interaction term
+  ds_mtx <- ds_mtx |>
+    mutate(ixn = wi_ppts_btw_itms * btw_ppts_wi_itms)
+ 
+  print(ds_mtx)
+   
+  # define by-ppt int + slope vcov mtx (assume no correls)
+  n_by_ppt_params <- 2
+  ppts_vcov <- matrix(0, nrow = n_by_ppt_params, ncol = n_by_ppt_params)
+  diag(ppts_vcov) <- 1
+  ppts_vcov <- Matrix::nearPD(ppts_vcov)$mat
+
+  # sample by-ppt adjustments and store as vectors, ready to add on
+  ppts_res <- MASS::mvrnorm(n_ppts, mu=rep(0, n_by_ppt_params), Sigma=ppts_vcov)
+  ppts_int <- ppts_res[,1][ds_mtx$ppts]
+  ppts_slp_b1 <- ppts_res[,2][ds_mtx$ppts]
+
+  # define by-item int + slope vcov mtx (assume no correls)
+  n_by_itm_params <- 2
+  itms_vcov <- matrix(0, nrow = n_by_itm_params, ncol = n_by_itm_params)
+  diag(itms_vcov) <- 1
+  itms_vcov <- Matrix::nearPD(itms_vcov)$mat
+
+  # sample by-item adjustments and store as vectors, ready to add on
+  itms_res = MASS::mvrnorm(n_itms, mu=rep(0, n_by_itm_params), Sigma=itms_vcov)
+  itms_int <- itms_res[,1][ds_mtx$itms]
+  itms_slp_b2 <- itms_res[,2][ds_mtx$itms]
+
+  lp = (b0 + ppts_int + itms_int) +
+    (b1 + ppts_slp_b1) * ds_mtx$wi_ppts_btw_itms +
+    (b2 + itms_slp_b2) * ds_mtx$btw_ppts_wi_itms +
+    (b3) * ds_mtx$ixn
+
+  y = rnorm(
+    N*n_obs_per,
+    mean = lp,
+    sd = 1
+  )
+
+  data.frame(ds_mtx, y)
+}  
+
+
+
+
+
+
+
 # # code from Jo for nested data
 #   
 # n_highergroup <- 10
@@ -197,22 +277,22 @@ simcross <- function(seed=NULL,b0=0,b1=1,b2=1,b3=2,n_ppts=6,n_itms=4,n_obs_per=4
 # lme4::lmer(y~1+x1+(1|highergroup)+(1+x1|highergroup:g),df)
 
 
-# # code from Jo for sim between data design matrix:
-#   
+# # # code from Jo for sim between data design matrix:
+# #   
 # # how many participants am i getting, and how do they vary?
 # ppts = 1:6
 # # observed btween ppt predictor
 # btw_ppt = rbinom(6,1,.5)
 # 
-# # assuming everybody does the same expt, this can be seen as 
-# # "for a given ppt, what do they see?":  
+# # assuming everybody does the same expt, this can be seen as
+# # "for a given ppt, what do they see?":
 # items = 1:4
 # btw_items = rep(0:1,e=max(items)/2)
 # 
-# # all my ppts: 
+# # all my ppts:
 # allp = data.frame(ppts,btw_ppt)
-# # nested df for each ppts data: 
+# # nested df for each ppts data:
 # allp$pdat = list(data.frame(items,btw_items))
 # 
-# # unnest: 
-# tidyr::unnest(allp, pdat)
+# # unnest:
+# tidyr::unnest(allp, pdat) |> View()
