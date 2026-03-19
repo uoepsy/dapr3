@@ -14,22 +14,18 @@ library(emmeans)
 library(simglm)
 library(latex2exp)  # for betas in ggplots
 source('_theme/theme_quarto.R')
+source('ep-playground/simfns.R')
+
 
 theme_set(theme_quarto(title_font_size=42))
 theme_update(
-  text = element_text(family = 'Source Sans 3'),
-  axis.title.y = element_text(angle=0, 
-                              vjust=0.5, 
-                              hjust = 0,
-                              margin = margin(t = 0, r = 10, b = 0, l = 0)
-                              ),
-
-  )
+  text = element_text(family = 'Source Sans 3')
+)
 
 dapr3green <- "#88B04B" 
 dapr3dkgreen <- "#5C7C28"
 dapr3ltgreen <- "#E5EED7"
-pal <- c("#2a3c24", "#F5C396", "#8B2635", "#5c9ead", "#d35269", "#235789")
+pal <- c("#8B2635", "#5c9ead","#2a3c24", "#F5C396",  "#d35269", "#235789")
 ```
 
 
@@ -110,25 +106,86 @@ The purpose of this activity is to help you remember a few of the ways that a fe
 :::
 ::::
 
+## Part 3: Think back to linear models
+
+<br>
+
+:::hcenter
+:::woo
+https://app.wooclap.com/events/SIQRER/
+:::
+:::
+
+
+
 # Regression refresher
 
-## Remember linear regression?
+## Data: After one week of mindfulness treatments, life satisfaction ratings from 36 people
 
-[headphones example?]
+```{r sim lifesat, include=F}
+half_ppts <- 18
+journal <- sim_int_1grp_1pred(seed=2, b0 = 1, b1=.1, N = half_ppts*7, n_groups = half_ppts) |>
+  mutate(
+    condition = 'journal',
+    ppt_id = paste0('j', g)
+  ) |>
+  select(-y_bin, -g) 
+meditate <- sim_int_1grp_1pred(seed=4, b0 = 1, b1=.5, N = half_ppts*7, n_groups = half_ppts) |>
+  mutate(
+    condition = 'meditate',
+    ppt_id = paste0('m', g)
+  ) |>
+  select(-y_bin, -g)
 
+lifesat_week <- bind_rows(journal, meditate) |>
+  rename(day = x1) |>
+  mutate(lifesat = datawizard::rescale(y, to = c(15, 75))) |>
+  select(-y)
 
+lifesat <- lifesat_week |>
+  filter(day == 7) |>
+  select(-day)
+```
 
+:::: {.columns}
+::: {.column width="65%"}
+```{r fig.width = 8, fig.height = 6}
+#| code-fold: true
 
-
-dolor sit amet
-
-**dolor sit amet**
-
-`abc`
-
-:::dapr3callout
-abc
+lifesat |>
+  ggplot(aes(x = condition, y = lifesat, fill = condition, colour = condition)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(alpha = 0.5, size = 5) +
+  stat_summary(geom = 'point', fun = mean, colour = 'black', size = 8) +
+  theme(legend.position = 'none') +
+  scale_colour_manual(values = pal) +
+  scale_fill_manual(values = pal) +
+  NULL
+```
 :::
+::: {.column width="35%"}
+```{r}
+lifesat |>
+  head(15)
+```
+:::
+::::
+
+
+Do people's life satisfaction ratings differ significantly between the journalling and meditation conditions?
+
+In more statsy terms: **Is the difference between conditions sufficiently unlikely to equal zero?**
+
+
+## Set up the data
+
+
+
+
+
+
+
+
 
 
 # Thinking in models: How was our data generated?
@@ -210,6 +267,74 @@ We really like seeing you in office hours!
 ::::
 
 
+
+# Appendix {.appendix}
+
+## Line plots from Wooclap
+
+<!-- :::: {.columns} -->
+<!-- ::: {.column width="50%"} -->
+<!-- a -->
+<!-- ::: -->
+<!-- ::: {.column width="50%"} -->
+<!-- b -->
+<!-- ::: -->
+<!-- :::: -->
+
+```{r wooplots, echo=F, fig.align = "center"}
+p1 <- ggplot() +
+  geom_abline(aes(intercept = 1, slope = 1), linewidth = 2) +
+  scale_x_continuous(limits = c(-2, 2), breaks = -2:2) +
+  scale_y_continuous(limits = c(0, 5), breaks = 0:5) +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = 'x', y = 'y') +
+  NULL
+# ggsave('figs/woo/w1-p1.png', width = 10, height = 10, units = 'cm')
+
+p2 <- ggplot() +
+  geom_abline(aes(intercept = 0, slope = 1), linewidth = 2) +
+  scale_x_continuous(limits = c(0, 2), breaks = 0:2) +
+  scale_y_continuous(limits = c(0, 3), breaks = 0:3) +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = 'x', y = 'y') +
+  NULL
+# ggsave('figs/woo/w1-p2.png', width = 10, height = 10, units = 'cm')
+
+p3 <- ggplot() +
+  geom_abline(aes(intercept = 0, slope = -10), linewidth = 2) +
+  scale_x_continuous(limits = c(-2, 2)) +
+  scale_y_continuous(limits = c(-30, 30), breaks = seq(-30, 30, by=10)) +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = 'x', y = 'y') +
+  NULL
+# ggsave('figs/woo/w1-p3.png', width = 10, height = 10, units = 'cm')
+
+p4 <- ggplot() +
+  geom_abline(aes(intercept = 1, slope = -1), linewidth = 2) +
+  scale_x_continuous(limits = c(0, 4), breaks = 0:4) +
+  scale_y_continuous(limits = c(-3, 1), breaks = -3:5) +
+  theme(panel.grid.minor = element_blank()) +
+  labs(x = 'x', y = 'y') +
+  NULL
+# ggsave('figs/woo/w1-p4.png', width = 10, height = 10, units = 'cm')
+
+p1 + p2 + p3 + p4
+```
+
+
+
+
+## abc
+
+dolor sit amet
+
+**dolor sit amet**
+
+`abc`
+
+:::dapr3callout
+abc
+:::
 
 
 <!-- :::: {.columns} -->

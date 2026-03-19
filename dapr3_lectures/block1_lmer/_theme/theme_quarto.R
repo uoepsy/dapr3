@@ -50,12 +50,13 @@ options(digits=3,scipen=3)
 
 
 knitr::opts_chunk$set(
-  fig.asp=.8,
+  #fig.asp=.8,
+  fig.align='center',
   #tidy=TRUE,
-  tidy.opts=list(width.cutoff=70, arrow=TRUE, indent=2, args.newline=TRUE, fig.align='center')
+  tidy.opts=list(width.cutoff=70, arrow=TRUE, indent=2, args.newline=TRUE)
 )
 knitr::knit_hooks$set(crop = knitr::hook_pdfcrop)
-color_base <- "#88B04B"
+color_base <- "#5C7C28"
 color_text <- '#000000'
 color_bg <- '#ffffff'
 theme_set(theme_quarto())

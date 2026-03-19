@@ -16,8 +16,6 @@ source('simfns.R')  # load simdat functions
 
 ## lifesat ~ treatment + day + (1 + day | ppt)
 
-Good for Week 1 and Week 2
-
 lifesat: continuous, measured after practicing each method daily for a week
 treatment: journal, meditation (btwn)
 day 
@@ -41,7 +39,61 @@ lifesat_dat <- bind_rows(journal, meditate) |>
   rename(day = x1) |>
   mutate(lifesat = datawizard::rescale(y, to = c(15, 75))) |>
   select(-y)
+```
 
+### simple lm
+
+btwn ppt: day 7 only
+
+```{r}
+lifesat_dat_7 <- lifesat_dat |>
+  filter(day == 7) |>
+  select(-day)
+
+lifesat_dat_7 |>
+  ggplot(aes(x = condition, y = lifesat)) +
+  geom_violin()
+```
+
+what categ vars in dataset?
+
+```{r}
+lifesat_dat_7
+```
+
+- condition
+- ppt_id
+
+
+what categ vars not an outcome or a predictor?
+
+- ppt_id
+
+
+
+what levels?
+
+```{r}
+lifesat_dat_7$ppt_id
+```
+
+is each level associated with more than one data point?
+
+```{r}
+lifesat_dat_7 |>
+  group_by(ppt_id) |>
+  count()
+```
+
+nope, appears only 1x.
+
+
+
+### lmm
+
+Good for Week 1 and Week 2
+
+```{r}
 lifesat_dat |>
   ggplot(aes(x = day, y = lifesat, colour = condition)) +
   geom_point() +
@@ -82,52 +134,6 @@ lifesat_dat |>
 ```
 
 
-
-
-### btwn ppt: day 7 only
-
-```{r}
-lifesat_dat_7 <- lifesat_dat |>
-  filter(day == 7) |>
-  select(-day)
-
-lifesat_dat_7 |>
-  ggplot(aes(x = condition, y = lifesat)) +
-  geom_violin()
-```
-
-
-what categ vars in dataset?
-
-```{r}
-lifesat_dat_7
-```
-
-- condition
-- ppt_id
-
-
-what categ vars not an outcome or a predictor?
-
-- ppt_id
-
-
-
-what levels?
-
-```{r}
-lifesat_dat_7$ppt_id
-```
-
-is each level associated with more than one data point?
-
-```{r}
-lifesat_dat_7 |>
-  group_by(ppt_id) |>
-  count()
-```
-
-nope, appears only 1x.
 
 
 ## attentiveness ~ hour + (1 + hour | child)
