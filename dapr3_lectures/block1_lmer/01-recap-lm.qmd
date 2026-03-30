@@ -25,7 +25,7 @@ theme_update(
 dapr3green <- "#88B04B" 
 dapr3dkgreen <- "#5C7C28"
 dapr3ltgreen <- "#E5EED7"
-pal <- c("#8B2635", "#5c9ead","#2a3c24", "#F5C396",  "#d35269", "#235789")
+pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
 ```
 
 
@@ -139,7 +139,7 @@ meditate <- sim_int_1grp_1pred(seed=4, b0 = 1, b1=.5, N = half_ppts*7, n_groups 
 
 lifesat_week <- bind_rows(journal, meditate) |>
   rename(day = x1) |>
-  mutate(lifesat = datawizard::rescale(y, to = c(15, 75))) |>
+  mutate(lifesat = as.numeric(datawizard::rescale(y, to = c(15, 75)))) |>
   select(-y)
 
 lifesat <- lifesat_week |>
@@ -189,69 +189,324 @@ math
 
 summary
 
-
 ## Interpret model estimates
 
 plot + summary + prose
 
-# Now: welcome to DAPR3!
+# Now that we're warmed up: welcome to DAPR3 ✨
 
 ## This week's learning objectives
 
 :::dapr3callout
-What's the difference between between-subjects data and repeated measures data?
+How do we identify grouping structure in a tidy dataset?
+
+<!-- - We look for categorical variables whose values appear more than once. -->
 :::
 
 :::dapr3callout
-How do we identify grouping structure in datasets?
+How do we describe the process that has generated our data?
+
+<!-- - In terms of different sources of variability. -->
+<!-- - Manipulated / controlled / reproducible variability comes from from our predictor variables (our "fixed effects"). -->
+<!-- - Non-manipulated / non-controlled / random variability comes from our grouping variables (our "random effects"). -->
+<!-- - Other random variability not associated with specific variables is modelled as residual error. -->
 :::
 
-:::dapr3callout
-What kind of variability does grouping structure contribute to a dataset?
-:::
+# Between-subjects vs. repeated measures
 
-# Between-subjects data vs. repeated measures data
-
-## Between-subjects data vs. repeated measures data
+## Between-subjects vs. repeated measures
 
 woo: what do these terms mean to you
 
 
 
-## Repeated-measures data: A week of mindfulness treatments
+## An example of repeated-measures data:<br> One week of mindfulness treatments
+
+:::: {.columns}
+::: {.column width="60%"}
+```{r fig.width = 8, fig.height = 6}
+#| code-fold: true
+
+p_lifesat_week <- lifesat_week |>
+  ggplot(aes(x = day, y = lifesat, colour = condition)) +
+  geom_smooth(method ='lm', se = F, formula = 'y ~ x', linewidth = 2) +
+  geom_jitter(alpha = 0.5, width = .2, size = 5) +
+  scale_colour_manual(values = pal) +
+  scale_x_continuous(breaks = 1:7) +
+  theme(
+    legend.position = 'bottom',
+    panel.grid.minor.x = element_blank()
+  ) +
+  NULL
+p_lifesat_week
+```
+:::
+::: {.column width="40%"}
+```{r}
+lifesat_week |>
+  head(15)
+```
+:::
+::::
+
+(In the regression refresher example from before, we were looking at data from Day 7 only!)
+
+
+## How do we know that this is repeated measures data?
+
+:::: {.columns}
+::: {.column width="40%"}
+```{r}
+lifesat_week |>
+  head(12)
+```
+:::
+::: {.column width="10%"}
+:::
+::: {.column width="50%"}
+<br>
+
+- Notice that each `ppt_id` appears more than once in `lifesat_week`.
+
+- Specifically, each participant has one `lifesat` value per `day`.
+
+- In other words, each participant has contributed **repeated measurements** to the dataset.
+
+:::
+::::
+
+<br>
+
+:::dapr3callout
+- Because each participant contributed multiple observations, we call `ppt_id` a **grouping variable.**
+- Notice that `day` and `condition` also contain multiple observations of the same value. In this way, they are also grouping variables. But they're conceptually a bit different from `ppt_id`, as we'll see soon.
+:::
+
+
+
+## How do we identify grouping structure?
+
+- Look at the data frame: how many times does each level of a categorical predictor appear?
+- Or: use R code to count for us.
+
+Identifying grouping structure is a key skill for DAPR3.
+In this week's lab, you'll have a chance to practice it on ten different datasets.
+
+
+# Identifying grouping structure: Two examples
+
+## Ex. 1: Mindfulness treatments, Day 7
+
+```{r fig.width = 8, fig.height = 6, echo=F}
+p_lifesat
+```
+
+<br>
+
+What categorical variables do we have in `lifesat`?
 
 ```{r}
-
+glimpse(lifesat)
 ```
 
 
-## How do we know it's repeated measures?
+## Ex. 1: Grouping and counting
 
-each ppt contributes more than one data point to the dataset <- ppt is a grouping variable
+:::: {.columns}
+::: {.column width="47%"}
+For `condition`:
 
-summarise data
+```{r}
+lifesat |>
+  group_by(condition) |>
+  count()
+```
 
-## How do we identify grouping variables in a dataset?
+:::
+::: {.column width="5%"}
+:::
 
-Summarise.
+::: {.column width="47%"}
 
-Identifying grouping structure is a key skill for DAPR3, so in this week's lab, you'll have a chance to practice it on ten different datasets.
+For `ppt_id`:
 
-
-# Identifying grouping structure
-
-## Example 1
-
-## Example 2
-
-## Example 3
-
+```{r}
+lifesat |>
+  group_by(ppt_id) |>
+  count()
+```
 
 
+:::
+::::
 
-# Thinking in models:  What process generated the outcome data we observe?
 
-## Between-subjects data (final day only)
+:::: {.columns}
+::: {.column width="47%"}
+
+::::dapr3callout
+
+Each value of `condition` appears more than once.
+
+`condition` is a grouping variable &nbsp;  ✅
+
+::::
+
+:::
+::: {.column width="5%"}
+:::
+::: {.column width="47%"}
+::::dapr3callout
+Each value of `ppt_id` appears only once.
+
+`ppt_id` is not a grouping variable &nbsp; ❌ 
+::::
+
+:::
+
+::::
+
+
+## Ex. 2: A week of mindfulness treatments
+
+```{r fig.width = 8, fig.height = 6, echo=F}
+p_lifesat_week
+```
+
+<br>
+
+What categorical variables do we have in `lifesat_week`?
+
+```{r}
+glimpse(lifesat_week)
+```
+
+
+## Ex. 2: Grouping and counting
+
+:::: {.columns}
+::: {.column width="30%"}
+For `day`:
+
+```{r}
+lifesat_week |>
+  group_by(day) |>
+  count()
+```
+
+
+
+:::
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+For `condition`:
+
+```{r}
+lifesat_week |>
+  group_by(condition) |>
+  count()
+```
+
+
+
+:::
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+
+For `ppt_id`:
+
+```{r}
+lifesat_week |>
+  group_by(ppt_id) |>
+  count()
+```
+
+
+:::
+::::
+
+
+:::: {.columns}
+::: {.column width="30%"}
+
+::::dapr3callout
+
+Each value of `day` appears more than once.
+
+`day` is a grouping variable &nbsp;  ✅
+
+::::
+
+
+:::
+::: {.column width="5%"}
+:::
+::: {.column width="30%"}
+
+::::dapr3callout
+
+Each value of `condition` appears more than once.
+
+`condition` is a grouping variable &nbsp;  ✅
+
+::::
+
+:::
+::: {.column width="5%"}
+:::
+::: {.column width="30%"}
+::::dapr3callout
+Each value of `ppt_id` appears more than once.
+
+`ppt_id` is a grouping variable &nbsp;  ✅
+::::
+
+:::
+
+::::
+
+
+
+
+
+
+
+## Ex. 2: Conceptual differences between these grouping variables
+
+<!-- ```{r fig.width = 8, fig.height = 6, echo=F} -->
+<!-- p_lifesat_week -->
+<!-- ``` -->
+
+<br>
+
+Our RQ is about how different `condition`s and different `day`s are associated with `lifesat`.
+
+<br>
+
+:::dapr3callout
+- Notice that this RQ refers to only two of the grouping variables, `condition` and `day`.
+- **`condition` and `day` are manipulated / controlled by our experimental design.**
+:::
+  
+:::dapr3callout
+- The RQ does *not* refer to the third grouping variable, `ppt_id`.
+- **`ppt_id` is not manipulated / controlled by the experimental design.**
+- But our statistical model needs to account for it anyway.
+- The first block of DAPR3 is all about learning how to do that.
+:::
+
+<br>
+
+![](figs/ask.svg){fig-align="center" height="120px"}
+
+
+# Thinking in models: <br> What process generated the outcome data we observe?
+
+## Ex. 1: Mindfulness treatments, Day 7
 
 :::: {.columns}
 ::: {.column width="50%"}
@@ -261,28 +516,60 @@ p_lifesat
 ```
 
 
-
 :::
 ::: {.column width="50%"}
 
-DGP diagram
-
-
+![](figs/TODO-w1-dgp-lm.png)
 
 :::
 ::::
 
-## Repeated measures data (a week of data)
+## Ex. 2: A week of mindfulness treatments
 
 
+:::: {.columns}
+::: {.column width="50%"}
 
-[DGP for LMM: systematic variation from some vars, random variation from some vars, residual error]
+```{r fig.width = 8, fig.height = 6, echo=F}
+p_lifesat_week
+```
+
+:::
+::: {.column width="50%"}
+
+![](figs/TODO-w1-dgp-lmm.png)
+
+:::
+::::
 
 
-## What kind of variables contribute random variability?
+## Identifying reproducible vs. random variability
 
-Grouping variables.
+<br>
 
+:::dapr3callout
+**Ask yourself:** If the same RQ were tested again in a different experiment, which variables would have to stay the same, and which variables could potentially be different?
+:::
+
+<br>
+
+Does the variable **need to contain the same values, or else the RQ could not be tested?**
+
+- If so: this variable contributes **manipulated / controlled / reproducible variability.**
+- e.g.:
+  - experimental manipulations
+  - covariates to control for other influences (e.g., handedness, word frequency)
+  
+<br>
+  
+Could the variable **potentially contain different values, and the RQ would still be testable?**
+
+- If so: this variable contributes **non-manipulated / non-controlled / random variability.**
+- e.g.:
+  - participants/subjects
+  - stimuli
+
+<!-- the lab is getting grouping struc and also allocating vars to manip/controlled/reproducible category or random category -->
 
 
 
@@ -350,7 +637,7 @@ We really like seeing you in office hours!
 <!-- ::: -->
 <!-- :::: -->
 
-```{r wooplots, echo=F, fig.align = "center"}
+```{r wooplots, fig.height = 8, fig.width = 10, echo=F, fig.align = "center"}
 p1 <- ggplot() +
   geom_abline(aes(intercept = 1, slope = 1), linewidth = 2) +
   scale_x_continuous(limits = c(-2, 2), breaks = -2:2) +
