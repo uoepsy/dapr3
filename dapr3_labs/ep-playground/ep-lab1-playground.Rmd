@@ -1,0 +1,394 @@
+---
+title: "Simulate data for Lab 01"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r}
+library(tidyverse)
+```
+
+all data drawn from <https://uoepsy.github.io/lmm/00_datasets>
+
+
+## clothing
+
+<!-- i like this one but never used it. it's based on a UG dissertation project from ages ago. fairly bog standard experiment with just person level ranefs -->
+
+<!-- **Does clothing seem more attractive to shoppers when it is viewed on a model, and is this dependent on item price?** 30 participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it. Each participant saw 20 items, ranging in price from £5 to £100. 15 participants saw these items worn by a model, while the other 15 saw the items against a white background.   -->
+
+<!-- Data are available at [https://uoepsy.github.io/data/dapr3_mannequin.csv](https://uoepsy.github.io/data/dapr3_mannequin.csv) -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- d3 <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv") -->
+<!-- tibble( -->
+<!--   variable=names(d3), -->
+<!--   description=c("Purchase Rating (sliding scale 0 to 100, with higher ratings indicating greater perceived likelihood of purchase)", -->
+<!--                 "Price presented with item (range £5 to £100)", -->
+<!--                 "Participant Identifier", -->
+<!--                 "Whether items are seen on a model or on a white background") -->
+<!-- ) |> gt::gt() -->
+
+<!-- ``` -->
+
+
+```{r}
+mannequin <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+glimpse(mannequin)
+```
+
+### price -- rep
+
+```{r}
+mannequin |> group_by(price) |> count()
+mannequin |> group_by(price) |> n_groups()
+```
+
+### ppt -- rd
+
+```{r}
+mannequin |> group_by(ppt) |> count()
+mannequin |> group_by(ppt) |> n_groups()
+```
+
+
+
+### model
+
+```{r eval=F}
+#scale price to help convergence
+#change 1 in price is now change of £10
+df$price <- df$price/10
+
+mod1 <- lmer(purch_rating ~ price*condition + 
+       (1+price|ppt), 
+       data = df)
+  
+summary(mod1)
+```
+
+
+## monkeystatus
+
+<!-- Our primate researchers have been busy collecting more data. They have given a sample of Rhesus Macaques various problems to solve in order to receive treats. Troops of Macaques have a complex social structure, but adult monkeys tend can be loosely categorised as having either a "dominant" or "subordinate" status. The monkeys in our sample are either adolescent monkeys, subordinate adults, or dominant adults. Each monkey attempted various problems before they got bored/distracted/full of treats. Each problems were classed as either "easy" or "difficult", and the researchers recorded whether or not the monkey solved each problem.  -->
+
+<!-- We're interested in **how the social status of monkeys is associated with the ability to solve problems, while controlling for the difficulty of the problem.** -->
+
+<!-- Data are available at [https://uoepsy.github.io/data/msmr_monkeystatus.csv](https://uoepsy.github.io/data/msmr_monkeystatus.csv){target="_blank"}.   -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- tibble(variable= -->
+<!--          names(read_csv("https://uoepsy.github.io/data/msmr_monkeystatus.csv")), -->
+<!--        description = c( -->
+<!--          "Social Status of monkey (adolescent, subordinate adult, or dominant adult)", -->
+<!--          "Problem difficulty ('easy' vs 'difficult')", -->
+<!--          "Monkey Name", -->
+<!--          "Whether or not the problem was successfully solved by the monkey") -->
+<!-- ) |> gt::gt() -->
+<!-- ``` -->
+
+
+```{r}
+monkeystatus <- read_csv('https://uoepsy.github.io/data/msmr_monkeystatus.csv')
+monkeystatus |>
+  glimpse()
+```
+
+### status -- rep
+
+```{r}
+monkeystatus |>
+  group_by(status) |>
+  count()
+```
+
+^ grouping variable
+
+```{r}
+monkeystatus |>
+  group_by(status) |>
+  n_groups()
+```
+
+Three groups!
+
+### difficulty -- rep (ctrl)
+
+```{r}
+monkeystatus |>
+  group_by(difficulty) |>
+  count()
+```
+
+^ grouping variable
+
+```{r}
+monkeystatus |>
+  group_by(difficulty) |>
+  n_groups()
+```
+
+### monkeyID -- rd
+
+```{r}
+monkeystatus |>
+  group_by(monkeyID) |>
+  count()
+```
+
+^ grouping variable
+
+```{r}
+monkeystatus |>
+  group_by(monkeyID) |>
+  n_groups()
+```
+
+
+### model
+
+```{r eval=F}
+mmod <- lme4::glmer(solved ~ difficulty + status + 
+      (1 + difficulty | monkeyID),
+      data = monkeystatus, family = binomial)
+summary(mmod)
+```
+
+
+## laughs
+
+```{r}
+laughs <- read_csv('https://uoepsy.github.io/data/lmm_laughs.csv')
+```
+
+
+```{r}
+glimpse(laughs)
+```
+
+### ppt -- rd
+
+```{r}
+laughs |>
+  group_by(ppt) |>
+  count()
+
+laughs |>
+  group_by(ppt) |>
+  n_groups()
+```
+
+
+^ random variability
+
+
+### joke_label -- rd
+
+```{r}
+laughs |>
+  group_by(joke_label) |>
+  count()
+
+laughs |>
+  group_by(joke_label) |>
+  n_groups()
+```
+
+^ random variability
+
+### joke_id -- rd
+
+```{r}
+laughs |>
+  group_by(joke_id) |>
+  count()
+
+laughs |>
+  group_by(joke_id) |>
+  n_groups()
+```
+
+^ random variability
+
+### delivery -- rep
+
+```{r}
+laughs |>
+  group_by(delivery) |>
+  count()
+
+laughs |>
+  group_by(delivery) |>
+  n_groups()
+```
+
+^ reproducible variability
+
+### model
+
+```{r eval=F}
+mod <- lmer(rating ~ delivery + 
+              (1 + delivery | joke_id) +
+              (1 + delivery | ppt), data = laughs)
+```
+
+
+
+## drivingmusic (order after laughs or monkeystatus)
+
+a good one for making them initially think "music|person" should work (because it's within person) but the model becomes unidentifiable (only one observation of each music for each person, so too many ranefs)
+
+<!-- These data are simulated to represent data from a fake experiment, in which participants were asked to drive around a route in a 30mph zone. Each participant completed the route 3 times (i.e. "repeated measures"), but each time they were listening to different audio (either speech, classical music or rap music). Their average speed across the route was recorded.  -->
+<!-- This is a fairly simple design, that we might use to ask **"how is the type of audio being listened to associated with driving speeds?"**  -->
+
+<!-- The data are available at [https://uoepsy.github.io/data/drivingmusicwithin.csv](https://uoepsy.github.io/data/drivingmusicwithin.csv).   -->
+
+<!-- ```{r echo=FALSE} -->
+<!-- tibble( -->
+<!--   variable = names(read_csv("https://uoepsy.github.io/data/drivingmusicwithin.csv")), -->
+<!--   description = c("Participant Identifier","Avg Speed Driven on Route (mph)","Music listened to while driving (classical music / rap music / spoken word)") -->
+<!-- ) |> gt::gt() -->
+<!-- ``` -->
+
+### pid -- rd
+
+```{r}
+drivingmusic <- read_csv('https://uoepsy.github.io/data/drivingmusicwithin.csv')
+
+drivingmusic |> group_by(pid) |> count()
+drivingmusic |> group_by(pid) |> n_groups()
+```
+
+
+### music -- rep
+
+```{r}
+drivingmusic |> group_by(music) |> count()
+drivingmusic |> group_by(music) |> n_groups()
+```
+
+
+### model
+
+Temptation is to fit the below, but it won't work, because each pid has only 1 obs for each music, so we're overfitting
+
+```{r}
+#| eval: false
+#| error: true
+#| warning: true
+#| message: true
+mod1 <- lmer(speed ~ music + 
+               (1 + music | pid), 
+             data = df)
+```
+
+```{r}
+#| eval: false
+mod1 <- lmer(speed ~ music + 
+               (1 | pid), 
+             data = df)
+
+summary(mod1)
+```
+
+
+
+## lmm_mindfulmindful (last – some vars not relev)
+
+this is typically my go to for longitudinal example. cog ~ age*condition + (1+age|person)
+
+
+<!-- A study is interested in examining **whether engaging in mindfulness can prevent cognitive mindful in older adults**. They recruit a sample of 20 participants at age 60, and administer the Addenbrooke's Cognitive Examination (ACE) every 2 years (until participants were aged 78). Half of the participants complete weekly mindfulness sessions, while the remaining participants did not.    -->
+
+
+<!-- Data are available at [https://uoepsy.github.io/data/lmm_mindfulmindful.csv](https://uoepsy.github.io/data/lmm_mindfuldecline.csv){target="_blank"}.   -->
+
+<!-- ```{r} -->
+<!-- #| echo: false -->
+<!-- mmd <- read_csv("https://uoepsy.github.io/data/lmm_mindfuldecline.csv") -->
+<!-- tibble( -->
+<!--   variable=names(mmd), -->
+<!--   description=c( -->
+<!--     "Site Identifier", -->
+<!--     "Participant Identifier", -->
+<!--                 "Whether the participant engages in mindfulness or not (control/mindfulness)", -->
+<!--                 "Study Visit Number (1 - 10)", -->
+<!--                 "Age (in years) at study visit", -->
+<!--                 "Addenbrooke's Cognitive Examination Score. Scores can range from 0 to 100", -->
+<!--                 "Clinical diagnosis of cognitive impairment ('imp' = impaired, 'unimp' = unimpaired)") -->
+<!-- ) |> gt::gt() -->
+<!-- ``` -->
+
+```{r}
+library(tidyverse)
+mindful <- read_csv('https://uoepsy.github.io/data/lmm_mindful.csv')
+glimpse(mindful)
+```
+
+
+### sitename -- not grouping var
+
+```{r}
+mindful |> group_by(sitename) |> count()
+```
+
+excellent, only one value. so not a grouping variable.
+
+
+### ppt -- rd
+
+```{r}
+mindful |> group_by(ppt) |> count()
+```
+
+
+### condition -- rep
+
+```{r}
+mindful |> group_by(condition) |> count()
+```
+
+### visit -- rep (not involved in RQ tho!)
+
+```{r}
+mindful |> group_by(visit) |> count()
+```
+
+
+
+### imp -- rep (not involved in RQ tho!)
+
+
+```{r}
+mindful |> group_by(imp) |> count()
+```
+
+### age -- rep
+
+```{r}
+mindful |> group_by(age) |> count()
+```
+
+
+
+
+### model
+
+
+if we don't recenter age, then the intercept variability `(1|ppt)` is estimated way back 60 years before we collected any data. The slopes will basically perfectly predicted these intercept differences, so the model will be singular.  
+re-centering will help.  
+
+```{r}
+#| eval: false
+#recenter age
+df$ageC <- df$age-60
+
+mod1 <- lmer(ACE ~ 1 + ageC * condition + 
+               (1 + ageC | ppt), 
+             data = df)
+
+summary(mod1)
+```
