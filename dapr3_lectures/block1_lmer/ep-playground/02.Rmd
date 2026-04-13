@@ -7,18 +7,207 @@ output:
 
 ```{r}
 library(tidyverse)
+library(lme4)
 
 source('simfns.R')  # load simdat functions
 ```
 
+# One idea: erm_belief
 
-# main running example for lec 2
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/erm_belief.csv")
+
+# make trial_n numeric
+df$trial_n <- as.numeric(gsub("trial_","",df$trial_n))
+# relevel condition:
+df$condition <- factor(df$condition, levels=c("fluent","disfluent"))
+```
+
+
+```{r eval=F}
+# failed to converge
+mod1 <- lmer(
+  belief ~ trial_n + condition + 
+    (1 + trial_n + condition | ppt) + 
+    (1 + condition | statement), 
+  data = df
+)
+
+# converges, and vcov matrix doesn't look degenerate
+mod2 <- lmer(
+  belief ~ trial_n + condition + 
+    (1 + condition | ppt) + 
+    (1 + condition | statement), 
+  data = df
+)
+
+summary(mod2)
+```
+
+Don't use trial_n, just use condition.
+
+```{r}
+mod3 <- lmer(
+  belief ~ condition +
+    (1 + condition | ppt) +
+    (1 + condition | statement),
+  data = df
+)
+summary(mod3)
+```
+
+
+fully crossed (yay)
+
+RESUME
+
+
+
+
+
+
+# OLD idea: Test enhanced learning
+
+```{r}
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+```
+
+
+```{r}
+glimpse(tel)
+```
+
+Get rid of "Eskimo" (not a nice word):
+
+```{r}
+tel <- tel |>
+  filter(Test_word != 'Eskimo') |>
+  mutate(Delay = ifelse(Delay == 'min', 'Minute', 'Week'))
+```
+
+
+```{r}
+tel |>
+  ggplot(aes(x = Group, y = Correct, colour = Delay)) +
+  geom_violin() +
+  stat_summary(geom = 'pointrange')
+```
+
+Use correctness as mean for simulating test score data (rescaled to 0–100):
+
+```{r}
+set.seed(1)
+tel <- tel |>
+  rowwise() |>
+  mutate(
+    TestScore = rnorm(n=1, mean = Correct, sd = 0.5),
+  ) |>
+  ungroup() |>
+  mutate(
+    TestScore = round(datawizard::rescale(TestScore, to = c(0, 100)))
+  )
+  
+tel |>
+  ggplot(aes(x = Group, y = TestScore, colour = Delay)) +
+  geom_violin(alpha = 0.1) +
+  geom_jitter(alpha = 0.1) +
+  facet_wrap(~ Delay) +
+  stat_summary(geom = 'pointrange', colour = 'black')
+```
+
+## Week 2 analysis: no `Group` dimension
+
+```{r}
+tel |>
+  ggplot(aes(x = Delay, y = TestScore)) +
+  geom_boxplot()
+```
+
+
+```{r}
+lmer(
+  TestScore ~ Delay + (1 + Delay | Subject_ID),
+  data = tel
+)
+```
+
+hmmm ...
+
+
+### Max mod with no Delay
+
+`Testscore ~ Group + (1 | Subject_ID) + (1 + Group | Test_word)`
+
+```{r}
+mdl_group_max <- lmer(
+  TestScore ~ Group +
+    (1 | Subject_ID) +
+    (1 + Group | Test_word),
+  data = tel
+)
+summary(mdl_group_max)
+```
+
+Correlation of –1, so the vcov mtx is degenerate.
+Will need to simplify – BUT save that for week 4.
+
+
+
+
+
+## Maximal model analysis (week 3 or 4)
+
+```{r}
+# singular fit
+m1 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) +
+    (1 + Delay * Group | Test_word),
+  data = tel
+)
+
+# singular fit
+m2 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) +
+    (1 + Delay + Group | Test_word),
+  data = tel
+)
+
+# no singular fit!
+m3 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) +
+    (1 + Delay | Test_word),
+  data = tel
+)
+
+summary(m3)
+```
+
+
+## Grouping variables
+
+
+```{r}
+tel |>
+  group_by(Test_word, Subject_ID) |>
+  count()
+```
+
+
+I thiiiink I might still stick with the TEL one, just bc then when we get to the maximal model bit, I can  be like "ah hah there is also an interaction, now what" 
+
+
+
+
+# OLD idea for running example for lec 2
 
 latin square, condition fully crossed w ppts and w items
 
 The story: masked priming, primed with a related word vs. when primed with a distractor
 
-```{r}
+```{r eval=F}
 n_ppts  <- 4
 n_items <- 20
 
@@ -57,7 +246,7 @@ Identify grouping structure:
 - we are looking only at categorical variables
 - we want to see: what categorical variables have values that are associated with more than one data point?
 
-```{r}
+```{r eval=F}
 dat |> head()
 ```
 
@@ -70,7 +259,7 @@ we'll go through each of these.
 
 assuming data is set up for analysis using lm, with one column per variable and one row per observation, then we should just be able to count how many times each value shows up
 
-```{r}
+```{r eval=F}
 dat |>
   group_by(ppt_id) |>
   count()
@@ -78,7 +267,7 @@ dat |>
 
 can sense check by visually inspecting df. "ppt1" shows up with a bunch of different logRTs.
 
-```{r}
+```{r eval=F}
 dat |>
   group_by(item_id) |>
   count()
@@ -86,7 +275,7 @@ dat |>
 
 each item also appears multiple times.
 
-```{r}
+```{r eval=F}
 dat |>
   group_by(priming_cond) |>
   count()
@@ -100,15 +289,3 @@ So we have three groups that each contribute multiple data points:
 - `item_id`
 - `priming_cond`
  
-
-how do these groups relate to one another?
-
-```{r}
-dat |>
-  group_by(ppt_id, item_id, priming_cond) |>
-  count()
-```
-
-each ppt sees each item twice, once in the distractor prime condition and once in the related prime condition.
-
-
