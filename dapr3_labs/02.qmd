@@ -1,0 +1,434 @@
+---
+title: "Reasoning about random effects"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- when rendering in RStudio/  not production profile:   SHOW_SOLS: TRUE  -->
+<!-- when rendering in terminal/with production profile:   SHOW_SOLS: FALSE -->
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(ggdist)
+xaringanExtra::use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+In this lab, you'll apply the tools you saw in the lectures this week to the same three datasets you got to know last week.
+
+You'll figure out **how to model the grouping structure in each dataset in terms of random intercepts and random slopes** (which, together, we refer to as random effects).
+
+
+:::{.callout-note}
+### Get set up
+
+1. Create a new .Rmd file for this week's exercises.
+1. Save it somewhere you can find it again.
+1. Give it a clear name (for example, `dapr3_lab02.Rmd`).
+1. In the first code chunk, load the packages you'll need this week:
+    - `tidyverse`
+    - `stats` (for `xtabs()`)
+:::
+
+---
+
+
+
+## Clothing
+
+:::frame
+
+Read in the dataset located at [https://uoepsy.github.io/data/dapr3_mannequin.csv](https://uoepsy.github.io/data/dapr3_mannequin.csv) and name it `clothing`.
+
+RQ: **Are people more likely to purchase clothing when they see it displayed on a model, and is this association dependent on item price?**
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")),
+  description=c("Purchase rating (sliding scale 0 to 100, with higher ratings indicating greater perceived likelihood of purchase)",
+                "Price presented for item (range £5 to £100)",
+                "Participant identifier",
+                "Whether items are seen on a model or on a white background")
+) |> gt::gt()
+```
+
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+Thirty participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it.
+Each participant saw 20 items, ranging in price from £5 to £100.
+15 participants saw these items worn by a model, while the other 15 saw the items hanging against a white background.
+:::
+
+
+**From the last lab, here's the key information about `clothing`:**
+
+- Outcome: `purch_rating`
+- Predictors: `price`, `condition` (and their interaction)
+- Randomly-varying grouping variable: `ppt`
+
+:::
+
+`r qbegin(qcounter())`
+
+**Write the R formula for the fixed effects part of this model** (that is, the outcome and predictors, the `y ~ x + z` part, the kind of models you've done before in DAPR2).
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+purch_rating ~ price * condition
+```
+
+(Note: We know this has to be an interaction model because the RQ is asking about how an *association* between predictor and outcome *depends on* the value of another predictor.)
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+Now we're looking at how each randomly-varying grouping variable relates to the model's predictors.
+We want to know: **for each randomly-varying grouping variable, do at least some of its levels appear with more than one distinct value of each of the model's predictors**?
+
+Specifically, for `clothing`:
+
+- Do at least some levels of `ppt` appear with more than one distinct value of `price`?
+- Do at least some levels of `ppt` appear with more than one distinct value of `condition`?
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+clothing <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+```
+
+**Do at least some levels of `ppt` appear with more than one distinct value of `price`?**
+**Yes,** every `ppt` sees every `price` once.
+In other words, `price` varies within `ppt`.
+
+```{r}
+stats::xtabs(~ ppt + price, data = clothing)
+```
+
+
+**Do at least some levels of `ppt` appear with more than one distinct value of `condition`?**
+**No,** every `ppt` sees only one `condition` or the other, not both.
+In other words, `condition` varies between `ppt`s.
+
+```{r}
+stats::xtabs(~ ppt + condition, data = clothing)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+Let's bring all this information together to reason about the random effects in this dataset.
+
+We know that every randomly-varying grouping variable *requires* a random intercept.
+For each of those grouping variables, ask yourself: **can we *additionally* include random slopes over each of the model's predictor(s) by that variable?**
+
+Specifically, for `clothing`, we know we need a random intercept by `ppt`.
+
+- Can we also include a random slope over `price` by `ppt`?
+- Can we also include a random slope over `condition` by `ppt`?
+
+These answers will be based on what you found in answer to Question 2.
+
+**Write out the complete R formula for this model, expanding on the fixed-effects-only model you wrote above by adding on the appropriate random effects.**
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+**In addition to the random intercept by `ppt`, can we also include a random slope over `price` by `ppt`?**
+**Yes,** because we figured out in the last question that each value of `ppt` appears with more than one value of `price` (that is, each participant sees more than one price).
+
+**Can we also include a random slope over `condition` by `ppt`?**
+**No,** because we figured out in the last question that each value of `ppt` appears with only one value of `condition` (that is, each participant sees only one condition, not both).
+
+Therefore the full model formula is:
+
+```
+purch_rating ~ price * condition + (1 + price | ppt)
+```
+
+`r solend()`
+
+
+## Monkey status
+
+:::frame
+Read in the dataset located at [https://uoepsy.github.io/data/msmr_monkeystatus.csv](https://uoepsy.github.io/data/msmr_monkeystatus.csv) and name it `monkey`.
+
+RQ: **How is the social status of monkeys associated with their ability to solve problems, while controlling for the difficulty of the problem?**
+
+```{r}
+#| echo: false
+tibble(variable=
+         names(read_csv("https://uoepsy.github.io/data/msmr_monkeystatus.csv")),
+       description = c(
+         "Social status of monkey (adolescent, subordinate adult, or dominant adult)",
+         "Problem difficulty ('easy' vs 'difficult')",
+         "Monkey name",
+         "Whether or not the problem was successfully solved by the monkey")
+) |> gt::gt()
+```
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+Researchers have given a sample of Rhesus Macaques various problems to solve in order to receive treats.
+Troops of Macaques have a complex social structure, but adult monkeys tend can be loosely categorised as having either a "dominant" or "subordinate" status.
+The monkeys in our sample are either adolescent monkeys, subordinate adults, or dominant adults.
+Each monkey attempted various problems before they got bored/distracted/full of treats.
+Each problems were classed as either "easy" or "difficult", and the researchers recorded whether or not the monkey solved each problem.
+:::
+
+**From the last lab, here's the key information about `clothing`:**
+
+- Outcome: `solved`
+- Predictors: `status`, `difficulty`
+- Randomly-varying grouping variable: `monkeyID`
+
+:::
+
+`r qbegin(qcounter())`
+
+**Write the R formula for the fixed effects part of this model.**
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+solved ~ status + difficulty
+```
+
+(Note: We know this is not an interaction model because the RQ is asking for us to control for a specific variable, not to estimate how one effect depends on a different variable.
+To control for a specific covariate, we just need to add it on.)
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+Now we're looking at how each randomly-varying grouping variable relates to the model's predictors.
+We want to know: **for each randomly-varying grouping variable, do at least some of its levels appear with more than one distinct value of each of the model's predictors**?
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+monkey <- read_csv('https://uoepsy.github.io/data/msmr_monkeystatus.csv')
+```
+
+**Do at least some levels of `monkeyID` appear with more than one distinct value of `status`?**
+**No,** every `monkeyID` has only one `status`.
+
+```{r}
+stats::xtabs(~ monkeyID + status, data = monkey)
+```
+
+
+**Do at least some levels of `monkeyID` appear with more than one distinct value of `difficulty`?**
+**Yes,** nearly every `monkeyID` sees both levels of `difficulty`.
+
+```{r}
+stats::xtabs(~ monkeyID + difficulty, data = monkey)
+```
+
+(It's fine that Nadheera and Richard only see one difficulty level each—we have enough data from the other monkeys to still be able to estimate the random effects.
+Speaking of which...)
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+Let's bring all this information together to reason about the random effects in this dataset.
+
+We know that every randomly-varying grouping variable *requires* a random intercept.
+For each of those grouping variables, ask yourself: **can we *additionally* include random slopes over each of the model's predictor(s) by that variable?**
+
+**Write out the complete R formula for this model, expanding on the fixed-effects-only model you wrote above by adding on the appropriate random effects.**
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+**In addition to the random intercept by `monkeyID`, can we also include a random slope over `status` by `monkeyID`?**
+**No,** because each monkey only has one status.
+
+**Can we also include a random slope over `difficulty` by `monkeyID`?**
+**Yes,** because at least some monkeys have seen both levels of `difficulty`.
+
+Therefore the full model formula is:
+
+```
+solved ~ status + difficulty + (1 + difficulty | monkeyID)
+```
+
+`r solend()`
+
+
+
+
+## Laughs
+
+:::frame
+
+Read in the dataset located at [https://uoepsy.github.io/data/lmm_laughs.csv](https://uoepsy.github.io/data/lmm_laughs.csv) and name it `laughs`.
+
+RQ: **How is the delivery format of jokes (audio-only vs. audio AND video) associated with differences in humour ratings?**
+
+```{r}
+#| echo: false
+tibble(
+  variable = c(
+    'ppt',
+    'joke_label',
+    'joke_id',
+    'delivery',
+    'rating'
+  ),
+  description = c("Participant identification number",
+                  "Joke presented",
+                  "Joke identification number",
+                  "Experimental manipulation: whether joke was presented in audio-only ('audio') or in audiovideo ('video')",
+                  "Humour rating chosen on a slider from 0 to 100")
+) |> gt::gt()
+```
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+These data are simulated to imitate an experiment that investigates the effect of visual non-verbal communication (i.e., gestures, facial expressions) on joke appreciation.
+Ninety participants took part in the experiment, in which they each rated how funny they found a set of 30 jokes.
+For each participant, the order of these 30 jokes was randomised for each run of the experiment.
+For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video.
+This meant that each participant saw 15 jokes with video and 15 without, and each joke would be presented with video roughly half of the time.
+:::
+
+**From the last lab, here's the key information about `laughs`:**
+
+- Outcome: `rating`
+- Predictors: `delivery`
+- Randomly-varying grouping variables: `ppt` and `joke_label`/`joke_id` (two forms of the same information; for simplicity we can just use `joke_id`)
+
+:::
+
+
+`r qbegin(qcounter())`
+
+**Write the R formula for the fixed effects part of this model.**
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+rating ~ delivery
+```
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+
+Now we're looking at how each randomly-varying grouping variable relates to the model's predictors.
+We want to know: **for each randomly-varying grouping variable, do at least some of its levels appear with more than one distinct value of each of the model's predictors**?
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+laughs <- read_csv('https://uoepsy.github.io/data/lmm_laughs.csv')
+```
+
+**Do at least some levels of `ppt` appear with more than one distinct value of `delivery`?**
+**Yes,** every `ppt` sees both kinds of `delivery`.
+
+```{r}
+stats::xtabs(~ ppt + delivery, data = laughs)
+```
+
+
+**Do at least some levels of `joke_id` appear with more than one distinct value of `delivery`?**
+**Yes,** every `joke_id` is told with both kinds of `delivery`.
+
+```{r}
+stats::xtabs(~ joke_id + delivery, data = laughs)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+
+Let's bring all this information together to reason about the random effects in this dataset.
+
+We know that every randomly-varying grouping variable *requires* a random intercept.
+For each of those grouping variables, ask yourself: **can we *additionally* include random slopes over each of the model's predictor(s) by that variable?**
+
+**Write out the complete R formula for this model, expanding on the fixed-effects-only model you wrote above by adding on the appropriate random effects.**
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+**In addition to the random intercept by `ppt`, can we also include a random slope over `delivery` by `ppt`?**
+**Yes,** because each `ppt` has seen each kind of `delivery`.
+
+**In addition to the random intercept by `joke_id`,  can we also include a random slope over `delivery` by `joke_id`?**
+**Yes,** because each `joke_id` was told in each kind of `delivery`.
+
+Therefore the full model formula is:
+
+```
+rating ~ delivery + (1 + delivery | ppt) + (1 + delivery | joke_id)
+```
+
+`r solend()`
+
+
+## Descriptives and plots
+
+`r qbegin(qcounter())`
+
+Choose your favourite of the three datasets `clothing`, `monkey`, or `laughs`.
+
+In the data set you chose, practice applying the code from the flashcards to compute group-level descriptives [TODO WHICH?] and plotting the group-level variability in the data [TODO HOW?].
+
+`r qend()`
+
+`r solbegin(label="1 – clothing TODO", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+TODO
+
+`r solend()`
+
+`r solbegin(label="2 – monkey TODO", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+TODO
+
+`r solend()`
+
+`r solbegin(label="3 – laughs TODO", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+TODO
+
+`r solend()`
