@@ -1,0 +1,196 @@
+---
+title: "Data for Lab 01"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r}
+library(tidyverse)
+library(lme4)
+```
+
+all data drawn from <https://uoepsy.github.io/lmm/00_datasets>
+
+
+## clothing
+
+```{r}
+clothing <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+glimpse(clothing)
+```
+
+From last lab, we know that the grouping variables in `clothing` and the kind of variability they contribute are as follows:
+
+- `price` contributes reproducible variability (manipulated as part of RQ)
+- `ppt` contributes random variability
+- `condition` contributes reproducible variability (manipulated as part of RQ)
+
+
+
+
+
+### model
+
+```{r eval=F}
+#scale price to help convergence
+#change 1 in price is now change of £10
+df$price <- df$price/10
+
+mod1 <- lmer(purch_rating ~ price*condition + 
+       (1+price|ppt), 
+       data = df)
+  
+summary(mod1)
+```
+
+
+## monkeystatus
+
+
+```{r}
+monkeystatus <- read_csv('https://uoepsy.github.io/data/msmr_monkeystatus.csv')
+monkeystatus |>
+  glimpse()
+```
+
+### status -- rep
+
+```{r}
+monkeystatus |>
+  group_by(status) |>
+  count()
+```
+
+^ grouping variable
+
+```{r}
+monkeystatus |>
+  group_by(status) |>
+  n_groups()
+```
+
+Three groups!
+
+### difficulty -- rep (ctrl)
+
+```{r}
+monkeystatus |>
+  group_by(difficulty) |>
+  count()
+```
+
+^ grouping variable
+
+```{r}
+monkeystatus |>
+  group_by(difficulty) |>
+  n_groups()
+```
+
+### monkeyID -- rd
+
+```{r}
+monkeystatus |>
+  group_by(monkeyID) |>
+  count()
+```
+
+^ grouping variable
+
+```{r}
+monkeystatus |>
+  group_by(monkeyID) |>
+  n_groups()
+```
+
+
+### model
+
+```{r eval=F}
+mmod <- lme4::glmer(solved ~ difficulty + status + 
+      (1 + difficulty | monkeyID),
+      data = monkeystatus, family = binomial)
+summary(mmod)
+```
+
+
+## laughs
+
+```{r}
+laughs <- read_csv('https://uoepsy.github.io/data/lmm_laughs.csv')
+```
+
+
+```{r}
+glimpse(laughs)
+```
+
+### ppt -- rd
+
+```{r}
+laughs |>
+  group_by(ppt) |>
+  count()
+
+laughs |>
+  group_by(ppt) |>
+  n_groups()
+```
+
+
+^ random variability
+
+
+### joke_label -- rd
+
+```{r}
+laughs |>
+  group_by(joke_label) |>
+  count()
+
+laughs |>
+  group_by(joke_label) |>
+  n_groups()
+```
+
+^ random variability
+
+### joke_id -- rd
+
+```{r}
+laughs |>
+  group_by(joke_id) |>
+  count()
+
+laughs |>
+  group_by(joke_id) |>
+  n_groups()
+```
+
+^ random variability
+
+### delivery -- rep
+
+```{r}
+laughs |>
+  group_by(delivery) |>
+  count()
+
+laughs |>
+  group_by(delivery) |>
+  n_groups()
+```
+
+^ reproducible variability
+
+### model
+
+```{r eval=F}
+mod <- lmer(rating ~ delivery + 
+              (1 + delivery | joke_id) +
+              (1 + delivery | ppt), data = laughs)
+```
+
+
+
