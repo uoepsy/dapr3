@@ -1,0 +1,721 @@
+---
+title: "Measurement & Dimensions"
+editor_options: 
+  chunk_output_type: console
+format:
+  revealjs:
+    smaller: true
+---
+
+```{r setup, include=F}
+library(tidyverse)
+library(patchwork)
+library(psych)
+source('_theme/theme_quarto.R')
+
+theme_set(theme_quarto(title_font_size=42))
+theme_update(
+  text = element_text(family = 'Source Sans 3')
+)
+
+dapr3green <- "#88B04B" 
+dapr3dkgreen <- "#5C7C28"
+dapr3ltgreen <- "#E5EED7"
+pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
+```
+
+
+
+# Course Overview {background-color="white"}
+
+<br>
+
+```{r echo=F}
+#| results: "asis"
+block1_name = "Linear Mixed Models<br>(with Elizabeth Pankratz)"
+block1_lecs = c("Regression refresher, intro to group-structured data",
+                "TODO",
+                "TODO",
+                "TODO",
+                "recap")
+block2_name = "Factor Analysis<br>working with multi-item measures<br>(with Josiah King)"
+block2_lecs = c(
+  "measurement and dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "reliability and validity",
+  "recap & exam prep"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/refs/heads/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
+```
+
+## Week 7 TR;DL
+
+1. measurement is hard, especially in psych
+2. multi-item measurement tools mean we have lots of variables capturing the same thing
+3. in our original variables, lots of dimensions (i.e., lots of columns)
+4. our goal in the second half of DAPR3 is to explore ways of expressing a lot of the same information using fewer variables. this is called "dimensionality reduction"
+5. one way to reduce dimensionality is to take a scale score  (i.e., mean or sum of all individual scores) 
+    - this assumes each item is equally representative of our construct
+6. another way is PCA:  
+    - finds new dimensions ("components") that:
+      - are a weighted sum of original variables: 
+      - sequentially capture variability in the data
+      - are orthogonal (uncorrelated)
+	- we can reduce dimensionality by taking the first $k$ components
+7. a constant reminder: getting some numbers is not the same thing as measurement  
+
+## This week
+
+- model based thinking of measurements: EFA vs PCA
+- EFA in R
+- "Rotations" & Simple Structures
+- Evaluating Factor Solutions
+
+
+## Questions to ask before you start
+
+::: columns
+::: {.column width="50%"}
+### PCA
+
+-   Why are your variables correlated?
+    -   Agnostic/don't care
+-   What are your goals?
+    -   Reduce reduce reduce!  
+        
+:::
+::: {.column width="50%" .fragment}
+### EFA
+
+-   Why are your variables correlated?
+    -   Believe there exist underlying "causes" of these correlations
+-   What are your goals?
+    -   Reduce, but also **learn** about/model their underlying (latent) causes
+        
+
+:::
+:::
+
+
+## "components" vs "factors"
+
+
+- components are "weighted composites" of variables. 
+    - a little bit of column A, a little bit of column B
+
+- factors are the theoretical underlying cause
+
+- **Theorized common cause** of responses to a set of variables
+
+    -   *Explain* correlations between measured variables
+    -   Held to be real (can never test this)
+
+## graphical thinking
+
+::::{.columns}
+:::{.column width="50%"}
+
+![](img_sandbox/quickdiags/Slide1.png)
+:::
+:::{.column width="50%" .fragment}
+
+![](img_sandbox/quickdiags/Slide2.png)
+:::
+::::
+
+## PCA versus EFA: How are they different?
+
+::: columns
+::: {.column width="50%"}
+**PCA**
+
+- The observed measures are independent variables
+    - (arrows go from observed variables to components)
+- The component is a bit like a dependent variable (it's really just a composite!)
+- Components **sequentially** capture as much variance in the measures as possible
+    - looks for the most variance. doesn't care if this is variance shared across items, or variance that is unique to a single item.  
+- Components are determinate
+    - it's a calculation/transformation. there is one 'solution'.  
+
+:::
+
+::: {.column width="50%"}
+**EFA**
+
+- The observed measures are dependent variables
+    - (arrows go from factors to observed variables)
+- The factor is the independent variable
+- Models the relationships between variables
+    - tries to identify shared variance between items, and separate it from variance that is unique to each item.  
+- Factors are *in*determinate
+    - it's an estimated model, there is no single "correct" solution.  
+    
+
+
+:::
+:::
+
+## As a diagram (PCA)
+
+![](img_sandbox/diag_pca.png)
+
+## As a diagram (PCA)
+
+![](img_sandbox/diag_pca2.png)
+
+## As a diagram (EFA)
+
+
+![](img_sandbox/diag_efa1.png)
+
+## Debates!   
+
+Put these into two groups - those you feel more comfortable with conceptualising as latent variables and those you don't:  
+(no right/wrong answers)  
+
+:::woo
+https://app.wooclap.com/events/ZFTQYR/
+::: 
+
+<br>
+
+
+- Anxiety 
+- Depression
+- Exposure to distressing events
+- Trust
+- Socioeconomic Status
+- Motivation
+- Identity
+
+
+## EFA: a model of observed relationships
+
+- We have some observed variables that are correlated
+
+- EFA tries to explain these patterns of correlations
+
+- Aim is that the correlations between items _after removing the effect of the Factor_ are zero
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+read_csv("data/lsatdat1.csv") |>
+  select(id, Q1:Q3) |>
+  head() |> gt::gt() |>
+  gt::tab_spanner(columns = paste0("Q",1:3), label="life satisfaction")
+```
+
+
+:::
+:::{.column width="50%"}
+
+$$
+\begin{align}
+\rho(Q_{1},Q_{2}\, |\, \color{grey}{\textrm{Life-Satisfaction}})=0 \\
+\rho(Q_{1},Q_{3}\, |\, \color{grey}{\textrm{Life-Satisfaction}})=0 \\
+\rho(Q_{2},Q_{3}\, |\, \color{grey}{\textrm{Life-Satisfaction}})=0 \\
+\end{align}
+$$
+
+
+
+:::
+::::
+
+
+
+## Sources of variance  
+
+- In order to model these correlations, EFA looks to distinguish between common and unique variance.  
+
+$$
+\begin{equation}
+var(\text{total}) = var(\text{common}) + \underbrace{var(\text{specific}) + var(\text{error})}_{\text{unique variance}}
+\end{equation}
+$$
+
+<br>
+ 
+| | | |
+|-|-|-|
+|common variance | (co)variance shared across items | true and shared | 
+|specific variance | variance specific to an item that is not shared with any other items | true and unique | 
+| error variance | variance due to measurement error | not 'true', unique |
+
+
+
+
+
+## Optional: general factor model equation
+
+$$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$
+
+-   $\mathbf{\Sigma}$: A $p \times p$ observed correlation matrix (from data)
+
+-   $\mathbf{\Lambda}$: A $p \times m$ matrix of factor loadings (relates the $m$ factors to the $p$ items)
+
+-   $\mathbf{\Phi}$: An $m \times m$ matrix of correlations between factors ("goes away" with orthogonal factors)
+
+-   $\mathbf{\Psi}$: A diagonal matrix with $p$ elements indicating unique (error) variance for each item
+    
+
+## Optional: general factor model equation
+
+```{r}
+#| include: false
+set.seed(34567)
+RR = matrix(c(1,.6,.6,.6,
+              .6,1,.6,.6,
+              .6,.6,1,.6,
+              .6,.6,.6,1), nrow=4)
+tdf = MASS::mvrnorm(2e2,mu=c(0,0,0,0),Sigma=RR)
+cor(tdf) |> round(2)
+
+ll = fa(tdf, nfactors=1,rotate="none")$loadings[,1]
+uu = fa(tdf, nfactors=1,rotate="none")$uniqueness
+
+ll %*% t(ll) + diag(uu)
+
+```
+
+$$
+\begin{align}
+\text{Outcome} &= \quad\quad\quad\text{Model} &+ \text{Error} \quad\quad\quad\quad\quad \\
+\quad \\
+\mathbf{\Sigma} &= \quad\quad\quad\mathbf{\Lambda}\mathbf{\Lambda'} &+ \mathbf{\Psi} \quad\quad\quad\quad\quad\quad  \\
+\quad \\
+\begin{bmatrix}
+1 & 0.53 & 0.57 & 0.57 \\
+0.53 & 1 & 0.54 & 0.56 \\
+0.57 & 0.54 & 1 & 0.56 \\
+0.57 & 0.56 & 0.56 & 1 \\
+\end{bmatrix} &= 
+\begin{bmatrix}
+0.747 \\
+0.725 \\ 
+0.746 \\ 
+0.764 \\
+\end{bmatrix}
+\begin{bmatrix}
+0.747 & 0.725 & 0.746 & 0.764 \\
+\end{bmatrix} &+
+\begin{bmatrix}
+0.44 & 0 & 0 & 0 \\
+0 & 0.47 & 0 & 0 \\
+0 & 0 & 0.44 & 0 \\
+0 & 0 & 0 & 0.42  \\
+\end{bmatrix} \\
+\quad \\
+\begin{bmatrix}
+1 & 0.53 & 0.57 & 0.57 \\
+0.53 & 1 & 0.54 & 0.56 \\
+0.57 & 0.54 & 1 & 0.56 \\
+0.57 & 0.56 & 0.56 & 1 \\
+\end{bmatrix} &= 
+\begin{bmatrix}
+0.56 & 0.54 & 0.56 & 0.57 \\
+0.54 & 0.53 & 0.54 & 0.55 \\
+0.56 & 0.54 & 0.56 & 0.57 \\
+0.57 & 0.55 & 0.57 & 0.58 \\
+\end{bmatrix} &+
+\begin{bmatrix}
+0.44 & 0 & 0 & 0 \\
+0 & 0.47 & 0 & 0 \\
+0 & 0 & 0.44 & 0 \\
+0 & 0 & 0 & 0.42  \\
+\end{bmatrix} \\
+\end{align}
+$$
+
+
+
+## We make assumptions when we use models
+
+- As EFA is a model, just like linear models and other statistical tools, using it requires us to make some assumptions:
+
+    1.  The error terms are uncorrelated
+    2.  The residuals/errors are not correlated with the factor
+    3.  Relationships between items and factors should be linear, although there are models that can account for nonlinear relationships
+        
+## We make assumptions when we use models (2)
+
+![](img_sandbox/diag_efa1.png)
+
+## Why choose EFA?  
+
+::: columns
+::: {.column width="50%"}
+### PCA
+
+-   Why are your variables correlated?
+    -   Agnostic/don't care
+-   What are your goals?
+    -   Reduce reduce reduce!  
+        
+:::
+::: {.column width="50%" .fragment}
+### EFA
+
+-   Why are your variables correlated?
+    -   Believe there exist underlying "causes" of these correlations
+-   What are your goals?
+    -   Reduce, but also **learn** about/model their underlying (latent) causes
+        
+
+:::
+:::
+
+to learn something.  
+
+can't be divorced from theory.  
+are there two different parts to our 'life satisfaction' measure, or only 1? or maybe 3?  
+PCA doesn't care. we don't really give meaning to the components (other than "it's all the variables smushed together to various degrees")  
+
+EFA is about comparing competing models of the measurement instrument.  
+does a 2 factor model "fit better" than a 3 factor model?   
+
+## Doing EFA - Overview {background-color="white"}
+
+So how do we move from data and correlations to a factor analysis?
+
+1. check suitability of items.
+2. decide on factor extraction method and rotation.  
+3. examine plausible number of factors.
+4. based on 3, choose the range to examine from $n_{min}$ factors to $n_{max}$ factors.
+5. do EFA, extracting from $n_{min}$ to $n_{max}$ factors. Compare each of these 'solutions' in terms of structure, variance explained, and --- by examining how the factors from each solution relate to the observed items --- assess how much theoretical sense they make.  
+6. _if the aim is to develop a scale for future use_ - consider removing "problematic" items and start over again.
+
+
+# Doing EFA in R
+
+```{r}
+#| include: false
+lsat_word = 
+  tibble(
+    variable=c("id", paste0("Q",1:10)),
+    description=c(
+              "Participant ID",
+              "Overall, I am satisfied with my life.",
+              "The conditions of my life are excellent.",
+              "I feel content with how things have gone today.",
+              "In most ways my life is close to my ideal.",
+              "I feel a sense of inner peace and satisfaction.",
+              "I wake up most mornings feeling positive about the day ahead.",
+              "I have gotten the important things I want in life.",
+              "I experience joy and pleasure regularly in my daily life.",
+              "My life has turned out better than I expected it would.",
+              "If I could live my life over, I would change almost nothing."
+              )
+  )
+```
+
+
+## are you not satisfied? 
+
+::::{.columns}
+:::{.column width="60%"}
+:::{.codewindow .r}
+data
+```{r}
+#| label: lsat10
+#| eval: false
+#| echo: true
+lsat10 <- read_csv("data/lsatdat2.csv")
+head(lsat10)
+```
+:::
+```{r}
+#| label: lsat10
+#| eval: true
+#| echo: false
+```
+
+:::
+:::{.column width="40%"}
+```{r}
+#| echo: false
+lsat_word |> 
+  gt::gt(caption = "Data Dictionary")
+```
+:::
+::::
+
+
+## EFA in R
+
+
+
+:::{.codewindow .r width="70%"}
+```{r}
+#| label: efa1
+#| echo: true
+#| eval: false
+library(psych)
+# fa(lsat10[,2:11], nfactors = ?, rotate = ??, fm = ???, cor = ????)  
+```
+:::
+
+`fa()`   
+can take a covariance matrix, a correlation matrix, or the raw data.  
+`nfactors = ?`  
+tells it to estimate a ??? factor model
+`rotate = ??`  
+tells it whether or not we think those factors could be correlated (more on this shortly)
+`fm = ???`  
+tells it how to estimate the model  
+`cor = ????`  
+tells it what sort of correlations to use (a little more on this later on)
+
+
+## factor extraction methods - fm = ?
+
+## polychoric correlations - cor =  ?
+
+
+## EFA in R
+
+:::{.codewindow .r width="70%"}
+```{r}
+#| label: efa1a
+#| echo: true
+#| eval: false
+fa(lsat10[,2:11], nfactors = 2, rotate = "none", fm = "ml", cor = "cor")  
+```
+:::
+
+## What does EFA in R look like?  
+
+:::{.codewindow .r width="70%"}
+```{r}
+#| label: efa1a
+#| echo: true
+#| eval: false
+```
+:::
+```{r}
+#| label: efa1a
+#| echo: false
+#| eval: true
+```
+
+## rotations!  
+
+::: {.r-stack}
+::: {.fragment .fade-out fragment-index=1}
+![](img_sandbox/diag_efa1.png)
+:::
+
+::: {.fragment .fade-in fragment-index=1}
+![](img_sandbox/diag_efa2.png)
+:::
+:::
+
+## rotations!
+
+-   Factor rotation is an approach that aims to clarify the relationships
+    between items and factors.
+
+    -   Rotation aims to maximize the relationship of a measured item with a single factor.
+    -   That is, make an item's primary loading big and cross-loadings small.
+    
+
+```{r}
+#| echo: false
+eg2 <- lsat10[,-1]
+
+mn = fa(eg2, nfactors=2, rotate = "none", fm="ml")
+mr = fa(eg2, nfactors=2, rotate = "varimax", fm="ml")
+mor = fa(eg2, nfactors=2, rotate = "oblimin", fm="ml")
+
+x_axis <- c(1, 0)
+y_axis <- c(0, 1)
+new_x_axis <- mr$rot.mat %*% x_axis
+new_y_axis <- mr$rot.mat %*% y_axis
+newo_x_axis <- (mor$rot.mat %*% mor$Phi) %*% x_axis
+newo_y_axis <- (mor$rot.mat %*% mor$Phi) %*% y_axis
+original_axes <- data.frame(
+  x = c(0, x_axis[1], 0, y_axis[1]),
+  y = c(0, x_axis[2], 0, y_axis[2]),
+  axis = c("Original X", "Original X", "Original Y", "Original Y")
+)
+rotated_axes <- data.frame(
+  x = c(0, new_x_axis[1], 0, new_y_axis[1]),
+  y = c(0, new_x_axis[2], 0, new_y_axis[2]),
+  axis = c("Rotated X", "Rotated X", "Rotated Y", "Rotated Y")
+)
+orotated_axes <- data.frame(
+  x = c(0, newo_x_axis[1], 0, newo_y_axis[1]),
+  y = c(0, newo_x_axis[2], 0, newo_y_axis[2]),
+  axis = c("Rotated X", "Rotated X", "Rotated Y", "Rotated Y")
+)
+
+p1 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_text(aes(label=rowname),hjust=-.2)+
+  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
+  #              alpha=.6)+
+  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
+  #              alpha=.6)+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1)
+
+p2 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_text(aes(label=rowname),hjust=-.2)+
+  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
+  #              alpha=.3)+
+  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
+  #              alpha=.3)+
+  xlim(-1,1)+ylim(-1,1)+
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1)
+
+p3 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_text(aes(label=rowname),hjust=-.2)+
+  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
+  #              alpha=.3)+
+  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
+  #              alpha=.3)+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+    geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1) 
+
+```
+
+## What is rotation?  
+
+Factor solutions can sometimes be complex to interpret.
+
+-   the pattern of the factor loadings is not clear.
+-   The difference between the primary and cross-loadings is small
+
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| fig-asp: 1
+p1 + theme(legend.position="bottom")
+```
+:::
+:::{.column width="50%"}
+```{r}
+fa(eg2, nfactors=2, rotate = "none", fm="ml")$loadings
+```
+:::
+::::
+
+## Types of rotation
+
+```{r}
+#| eval: false
+# no rotation
+fa(eg2, nfactors = 2, rotate = "none", fm="ml")
+# orthogonal rotations
+fa(eg2, nfactors = 2, rotate = "varimax", fm="ml")
+fa(eg2, nfactors = 2, rotate = "quartimax", fm="ml")
+# oblique rotations
+fa(eg2, nfactors = 2, rotate = "oblimin", fm="ml")
+fa(eg2, nfactors = 2, rotate = "promax", fm="ml")
+```
+
+::::{.columns}
+:::{.column width="50%"}
+__Orthogonal__  
+
+```{r}
+#| echo: false
+#| fig-asp: 1
+p2 + theme(legend.position="bottom")
+```
+
+:::
+
+:::{.column width="50%" .fragment}
+__Oblique__  
+
+```{r}
+#| echo: false
+#| fig-asp: 1
+p3 + theme(legend.position="bottom")
+```
+:::
+::::
+
+# the point! 
+
+## how many factors are there?  
+
+```{r}
+scree(lsat10[,2:11])
+```
+
+## compare and contrast
+
+```{r}
+fa1 <- fa(lsat10[,2:11], nfactors = 1, 
+                  fm = "ml", cor = "cor")
+print(fa1$loadings, cutoff = .3)
+fa1$Vaccounted
+```
+
+## compare and contrast
+
+```{r}
+fa2 <- fa(lsat10[,2:11], nfactors = 2, rotate = "oblimin", 
+                  fm = "ml", cor = "cor")
+print(fa2$loadings, cutoff = .3)
+fa2$Vaccounted
+```
+
+## compare and contrast
+
+```{r}
+fa3 <- fa(lsat10[,2:11], nfactors = 3, rotate = "oblimin", 
+                  fm = "ml", cor = "cor")
+print(fa3$loadings, cutoff = .3)
+fa3$Vaccounted
+```
+
+
