@@ -1,5 +1,5 @@
 ---
-title: "Data for Lab 01"
+title: "Data for Lab 02"
 output: 
   html_notebook:
     toc: true
@@ -20,13 +20,56 @@ clothing <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
 glimpse(clothing)
 ```
 
-From last lab, we know that the grouping variables in `clothing` and the kind of variability they contribute are as follows:
+From the last lab, here's what we know about `clothing`:
 
-- `price` contributes reproducible variability (manipulated as part of RQ)
-- `ppt` contributes random variability
-- `condition` contributes reproducible variability (manipulated as part of RQ)
+- Outcome: `purch_rating`
+- Predictors: `price`, `condition` (and their interaction)
+- Grouping variables ...
+  - ... that contribute reproducible variability: `price`, `condition`
+  - ... that contribute random variability: `ppt`
+  
+### fixef formula
+  
+Q: Write the R formula for the fixed effects part of this model (aka the outcome + predictors).
+
+```
+purch_rating ~ price * condition
+```
+
+### distinct vals of preds
+
+Q: Do at least some levels of each randomly varying grouping variable appear with more than one distinct value of each predictor?
+
+For predictor `price`: YES!
+
+```{r}
+stats::xtabs(~ ppt + price, data = clothing)  # wide
+clothing |> group_by(ppt) |> count(price)     # tall
+```
+
+For predictor `condition`: NO!
+
+```{r}
+stats::xtabs(~ ppt + condition, data = clothing)  # wide – zeroes!
+clothing |> group_by(ppt) |> count(condition)     # tall – not as easy
+```
 
 
+### slopes
+
+Q: 
+
+a. Based on the results from previous question, think about what random slopes are possible in this dataset.
+We know that every randomly varying grouping variable *requires* a random intercept.
+For each random intercept, can we *additionally* include random slopes over the predictor(s)?
+
+b. Write the full R formula for this model, including the fixed effects and the random effects.
+
+a: 
+- for `price`, yes, bc each ppt sees more than one price. 
+- for `condition`, no, because each ppt sees only one condition and not both.
+
+b: `purch_rating ~ price * condition + (1 + price | ppt)`
 
 
 
@@ -54,55 +97,57 @@ monkeystatus |>
   glimpse()
 ```
 
-### status -- rep
 
-```{r}
-monkeystatus |>
-  group_by(status) |>
-  count()
+From the last lab, here's what we know about `monkeystatus`:
+
+- Outcome: `solved`
+- Predictors: `status`, `difficulty` (no interaction because `difficulty` is just a covariate to control for)
+- Grouping variables ...
+  - ... that contribute reproducible variability: `status`, `difficulty`
+  - ... that contribute random variability: `monkeyID`
+  
+  
+### fixef formula
+  
+Q: Write the R formula for the fixed effects part of this model (aka the outcome + predictors).
+
+```
+solved ~ status + difficulty
 ```
 
-^ grouping variable
+### distinct vals of preds
+
+Q: Do at least some levels of each randomly varying grouping variable appear with more than one distinct value of each predictor?
+
+For predictor `status`: no! each monkey has only one status.
 
 ```{r}
-monkeystatus |>
-  group_by(status) |>
-  n_groups()
+stats::xtabs(~ monkeyID + status, data = monkeystatus)  # wide
 ```
 
-Three groups!
-
-### difficulty -- rep (ctrl)
+For `difficulty`? 
+Yes! At least some monkeys see both problem types.
+(It's fine that and Nadheera Richard both only see one, we have enough data from all the other monkeys that see both)
 
 ```{r}
-monkeystatus |>
-  group_by(difficulty) |>
-  count()
+stats::xtabs(~ monkeyID + difficulty, data = monkeystatus)
 ```
 
-^ grouping variable
 
-```{r}
-monkeystatus |>
-  group_by(difficulty) |>
-  n_groups()
-```
+### slopes
 
-### monkeyID -- rd
+a. Based on the results from previous question, think about what random slopes are possible in this dataset.
+We know that every randomly varying grouping variable *requires* a random intercept.
+For each random intercept, can we *additionally* include random slopes over the predictor(s)?
 
-```{r}
-monkeystatus |>
-  group_by(monkeyID) |>
-  count()
-```
+b. Write the full R formula for this model, including the fixed effects and the random effects.
 
-^ grouping variable
+a:
 
-```{r}
-monkeystatus |>
-  group_by(monkeyID) |>
-  n_groups()
-```
+- rd slope over `status` by `monkeyID`? no
+- rd slope over `difficulty` by `monkeyID`? yes
+
+b: `solved ~ status + difficulty + (1 + difficulty | monkeyID)`
 
 
 ### model
@@ -126,63 +171,56 @@ laughs <- read_csv('https://uoepsy.github.io/data/lmm_laughs.csv')
 glimpse(laughs)
 ```
 
-### ppt -- rd
+
+From the last lab, here's what we know about `laughs`:
+
+- Outcome: `rating`
+- Predictor: `delivery`
+- Grouping variables ...
+  - ... that contribute reproducible variability: `delivery`
+  - ... that contribute random variability: `ppt` and `joke_label`/`joke_id` (two forms of the same information, for simplicity we'll use `joke_id`)
+  
+  
+### fixef formula
+  
+Q: Write the R formula for the fixed effects part of this model (aka the outcome + predictors).
+
+```
+rating ~ delivery
+```
+
+### distinct vals of preds
+
+Q: Do at least some levels of each randomly varying grouping variable appear with more than one distinct value of each predictor?
+
+For `ppt`, for predictor `delivery`: yes!
 
 ```{r}
-laughs |>
-  group_by(ppt) |>
-  count()
-
-laughs |>
-  group_by(ppt) |>
-  n_groups()
+stats::xtabs(~ ppt + delivery, data = laughs)
 ```
 
 
-^ random variability
-
-
-### joke_label -- rd
+For `joke_id`, for predictor `delivery`: yes!
 
 ```{r}
-laughs |>
-  group_by(joke_label) |>
-  count()
-
-laughs |>
-  group_by(joke_label) |>
-  n_groups()
+stats::xtabs(~ joke_id + delivery, data = laughs)
 ```
 
-^ random variability
 
-### joke_id -- rd
+### slopes
 
-```{r}
-laughs |>
-  group_by(joke_id) |>
-  count()
+Q: 
 
-laughs |>
-  group_by(joke_id) |>
-  n_groups()
-```
+a. Based on the results from previous question, think about what random slopes are possible in this dataset.
+We know that every randomly varying grouping variable *requires* a random intercept.
+For each random intercept, can we *additionally* include random slopes over the predictor(s)?
 
-^ random variability
+b. Write the full R formula for this model, including the fixed effects and the random effects.
 
-### delivery -- rep
+a: yes, rd slps for delivery for both ppt and joke
 
-```{r}
-laughs |>
-  group_by(delivery) |>
-  count()
+b: `rating ~ delivery + (1 + delivery | ppt) + (1 + delivery | joke_id)`
 
-laughs |>
-  group_by(delivery) |>
-  n_groups()
-```
-
-^ reproducible variability
 
 ### model
 
@@ -191,6 +229,13 @@ mod <- lmer(rating ~ delivery +
               (1 + delivery | joke_id) +
               (1 + delivery | ppt), data = laughs)
 ```
+
+
+## plot
+
+final q (challenge): choose your favourite of the three datasets and practice getting the code from the flashcards to compute group-level descriptives + making a group-level plot.
+
+
 
 
 
