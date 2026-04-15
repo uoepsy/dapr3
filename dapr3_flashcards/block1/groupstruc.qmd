@@ -8,8 +8,6 @@ library(tidyverse)
 ```
 
 
-## What are grouping variables?
-
 **Grouping variables are ordinal or categorical variables whose values appear more than once in a dataset.**
 In other words, when multiple observations in a dataset are related to the same value of an ordinal or categorical variable, then you're dealing with grouping variables.
 
@@ -21,6 +19,8 @@ For example:
 - The same test question is seen by every student, so our data contains multiple observations from that test question.
 - The same student sees many test questions, so our data contains multiple observations from that student.
 
+
+To see how to identify grouping variables in a given dataset, see [Identifying grouping variables](identify-group.html){target="_blank"}.
 
 ## Why are grouping variables important?
 
@@ -35,125 +35,6 @@ Our analysis will violate the assumption of independence of errors unless we inc
 
 Depending on the [data generating process](dgp.html){target="_blank"}, we model grouping variables either as [fixed effects](fixef.html){target="_blank"} or as [random effects](ranef.html){target="_blank"}.
 
-
-## How do we identify grouping variables?
-
-We can use the `tidyverse` functions [`group_by()`](https://dplyr.tidyverse.org/articles/grouping.html?q=group_by){target="_blank"} and [`count()`](https://dplyr.tidyverse.org/reference/count.html?q=count){target="_blank"} to look for variables whose values appear more than once in a dataset.
-
-For example, in a dataset on workplace pride in different departments of the UK civil service, let's look at the variable `department_name`.
-
-```{r}
-workpride <- read_csv('https://uoepsy.github.io/data/lmm_jsup.csv')
-
-workpride |>
-  group_by(department_name) |>
-  count() 
-```
-
-Each department is associated with multiple observations.
-The specific number of observations is different between departments (some have 5, some have 45), but that doesn't matter.
-What matters is that **there are departments that are linked to more than one observation.**
-Because the count values in the `n` column are greater than 1, `department_name` is a grouping variable.
-
-::: {.callout-caution collapse="true"}
-## What if some levels have counts of 1?
-
-Sometimes you might end up with variables where *some* levels appear multiple times, but *other* levels appear only once.
-Even if this is the case, the variable is still considered a grouping  variable.
-
-For example, the `starwars` dataset (which comes with `tidyverse`) tells us a bit about several Star Wars characters:
-
-```{r}
-starwars |>
-  head()
-```
-
-In the `starwars` dataset, is `species` a grouping variable?
-
-```{r}
-starwars |>
-  group_by(species) |>
-  count()
-```
-
-Yes, `species` is a grouping variable, because *at least some* levels of `species` group together more than one item (e.g., the dataset contains six droids, three Gungans).
-:::
-
-
-**Note: Counting how many times each level of the variable appears will only work if data is "tidy".**
-All the data that we'll use in DAPR3 is tidy, so for this course, the method will always work.
-
-
-::: {.callout-caution collapse="true"}
-## What is tidy data?
-
-
-![Stylized text providing an overview of Tidy Data. The top reads “Tidy data is a standard way of mapping the meaning of a dataset to its structure. - Hadley Wickham.” On the left reads “In tidy data: each variable forms a column; each observation forms a row; each cell is a single measurement.” There is an example table on the lower right with columns ‘id’, ‘name’ and ‘color’ with observations for different cats, illustrating tidy data structure.](../assets/allisonhorst_tidydata_1.jpg){fig-align="center"}
-*Graphic by [Allison Horst](https://github.com/allisonhorst/stats-illustrations/blob/main/rstats-artwork/tidydata_1.jpg), CC BY 4.0*
-
-
-According to [tidyr's Tidy data vignette](https://cran.r-project.org/web/packages/tidyr/vignettes/tidy-data.html), in tidy data:
-
-1. Each variable is a column; each column is a variable.
-2. Each observation is a row; each row is an observation.
-3. Each value is a cell; each cell is a single value.
-
-**Here's an example of data that's tidy:**
-
-```{r}
-iris |> 
-  head() |>
-  gt::gt()
-```
-
-
-
-We know this data is tidy because:
-
-1. Each column is a variable: length and width of sepal and petal, as well as the species of iris.
-2. Each row contains information gathered for one specific iris: one observation.
-3. Each cell contains a single value of the given variable for the given observation.
-
-
-**Here's an example of data that's messy:**
-
-```{r}
-relig_income |>   # this dataset comes with tidyverse
-  head() |>
-  gt::gt()
-```
-
-We know this data is messy because:
-
-1. Each column is not a distinct variable; each column header actually contains a value of a variable representing how much money the household makes.
-2. Each row is not a distinct observation (which would correspond to one household), but a collection of frequency values for a given religion.
-3. Each cell does contain a single value, a count of how many households of the given religion have the given income.
-
-Here's a tidy version of that same data:
-
-```{r}
-relig_income |>
-  pivot_longer(-religion, names_to = "income", values_to = "frequency") |>
-  head() |>
-  gt::gt()
-```
-
-
-:::
-
-
-
-::: {.callout-caution collapse="true"}
-## What if I gather data that *isn't* tidy?
-
-It's very likely that when you gather data yourself, it will be messy in one way or another.
-
-Before you can plot and analyse your data, you'll need to tidy it.
-
-Check out tidyr's [Tidy data vignette](https://cran.r-project.org/web/packages/tidyr/vignettes/tidy-data.html).
-It walks you through five common ways in which data can be messy and how to fix each one.
-(The `relig_income` example from the rabbit hole above is from that vignette!)
-:::
 
 
 
