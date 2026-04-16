@@ -1,24 +1,122 @@
 ---
-title: "TODO Describe group-structured data"
+title: "Describe group-structured data"
 ---
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
+library(tidyverse)
 ```
 
-Descriptives of hierarchical data are sometimes a bit more difficult than when we don’t have any ‘levels’. Typically, what we are wanting to do is provide our readers with a picture of the characteristics of our sample. “Our sample” now refers to multiple levels, so we want to describe each of these. More often than not, one of these levels will be a bit more interesting to us as a population we are hoping to generalise to. In psychology we are usually interested in “people”, so if we have data that is multiple trials per participant, we would probably want to focus on describing the participants (the clusters) as the individual trials are something we exert control over as the experimenter. If each datapoint was a child and they were nested in schools, we would probably want to describe both the children and the schools that are in our sample.
+You learned in DAPR2 how to report descriptive statistics of your data (see the [DAPR2 descriptives flash cards](https://uoepsy.github.io/dapr2/2425/labs/1_b4_reading.html#descriptives){target="_blank"}).
 
-The aim here is to provide a picture of our sample so that a reader can get a sense of how ‘transportable’ the findings are to different contexts. For instance, if participants in our study are all university students, then we want to be careful about thinking that the findings will apply in other populations (see e.g. “most people aren’t WEIRD”).
+Now that we're also modelling grouping structure in our data, we should also describe some properties of those groups.
 
-A checklist
-what is the hierarchical data structure (how many levels, what is each level?)
-Describe any data cleaning outlier/data removal prior to calculating descriptive statistics (these tend to be the impossible values - i.e. observations that you would never want in your data anyway)
-sample sizes: how many at each level?
-how many lower-level within each higher level unit? (if this varies, provide an average, and possibly a min and a max)
-scales of measured variables
-descriptive statistics of relevant variables that characterise your sample.
-these should be computed at the level at which they were measured. For instance, if you have observations grouped by participant, mean(data$age) would give the average age of your observations (which isn’t meaningful, and would differ from the average age of your participants if you have a different number of observations for each participant).
-How much of the variability in the outcome variable is attributable to the clustering? (i.e. ICC)
+Why? 
+So that we (and our readers) can tell how well our sample of groups might represent the population we hope to generalise to.
+For example, if we run a within-participants psychology experiment but all of our participants (i.e., all the levels of our grouping variable) are 19–24-year-old university students, then we probably shouldn't expect our findings to generalise to the population of all humans in the world (see, e.g., the article [Most people are not WEIRD](https://www.nature.com/articles/466029a){target="_blank"}).
+
+
+## Group-level properties to describe
+
+- **What randomly-varying grouping variables** (see [Data generating process](dgp.html){target="_blank"}) does the data contain?
+- **Their relationships:** If there are several such grouping variables, how do they relate to each other?
+  - For example, if we run a repeated-measures experiment in which every participant sees every experimental stimulus, then our grouping variables are `participant` and `stimulus`, and we can say they are **"fully crossed".**
+  - Or if we collect observational data from many children across different schools, then our grouping variables are `child` and `school`. And because each child only attends one school, we can say that `child` is **"nested"** within `school`.
+  - Grouping variables can relate to each other in other ways that don't have fancy labels like "fully crossed" or "nested". In those cases, **you can just describe which levels (if any) occur together and which (if any) do not.**
+- **Their sample sizes:** How many observations do we have for each level of our grouping variables?
+- **Summaries of relevant variables by group:** 
+  - For example, how old are the children who took part in the study (mean, SD, range)? How many children did we sample from each school (mean, SD, range)?
+  - Or: what are participants' gender or occupation or first language or other relevant variable (give counts for each category)? 
+
+
+## How to summarise data by group
+
+
+The example data we'll use are from an experiment designed to investigate how the realism of video games is associated with more/less unnecessarily aggressive gameplay (termed "needless game violence", abbreviated NGV) and how this behaviour may be associated with people's dark triad traits.
+
+Data are available at [https://uoepsy.github.io/data/NGV.csv](https://uoepsy.github.io/data/NGV.csv){target="_blank"}.
+
+```{r}
+ngv <- read_csv('https://uoepsy.github.io/data/NGV.csv')
+```
+
+```{r}
+#| echo: false
+ngv <- read_csv("https://uoepsy.github.io/data/NGV.csv")
+tibble(
+  variable=names(ngv),
+  description=c(
+    "Participant number",
+    "Participant age (years)",
+    "Maze level (1 to 20)",
+    "Whether the objects and characters in the level were presented as 'cartoon' or as 'realistic'",
+    "Whether the participant played via a screen or with a VR headset",
+    "Psychopathy Trait from SD-3 (score 1-5)",
+    "Narcissism Trait from SD-3 (score 1-5)",
+    "Machiavellianism Trait from SD-3 (score 1-5)",
+    "Needless Game Violence metric"
+  )
+) |> gt::gt()
+```
+
+
+:::{.callout-tip collapse="true"}
+#### More detail about this dataset
+
+The experiment involved playing 10 levels of a game in which the objective was to escape a maze. Various obstacles and other characters were present throughout the maze, and players could interact with these by side-stepping or jumping over them, or by pushing or shooting at them. All of these actions took the same amount of effort to complete (pressing a button), and each one achieved the same end (moving beyond the obstacle and being able to continue through the maze).  
+
+Each participant completed all 10 levels twice, once in which all characters were presented as cartoons, and once in which all characters were presented as realistic humans and animals. The layout of the level was identical in both, the only difference being the depiction of objects and characters. For each participant, these 20 levels ($2 \times 10$ mazes) were presented in a random order. Half of the participants played via a screen, and the other half played via a VR headset. For each level played, we have a record of "needless game violence" (NGV) which was calculated via the number of aggressive (pushing/shooting) actions taken (+0.5 for every action that missed an object, +1 for every action aimed at an inanimate object, and +2 for every action aimed at an animate character).
+
+Prior to the experiment, each participant completed the Short Dark Triad 3 (SD-3), which measures the three traits of machiavellianism, narcissism, and psychopathy.  
+
+:::
+
+The randomly-varying grouping variable in this dataset is `PID` (see [Identify grouping variables](identify-group.html){target="_blank"}).
+
+### How many observations?
+
+How many observations do we have per participant? 
+(You'll have used this code before to determine whether `PID` is a grouping variable at all!)
+
+
+```{r}
+ngv |>
+  group_by(PID) |>
+  count()
+```
+
+
+
+### How old is each person?
+
+```{r}
+ngv |>
+  select(PID, age) |>  # keep only the columns PID and age
+  distinct()           # drop duplicated rows, keeping only one instance of each
+```
+
+ (See documentation for [`select()`](https://dplyr.tidyverse.org/reference/select.html) and [`distinct()`](https://dplyr.tidyverse.org/reference/distinct.html).)
+
+
+### Descriptives for `age`
+
+Because `age` is continuous, we should report measures of central tendency (mean) and dispersion (SD, range).
+
+We should always find each participant's age first, just in case people provide different numbers of observations—if they did and we just computed `mean(ngv$age)`, then we'd get the wrong number out!
+
+```{r}
+ngv |>
+  select(PID, age) |>  # keep only the columns PID and age
+  distinct() |>        # drop duplicated rows, keeping only one instance of each
+  summarise(
+    age_mean = mean(age),
+    age_sd   = sd(age),
+    age_min  = min(age),
+    age_max  = max(age)
+  )
+```
+
+(See the documentation for [`summarise()`](https://dplyr.tidyverse.org/reference/summarise.html).)
 
 
 ## Linked flash cards
