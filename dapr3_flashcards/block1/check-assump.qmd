@@ -4,10 +4,167 @@ title: "TODO Check assumptions"
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
 ```
 
-lorem ipsum
 
+## Example data and model: University job satisfaction
+
+Let's suppose we are studying employee job satisfaction at the university, and we want to estimate the **association between pay-scale and job satisfaction, controlling for the NSS rating of departments**.   
+
+We have 399 employees from 25 different departments, and we got them to fill in a job satisfaction questionnaire, and got information on what their payscale was.
+We have also taken information from the National Student Survey on the level of student satisfaction for each department.  
+
+Each datapoint here represents an individual employee, and these employees are grouped into departments.  
+
+Data are available at [https://uoepsy.github.io/data/msmr_nssjobsat.csv](https://uoepsy.github.io/data/msmr_nssjobsat.csv).  
+
+```{r}
+#| echo: false
+tibble(variable=names(read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")),
+       description = c(
+         "National Student Satisfaction rating for the department",
+         "Department name",
+         "Pay scale of employee",
+         "Job satisfaction of employee",
+         "Binary question of whether the employee considered themselves to be satisfied with their work (1) or not (0)"
+       )
+) %>% gt::gt()
+```
+
+```{r}
+jobsat <- read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")
+```
+
+
+Here's the [maximal model](maxmodel.html) for this data:
+
+```{r}
+jsmod <- lmer(
+  jobsat ~ 1 + payscale + NSSrating + (1 + payscale | dept), 
+  data = jobsat
+)
+```
+
+
+## Level 1 residuals
+
+We can get the level 1 (observation-level) residuals the same way we used to do for `lm()` - by just using `resid()` or `residuals()`.   Additionally, there are a few useful techniques for plotting these which we have listed below:  
+
+::::panelset
+:::panel
+#### resid vs fitted
+
+We can plot the residuals vs fitted model (just like we used to for `lm()`), and assess the extend to which the assumption holds that the residuals are zero mean. 
+_(we want the blue smoothed line to be fairly close to zero across the plot)_  
+```{r}
+# "p" below is for points and "smooth" for the smoothed line
+plot(jsmod, type=c("p","smooth"))
+```
+
+
+::: {.callout-caution collapse="true"}
+#### residuals vs fitted plots will trend upwards
+
+As a result of partial pooling, the residuals vs fitted plots will often tend to go upwards. 
+
+It's quite confusing to get your head around, but it is because the groups that are more outlying (which tend to have the lowest and highest fitted values, so they're on the left and right of the resid vs fitted plot) are the ones that get 'shrunk' more towards the center. So the fitted values will get pull towards the middle of the plot, but the residuals will get bigger (more negative for groups on below average, and more positive for groups above average). The result is that the entire plot tilts!  
+
+You can see an animation of this in @fig-ppooltilt. The left hand plot shows the model fitted values for each group, with the residuals indicated by dashed lines. The right hand plots shows the residuals vs fitted plot. The animation moves between the 'no pooling' and 'partial pooling' approach, and as it does so, the plot on the right tilts!  
+
+```{r}
+#| echo: false
+#| label: fig-ppooltilt
+#| fig-cap: "The effect of partial pooling on residuals vs fitted plots. The extent to which this tilting happens depends on the amount of shrinkage, so will be more evident when there are few observations in the groups"
+# knitr::include_graphics("images/ppool_residfitted.gif")
+```
+
+:::
+
+
+
+:::
+:::panel
+#### scale-location
+
+Again, like we can for `lm()`, we can also look at a scale-location plot. This is where the square-root of the absolute value of the residuals is plotted against the fitted values, and allows us to more easily assess the assumption of constant variance.  
+_(we want the blue smoothed line to be close to horizontal across the plot)_  
+```{r}
+plot(jsmod,
+     form = sqrt(abs(resid(.))) ~ fitted(.),
+     type = c("p","smooth"))
+```
+
+:::
+:::panel
+#### facetted plots
+
+We can also plot these "resid v fitted" and "scale-location" plots for each cluster, to check that our residual mean and variance is not related to the clusters:  
+```{r}
+plot(jsmod,
+         form = resid(.) ~ fitted(.) | dept,
+         type = c("p"))
+```
+
+```{r}
+plot(jsmod,
+         form = sqrt(abs(resid(.))) ~ fitted(.) | dept,
+         type = c("p"))
+```
+    
+:::
+:::panel
+#### residual normality
+    
+We can also examine the normality the level 1 residuals, using things such as histograms and QQplots:    
+_(we want the datapoints to follow close to the diagonal line)_  
+```{r}
+qqnorm(resid(jsmod)); qqline(resid(jsmod))
+```
+
+```{r}
+hist(resid(jsmod))
+```
+
+
+:::
+::::
+
+## Level 2+ residuals
+
+The second level of residuals in the multilevel model are actually just our random effects! We've seen them already whenever we use `ranef()`!  
+
+To get out these we often need to do a bit of indexing. `ranef(model)` will give us a list with an item for each grouping. In each item we have a set of columns, one for each thing which is varying by that grouping.  
+
+Below, we see that `ranef(jsmod)` gives us something with one entry, `$dept`, which contains 2 columns (the random intercepts and random slopes of `payscale`):  
+```{r}
+#| eval: false
+ranef(jsmod)
+```
+```
+$dept
+                                        (Intercept)    payscale
+Accounting                              -0.03045458 -0.19259376
+Architecture and Landscape Architecture  0.29419381 -0.35855884
+Art                                     -0.29094345  0.15293285
+Business Studies                        -0.27858102  0.18008149
+...                                      ...         ... 
+```
+
+So we can extract the random intercepts using `ranef(jsmod)$dept[,1]`.  
+
+Again, we want normality of the random effects, so we can make more histograms or qqplots, for both the random intercepts and the random slopes:  
+
+e.g., for the random intercepts:  
+```{r}
+qqnorm(ranef(jsmod)$dept[,1]);qqline(ranef(jsmod)$dept[,1])
+```
+
+and for the random slopes:  
+```{r}
+qqnorm(ranef(jsmod)$dept[,2]);qqline(ranef(jsmod)$dept[,2])
+```
 
 
 ## Linked flash cards

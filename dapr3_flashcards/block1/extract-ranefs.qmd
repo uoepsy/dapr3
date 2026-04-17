@@ -4,7 +4,90 @@ title: "TODO Extract random effects from a fitted model"
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
 ```
+
+
+## Example: Life satisfaction in Scotland
+
+These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
+
+Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
+
+```{r}
+#| echo: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+tibble(
+  variable = names(df),
+  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
+) |> gt::gt()
+```
+
+```{r}
+lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+```
+
+
+## Fit the model
+
+Our model is the following (to see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html)).
+
+```{r}
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot
+)
+```
+
+
+# RESUME
+
+## Extract all group-level adjustments
+
+Often referred to as the "random effects", the deviations for each cluster from the fixed effects can be obtained using `ranef()`.  
+Note that each row is a cluster (a school, in this example), and the columns show the distance from the fixed effects. We can see that "Anderson High School" has an estimated intercept that is 9.39 _higher_ than average, and an estimate slope of motivation that is 0.61 _lower_ than average.  
+
+```{r}
+ranef(lifesat_mod)$dwelling
+```
+
+
+## Extract group-level intercepts and slopes
+
+```{r}
+coef(lifesat_mod)$dwelling
+```
+
+
+
+:::sticky
+<center>
+fixef() + ranef() = coef()
+</center>
+:::
+
+For example, if we are estimating that "Anderson High School" has an intercept that is 9.39 higher than average, and the average (our fixed effect intercept) is 40.31, then we know that this has an intercept of 40.31 + 9.39 = 49.70.  
+
+However, note that we also have slopes for things that aren't present in the output of `ranef()` - we have the slopes for the *fixed* predictors for each cluster too, but because these are fixed they are simply the same number of each cluster.  
+
+Because "Anderson High School" is a state-funded school, the intercept is not just "9.39 above our fixed effect intercept" - it is estimated to be 17.25 lower than that because it is state-funded. So our estimated intercept for this school is 40.31 + 9.39 - 17.25 = 32.45.  
+
+In fact, we can essentially write out a regression equation for each individual cluster. For instance, "Anderson High School" is a state-funded school, so the expected grade for a child $i$ from this school would be: 
+$$
+\begin{align}
+\widehat{grade_i} &= 49.70 + (2.02 \cdot motiv_i) - (17.25 \cdot 1) + (2.85 \cdot motiv_i \cdot 1) \\
+&= 32.45 + (4.87 \cdot motiv_i) \\
+\end{align}
+$$
+And for Beeslack Community High School, which is a _private_ funded school, the expected grade would be:
+$$
+\begin{align}
+\widehat{grade_i} &= 49.97 + (2.48 \cdot motiv_i) - (17.25 \cdot 0) + (2.85 \cdot motiv_i \cdot 0) \\
+&= 49.97 + (2.48 \cdot motiv_i) \\
+\end{align}
+$$
+
 
 
 

@@ -4,7 +4,50 @@ title: "TODO Plot model-fitted values"
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
 ```
+
+
+
+In the vast majority of analyses using multilevel models, the bit that people are most interested in is the fixed effects - these represent the estimated effects averaged across the clusters in our sample.  
+
+It's tempting, then, to think that we could take the model-predicted values for each observation (`predict()`/`fitted()`/`augment()` etc.) and average them up to get our estimated effects. If every cluster had the same amount of data at every level of the predictor then this would work but we would have more issues in estimating the uncertainty. 
+
+Instead, it is common to use helpful packages that can provide us with a small dataframe of estimated effects and uncertainty, that we can then plot. One such package is the __effects__ package, which has the `effect()` function, that can be used as so:
+
+```{r eval=F}
+library(effects)
+effect(term = "motiv*funding", mod = smod3) |>
+  as.data.frame()
+```
+
+We can then use this to plot: 
+
+```{r eval=F}
+effect(term = "motiv*funding", mod = smod3) |>
+  as.data.frame() |>
+  ggplot(aes(x = motiv, col = funding, fill = funding)) +
+  geom_line(aes(y = fit)) + 
+  geom_ribbon(aes(y = fit, ymin = lower, ymax = upper), alpha = .3)
+```
+
+However, as with plotting all estimated effects, it is very useful to also display the underlying data, to make clear the variability we would actually expect. The plot above shows us what we would expect for children from the schools _on average_. It doesn't clearly depict how schools and children vary, and a reader could easily take away the idea that we expect most children to fall within those bands. 
+
+One easy way is to adjust plot is to simply show the raw data behind our estimated effects, which requires giving the ggplot() code data from two different places:  
+```{r eval=F}
+efplot <- effect(term = "motiv*funding", mod = smod3) |>
+  as.data.frame()
+
+ggplot(data = schoolmot, 
+       aes(x = motiv, col = funding, fill = funding)) +
+  geom_point(aes(y = grade), alpha = .3) + 
+  geom_line(data = efplot, aes(y = fit)) + 
+  geom_ribbon(data = efplot, 
+              aes(y = fit, ymin = lower, ymax = upper), alpha = .3)
+```
+
+
 
 ## Fixed effects only (but don't stop here)
 

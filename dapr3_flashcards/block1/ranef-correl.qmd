@@ -1,0 +1,249 @@
+---
+title: "TODO Correlated random intercepts and slopes"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
+```
+
+from <https://uoepsy.github.io/lmm/02_lmm.html>
+
+#### optional: joint distribution of intercept and slopes
+
+When we have random intercepts __and__ slopes in our model, we don't just estimate two separate distributions of intercept deviations and slope deviations. We estimate them as related. 
+This comes back to the part of the equation we mentioned briefly above, where we used:  
+
+- $\sigma_0$ to represent the standard deviation of intercept deviations
+- $\sigma_1$ to represent the standard deviation of slope deviations
+- $\rho_{01}$ to represent the correlation between intercept deviations and slope deviations  
+
+$$
+\begin{bmatrix} \zeta_{0i} \\ \zeta_{1i} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \sigma_0 & \rho_{01} \\
+        \rho_{01} & \sigma_1
+    \end{bmatrix}
+\right)
+$$
+For a visual intuition about this, see @fig-randcor, in which the x-axis is the intercept deviations, and the y-axis is the slope deviations. We can see that these are each distributed normally, but are negatively related (schools with higher intercepts tend to have slightly lower slopes).  
+
+```{r eval=F}
+#| label: fig-randcor
+#| fig-cap: "Intercept deviations (x axis) and slope deviations (y axis). One school is highlighted for comparison with previous plot of fitted values"  
+#| echo: false
+
+library(ggside)
+pdist = MASS::mvrnorm(1e6, mu=c(0,0),Sigma=VarCorr(rsmod)[[1]]) |>
+  as_tibble() |>
+  mutate(int=`(Intercept)`)
+as.data.frame(ranef(rsmod)$schoolid) |>
+  rownames_to_column() |>
+  mutate(int=`(Intercept)`) |>
+  ggplot(aes(x=int,y=motiv)) +
+  guides(col="none")+
+  with_blur(geom_point(aes(col=rowname),size=3,alpha=.5),sigma=1) + 
+  geom_density2d(data=pdist[1:1e5,]) +
+  scale_x_continuous(expression(zeta["0i"]))+
+  scale_y_continuous(expression(zeta["1i"]))+
+  geom_point(x=6.80639854,y=-3.03100767,col="green4",size=3)+
+  annotate("text",label="Hutchesons'\nGrammar School",
+           x=9,y=-5,col="green4",vjust=1)+
+  geom_segment(x=6.8,xend=9,y=-3.03,yend=-5,
+               col="green4") + 
+  #with_blur(geom_rug(alpha=.7,aes(col=rowname),lwd=1,
+  #                   length = unit(0.05, "npc")),sigma=1) + 
+  geom_xsidedensity(data=pdist,fill="#a41ae4", alpha=.4,col=NA)+
+  geom_ysidedensity(data=pdist,fill="#a41ae4", alpha=.4, col=NA)+
+  theme_ggside_void()
+```
+
+---
+
+from https://uoepsy.github.io/lmm/08_modelbuilding.html 
+
+The 'random effects' part of multilevel models includes not just variances of group-level effects, but also the correlations between different terms. The part of the output of the `VarCorr()` function that comes under "Corr" is a correlation matrix (i.e., a square symmetric matrix with the same columns as rows, and 1s on the diagonal, see @fig-varcorr).  
+
+```{r}
+#| echo: false
+#| label: fig-varcorr
+#| out-width: "519px"
+#| out-height: "188x"
+#| fig-cap: "The VarCorr() function shows the same information as in the top part of the summary() output - the variances/std.deviations of each random effect term, and the lower half of the correlation matrix of these terms (the upper half filled in here for illustration)"
+# knitr::include_graphics("images/varcorr.png")
+```
+
+So what exactly do these correlations represent? Recall that the 'random effects' parts of our models is the estimation of how groups deviate around the fixed effects. 
+
+In estimating a random effect structure with intercepts and slopes, we are estimating these random effects as _jointly_ distibuted as a 'multivariate normal distribution'. 
+
+$$
+\begin{bmatrix} \zeta_{0i} \\ \zeta_{1i} \end{bmatrix}
+\sim N
+\left(
+    \begin{bmatrix} 0 \\ 0 \end{bmatrix},
+    \begin{bmatrix}
+        \sigma_0 & \rho_{01} \\
+        \rho_{01} & \sigma_1
+    \end{bmatrix}
+\right)
+$$
+
+In essence, this means we are estimating means, variances (or standard deviations), and covariances (or correlations). The means of random effects are by definition 0, and we have already seen plenty about the variances thus far when talking about random effects. The correlations are the estimated relationship between different terms - e.g., do groups with higher intercepts tend to have higher/lower slopes?  
+
+It often helps to think about what these would be like when the correlations are perfect (i.e. 1 or -1). In @fig-perfcor, we can see that in the Left hand panel, the higher a group starts, the more upwards the slope (and vice versa). In the Right hand panel the reverse is true - groups with higher intercepts have more downwards slopes. In the middle panel, where the correlation is 0, there's no systematic pattern between where the lines start and their angle across x.  
+
+We can see a visualisation of the distributions below each plot, with each point representing a group in the model. For perfect correlations, plots of group-intercepts against group-slopes will fall along a perfectly straight line. When there is no correlation these are scattered randomly, and as the estimated correlation gets stronger, the circular density in the bottom-middle plot of @fig-perfcor becomes more elliptical.  
+
+
+```{r eval=F}
+#| echo: false
+#| label: fig-perfcor
+#| out-width: "100%"
+#| fig-cap: "Group specific lines when intercepts and slopes are perfectly positively (Left) and negatively (Right) correlated"
+library(ggforce)
+library(ggfx)
+set.seed(665)
+N = 100
+n_groups = 10
+g = rep(1:n_groups, e = N/n_groups)
+x = rep(0:9,n_groups)
+re0 = rnorm(n_groups, sd = 1)
+re = re0[g]
+rex = re0/2
+re_x = rex[g]
+lp = (0 + re) + (1 + re_x) * x
+y = rnorm(N, mean = lp, sd = .1)
+
+d1=data.frame(x, g = factor(g), y)
+
+rex = -1*re0/2
+re_x = rex[g]
+lp = (0 + re) + (.1 + re_x) * x
+y = rnorm(N, mean = lp, sd = .1)
+d2=data.frame(x, g = factor(g), y)
+
+while(TRUE){
+  rex <<- rnorm(n_groups, sd = 1)
+  if(abs(cor(re0,rex))<.01){break}
+}
+re_x = rex[g]
+lp = (0 + re) + (.1 + re_x) * x
+y = rnorm(N, mean = lp, sd = .1)
+d3=data.frame(x, g = factor(g), y)
+
+
+
+ggplot(d1)+
+  stat_smooth(aes(x=x,y=y,group=g,col=factor(g,levels=1:10)),method=lm,se=F,size=1)+
+  guides(col="none")+
+  labs(x="x1",y=".fitted",subtitle="cor(ints,slopes) = 1") +
+  scale_y_continuous(breaks=NULL) -> pp1
+
+ggplot(d2)+
+  stat_smooth(aes(x=x,y=y,group=g,col=factor(g,levels=1:10)),method=lm,se=F,size=1)+
+  guides(col="none")+
+  labs(x="x1",y=".fitted",subtitle="cor(ints,slopes) = -1")+
+  scale_y_continuous(breaks=NULL) -> pp2
+
+ggplot(d3)+
+  stat_smooth(aes(x=x,y=y,group=g,col=factor(g,levels=1:10)),method=lm,se=F,size=1)+
+  guides(col="none")+
+  labs(x="x1",y=".fitted",subtitle="cor(ints,slopes) = 0")+
+  scale_y_continuous(breaks=NULL) -> pp3
+
+# 
+m1 = lmer(y~1+x+(1+x|g),d1)
+#VarCorr(m1)
+m2 = lmer(y~1+x+(1+x|g),d2)
+#VarCorr(m2)
+m3 = lmer(y~1+x+(1+x|g),d3)
+#VarCorr(m3)
+
+library(ggside)
+pdist = MASS::mvrnorm(1e5, mu=c(0,0),Sigma=VarCorr(m1)[[1]]) |>
+  as_tibble() |>
+  mutate(int=`(Intercept)`)
+as.data.frame(ranef(m1)$g) |>
+  rownames_to_column() |>
+  mutate(int=`(Intercept)`,rowname=factor(rowname,levels=1:10)) |>
+  ggplot(aes(x=int,y=x)) +
+  guides(col="none")+
+  stat_smooth(se=F,fullrange=T,col="black",size=.5)+
+  with_blur(geom_point(aes(col=rowname),size=3,alpha=.8),sigma=1) + 
+  #geom_density2d(data=pdist[1:1e4,]) +
+  scale_x_continuous("intercepts")+
+  scale_y_continuous("slopes")+
+  geom_xsidedensity(data=pdist,fill="#a41ae4", alpha=.4,col=NA)+
+  geom_ysidedensity(data=pdist,fill="#a41ae4", alpha=.4, col=NA)+
+  theme_ggside_void() -> pp4
+
+pdist = MASS::mvrnorm(1e5, mu=c(0,0),Sigma=VarCorr(m2)[[1]]) |>
+  as_tibble() |>
+  mutate(int=`(Intercept)`)
+as.data.frame(ranef(m2)$g) |>
+  rownames_to_column() |>
+  mutate(int=`(Intercept)`,rowname=factor(rowname,levels=1:10)) |>
+  ggplot(aes(x=int,y=x)) +
+  guides(col="none")+
+  stat_smooth(se=F,fullrange=T,col="black",size=.5)+
+  with_blur(geom_point(aes(col=rowname),size=3,alpha=.8),sigma=1) + 
+  #geom_density2d(data=pdist[1:1e4,]) +
+  scale_x_continuous("intercepts")+
+  scale_y_continuous("slopes")+
+  geom_xsidedensity(data=pdist,fill="#a41ae4", alpha=.4,col=NA)+
+  geom_ysidedensity(data=pdist,fill="#a41ae4", alpha=.4, col=NA)+
+  theme_ggside_void() -> pp5
+
+pdist = MASS::mvrnorm(1e5, mu=c(0,0),Sigma=VarCorr(m3)[[1]]) |>
+  as_tibble() |>
+  mutate(int=`(Intercept)`)
+as.data.frame(ranef(m3)$g) |>
+  rownames_to_column() |>
+  mutate(int=`(Intercept)`,rowname=factor(rowname,levels=1:10)) |>
+  ggplot(aes(x=int,y=x)) +
+  guides(col="none")+
+  #stat_smooth(se=F,fullrange=T,col="black",size=.5)+
+  with_blur(geom_point(aes(col=rowname),size=3,alpha=.8),sigma=1) + 
+  geom_density2d(data=pdist[1:1e4,],col="black") +
+  scale_x_continuous("intercepts")+
+  scale_y_continuous("slopes")+
+  geom_xsidedensity(data=pdist,fill="#a41ae4", alpha=.4,col=NA)+
+  geom_ysidedensity(data=pdist,fill="#a41ae4", alpha=.4, col=NA)+
+  theme_ggside_void() -> pp6
+
+
+
+(pp1 + pp3 + pp2)/(pp4 + pp6 + pp5)
+
+
+```
+
+We can choose (if we so wish) to __not__ estimate the correlations between random effects. This choice equates to fixing this correlation in our model be 0. We do this by using two vertical lines `||` instead of one. By removing correlations between random effects we are reducing the number of parameters than are being estimated - our model becomes simpler! However, it is worth noting that this decision should be thought about carefully - does it make sense to constrain a given correlation to be zero? One benefit of fitting models with correlations removed is that it can help to highlight terms which are the cause of singular fits.  
+ 
+
+
+| lme4 syntax | description | equation |
+| ----------- | ----------- | -------- |
+| `... + (1 | g)`       | random intercepts only | $$\zeta_{0i} \sim N (0, \sigma_0)$$ |
+| `... + (0 + x | g)`   | random slopes only | $$\zeta_{1i} \sim N (0, \sigma_1)$$ |
+| `... + (1 + x || g)` | random intercepts and slopes, zero covariance | $$\begin{bmatrix} \zeta_{0i}\\ \zeta_{1i} \end{bmatrix} \sim N \left( \begin{bmatrix} 0 \\ 0 \end{bmatrix}, \begin{bmatrix} \sigma_0 & 0 \\ 0 & \sigma_1 \end{bmatrix} \right)$$ |
+| `... + (1 + x | g)`   | random intercepts and slopes | $$\begin{bmatrix} \zeta_{0i}\\ \zeta_{1i} \end{bmatrix} \sim N \left( \begin{bmatrix} 0 \\ 0 \end{bmatrix}, \begin{bmatrix} \sigma_0 & \rho_{01} \\ \rho_{01} & \sigma_1 \end{bmatrix} \right)$$ |
+
+
+
+
+## Linked flash cards
+
+### Outgoing links
+
+- TODO
+
+
+### Backlinks
+
+- TODO

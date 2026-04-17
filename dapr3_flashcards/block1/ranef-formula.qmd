@@ -1,5 +1,5 @@
 ---
-title: "TODO Include random effects in a model"
+title: "Add random effects to a model formula"
 ---
 
 ```{r setup, include=FALSE}
@@ -7,14 +7,60 @@ source('../assets/setup.R')
 ```
 
 
-## Examples
+## Basic model formula
 
-### Example 1: TODO
+The structure of a basic linear model (not a linear mixed model) is:
+
+```{r eval=F}
+lm(outcome ~ fixed effect, data = mydata)
+```
+
+For example, imagine we're analysing the effect of stress on motivation levels.
+We distributed a survey and got one pair of `motivation` and `stress` values from each respondent.
+This is a between-subjects design which does not require random effects because all observations are independent (see [random effects](ranef.html), [LMM assumptions](assump.html)).
+
+```{r eval=F}
+lm(motivation ~ stress, data = mydata)
+```
 
 
-### Example 2: TODO
+## LMM formula
+
+**In general, we add on a random intercept by `group` by writing `(1 | group)`.
+If we also want to include a random slope over `predictor`, we write that as `(1 + predictor | group)`.**
 
 
+Here's how we add those terms into the model fomurla.
+
+First, for LMMs, we need to use the package `lme4`.
+
+```{r}
+library(lme4)
+```
+
+`lme4` gives us the function `lmer()` for modelling a continuous outcome and `glmer(family = binomial)` for modelling a binary outcome.
+
+The structure of a linear mixed model, which includes the random effect specification, is:
+
+```{r eval=F}
+lmer(outcome ~ fixed effect + (1 + fixed effect | grouping variable), data = mydata)
+```
+
+With `lmer()`, we have the addition of __random effect terms__, specified in parenthesis with the `|` operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).  
+We use the `|` operator to separate the parameters (intercept, slope etc.) on the left-hand side, from the grouping variable(s) on the right-hand side, by which we would like to model these parameters as varying.  
+
+
+For example, imagine we're still analysing the effect of stress on motivation levels, but now, each person who responded to our survey did so several times.
+We have several different `motivation` and `stress` scores for each person.
+As such, the data points are no longer independent, because some of them come from the same person (see [LMM assumptions](assump.html)).
+
+Therefore we need to include random intercepts by `respondent`.
+And because we have several `stress` values for each respondent, we can also include a random slope over `stress` for each `respondent`.
+(See [Identify possible random effects](identify-ranef.html).)
+
+```{r eval=F}
+lmer(motivation ~ stress + (1 + stress | respondent), data = mydata)
+```
 
 
 ## Linked flash cards

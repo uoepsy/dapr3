@@ -6,10 +6,122 @@ title: "TODO Troubleshoot"
 source('../assets/setup.R')
 ```
 
+from https://uoepsy.github.io/lmm/08_modelbuilding.html
 
 ## Number of observations <= number of random effects
 
 example: `stressint.csv`
+
+
+## Optimiser
+
+```{r eval=F}
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot
+)
+```
+
+fails to converge (see `identify-ranef.qmd`).
+
+
+  
+## Non-Convergence
+
+Oftentimes, models with more complex random effect structures will not converge because there are so many parameters, and not enough variability in the data, meaning that there are more places for the model estimation to go wrong. Remember that we fit these models with maximum likelihood estimation (MLE), a process that involves taking a guess at the model parameters that result in the greatest probability of the observed data, and step-by-step improving those guesses until we think we're at the most likely set of parameters - until the model 'converges'. Sometimes, however, MLE can sometimes get stuck, resulting in 'non-convergence'.  
+
+There are many possible reasons for non-convergence, and it does *not necessarily* mean the fit is incorrect. However it is **is cause for concern**, and should be addressed before using the model, else you may end up reporting inferences which do not hold. There are lots of different things which we can try which *might* help our model to converge. A select few are detailed below:  
+
+::: {.callout-tip collapse="true"}
+#### Things we can try
+
+:::imp
+**most likely solutions:**  
+
+- double-check the model specification and the data  
+
+- Consider simplifying your model (more on this below)
+:::
+
+- Center and scale continuous predictor variables (e.g. with `scale`)  
+
+- Change the optimization method (for example, here we change it to `bobyqa`):  
+    `lmer(..., control = lmerControl(optimizer="bobyqa"))`  
+    `glmer(..., control = glmerControl(optimizer="bobyqa"))`  
+
+- Use `allFit()` to try the fit with all available optimizers. This will of course be slow, but is considered 'the gold standard'; *"if all optimizers converge to values that are practically equivalent, then we would consider the convergence warnings to be false positives."*  
+    `allopts <- allFit(model)`  
+    `summary(allopts)`
+
+::::{.columns}
+:::{.column width="50%"}
+
+- Fine-tune an optimizer. Using the optCtrl argument to [g]lmerControl (see `?convergence` for details), we can have a lot of control over the optimizer. Recall that the optimizer is a method of iteratively assessing a set of parameters to maximise the probability of seeing the observed data^[instead of maximising the likelihood, more often (for practical reasons) our algorithms try to minimise $-2 \times$ the log-likelihood]. We can change things such as the number of steps the algorithm keeps trying for, and the thresholds at which the algorithm stops (@fig-tolerance).  
+    
+:::
+
+:::{.column width="50%"}
+```{r}
+#| label: fig-tolerance 
+#| echo: false
+#| fig-cap: "An optimizer will stop after a certain number of iterations, or when it meets a tolerance threshold"
+# knitr::include_graphics("images/tolerance.png")
+```
+:::
+::::
+
+:::
+
+## Singular Fits
+
+As well as convergence warnings, you may have noticed that some of our models over the last few weeks have been giving a warning message:  
+
+<p style="color:red">boundary (singular) fit: see ?isSingular</p>
+
+Up to now, we've been largely ignoring these messages, but we should really have been addressing them in some way. 'Singular fit' warnings indicate that our model is likely to be 'overfitted' - that is, the random effects structure which we have specified is **too complex to be supported by the data**.  
+
+For simple random effect structures (i.e. a random intercept + a random slope), we can often see this issue reflected in the variance components of the random effect, when variances get estimated at (or very close to) zero, and/or when correlations get estimated at (or very close to) 1 or -1 (@fig-singular). With more complex structures it is not always so easily visible, but we can do a double check for this issue using the handy `isSingular(model)` function - if it returns `TRUE` then it indicates our model might be overfitted.  
+
+```{r}
+#| echo: false
+#| eval: false
+#| out-width: "550px"
+# knitr::include_graphics("images/singular.png")
+```
+
+
+```{r}
+#| echo: false
+#| label: fig-singular
+#| out-width: "550px"
+#| out-height: "300px"
+#| fig-cap: "In simple random effect structures we can often easily see issues of overfitting as they are reflected in variances being estimated as 0 and/or correlations being estimated as perfect correlations of 1 or -1"
+# knitr::include_graphics("images/varcorrsingular.png")
+```
+
+What do we do in these cases? Simplify, simplify, simplify!
+
+
+::: {.callout-tip collapse="true"}
+#### Scales can matter!
+
+<!-- Suppose that people tend to be between 140cm and 190cm tall and (for some reason) we decide to measure their height in kilometers. In these units, people tend to be between 0.00140km and 0.00190km tall. If we calculate the variance of height-in-km, we're going to get a very small number.  -->
+
+The scale of our predictors can sometimes play a part here. If we were fitting a model of `shoe_size ~ height`, then the estimated coefficient is going to depend on how we measure height. If we measure it in millimeters, then we'll probably have a very small coefficient (people's shoe size will only change by a tiny amount for every 1mm height they gain), but if we measure height in kilometers, then we'll have a very big coefficient ("grow an extra kilometer in height, and your shoe size will increase 10000 sizes"!!).  
+
+In the multilevel model, we're estimating the variances in these relationships across a set of groups (or 'clusters'). If the coefficient is in millimeters, then the variance is in millimeters too, and so the number will be quite small. If it's in kilometers, the coefficient is in units 100,000 times bigger, and so is the variance.  
+
+Scaling predictors doesn't change the relationship being studied, but it does change the numeric values we are asking our relationship to be presented in. As the estimation of multilevel models can get into difficulty when variances are too close to zero, you may occasionally receive messages such as those below.  
+
+Pay attention to them, and check your variables. If some are on very different scales, then consider trying to rescale them to something that is still meaningful for you.  
+
+<p style="color:red">Warning messages:<br>
+1: Some predictor variables are on very different scales:<br> consider rescaling</p>
+
+<p style="color:red">Warning messages:<br>
+1: In checkConv(attr(opt, "derivs"), opt\$par, ctrl = control\$checkConv,  :<br>Model is nearly unidentifiable: large eigenvalue ratio<br>  - Rescale variables?</p>
+
+:::
 
 
 ## Singular fit
@@ -21,6 +133,41 @@ example: `stressint.csv`
 ## Must rescale predictor
 
 
+## convergence warnings & singular fits 
+
+There are different algorithms that we can use to actually undertake the iterative estimation procedure, which we can apply by using different 'optimisers'. 
+
+<br>
+<div style="margin-left:50px;">
+lmer(*formula*,<br>
+&nbsp; &nbsp; &nbsp; &nbsp; data = *dataframe*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; REML = *logical*, <br>
+&nbsp; &nbsp; &nbsp; &nbsp; control = lmerControl(**_options_**) <br>
+&nbsp; &nbsp; &nbsp; &nbsp; )</div>    
+<br>
+
+Technical problems to do with **model convergence** and **'singular fit'** come into play when the optimiser we are using either can't find a suitable maximum, or gets stuck in a plateau, or gets stuck trying to move towards a number that we know isn't possible.  
+
+For large datasets and/or complex models (lots of random-effects terms), it is quite common to get a convergence warning when trying to fit a model, and in the coming weeks you will see plenty of warnings such as:  
+
+- A typical convergence warning:  
+<p style="color:red">warning(s): Model failed to converge with max|grad| = 0.0071877 (tol = 0.002, component 1)</p>
+
+- A singular fit:  
+<p style="color:red">boundary (singular) fit: see ?isSingular</p>
+
+
+:::sticky
+__Do not trust the results of a model that does not converge__
+:::
+
+
+There are lots of different ways to [deal with these](https://rstudio-pubs-static.s3.amazonaws.com/33653_57fc7b8e5d484c909b615d8633c01d51.html) (to try to rule out hypotheses about what is causing them), but for the time being, if `lmer()` gives you convergence errors or singular fits, you could try changing the optimizer. Bobyqa is a good one: add `control = lmerControl(optimizer = "bobyqa")` when you run your model.  
+
+```{r eval=F}
+lmer(y ~ 1 + x1 + ... + (1 + .... | g), data = df, 
+     control = lmerControl(optimizer = "bobyqa"))
+```
 
 ## Linked flash cards
 
