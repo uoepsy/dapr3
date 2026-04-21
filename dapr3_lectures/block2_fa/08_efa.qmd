@@ -1,5 +1,5 @@
 ---
-title: "Measurement & Dimensions"
+title: "Exploratory Factor Analysis (EFA)"
 editor_options: 
   chunk_output_type: console
 format:
@@ -380,19 +380,7 @@ PCA doesn't care. we don't really give meaning to the components (other than "it
 EFA is about comparing competing models of the measurement instrument.  
 does a 2 factor model "fit better" than a 3 factor model?   
 
-## Doing EFA - Overview {background-color="white"}
-
-So how do we move from data and correlations to a factor analysis?
-
-1. check suitability of items.
-2. decide on factor extraction method and rotation.  
-3. examine plausible number of factors.
-4. based on 3, choose the range to examine from $n_{min}$ factors to $n_{max}$ factors.
-5. do EFA, extracting from $n_{min}$ to $n_{max}$ factors. Compare each of these 'solutions' in terms of structure, variance explained, and --- by examining how the factors from each solution relate to the observed items --- assess how much theoretical sense they make.  
-6. _if the aim is to develop a scale for future use_ - consider removing "problematic" items and start over again.
-
-
-# Doing EFA in R
+# Doing EFA
 
 ```{r}
 #| include: false
@@ -415,8 +403,19 @@ lsat_word =
   )
 ```
 
+## EFA workflow
 
-## are you not satisfied? 
+So how do we move from data and correlations to a factor analysis?
+
+1. check suitability of items.
+2. decide on factor extraction method and rotation.  
+3. examine plausible number of factors.
+4. based on 3, choose the range to examine from $n_{min}$ factors to $n_{max}$ factors.
+5. do EFA, extracting from $n_{min}$ to $n_{max}$ factors. Compare each of these 'solutions' in terms of structure, variance explained, and --- by examining how the factors from each solution relate to the observed items --- assess how much theoretical sense they make.  
+6. _if the aim is to develop a scale for future use_ - consider removing "problematic" items and start over again.
+
+
+## example: are you not satisfied? 
 
 ::::{.columns}
 :::{.column width="60%"}
@@ -445,6 +444,10 @@ lsat_word |>
 ```
 :::
 ::::
+
+## item suitability
+
+basically - are items correlated? 
 
 
 ## EFA in R
@@ -683,39 +686,193 @@ p3 + theme(legend.position="bottom")
 :::
 ::::
 
-# the point! 
+# getting back to our aim..  
 
-## how many factors are there?  
+how many factors are we measuring?   
+compare and contrast models!   
+
+## choose a range
 
 ```{r}
+#| eval: false
+#| echo: true
 scree(lsat10[,2:11])
+fa.parallel(eg_data)
+VSS(eg_data, plot = FALSE)
 ```
+
+-   Scree plots
+-   Parallel Analysis
+-   MAP
+
+<br>
+ 
+But... if there's no strong steer, then we want a **range.**   
+
+- Treat MAP as a minimum
+- PA as a maximum
+- Explore all solutions in this range and select the one that yields the best numerically and theoretically.
+
 
 ## compare and contrast
 
+::::{.columns}
+:::{.column width="30%"}
 ```{r}
 fa1 <- fa(lsat10[,2:11], nfactors = 1, 
                   fm = "ml", cor = "cor")
 print(fa1$loadings, cutoff = .3)
-fa1$Vaccounted
 ```
 
-## compare and contrast
-
+:::
+:::{.column width="3%"}
+:::
+:::{.column width="30%"}
 ```{r}
 fa2 <- fa(lsat10[,2:11], nfactors = 2, rotate = "oblimin", 
                   fm = "ml", cor = "cor")
 print(fa2$loadings, cutoff = .3)
-fa2$Vaccounted
 ```
-
-## compare and contrast
-
+:::
+:::{.column width="3%"}
+:::
+:::{.column width="30%"}
 ```{r}
 fa3 <- fa(lsat10[,2:11], nfactors = 3, rotate = "oblimin", 
                   fm = "ml", cor = "cor")
 print(fa3$loadings, cutoff = .3)
-fa3$Vaccounted
 ```
+:::
+::::
 
+## compare and contrast
+
+__BUT **HOW**!?__  
+
+
+- Cleanliness of structure
+    - are the factor(s) clearly defined?  
+
+- Factor utility
+    - do the factors account for enough variability, and represent a sufficient number of observed items?  
+
+- Item-level diagnostics
+    - are there any items irrelevant, redundant or complex?  
+
+- Theoretical coherence
+    - does it make sense? 
+
+
+and when in doubt, parsimony.  
+
+## the output... 
+
+## the output - loading matrix 
+
+![](img_sandbox/efa_output_2627/Slide1.png)
+
+
+## the output - loading matrix (2)
+
+![](img_sandbox/efa_output_2627/Slide2.png)
+
+## the output - loading matrix (3)
+
+![](img_sandbox/efa_output_2627/Slide3.png)
+
+## the output - loading matrix (4)
+
+![](img_sandbox/efa_output_2627/Slide4.png)
+
+
+## the output - communalities  
+
+![](img_sandbox/efa_output_2627/Slide6.png)
+
+## the output - uniqueness
+
+![](img_sandbox/efa_output_2627/Slide7.png)
+
+## the output - complexity
+
+![](img_sandbox/efa_output_2627/Slide8.png)
+
+## the output - variance accounted for
+
+![](img_sandbox/efa_output_2627/Slide9.png)
+
+## the output - variance accounted for (2)
+
+![](img_sandbox/efa_output_2627/Slide10.png)
+
+## the output - variance accounted for (3)
+
+![](img_sandbox/efa_output_2627/Slide11.png)
+
+## the output - variance accounted for (4)
+
+![](img_sandbox/efa_output_2627/Slide12.png)
+
+## the output - factor correlations
+
+![](img_sandbox/efa_output_2627/Slide13.png)
+
+## Evaluating factor solutions - where to start
+
++ variance accounted for
+    + in total (field dependent)
+    + each factor (relative to one another)
+
++ salient loadings
+    + meaning of factors is based on size and sign of 'salient' loadings
+    + we decide what is 'salient'
+    + in most research this is $\ge|.3|$ or $\ge|.4|$
+
++ Each factor has $\geq 3$ salient loadings (ideally $\geq 3$ *primary* loadings)
+    + if not, may have extracted too many factors
+    
+
+## Evaluating factor solutions - looking for trouble
+
++ Items with no salient loadings?
+    + maybe a problem item, which should be removed
+    + maybe signal presence of another factor
+
++ Items with multiple salient loadings (cross-loadings)?
+    + look at item complexity values.
+    + makes defining the factors more difficult
+
++ Heywood cases
+    + factor loadings $\geq |1|$
+    + communalities $\geq |1|$
+    + something is **wrong**; we do not trust these results  
+    + Try different rotation, estimation method, eliminate items, rethink if FA is what you actually want to do
+
+
+## Evaluating factor solutions - list of criteria
+
+- how much variance is accounted for by a solution?
+- do all factors load on 3+ items at a salient level?  
+- do all items have at least one loading at a salient level?  
+- are there any highly complex items?  
+- are there any "Heywood cases" (communalities or standardised loadings that are >1)?  
+
+- **is the factor structure (items that load on to each factor) coherent, and does it make theoretical sense?**
+    
+
+## Evaluating factor solutions - cautions!  
+
+**Remember**:
+If we choose to delete one or more items, we must start back at the beginning, and go back to determining how many factors to extract
+
+<br>
+
+**Very Important**: 
+If one or more factors don't make sense, then either the items are bad, the theory is bad, the analysis is bad, or all three are bad!  
+
+<br>
+
+&#128169; The "garbage in garbage out" principle always applies
+
+- PCA and factor analysis cannot turn bad data into good data
 
