@@ -1,20 +1,28 @@
 ---
-title: "TODO Simplify random effects"
+title: "Simplify random effects"
 ---
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
 ```
 
-from https://uoepsy.github.io/lmm/08_modelbuilding.html 
+If a [maximal model](maxmodel.html) will not converge, even after you change the optimiser (see [Troubleshoot](troubleshoot.html)), then you will need to simplify the model's random effect structure.
 
-# Simplifying Random Effect Structures
+Let's assume a maximal model with the formula `y ~ x * z + (1 + x * z | g)`.
+This model is predicting `y` as a function of `x`, `z`, and their interaction, and it includes by-`g` adjustments to the intercept, to the slopes of `x` and `z`, and to the interaction.
+It also estimates the correlations between all the by-`g` adjustments.
 
-There is no _right_ way to simplify random effect structures - it's about what kind of simplifications we are willing to make (which is a subjective decision). Key to the process of simplifying your random effects is to **think about how the data are generated**, and to **keep in mind your research question**. Asking yourself things such as "do we have good reason to assume subjects might vary over time, or to assume that they will have different starting points (i.e., different intercepts)?" can help you in reasoning through the problem.  
+There is no single correct way to simplify the random effect structure.
+But here's a guide to a sequence of simplifications you might make.
+This sequence starts with the parameters that are generally least relevant for your research question (but if you really need a given parameter to address your research question, then definitely leave it in!).
 
-Examining the variance components of a non-converging model can also help to point towards problematic terms. Be on the look out for random effects with little variance, or with near perfect correlation. 
-When variance estimates are very low for a specific random effect term, this indicates that the model is not estimating this parameter to differ much between the levels of your grouping variable. It might, given the study design, be perfectly acceptable to remove this or simply include it as a fixed effect.
+Try to fit the model again after every step, and stop simplifying once it successfully converges without singularities.
 
+- Remove the by-group adjustment to the interaction term: `y ~ x * z + (1 + x + z | g)`.
+- Remove the correlations between by-group adjustments: `y ~ x * z + (1 + x + z || g)`.
+- Remove one of the by-group slope adjustments (if one is a covariate, remove that one first): `y ~ x * z + (1 + x || g)`.
+- Remove both of the by-group slope adjustments: `y ~ x * z + (1 | g)`.
+- (Usually not a good idea, only do this if you have very low group-level variance) Remove the random effect entirely: `y ~ x * z`.
 
 
 ## Linked flash cards

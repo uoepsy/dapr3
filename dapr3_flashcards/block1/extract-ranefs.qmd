@@ -1,5 +1,5 @@
 ---
-title: "TODO Extract random effects from a fitted model"
+title: "Extract estimates from a fitted model"
 ---
 
 ```{r setup, include=FALSE}
@@ -29,8 +29,6 @@ lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
 ```
 
 
-## Fit the model
-
 Our model is the following (to see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html)).
 
 ```{r}
@@ -41,52 +39,85 @@ lifesat_mod <- lmer(
 ```
 
 
-# RESUME
+
+## Extract fixed effects
+
+The function `fixef()` will return the estimated values for the model's fixed effects.
+
+```{r}
+fixef(lifesat_mod)
+```
+
+
 
 ## Extract all group-level adjustments
 
-Often referred to as the "random effects", the deviations for each cluster from the fixed effects can be obtained using `ranef()`.  
-Note that each row is a cluster (a school, in this example), and the columns show the distance from the fixed effects. We can see that "Anderson High School" has an estimated intercept that is 9.39 _higher_ than average, and an estimate slope of motivation that is 0.61 _lower_ than average.  
+How much does each individual group (here, each dwelling) differ from that fixed intercept and that fixed slope over `age`?
+
+In other words, how do we need to adjust the fixed intercept and the fixed slope over `age` to arrive at the best line for each group?
+
+We can extract these adjustments using the function `ranef()`, which gives us a list containing one element per group.
+We'll use the dollar-sign notation to pull out the data frame of adjustments for our grouping variable `dwelling`:
 
 ```{r}
 ranef(lifesat_mod)$dwelling
 ```
 
 
+Each row is a level of the grouping variable (a dwelling in Scotland), and each column shows how that dwelling's intercept and slope over `age` differ from the estimated fixed effects.
+So, since the fixed effects estimate the average intercept and average slope, we can observe (for example) that:
+
+- Aberdeen has an estimated intercept that is 26.62 points lower than average (lower because the value is negative), and an estimated slope over `age` that is 0.48 points higher than average (higher because the value is positive).
+- Kirkcaldy has an estimated intercept that is 14.50 points higher than average, and an estimated slope over `age` that is 0.73 points lower than average.
+
+
 ## Extract group-level intercepts and slopes
+
+To find out the actual parameters of the line estimated for each dwelling, we can use the function `coef()`.
 
 ```{r}
 coef(lifesat_mod)$dwelling
 ```
 
+Again, each row is a level of our grouping variable `dwelling`.
+Now each column represents the actual intercept and the actual slope of the line estimated for each dwelling.
+
+Using Aberdeen as an example, here's where these numbers come from:
+
+- Aberdeen's intercept:
+  - The fixed intercept is 28.24.
+  - The adjustment to that fixed intercept is –26.62.
+  - Combining those two values, we calculate 28.24 – 26.62 = 1.62, which matches the intercept of the line for Aberdeen given by `coef()`.
+- Aberdeen's slope over `age`:
+  - The fixed slope is 0.52.
+  - The adjustment to that fixed slope is 0.49.
+  - 0.52 + 0.49 = 1.01, which matches the slope of the line over `age` for Aberdeen given by `coef()`.
+
+**In short: `fixef() + ranef() = coef()`.**
 
 
-:::sticky
-<center>
-fixef() + ranef() = coef()
-</center>
-:::
+<!-- TODO: would be nice to have rabbit hole here for regression equations for each group -->
 
-For example, if we are estimating that "Anderson High School" has an intercept that is 9.39 higher than average, and the average (our fixed effect intercept) is 40.31, then we know that this has an intercept of 40.31 + 9.39 = 49.70.  
+<!-- For example, if we are estimating that "Anderson High School" has an intercept that is 9.39 higher than average, and the average (our fixed effect intercept) is 40.31, then we know that this has an intercept of 40.31 + 9.39 = 49.70.   -->
 
-However, note that we also have slopes for things that aren't present in the output of `ranef()` - we have the slopes for the *fixed* predictors for each cluster too, but because these are fixed they are simply the same number of each cluster.  
+<!-- However, note that we also have slopes for things that aren't present in the output of `ranef()` - we have the slopes for the *fixed* predictors for each cluster too, but because these are fixed they are simply the same number of each cluster.   -->
 
-Because "Anderson High School" is a state-funded school, the intercept is not just "9.39 above our fixed effect intercept" - it is estimated to be 17.25 lower than that because it is state-funded. So our estimated intercept for this school is 40.31 + 9.39 - 17.25 = 32.45.  
+<!-- Because "Anderson High School" is a state-funded school, the intercept is not just "9.39 above our fixed effect intercept" - it is estimated to be 17.25 lower than that because it is state-funded. So our estimated intercept for this school is 40.31 + 9.39 - 17.25 = 32.45.   -->
 
-In fact, we can essentially write out a regression equation for each individual cluster. For instance, "Anderson High School" is a state-funded school, so the expected grade for a child $i$ from this school would be: 
-$$
-\begin{align}
-\widehat{grade_i} &= 49.70 + (2.02 \cdot motiv_i) - (17.25 \cdot 1) + (2.85 \cdot motiv_i \cdot 1) \\
-&= 32.45 + (4.87 \cdot motiv_i) \\
-\end{align}
-$$
-And for Beeslack Community High School, which is a _private_ funded school, the expected grade would be:
-$$
-\begin{align}
-\widehat{grade_i} &= 49.97 + (2.48 \cdot motiv_i) - (17.25 \cdot 0) + (2.85 \cdot motiv_i \cdot 0) \\
-&= 49.97 + (2.48 \cdot motiv_i) \\
-\end{align}
-$$
+<!-- In fact, we can essentially write out a regression equation for each individual cluster. For instance, "Anderson High School" is a state-funded school, so the expected grade for a child $i$ from this school would be:  -->
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- \widehat{grade_i} &= 49.70 + (2.02 \cdot motiv_i) - (17.25 \cdot 1) + (2.85 \cdot motiv_i \cdot 1) \\ -->
+<!-- &= 32.45 + (4.87 \cdot motiv_i) \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
+<!-- And for Beeslack Community High School, which is a _private_ funded school, the expected grade would be: -->
+<!-- $$ -->
+<!-- \begin{align} -->
+<!-- \widehat{grade_i} &= 49.97 + (2.48 \cdot motiv_i) - (17.25 \cdot 0) + (2.85 \cdot motiv_i \cdot 0) \\ -->
+<!-- &= 49.97 + (2.48 \cdot motiv_i) \\ -->
+<!-- \end{align} -->
+<!-- $$ -->
 
 
 

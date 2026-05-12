@@ -1,34 +1,109 @@
 ---
-title: "TODO Get p-values for LMMs"
+title: "Get p-values for LMM coefficients"
 ---
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
 ```
 
 
+When we fit LMMs, we are usually interested in testing whether the fixed effects are significantly different from zero.
+We don't need to do any significance testing for the random effects.
+
+
+## Example: Life satisfaction in Scotland
+
+These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
+
+Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
+
+```{r}
+#| echo: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+tibble(
+  variable = names(df),
+  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
+) |> gt::gt()
+```
+
+```{r}
+lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+```
+
+
+Our model is the following.
+
+
+```{r}
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot,
+  control = lmerControl(optimizer = "bobyqa")
+)
+```
+
+To see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html).
+To see where the `control=` argument comes from, see [Change optimiser](optimiser.html).
+
 ## Statistical significance of LMM coefficients
 
-tests/CIs of individual parameters	
+By default, summaries of LMMs do not show p-values beside each fixed effect coefficient the way that simple LMs do.
 
-Tests of individual parameters can be done by refitting with lmerTest::lmer(...) for the Satterthwaite (S) method
+::: {.callout-caution collapse="true"}
+#### Why don't LMM summaries show p-values by default?
 
-refer to https://uoepsy.github.io/lmm/03_inference.html?panelset_002=tests-of-single-parameters2&panelset_001=tests-of-single-parameters
+Backstory: In the linear models you've been fitting with `lm()`, p-values were obtained based on $t$ (for the coefficient estimate) and $F$ (the reduction in residual sums of squares) tests.
+Each of those tests has associated degrees of freedom.
 
-focus on Satterthwaite.
+For example, if we fit a linear model `lm(y~x)` to 10 data points, then our tests would have $10-2=8$ degrees of freedom ($n$ observations minus $k$ parameters).
+We would therefore compare test statistics against, e.g., a $t$ distribution with 8 degrees of freedom.
+Or if we fit the model to 100 observations, then we would compare to a $t$ distribution with 98 degrees of freedom.
 
-rabbit hole: Kenward-Rogers?
+The degrees of freedom reflects the fact that there is more variability in statistics from smaller samples.
+Another way of thinking of degrees of freedom is that they are the number of independent datapoints that are left "free to vary" around our model parameters. 
+
+But we are now working with multilevel data, and in the scenario where we have, e.g., $n_p$ pupils grouped into $n_s$ schools, how many independent bits of information do we have to begin with? 
+Is it $n_p$? 
+Or $n_s$? 
+Or somewhere in between? 
+Our random effects are not "free to vary" in the sense that they are estimated under certain constraints (such as following a normal distribution).  
+
+In very specific situations that correspond to classical experimental designs (in which, e.g., we have perfectly balanced numbers across experimental factors and equal sizes within groups) it is possible to conduct similar $F$ tests (and hence $t$-tests too) with a known degrees of freedom.
+Unfortunately, transferring this to more general scenarios is problematic (e.g., any missing data, unbalanced designs, more complex random effect structures).
+This is why the author of `lme4` removed p-values from the model output.
+
+However, there are various strategies that we can use to conduct inferences that either attempt to approximate the degrees of freedom, or use an alternative method based on, e.g., likelihoods or bootstrapping.
+
+:::
+
+The most common way to add p-values into the model summary is to load the library `lmerTest` and then fit the model again using the `lmer()` function.
+(And when you report your model, be sure to mention that the p-values were estimated using the Satterthwaite method.)
+
+```{r}
+library(lmerTest)
+
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot,
+  control = lmerControl(optimizer = "bobyqa")
+)
+
+summary(lifesat_mod)
+```
+
+::: {.callout-caution collapse="true"}
+#### What's the Satterthwaite method?
+
+The Satterthwaite method that comes with `lmerTest` is a way of approximating the degrees of freedom of the $t$ distribution that we compare our observed $t$ statistics to.
+
+The `lmerTest` package simply overwrites the `lmer()` function to use a version that has the degrees of freedom and associated p-values displayed in the summary.  
+
+It can be used for models fitted with either ML or REML, and generally scales well, so if you are fitting models to big datasets, it won't take too much extra time.  
 
 
-## No significance testing for random effects
-
-Tests of random effects are difficult because the null hypothesis (the random effect variance is zero) lies on a boundary (you can’t have a negative variance). Comparisons of models that differ only in their random effects can be done by comparing ratio of likelihoods when fitted with REML=TRUE (this has to be done manually), but these tests should be treated with caution.
-
-We can obtain confidence intervals for our random effect variances using both the profile likelihood and the parametric boostrap methods discussed above.
-
-As random effects are typically part of the experimental design, there is often little need to test their significance. In most cases, the maximal random effect structure can be conceptualised without reference to the data or any tests, and the inclusion/exclusion of specific random effects is more a matter of what simplifications are required for the model to converge. Inclusion/exclusion of parameters based on significance testing is rarely, if ever a sensible approach.
-
-
+:::
 
 ## Linked flash cards
 

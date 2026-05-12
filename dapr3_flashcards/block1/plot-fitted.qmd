@@ -1,5 +1,5 @@
 ---
-title: "TODO Plot model-fitted values"
+title: "Plot model-fitted values"
 ---
 
 ```{r setup, include=FALSE}
@@ -8,60 +8,243 @@ library(tidyverse)
 library(lme4)
 ```
 
+The plots shown on this page are good examples of what you might include in the Results section of a report or (mini)dissertation.
 
 
-In the vast majority of analyses using multilevel models, the bit that people are most interested in is the fixed effects - these represent the estimated effects averaged across the clusters in our sample.  
+## Example: Life satisfaction in Scotland
 
-It's tempting, then, to think that we could take the model-predicted values for each observation (`predict()`/`fitted()`/`augment()` etc.) and average them up to get our estimated effects. If every cluster had the same amount of data at every level of the predictor then this would work but we would have more issues in estimating the uncertainty. 
+These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
 
-Instead, it is common to use helpful packages that can provide us with a small dataframe of estimated effects and uncertainty, that we can then plot. One such package is the __effects__ package, which has the `effect()` function, that can be used as so:
+Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
 
-```{r eval=F}
+```{r}
+#| echo: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+tibble(
+  variable = names(df),
+  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
+) |> gt::gt()
+```
+
+```{r}
+lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+```
+
+
+Our model is the following (to see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html)).
+
+```{r}
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot
+)
+```
+
+
+### Step 1: Plot fixed effects
+
+With the `effects` library, we get the function `effect()`.
+This function tells us the model-fitted outcome values (in column `fit`) for each value of `age`, along with the `lower` and `upper` bounds of the 95% CI around those fitted values.
+
+```{r}
 library(effects)
-effect(term = "motiv*funding", mod = smod3) |>
+
+effect(term = "age", mod = lifesat_mod) |>
   as.data.frame()
 ```
 
-We can then use this to plot: 
+`effect()` by default gives five equally-spaced values across the range of the predictor, but to make `effect()` give us fitted values for the whole observed range of `age`, we define the values of `age` we want to see and then tell that to `effects()` using the `xlevels=` argument:
 
-```{r eval=F}
-effect(term = "motiv*funding", mod = smod3) |>
+```{r}
+# Get fitted values every five years between the min age and max age
+age_range <- seq(
+  min(lifesatscot$age),
+  max(lifesatscot$age),
+  5
+)
+
+effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
+  as.data.frame()
+```
+
+
+We can pipe this data into ggplot to visualise the model-fitted values as follows:
+
+```{r}
+effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   as.data.frame() |>
-  ggplot(aes(x = motiv, col = funding, fill = funding)) +
-  geom_line(aes(y = fit)) + 
-  geom_ribbon(aes(y = fit, ymin = lower, ymax = upper), alpha = .3)
+  ggplot(aes(x = age, y = fit)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.3) +
+  labs(
+    y = 'Life satisfaction',
+    x = 'Age'
+  )
 ```
 
-However, as with plotting all estimated effects, it is very useful to also display the underlying data, to make clear the variability we would actually expect. The plot above shows us what we would expect for children from the schools _on average_. It doesn't clearly depict how schools and children vary, and a reader could easily take away the idea that we expect most children to fall within those bands. 
 
-One easy way is to adjust plot is to simply show the raw data behind our estimated effects, which requires giving the ggplot() code data from two different places:  
-```{r eval=F}
-efplot <- effect(term = "motiv*funding", mod = smod3) |>
+### Step 2: Plot group-level lines
+
+With the package `broom.mixed`, we get the function `augment()`.
+Think of this function as the group-level version of `effects::effect()`: it gives us model-fitted values (in the column `.fitted`) for each level of our grouping variable.
+We can pipe its output into ggplot and plot lines for each dwelling.
+
+```{r}
+library(broom.mixed)
+
+augment(lifesat_mod) |>
+  ggplot(aes(x = age, y = .fitted, group = dwelling)) +
+  geom_line()
+```
+
+
+### Step 3: Combine fixed effects and group-level lines
+
+This plot is a bit more complex, since it combines data coming from two different places: `effects()` and `augment()`.
+
+```{r}
+# Store the fitted estimates for the fixed effects 
+eff_df <- effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   as.data.frame()
 
-ggplot(data = schoolmot, 
-       aes(x = motiv, col = funding, fill = funding)) +
-  geom_point(aes(y = grade), alpha = .3) + 
-  geom_line(data = efplot, aes(y = fit)) + 
-  geom_ribbon(data = efplot, 
-              aes(y = fit, ymin = lower, ymax = upper), alpha = .3)
+# Create the ggplot based on `augment()`
+augment(lifesat_mod) |>
+  
+  # Both augment() and eff_df have the same variable called `age` for the x axis,
+  # so we can define that x axis for the whole ggplot:
+  ggplot(aes(x = age)) +
+  
+  # Create the group-level lines with the variable names specific to augment()
+  geom_line(aes(y = .fitted, group = dwelling), alpha = 0.2) +
+  
+  # Drawing on data from eff_df, which has different column names,
+  # create the fixed effect line and 95% CI ribbon
+  geom_line(data = eff_df, aes(y = fit)) +
+  geom_ribbon(data = eff_df, aes(y = fit, ymin = lower, ymax = upper), alpha = 0.3) +
+  
+  # Cosmetics: adjust axis labels
+  labs(
+    x = 'Age',
+    y = 'Life satisfaction'
+  )
+```
+
+
+::: {.callout-caution collapse="true"}
+#### Add colour by `dwelling`
+
+The only change is to rewrite `group = dwelling` as `colour = dwelling` in the first `geom_line()` call!
+
+Caution: adding colour is only really useful if there are few enough levels of the grouping variable.
+If there are lots of levels, it's hard for the reader to map different colours to different levels, so the colours would not add useful information.
+
+```{r}
+# Store the fitted estimates for the fixed effects 
+eff_df <- effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
+  as.data.frame()
+
+# Create the ggplot based on `augment()`
+augment(lifesat_mod) |>
+  
+  # Both augment() and eff_df have the same variable called `age` for the x axis,
+  # so we can define that x axis for the whole ggplot:
+  ggplot(aes(x = age)) +
+  
+  # Create the group-level lines, now colouring by dwelling!   
+  geom_line(aes(y = .fitted, colour = dwelling), alpha = 0.6) +  # <- THE ONLY CHANGE!
+  
+  # Drawing on data from eff_df, which has different column names,
+  # create the fixed effect line and 95% CI ribbon
+  geom_line(data = eff_df, aes(y = fit)) +
+  geom_ribbon(data = eff_df, aes(y = fit, ymin = lower, ymax = upper), alpha = 0.3) +
+  
+  # Cosmetics: adjust axis labels
+  labs(
+    x = 'Age',
+    y = 'Life satisfaction'
+  )
+```
+
+:::
+
+
+
+## More complex example: School grades, motivation, and funding
+
+This dataset contains information on 900 children from 30 different schools across Scotland.
+The data was collected as part of a study looking at **whether education-related motivation is associated with school grades. This is expected to be different for state vs privately funded schools.**   
+All children completed an 'education motivation' questionnaire, and their end-of-year grade average has been recorded.
+
+Data are available at [https://uoepsy.github.io/data/schoolmot.csv](https://uoepsy.github.io/data/schoolmot.csv).  
+
+```{r}
+#| echo: false
+tibble(variable=names(read_csv("https://uoepsy.github.io/data/schoolmot.csv")),
+       description = c(
+         "Child's Education Motivation Score (range 0 to 10)",
+         "Funding ('state' or 'private')",
+         "Name of School that the child attends",
+         "Child's end-of-year grade average (0 to 100)")
+) |> gt::gt()
+```
+
+```{r}
+schoolmot <- read_csv('https://uoepsy.github.io/data/schoolmot.csv')
+```
+The [maximal model](maxmodel.html) will be the following:
+
+```{r}
+grade_mod <- lmer(
+  grade ~ motiv * funding + (1 + motiv | schoolid), 
+  data = schoolmot)
+```
+
+We are predicting schoolchildren's grades as a function of their motivation, their school's funding, and the interaction between those two variables.
+We are also including by-school adjustments to the fixed intercept and to the fixed slope over `motiv`.
+(For the steps to identify random effect structures, see [Identify possible random effects](identify-ranef.html).)
+
+
+### Step 1: Plot fixed effects
+
+Because we've got an interaction model, we include both interacting predictors in the `term=` argument of `effect()`.
+
+```{r}
+effect(term = "motiv * funding", mod = grade_mod) |>
+  as.data.frame() |>
+  ggplot(aes(x = motiv)) +
+  geom_line(aes(y = fit, colour = funding)) + 
+  geom_ribbon(aes(y = fit, ymin = lower, ymax = upper, fill = funding), alpha = .3)
+```
+
+
+### Step 2: Plot group-level lines
+
+```{r}
+augment(grade_mod) |>
+  ggplot(aes(x = motiv, y = .fitted, group = schoolid)) +
+  geom_line()
+```
+
+
+### Step 3: Combine and colour
+
+```{r}
+eff_df <- effect(term = "motiv * funding", mod = grade_mod) |>
+  as.data.frame()
+
+augment(grade_mod) |>
+  ggplot(aes(x = motiv)) +
+  geom_line(aes(y = .fitted, group = schoolid, colour = funding), alpha = 0.3) +
+  geom_line(data = eff_df, aes(y = fit, colour = funding), linewidth = 1.5) + 
+  geom_ribbon(
+    data = eff_df, 
+    aes(y = fit, ymin = lower, ymax = upper, fill = funding), 
+    alpha = 0.3
+  )
 ```
 
 
 
-## Fixed effects only (but don't stop here)
-
-lorem ipsum
-
-
-## Group-member-specific fitted values
-
-lorem ipsum
-
-
-## Group-member-specific fitted values with fixed effects
-
-lorem ipsum
 
 ## Linked flash cards
 
