@@ -42,7 +42,7 @@ jobsat <- read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")
 Here's the [maximal model](maxmodel.html) for this data:
 
 ```{r}
-jsmod <- lmer(
+jobsat_mod <- lmerTest::lmer(
   jobsat ~ 1 + payscale + NSSrating + (1 + payscale | dept), 
   data = jobsat
 )
@@ -51,135 +51,151 @@ jsmod <- lmer(
 We are predicting employee's job satisfaction as a function of their pay scale and the department's NSS rating.
 We're also including by-department adjustments to the fixed intercept and to the slope over `payscale`.
 
+To see where the `lmerTest::lmer()` bit comes from, see [Get p-values for LMM coefficients](pvals.html).
 
-<!-- ::: {.callout-caution collapse="true"} -->
-<!-- ## Mathematical model formulation -->
 
-<!-- In the following, $n$ represents the $n$th observation, that is, the $n$th row in the dataframe. -->
-<!-- The notation $\text{dept}[n]$ identifies the department of the observation in row $n$. -->
-<!-- For example, $\text{dept}[5]$ (the department of the fifth observation) is African Studies. -->
+## Detecting influential points and groups
 
-<!-- <br> -->
+In simple LMs, we only looked out for influential points.
+In LMMs, we should also be on the lookout for influential *groups*, that is, particular levels of a [grouping variable](groupstruc.html) which influence the model's estimates.
 
-<!-- \begin{align} -->
-<!-- \text{jobsat}_{n} &=  -->
-<!-- (\beta_0 + u_{\text{dept}[n],0}) +  -->
-<!-- ((\beta_1 + u_{\text{dept}[n],1}) \cdot \text{payscale}_n) +  -->
-<!-- (\beta_2 \cdot \text{NSSrating}_{\text{dept}[n]}) + -->
-<!-- \epsilon_{n} \\ -->
+There are two main R packages for examining influence in multilevel models: `HLMdiag` and `influence.ME`.
 
-<!-- \pmatrix{u_{\text{dept}[n],0} \\ u_{\text{dept}[n],1}} &\sim \text{Normal} -->
-<!-- \begin{bmatrix} -->
-<!-- \pmatrix{0 \\ 0}, -->
-<!-- \pmatrix{ -->
-<!-- \sigma_{u_{\text{dept}[n],0}}^2  &  -->
-<!-- \rho_u \sigma_{u_{\text{dept}[n],0}} \sigma_{u_{\text{dept}[n],1}} \\  -->
-<!-- \rho_u \sigma_{u_{\text{dept}[n],0}} \sigma_{u_{\text{dept}[n],1}} & -->
-<!-- \sigma_{u_{\text{dept}[n],1}}^2} -->
-<!-- \end{bmatrix} \\ -->
+`HLMdiag`:
 
-<!-- \epsilon_{} &\sim \text{Normal}(0, \sigma) \\ -->
-<!-- \end{align} -->
+- works only for `lmer()`, not `glmer()`
+- runs more quickly than `influence.ME`
 
-<!-- ``` -->
-<!-- $$ -->
-<!-- \begin{align} -->
-<!-- \text{jobsat}_{n} &=  -->
-<!-- (\beta_0 + u_{\text{dept}[n],0}) +  -->
-<!-- ((\beta_1 + u_{\text{dept}[n],1}) \cdot \text{payscale}_n) +  -->
-<!-- (\beta_2 \cdot \text{NSSrating}_{\text{dept}[n]}) + -->
-<!-- \epsilon_{n} \\ -->
 
-<!-- \pmatrix{u_{\text{dept}[n],0} \\ u_{\text{dept}[n],1}} &\sim \text{Normal} -->
-<!-- \begin{bmatrix} -->
-<!-- \pmatrix{0 \\ 0}, -->
-<!-- \pmatrix{ -->
-<!-- \sigma_{u_{\text{dept}[n],0}}^2  &  -->
-<!-- \rho_u \sigma_{u_{\text{dept}[n],0}} \sigma_{u_{\text{dept}[n],1}} \\  -->
-<!-- \rho_u \sigma_{u_{\text{dept}[n],0}} \sigma_{u_{\text{dept}[n],1}} & -->
-<!-- \sigma_{u_{\text{dept}[n],1}}^2} -->
-<!-- \end{bmatrix} \\ -->
+`influence.ME`:
 
-<!-- \epsilon_{} &\sim \text{Normal}(0, \sigma) \\ -->
-<!-- \end{align} -->
-<!-- $$ -->
-<!-- ``` -->
-<!-- <!-- Notice that in the mathematical model formulation, we can see the assumptions that our model makes about what values are sampled from normal distributions! -->
-
-<!-- ::: -->
+- works both for `lmer()` and `glmer()`
+- runs more slowly than `HLMdiag`
 
 
 
-## Detecting influential points and clusters
 
-There are two main packages for examining influence in multilevel models, __HLMdiag__ and __influence.ME__ that work by going through and deleting each observation/cluster and examining how much things change.
-__HLMdiag__ works for `lmer()` but not `glmer()`, but provides a one-step approximation of the influence, which is often quicker than the full refitting process.
-The __influence.ME__ package will be slower, but it works for both `lmer()` and `glmer()`.    
+### `HLMdiag`
 
-
-### HLMdiag
-
-We use this package by creating an object using `hlm_influence()`, specifying the level at which we want to examine influence.  
-In this case, `level = 1` means we are looking at the influence of individual observations, and `level = "dept"` specifies that we are looking at the influence of the levels in the `dept` variable.  
-The `approx = TRUE` part means that we are asking for the approximate calculations of influence measures, rather than asking for it to actually iteratively delete each observation and re-fit the model.  
+This package gives us a function called `hlm_influence()`.
+To check observation-level influence, we use the argument `level = 1`, or to check group-level influence for the `dept` grouping variable, we write `level = 'dept'`.
+Finally, we write `approx = TRUE` to specify that we're only looking for approximate calculations of the influence measures (approximating the measures is why `HLMdiag` is faster than `influence.ME`).
 
 ```{r}
 library(HLMdiag)
 
-inf1 <- hlm_influence(model = jsmod, level = 1, approx = TRUE)
-inf2 <- hlm_influence(model = jsmod, level = "dept", approx = TRUE)
+inf_obs  <- hlm_influence(model = jobsat_mod, level = 1, approx = TRUE)
+inf_dept <- hlm_influence(model = jobsat_mod, level = "dept", approx = TRUE)
 ```
 
-We can then plot metrics such as the Cook's Distance for each of these.
-Note that the "internal" cutoff here adds a red line to the plots, and is simply calculated as the 3rd quartile plus 3 times the IQR, thereby capturing a relative measure of outlyingness.  
-As with the measures of influence for `lm()`, such cutoffs are somewhat arbitrary, and so should be interpreted with caution.  
+The resulting data frames contain a lot of different influence measures.
+For example, here are the approximated Cook's Distances of the first six observations:
 
 ```{r}
-dotplot_diag(inf1$cooksd, cutoff = "internal")
+inf_obs$cooksd |> head()
+```
 
-dotplot_diag(inf2$cooksd,  index = inf2$dept, cutoff = "internal")
+And here are the approximated Cook's Distances of the first six `dept`s:
+
+```{r}
+inf_dept$cooksd |> head()
+```
+
+We can also plot these metrics.
+
+Here's the Cook's Distance for all observations, including a cutoff (the red line) at the third quartile + three times the inter-quartile range of the observed Cook's Distances.
+This is a somewhat arbitrary threshold—to really check the impact of these observations, you'd want to run a sensitivity analysis (see below).
+
+```{r}
+dotplot_diag(inf_obs$cooksd, cutoff = "internal")
 ```
 
 
-### influence.ME
+And here is the Cook's Distance for each department:
 
-We use this package by creating an object using `influence()`, specifying the level at which we want to examine influence.  
-In this case, `obs = TRUE` means we are looking at the influence of individual observations, and `group = "dept"` specifies that we are looking at the influence of the levels in the `dept` variable.  
+```{r}
+dotplot_diag(inf_dept$cooksd, index = inf_dept$dept, cutoff = "internal")
+```
+
+The sensitivity analysis below will double-check on the Nursing Studies group to see whether it might be unduly influencing the model's results.
+
+
+### `influence.ME`
+
+The `influence.ME` gives us a function called `influence()`.
+To check observation-level influence, we specify `obs = TRUE`, or to check group-level influence for `dept`, we specify `group = "dept"`.
+
+`influence()` does a bit more work behind the scenes, which is what makes it slower: it iteratively deletes each observation or each group, re-fits the model, and compares the complete model to the one with the observation/group deleted.
 
 ```{r}
 library(influence.ME)
-inf1 <- influence(model = jsmod, obs = TRUE)
-inf2 <- influence(model = jsmod, group = "dept")
+
+inf_obs  <- influence(model = jobsat_mod, obs = TRUE)
+inf_dept <- influence(model = jobsat_mod, group = "dept")
 ```
 
-We can then plot metrics such as the Cook's Distance for each of these:
+
+Now we can use `plot()` to show influence measures like Cook's Distance.
+
+The Cook's Distance for each observation (the y axis labels are the index of each observation, but so squished together that you can't really read them):
 
 ```{r}
-plot(inf1, which = "cook", sort = TRUE)
-plot(inf2, which = "cook", sort = TRUE)
+plot(inf_obs, which = "cook", sort = TRUE)
 ```
+
+For each `dept`:
+
+```{r}
+plot(inf_dept, which = "cook", sort = TRUE)
+```
+
+Again, Nursing Studies appears to have a stronger influence on the model than the other departments.
+To see whether it affects our conclusions, we'll do a sensitivity analysis.
+
 
 ## Sensitivity analysis
 
-To conduct a sensitivity analysis of our model's robustness to the inclusion of such influential observations, we would simply fit our model with and without that observation/cluster, and examine if/how our conclusions would change.  
-For instance, to refit our model without employees of the 'Nursing Studies' department: 
+A sensitivity analysis involves fitting our model with and without a given observation/group and examining whether/how our conclusions change.
+
+Because Nursing Studies appears to have fairly strong influence on `jobsat_mod`, let's try fitting another version of this model that doesn't include the Nursing Studies data.
 
 ```{r}
-jsmod_NS <- lmer(
+jobsat_mod_NS <- lmerTest::lmer(
   jobsat ~ 1 + payscale + NSSrating +  (1 + payscale| dept), 
   data = jobsat |> filter(dept != "Nursing Studies")
 )
 ```
 
+
+And we'll compare the coefficients and pattern of significance in the two models.
+
+:::: {.columns}
+
+::: {.column width="45%"}
+WITH Nursing Studies:
+
 ```{r}
-summary(jsmod)
-summary(jsmod_NS)
+summary(jobsat_mod)
 ```
+:::
+
+::: {.column width="10%"}
+:::
+
+::: {.column width="45%"}
+WITHOUT Nursing Studies:
+
+```{r}
+summary(jobsat_mod_NS)
+```
+:::
+
+::::
+
 
 The effect size for `NSSrating` becomes a bit smaller once we exclude Nursing Studies.
-But the pattern of significance does not change.
-So we would conclude that our results are not being driven by the data from the Nursing Studies department.
-
+But at $\alpha = .05$ (the standard significance level in Psychology and related fields), the pattern of significance does not change.
+So the sensitivity analysis allows us to conclude that the model's estimates aren't being driven purely by the data from the Nursing Studies department.
 
 
 ## Linked flash cards
