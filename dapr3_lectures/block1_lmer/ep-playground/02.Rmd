@@ -44,12 +44,17 @@ implicit_data <- simcross(
     logRT = y
   ) |>
   mutate(
-    pairing = ifelse(pairing == 'a', 'Similar', 'Different'),
+    pairing = factor(ifelse(pairing == 'a', 'Associated', 'Unassociated'), levels = c('Unassociated', 'Associated')),
     ppt_id = paste0('ppt', ppt_id),
     item_id = paste0('item', item_id),
     logRT = datawizard::rescale(logRT, to = c(0.28, 8.62))
   )
 
+write_csv(implicit_data, '../data/iat.csv')
+```
+
+
+```{r}
 implicit_data |>
   ggplot(aes(x = pairing, y = logRT)) +
   geom_violin() +
@@ -75,7 +80,7 @@ summary(m)
 
 ```{r}
 ranef(m)$ppt_id |>
-  arrange(desc(pairingSimilar))
+  arrange(desc(pairingAssociated))
 ```
 
 
@@ -91,7 +96,7 @@ ppts_to_plot <- c(56, 14, 33, 24, 44, 31, 67, 97, 99)
 
 p_implicit_ppts <- implicit_data |>
   mutate(
-    pairing_num = ifelse(pairing == 'Different', 0, 1)
+    pairing_num = ifelse(pairing == 'Unassociated', 0, 1)
   ) |>
   filter(ppt_id %in% paste0('ppt', ppts_to_plot)) |>
   ggplot(aes(x = pairing_num, y = logRT)) +
@@ -99,7 +104,7 @@ p_implicit_ppts <- implicit_data |>
   stat_summary(fun = mean, geom = 'point') +
   stat_summary(aes(group = ppt_id), fun = mean, geom = 'line') +
   facet_wrap(~ ppt_id) +
-  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('Different', 'Similar')) +
+  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('Unassociated', 'Associated')) +
   labs(x = 'Topic pairing') +
   theme(
     strip.background = element_blank(),
@@ -119,14 +124,14 @@ summary(implicit_lm)
 
 ```{r}
 coef(implicit_lm)[['(Intercept)']]
-coef(implicit_lm)[['pairingSimilar']]
+coef(implicit_lm)[['pairingAssociated']]
 ```
 
 ```{r}
 p_implicit_ppts +
   geom_abline(
     intercept = coef(implicit_lm)[['(Intercept)']],
-    slope = coef(implicit_lm)[['pairingSimilar']],
+    slope = coef(implicit_lm)[['pairingAssociated']],
     colour = 'red'
   ) 
 ```
@@ -157,7 +162,7 @@ indiv_ppt_coefs <- coef(implicit_lmlist) |>
 p_implicit_ppts +
   geom_abline(
     data = filter(indiv_ppt_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
-    aes(intercept = `(Intercept)`, slope = pairingSimilar, colour = ppt_id),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
   )  +
   theme(legend.position = 'none')
 ```
@@ -217,7 +222,7 @@ random_int_coefs
 p_implicit_ppts +
   geom_abline(
     data = filter(random_int_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
-    aes(intercept = `(Intercept)`, slope = pairingSimilar, colour = ppt_id),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
   )  +
   theme(legend.position = 'none')
 ```
@@ -252,7 +257,7 @@ random_int_slp_coefs
 p_implicit_ppts +
   geom_abline(
     data = filter(random_int_slp_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
-    aes(intercept = `(Intercept)`, slope = pairingSimilar, colour = ppt_id),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
   )  +
   theme(legend.position = 'none')
 ```
@@ -265,7 +270,7 @@ items_to_plot <- c(1, 2, 4, 13, 6, 8, 14, 27, 32)
 
 p_implicit_items <- implicit_data |>
   mutate(
-    pairing_num = ifelse(pairing == 'Different', 0, 1)
+    pairing_num = ifelse(pairing == 'Unassociated', 0, 1)
   ) |>
   filter(item_id %in% paste0('item', items_to_plot)) |>
   ggplot(aes(x = pairing_num, y = logRT)) +
@@ -273,7 +278,7 @@ p_implicit_items <- implicit_data |>
   stat_summary(fun = mean, geom = 'point') +
   stat_summary(aes(group = item_id), fun = mean, geom = 'line') +
   facet_wrap(~ item_id) +
-  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('Different', 'Similar')) +
+  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('Unassociated', 'Associated')) +
   labs(x = 'Topic pairing') +
   theme(
     strip.background = element_blank(),
@@ -290,14 +295,14 @@ p_implicit_items
 p_implicit_items +
   geom_abline(
     intercept = fixef(implicit_int_slp)[['(Intercept)']],
-    slope = fixef(implicit_int_slp)[['pairingSimilar']],
+    slope = fixef(implicit_int_slp)[['pairingAssociated']],
     colour = 'red'
   ) 
 ```
 
 
 
-## intro crossed ranefs
+## Week 3: intro to >1 ranefs
 
 ```{r}
 implicit_maximal_model <- lmer(
@@ -330,7 +335,7 @@ Plot with adjustments by ppt:
 p_implicit_ppts +
   geom_abline(
     data = filter(maximal_ppt_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
-    aes(intercept = `(Intercept)`, slope = pairingSimilar, colour = ppt_id),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
   )  +
   theme(legend.position = 'none')
 ```
@@ -346,7 +351,7 @@ Plot with adjustments by item:
 p_implicit_items +
   geom_abline(
     data = filter(maximal_item_coefs, item_id %in% paste0('item', items_to_plot)),
-    aes(intercept = `(Intercept)`, slope = pairingSimilar, colour = item_id),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = item_id),
   )  +
   theme(legend.position = 'none')
 ```
