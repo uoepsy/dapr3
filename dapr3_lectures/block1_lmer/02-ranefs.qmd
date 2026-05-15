@@ -179,7 +179,7 @@ To get around this, we take their logarithm.
 :::: {.columns}
 ::: {.column width="50%"}
 
-`ppt_id`: the person who took part in the experiment.
+`ppt_id`: the person who participated in the experiment.
 
 ```{r}
 implicit_data |>
@@ -190,7 +190,7 @@ implicit_data |>
 :::
 ::: {.column width="50%"}
 
-`item_id`: the word that people categorise.
+`item_id`: the word that people categorise (e.g., "self", "supported", "calm").
 
 ```{r}
 implicit_data |>
@@ -204,6 +204,21 @@ implicit_data |>
 <br>
 
 <!-- **This week we'll learn how to incorporate this grouping structure into a linear model.** -->
+
+## Cross-tabulate grouping variables to see how they relate
+
+"Cross-tabulate" is a fancy way to say "count all combinations of".
+
+This is something that `xtabs()` from the `stats` package can do for us.
+
+```{r}
+stats::xtabs(
+  ~ ppt_id + item_id,    # write the variables to crosstabulate in this weird format
+  data = implicit_data
+)
+```
+
+
 
 ## Plot the data for a few individual participants
 
@@ -703,11 +718,158 @@ It's a lot better than the random-intercept-only model!
 But still not awesome, because there's still another source of variability that we haven't yet modelled...
 
 
+## No adjustments for each item :(
+
+```{r fig.width = 12, fig.height = 8}
+#| code-fold: true
+p_implicit_items +
+  geom_abline(
+    intercept = fixef(implicit_lmm_int_slp)[['(Intercept)']],
+    slope = fixef(implicit_lmm_int_slp)[['pairingAssociated']],
+    colour = 'red',
+    linewidth = 1
+  ) 
+```
+
+Currently, the model currently averages over all items and imagines that they all pattern exactly the same, because we haven't told it that each item might also vary.
+
+The red line is the line with the fixed effect parameters: <span style="color:red"> intercept = 4.77, slope = –0.76.</span>
+
 # Adding random effects by item
 
 ## Adding random effects by item
 
-RESUME
+```{r}
+implicit_full_lmm <- lmer(
+  logRT ~ pairing + (1 + pairing | ppt_id) + (1 + pairing | item_id),  # new term!
+  data = implicit_data
+)
+```
+
+<br>
+
+Now we have
+
+- random intercepts (aka intercept adjustments) by `ppt_id`
+- random slopes (aka slope adjustments) over `pairing` by `ppt_id`
+
+and also
+
+- random intercepts (aka intercept adjustments) by `item_id`
+- random slopes (aka slope adjustments) over `pairing` by `item_id`
+
+
+## Plot the by-participant intercept and slope adjustments
+
+```{r}
+dotplot.ranef.mer(ranef(implicit_full_lmm))$ppt_id
+```
+
+
+## Plot the by-item intercept and slope adjustments
+
+```{r}
+dotplot.ranef.mer(ranef(implicit_full_lmm))$item_id
+```
+
+
+## This model captures by-participant variability
+
+```{r fig.width = 12, fig.height = 8}
+#| code-fold: true
+full_llm_ppt_coefs <- coef(implicit_full_lmm)$ppt_id |>
+  rownames_to_column(var = 'ppt_id')
+
+p_implicit_ppts +
+  geom_abline(
+    data = filter(full_llm_ppt_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
+    linewidth = 1
+  )  +
+  theme(legend.position = 'none')
+```
+
+
+## This model also captures by-item variability!
+
+```{r fig.width = 12, fig.height = 8}
+#| code-fold: true
+full_llm_item_coefs <- coef(implicit_full_lmm)$item_id |>
+  rownames_to_column(var = 'item_id')
+
+p_implicit_items +
+  geom_abline(
+    data = filter(full_llm_item_coefs, item_id %in% paste0('item', items_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = item_id),
+    linewidth = 1
+  )  +
+  theme(legend.position = 'none')
+```
+
+
+## Recap: Intro to linear mixed models (LMMs)
+
+- The difference between a simple linear model and a linear mixed model:
+  - A simple linear model has no random effects.
+  - **A linear mixed model has random effects.**
+
+- "Random effects": an umbrella term that refers to both **random intercepts** and **random slopes**.
+
+- We are teaching you how to use LMMs because they are the current state of the art for doing inferential statistics in Psychology and adjacent fields (especially for experimental/clinical research.)
+
+
+
+
+## W3: Reporting this LMM
+
+```{r}
+implicit_full_lmm <- lmer(
+  logRT ~ pairing + (1 + pairing | ppt_id) + (1 + pairing | item_id),  # new term!
+  data = implicit_data
+)
+```
+
+To describe this model in text, we could write
+
+> We fit a linear mixed model to predict log RT as a function of topic pairing (treatment-coded, with "Unassociated" coded as 0 and "Associated" coded as 1).
+This model includes by-participant random intercepts and random slopes over topic pairing, as well as by-item random intercepts and random slopes over topic pairing.
+
+or
+
+> ... This model includes random intercepts and random slopes over topic pairing, both by participant and by item.
+
+or (less traditional phrasing, but more transparent about what the random effects are actually doing)
+
+> ... This model includes by-participant and by-item adjustments both to the intercept and to the slope over topic pairing.
+
+<br>
+
+Lots of options, so golden rule: **be extremely clear about which grouping variables get which intercept/slope adjustments.**
+
+
+
+
+
+## W3: Full LMM summary
+
+```{r}
+summary(implicit_full_lmm)
+```
+
+
+
+## Interpreting the model summary (1): <br> Fixed effects
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[1:20])
+```
+
+
+
+
+
 
 
 
