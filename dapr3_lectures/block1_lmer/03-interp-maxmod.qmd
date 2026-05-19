@@ -1,0 +1,656 @@
+---
+title: "Interpreting LMMs and <br> building maximal models"
+editor_options: 
+  chunk_output_type: inline
+format:
+  revealjs:
+    smaller: true
+---
+
+```{r setup, include=F}
+library(tidyverse)
+library(patchwork)
+library(emmeans)
+library(simglm)
+library(latex2exp)  # for betas in ggplots
+source('_theme/theme_quarto.R')
+
+theme_set(theme_quarto(title_font_size=42))
+theme_update(
+  text = element_text(family = 'Source Sans 3')
+)
+
+dapr3green <- "#88B04B" 
+dapr3dkgreen <- "#5C7C28"
+dapr3ltgreen <- "#E5EED7"
+pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
+```
+
+
+# Course Overview {background-color="white"}
+
+<br>
+
+```{r echo=F}
+#| results: "asis"
+block1_name = "Linear mixed models<br>(with Dr. Elizabeth Pankratz)"
+block1_lecs = c("Regression refresher, intro to group-structured data",
+                "Modelling group-structured data using random effects",
+                "Interpreting LMMs and building maximal models",
+                "TODO",
+                "recap")
+block2_name = "factor analysis<br>working with multi-item measures<br>(with Dr. Josiah King)"
+block2_lecs = c(
+  "measurement and dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "reliability and validity",
+  "recap & exam prep"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/refs/heads/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=3)
+```
+
+## This week's learning objectives
+
+:::dapr3callout
+TODO
+:::
+
+<!-- How do we interpret the random effect summaries in the output of `summary()`? -->
+
+<!-- What is a maximal model? -->
+
+<!-- How do we know if a model can include random intercepts for a given grouping variable? -->
+
+<!-- How do we know if a model can include random slopes over a given predictor for a given grouping variable? -->
+
+
+# Today's data (again): Log reaction times
+
+## Log reaction times in the <br> Implicit Association Test (IAT)
+
+- You're asked to categorise words from different topics together.
+- In theory, if you implicitly associate the topics, then your reaction times in the categorisation task should be faster.
+- IAT is pretty much debunked—it has very poor test–retest reliability and doesn't relate to people's behaviour ([source](https://psych.wisc.edu/Brauer/BrauerLab/index.php/implicit-bias/)) but the data is structured perfectly to teach you what I want to teach you.
+
+
+**Example of an IAT trial to test whether you implicitly relate anxiety with yourself:**
+
+![](figs/TODO-w2-IAT-calm.jpg){width=50% fig-align="center"}
+
+
+
+## Example data: Log reaction times in the <br> Implicit Association Test (IAT)
+
+```{r include=F}
+implicit_data <- read_csv('data/iat.csv') |>
+  mutate(pairing = factor(pairing, levels = c('Unassociated', 'Associated')))
+```
+
+:::: {.columns}
+::: {.column width="50%"}
+
+```{r fig.width = 7, fig.height = 7}
+#| code-fold: true
+set.seed(1)
+implicit_data |>
+  ggplot(aes(x = pairing, y = logRT)) +
+  geom_violin() +
+  geom_jitter(alpha = 0.05, size = 3) +
+  NULL
+```
+
+:::
+::: {.column width="5%"}
+:::
+::: {.column width="45%"}
+
+```{r}
+implicit_data |>
+  head(16)
+```
+
+
+:::
+::::
+
+:::dapr3callout
+Why do we need to model this data using random effects / a linear mixed model (LMM)?
+
+[WOO TODO]
+:::
+
+
+
+## Modelling this data with an LMM
+
+
+```{r}
+library(lme4)
+
+implicit_full_lmm <- lmer(
+  logRT ~ pairing + 
+    (1 + pairing | ppt_id) + 
+    (1 + pairing | item_id),
+  data = implicit_data
+)
+```
+
+
+  
+## Recap: What does it mean to "adjust the intercept"?
+
+
+:::: {.columns}
+::: {.column width="30%"}
+The average association between `logRT` and `pairing`:
+
+<br>
+
+![](figs/TODO-w2-avg.jpg)
+:::
+
+::: {.column width="5%"}
+:::
+
+
+::: {.column width="30%"}
+If a participant has a **higher log RT than average**, then they will have a **positive adjustment to the average intercept.**
+
+![](figs/TODO-w2-adj-pos.jpg)
+
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+If a participant has a **lower log RT than average**, then they will have a **negative adjustment to the average intercept.**
+
+![](figs/TODO-w2-adj-neg.jpg)
+
+:::
+::::
+
+When we include random intercepts by `ppt_id` in the model formula, we tell the model to **estimate how much the average intercept should be nudged up or down by,** in order to fit the data from each participant.
+
+  
+## Recap: What does it mean to "adjust the slope"?
+
+:::: {.columns}
+::: {.column width="30%"}
+The average association between `logRT` and `pairing`:
+
+<br>
+
+![](figs/TODO-w2-avg-slp.jpg)
+:::
+
+::: {.column width="5%"}
+:::
+
+
+::: {.column width="30%"}
+If a participant has a **more positive effect of `pairing` than average**, then they will have a **positive adjustment to the fixed slope of `pairing`.**
+
+![](figs/TODO-w2-adj-slp-pos.jpg)
+
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+If a participant has a **more negative effect of `pairing` than average**, then they will have a **negative adjustment to the fixed slope of `pairing`.**
+
+![](figs/TODO-w2-adj-slp-neg.jpg)
+
+:::
+::::
+
+When we include random slopes over `pairing` by `ppt_id` in the model formula, we tell the model to **estimate how much the fixed intercept AND the fixed slope over `pairing` should be nudged up or down by** in order to fit the data from each participant.
+
+
+## Reporting this LMM structure
+
+```{r eval=F}
+lmer(
+  logRT ~ pairing + 
+    (1 + pairing | ppt_id) + 
+    (1 + pairing | item_id),
+  data = implicit_data
+)
+```
+
+To describe this model in text, we could write
+
+> We fit a linear mixed model to predict log RT as a function of topic pairing (treatment-coded, with the reference level "Unassociated" coded as 0 and "Associated" coded as 1).
+This model includes by-participant random intercepts and random slopes over topic pairing, as well as by-item random intercepts and random slopes over topic pairing.
+
+or (less traditional phrasing, but more transparent about what the random effects are actually doing)
+
+> ... This model includes by-participant and by-item adjustments both to the intercept and to the slope over topic pairing.
+
+<br>
+
+The golden rule when describing random effects: **be crystal clear about which grouping variables get which intercept/slope adjustments.**
+
+
+# Deep dive: Interpreting LMM summaries
+
+## The full LMM summary
+
+```{r}
+summary(implicit_full_lmm)
+```
+
+
+## We start with the fixed effects
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[20:23])
+```
+ 
+<br>
+ 
+`(Intercept)`:
+
+- Intercepts in general:
+The estimated mean outcome when all predictors are equal to zero.
+
+- **This intercept:**
+The estimated mean log reaction time when the topic pairing is unassociated (the reference level, coded as 0) is 4.77 log units.
+
+
+`pairingAssociated`:
+
+- Single-predictor regression slopes in general:
+The estimated change in the outcome when the predictor moves from 0 to 1.
+
+- **This slope:**
+When moving from unassociated pairings to associated pairings, log reaction time is estimated to decrease by 0.76 log units.
+
+<br>
+
+**You may be wondering: there are t-values, so why are there no p-values?**
+
+
+## Why are there no p-values?
+
+Because of the mathematics behind random effects (which you do not need to know!), we cannot translate t-values into p-values in the same way we did for simple linear models.
+
+But clever people have come up with good approximations.
+Add those approximated p-values into the model summary by 
+
+- loading the library `lmerTest`, and
+- re-fitting the LMM using `lmer()`.
+
+This gives you p-values estimated using "Satterthwaite's method".
+
+```{r eval=F}
+library(lmerTest)
+
+implicit_full_lmm <- lmer(
+  logRT ~ pairing +  (1 + pairing | ppt_id) +  (1 + pairing | item_id), 
+  data = implicit_data
+)
+
+summary(implicit_full_lmm)
+```
+
+```{r echo=F}
+library(lmerTest)
+
+implicit_full_lmm <- lmer(
+  logRT ~ pairing +  (1 + pairing | ppt_id) +  (1 + pairing | item_id), 
+  data = implicit_data
+)
+
+cat('...\n\n')
+cat(paste0(
+  capture.output(
+  summary(implicit_full_lmm)
+), '\n')[20:24])
+cat('\n...')
+```
+
+
+## Full fixed effects interpretation, <br> now including p-values
+
+```{r echo=F}
+cat(paste0(
+  capture.output(
+  summary(implicit_full_lmm)
+), '\n')[20:24])
+```
+
+<br>
+ 
+`(Intercept)`:
+
+- The estimated mean log reaction time when the topic pairing is unassociated (the reference level, coded as 0) is 4.77 log units.
+- (significance testing for intercepts is usually only interesting for logistic regression models—where 0 log-odds is the same as 50/50 chance of success—so no need to discuss the intercept's p-value for this model)
+
+
+`pairingAssociated`:
+
+- When moving from unassociated pairings to associated pairings, log reaction time is estimated to decrease by 0.76 log units.
+- This decrease is significantly different from zero (p < 0.001).
+
+<br>
+
+
+
+## Now we can look at the random effects
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[12:20])
+```
+**First:** sense check the quantities in the final line.
+
+- Is the stated number of observations (6400) correct?
+- Is the stated number of distinct levels of `ppt_id` (100) correct?
+- Is the stated number of distinct levels of `item_id` (32) correct?
+
+
+**Then:** read the rest of this output like a table with columns named `Groups`, `Name`, `Variance`, `Std.Dev.`, and `Corr`.
+
+
+## Interpreting random effects, piece by piece (1)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13:14])
+```
+
+<br>
+
+**The `(Intercept)` adjustments for each level of `ppt_id` have a standard deviation (SD) of 0.78 log units.**
+
+The variance is just the SD squared (0.779$^2$ = 0.607) so it doesn't add much useful information.
+
+The number 0.78 doesn't mean much on its own.
+**We must interpret it with respect to the value that it is adjusting:** the fixed intercept of 4.77 log units.
+
+<br>
+
+[TODO fig of building up normal distribution around fixed int with pm 2 SDs]
+
+<br>
+
+Approx 95% of participant-level intercepts are estimated to fall between about `r 4.77 - (2 * 0.78)` log units and `r 4.77 + (2 * 0.78)` log units.
+
+## Interpreting random effects, piece by piece (2)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13:15])
+```
+
+<br>
+
+**The `pairingAssociated` adjustments for each level of `ppt_id` have a SD of 0.31 log units.**
+
+Again, in order to make this number meaningful, we must interpret it in relation to the fixed effect it's adjusting: the `pairingAssociated` fixed slope estimate of –0.76.
+
+[TODO normdist built up around mean]
+
+Approx 95% of participant-level slopes over `pairing` are estimated to fall between about –1.38 log units and <br> –0.14 log units.
+
+
+
+
+## Interpreting random effects, piece by piece (3)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13:15])
+```
+
+<br>
+
+The participant-level `(Intercept)` and `pairingAssociated` adjustments have a correlation of –0.83.
+
+```{r}
+#| code-fold: true
+dotplot.ranef.mer(ranef(implicit_full_lmm))$ppt_id
+```
+
+
+
+## Interpreting random effects, piece by piece (4)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13])
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[16])
+```
+
+<br>
+
+**The `(Intercept)` adjustments for each level of `item_id` have a SD of 0.88 log units.**
+
+<br>
+
+[TODO normdist built up around mean]
+
+<br>
+
+Approx 95% of item-level intercepts are estimated to fall between about `r 4.77 - (2 * 0.88)` log units and `r 4.77 + (2 * 0.88)` log units.
+
+This range for items is larger than the range for participants, which means that items show more variability around the fixed intercept than participants do.
+
+
+## Interpreting random effects, piece by piece (5)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13])
+
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[16:17])
+```
+
+<br>
+
+**The adjustments to `pairingAssociated` for each level of `item_id` have a SD of 0.39 log units.**
+
+[TODO normdist built up around mean]
+
+Approx 95% of item-level slopes over `pairing` are estimated to fall between about –1.54 log units and 0.02 log units.
+
+This is interesting because some items might show a **tiny positive effect** of `pairing`!
+In other words, they might elicit faster reactions for unassociated pairings and slower reactions for associated pairings—not the pattern we expected.
+
+Again, the item-level variation in slopes over `pairing` is greater than participant-level variation.
+
+
+## Interpreting random effects, piece by piece (6)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13])
+
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[16:17])
+```
+
+<br>
+
+The item-level `(Intercept)` and `pairingAssociated` adjustments have a correlation of –0.77.
+
+```{r}
+#| code-fold: true
+dotplot.ranef.mer(ranef(implicit_full_lmm))$item_id
+```
+
+
+
+## Interpreting random effects, piece by piece (7)
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[13])
+
+cat(paste0(capture.output(
+  summary(implicit_full_lmm)
+), '\n')[18])
+```
+
+<br>
+
+A residual is the difference between a data point's observed value and its model-predicted value.
+It reflects the random variability that is present in the world but not accounted for by variables we've included in the model.
+
+**The SD of all the residuals in this model is 0.52.**
+
+(This estimate isn't usually interesting or important to report.)
+
+
+# Plotting LMM estimates
+
+## Plotting LMM estimates
+
+```{r}
+
+```
+
+
+
+
+# For any dataset and RQ, how to identify possible random effects?
+
+## For any dataset and RQ, how to identify possible random effects?
+
+Four steps that will help you figure out *all* possible random effects that your dataset can support:
+
+[TODO flowchartify these steps, and work a couple data sets through the flowchart]
+
+1. Based on your RQ, what are your model's outcome and predictor variables?
+
+2. What are the grouping variables in your dataset?
+
+3. Which of those grouping variables contribute random/non-manipulated/non-controlled variability to your data? For each of these, you can include a random intercept.
+
+4. For each randomly-varying grouping variable/random intercept you have identified, do at least some of its levels appear with more than one value of each predictor? If so, then you can also include a random slope over that predictor.
+
+RESUME
+
+
+# Back matter
+
+## Learning objectives revisited
+
+
+
+
+## To do this week 
+
+<br>
+
+::::{.columns}
+:::{.column width="50%"}
+**Tasks:**
+
+<br>
+
+![](figs/labs.svg){width=80px style="margin:10px;margin-bottom:-50px"} Work on exercises in labs
+
+<br>
+
+![](figs/exam.svg){width=80px style="margin:10px;margin-bottom:-45px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+**Get support:**
+
+<br>
+
+![](figs/flashcards.svg){width=80px style="margin:10px;margin-bottom:-30px"}
+Consult the [flash cards](https://uoepsy.github.io/dapr3/2627/flashcards/){target="_blank"}
+
+<br>
+
+![](figs/forum.svg){width=80px style="margin:10px;margin-bottom:-50px"}
+Ask questions anonymously on Piazza
+
+<br>
+
+![](figs/oh.svg){width=80px style="margin:10px;margin-bottom:-40px"} 
+We really like seeing you in office hours!
+
+
+
+:::
+::::
+
+
+
+# Appendix {.appendix}
+
+
+
+## abc
+
+dolor sit amet
+
+**dolor sit amet**
+
+`abc`
+
+:::dapr3callout
+abc
+:::
+
+
+<!-- :::: {.columns} -->
+<!-- ::: {.column width="50%"} -->
+<!-- a -->
+<!-- ::: -->
+<!-- ::: {.column width="50%"} -->
+<!-- b -->
+<!-- ::: -->
+<!-- :::: -->
+
+
+
+<!-- :::: {.columns} -->
+<!-- ::: {.column width="30%"} -->
+<!-- a -->
+<!-- ::: -->
+<!-- ::: {.column width="5%"} -->
+<!-- ::: -->
+<!-- ::: {.column width="30%"} -->
+<!-- b -->
+<!-- ::: -->
+<!-- ::: {.column width="5%"} -->
+<!-- ::: -->
+<!-- ::: {.column width="30%"} -->
+<!-- c -->
+<!-- ::: -->
+<!-- :::: -->
+
+
+<!-- style="font-size: 70%;" -->
+
+ <!-- <img style="vertical-align: text-bottom; width: 1.5em;" src="figs/material-symbols--draw-outline.svg"> -->
+ <!-- <img style="vertical-align: text-bottom; width: 1.2em;" src="figs/material-symbols--person-rounded.svg"> -->
