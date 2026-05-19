@@ -3,7 +3,7 @@ title: "03 playground"
 output: html_notebook
 ---
 
-```{r}
+```{r setup}
 library(tidyverse)
 library(lme4)
 library(lmerTest)
@@ -11,7 +11,55 @@ library(lmerTest)
 
 # plotting estims
 
-for implicit_lmm
+## setup
+
+```{r}
+implicit_data <- read_csv('../data/iat.csv') |>
+  mutate(pairing = factor(pairing, levels = c('Unassociated', 'Associated')))
+```
+
+```{r}
+implicit_full_lmm <- lmer(
+  logRT ~ pairing + 
+    (1 + pairing | ppt_id) + 
+    (1 + pairing | item_id),
+  data = implicit_data
+)
+```
+
+```{r}
+summary(implicit_full_lmm)
+```
+
+
+## plot fixef
+
+```{r}
+library(effects)
+
+effect(term = "pairing", mod = implicit_full_lmm) |>
+  as.data.frame() |>
+  ggplot(aes(x = pairing, y = fit)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
+  geom_line(aes(group = 1))
+```
+
+
+## plot ranef lines
+
+We could do it by ppt or by item, depending on the story we want to tell ... or both, with lines coloured by ppt?
+one line per ppt/item pair?
+
+RESUME
+
+```{r}
+library(broom.mixed)
+
+augment(implicit_full_lmm)
+```
+
+
 
 
 # identifying possible ranefs
