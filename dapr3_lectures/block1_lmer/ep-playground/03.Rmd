@@ -42,16 +42,14 @@ effect(term = "pairing", mod = implicit_full_lmm) |>
   ggplot(aes(x = pairing, y = fit)) +
   geom_point() +
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
-  geom_line(aes(group = 1))
+  labs(
+    y = 'Log RT',
+    x = 'Topic pairing'
+  )
 ```
 
 
 ## plot ranef lines
-
-We could do it by ppt or by item, depending on the story we want to tell ... or both, with lines coloured by ppt?
-one line per ppt/item pair?
-
-RESUME
 
 ```{r}
 library(broom.mixed)
@@ -60,9 +58,287 @@ augment(implicit_full_lmm)
 ```
 
 
+```{r}
+augment(implicit_full_lmm) |>
+  ggplot(aes(
+    x = pairing, 
+    y = .fitted, 
+    group = interaction(ppt_id, item_id))
+  ) +
+  geom_line(alpha = 0.02)
+```
+
+
+## overlay ranefs and fixefs
+
+```{r}
+# Store the fitted estimates for the fixed effects
+eff_df <- effect(term = "pairing", mod = implicit_full_lmm) |>
+  as.data.frame()
+
+# Create the ggplot based on `augment()`
+augment(implicit_full_lmm) |>
+  
+  # Both augment() and eff_df have the same variable called `pairing` for the x axis,
+  # so we can define that x axis for the whole ggplot:
+  ggplot(aes(x = pairing)) +
+  
+  # Create the group-level lines with the variable names specific to augment()
+  geom_line(
+    aes(y = .fitted, group = interaction(ppt_id, item_id)),
+    alpha = 0.02
+  ) +
+  
+  # Drawing on data from eff_df, which has different column names,
+  # create the fixed effect points, line, and 95% CI bars
+  geom_point(data = eff_df, aes(y = fit)) +
+  geom_errorbar(data = eff_df, aes(ymin = lower, ymax = upper), width = 0) +
+  geom_line(data = eff_df, aes(y = fit, group = 1)) +
+  
+  # Cosmetics: adjust axis labels
+  labs(
+    x = 'Topic pairing',
+    y = 'Log RT'
+  ) 
+```
+
 
 
 # identifying possible ranefs
 
-- y ~ x + z (1 + x | g)  sth where only one pred not both have rd slps
-- y ~ x * z (1 + x * z | g) + (1 | h) sth w two groups
+## erm_belief
+
+```{r}
+belief_data <- read_csv("https://uoepsy.github.io/data/erm_belief.csv") |>
+  mutate(
+    hesitation = factor(ifelse(condition == 'disfluent', 'Yes', 'No')),
+  ) |>
+  select(ppt, sentence, statement, hesitation, belief) |>
+  arrange(ppt, sentence)
+```
+
+- "Water makes different sounds depending on its temperature"
+- "It's impossible to hum while holding your nose" 
+- "A hashtag is technically called an octothorp"  
+- "The largest snowflake was bigger than most pizzas"
+- "Pigs don't sweat"
+
+
+```{r}
+belief_data |>
+  ggplot(aes(x = hesitation, y = belief, colour = hesitation, fill = hesitation)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(alpha = 0.5, size = 3) +
+  stat_summary(geom = 'point', fun = mean, colour = 'black', size = 5) +
+  theme(
+    legend.position = 'none'
+  )
+```
+
+### Step 1: Predictors / fixed effects formula
+
+RQ: Do hesitation markers like "um"/"erm" make true statements sound less believable?
+
+- Outcome: `belief`
+- Predictor: `hesitation`
+
+Model formula: `belief ~ hesitation`
+
+
+### Step 2: Grouping variables
+
+```{r}
+names(belief_data)
+```
+
+- no need to check `belief` because (a) it's continuous (b) it's the outcome
+
+```{r}
+belief_data |> group_by(ppt) |> count()  # yes
+belief_data |> group_by(sentence) |> count()  # yes
+belief_data |> group_by(statement) |> count()  # yes (same as `sentence`)
+belief_data |> group_by(hesitation) |> count()  # yes
+```
+
+### Step 3: DGP + Random intercepts
+
+- `ppt`
+  - RQ doesn't specify that we manipulate or control for specific people in our analysis
+  - if we re-ran the study, we could look at different people
+  - therefore random variability
+- `sentence`
+  - RQ doesn't specify that we manipulate or control for specific sentences/statements
+  - if we re-ran the study, we could use other true statements
+  - therefore random variability
+- `statement`
+  - equivalent to `sentence`, will only use one
+- `hesitation`
+  - RQ specifies that we want to manipulate the hesitation markers in the sentence presentation
+  - if we re-ran the study, we would use exactly these two conditions again
+  - therefore manipulated and reproducible variability
+
+two grouping variables contribute random variability: `ppt` and `sentence`.
+therefore our model needs a random intercept for each one.
+
+so at minimum, our model formula is now: `belief ~ hesitation + (1 | ppt) + (1 | sentence)`
+
+
+### Step 4: Random slopes
+
+For each random intercept: do at least some levels of that grouping variable appear with >1 value of `hesitation`?
+
+(draw the little table?)
+
+
+**ppt:**
+
+```{r}
+stats::xtabs(~ ppt + hesitation, data = belief_data)
+```
+
+yes! so we can have random slopes over `hesitation` by `ppt`.
+
+we upgrade `(1 | ppt)` to `(1 + hesitation | ppt)`.
+
+
+**sentence**
+
+```{r}
+stats::xtabs(~ sentence + hesitation, data = belief_data)
+```
+
+yes! 
+we upgrade `(1 | sentence)` to `(1 + hesitation | sentence)`.
+
+
+### model with all possible random effects
+
+`belief ~ hesitation + (1 + hesitation | ppt) + (1 + hesitation | statement)`
+
+
+```{r}
+m <- lmer(
+  belief ~ hesitation 
+    + (1 + hesitation | ppt)
+    + (1 + hesitation | statement)
+  ,
+  data = belief_data
+)
+
+# summary(m)
+```
+
+
+## TEL
+
+```{r}
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+tel_data <- tel |>
+  filter(Test_word != 'Eskimo')
+```
+
+```{r}
+tel_data |>
+  ggplot(aes(x = Delay, y = Correct, colour = Group)) +
+  stat_summary(geom = 'pointrange', fun.data = mean_se) +
+  labs(
+    y = 'Proportion correct'
+  )
+```
+
+
+### Step 1: Predictors / fixed effects formula
+
+two groups of 25 participants were presented with material to learn. One group studied the material twice (`StudyStudy`), the other group studied the material once then did a test (`StudyTest`). Recall was tested immediately (one minute) after the learning session and one week later. The recall tests were composed of 175 items identified by a keyword (`Test_word`).
+
+RQ: Will the `StudyStudy` group perform better on the immediate test (one minute delay), but the `StudyTest` group perform better on the follow-up test (one-week delay)?
+
+```{r}
+names(tel_data)
+```
+
+Outcome: `Correct`
+Predictors: `Delay`, `Group`, and their interaction
+
+Formula:
+
+`Correct ~ Delay * Group`
+
+
+### Step 2: Grouping variables
+
+- don't need to check `Correct` bc that's the outcome
+- don't need to check `Rtime` bc it's continuous
+
+```{r}
+tel_data |> group_by(Subject_ID) |> count()  # yes
+tel_data |> group_by(Group) |> count()  # yes
+tel_data |> group_by(Delay) |> count()  # yes
+tel_data |> group_by(Test_word) |> count()  # yes
+```
+
+
+
+### Step 3: DGP + random intercepts
+
+- `Subject_ID`: random
+- `Group`: manipulated
+- `Delay`: manipulated
+- `Test_word`: random
+
+At minimum:
+
+`Correct ~ Delay * Group + (1 | Subject_ID) + (1 | Test_word)`
+
+
+### Step 4: Random slopes
+
+For each random intercept: do at least some levels of that grouping variable appear with >1 value of each predictor?
+
+(draw the little table?)
+
+**Subject_ID x Delay:**
+
+```{r}
+stats::xtabs(~ Subject_ID + Delay, data = tel_data)
+```
+
+yes
+
+**Subject_ID x Group:**
+
+```{r}
+stats::xtabs(~ Subject_ID + Group, data = tel_data)
+```
+
+No!
+
+So, for `Subject_ID`:
+
+`(1 + Delay | Subject_ID)`
+
+**Test_word x Delay:**
+
+```{r}
+stats::xtabs(~ Test_word + Delay, data = tel_data)
+```
+
+yes
+
+**Test_word x Group:**
+
+```{r}
+stats::xtabs(~ Test_word + Group, data = tel_data)
+```
+
+yes
+
+bc both, we can also include the ixn between them too!
+
+`(1 + Delay * Group | Test_word)`
+
+### model with all poss ranefs
+
+`Correct ~ Delay * Group + (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
+
+

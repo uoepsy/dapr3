@@ -59,12 +59,14 @@ TODO
 :::
 
 <!-- How do we interpret the random effect summaries in the output of `summary()`? -->
-
-<!-- What is a maximal model? -->
+<!-- - always relative to the fixed effects; no sig testing; ask whether pm 2 SDs changes direction of effect for some group-->
 
 <!-- How do we know if a model can include random intercepts for a given grouping variable? -->
 
 <!-- How do we know if a model can include random slopes over a given predictor for a given grouping variable? -->
+
+<!-- What is a maximal model? -->
+
 
 
 # Today's data (again): Log reaction times
@@ -520,42 +522,695 @@ It reflects the random variability that is present in the world but not accounte
 
 **The SD of all the residuals in this model is 0.52.**
 
-(This estimate isn't usually interesting or important to report.)
+(This estimate isn't usually interesting or important to report.
+We can usually just ignore it.)
 
 
-# Plotting LMM estimates
+# Plotting model-fitted values from LMMs
 
-## Plotting LMM estimates: <br> The kind of plot we want
+## Use `effect()` to compute the model's predicted values
 
-[todo finished plot]
+In the library `effects`, there is a function called `effect()`.
 
-## Step 1: Plot the fixed effects
+<!-- It is a bit like `emmeans()` from DAPR2, but it works for continuous AND categorical predictors. -->
+
+`effect()` tells us the outcome values that the model would estimate/predict for each level of our predictor, as well as the 95% CI around those values.
 
 
 ```{r}
+library(effects)
 
+effect(
+  term = "pairing",         # what predictor do we want predictions for?
+  mod = implicit_full_lmm   # what model should predictions be based on?
+) |>
+  as.data.frame()
+```
+
+<br>
+
+- `fit`: the estimated outcome (log RT) value for each level of `pairing`
+- `se`: the standard error of that estimate
+- `lower`: the lower bound of the estimate's 95% CI
+- `upper`: the upper bound of the estimate's 95% CI
+
+
+## Visualise these estimates
+
+```{r eval=F}
+effect(term = "pairing", mod = implicit_full_lmm) |>
+  as.data.frame() |>
+  ggplot(aes(x = pairing, y = fit)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
+  labs(
+    y = 'Log RT',
+    x = 'Topic pairing'
+  )
+```
+
+
+```{r echo=F}
+effect(term = "pairing", mod = implicit_full_lmm) |>
+  as.data.frame() |>
+  ggplot(aes(x = pairing, y = fit)) +
+  geom_point(size = 5) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0, linewidth = 1) +
+  labs(
+    y = 'Log RT',
+    x = 'Topic pairing'
+  )
 ```
 
 
 
+# How to identify all possible random effects
 
-# For any dataset and RQ, how to identify possible random effects?
+## How to identify all possible random effects
 
-## For any dataset and RQ, how to identify possible random effects?
+Four steps that you can apply to any dataset + RQ:
 
-Four steps that will help you figure out *all* possible random effects that your dataset can support:
+:::dapr3callout
+1. Use your RQ to figure out what your model’s outcome and predictors are (i.e., your model’s fixed effects).
+:::
 
-[TODO flowchartify these steps, and work a couple data sets through the flowchart]
+:::dapr3callout
+2. For all variables that are not the outcome or predictors, identify whether they are grouping variables.
+:::
 
-1. Based on your RQ, what are your model's outcome and predictor variables?
+:::dapr3callout
+3. Identify which of those grouping variables contribute random / non-manipulated / non-controlled variability to your data (think about the data generating process).
 
-2. What are the grouping variables in your dataset?
+For every randomly-varying grouping variable, your model must contain a random intercept for that grouping variable.
+:::
 
-3. Which of those grouping variables contribute random/non-manipulated/non-controlled variability to your data? For each of these, you can include a random intercept.
+:::dapr3callout
+4. Refer back to all predictors you identified in Step 1. For each randomly-varying grouping variable, check whether at least some of its levels appear with more than one value of each predictor.
 
-4. For each randomly-varying grouping variable/random intercept you have identified, do at least some of its levels appear with more than one value of each predictor? If so, then you can also include a random slope over that predictor.
+If they do, then (in addition to the random intercepts) your model can also contain a random slope over that predictor for that grouping variable.
 
-RESUME
+If they don't, then a random slope over that predictor is impossible.
+:::
+
+# Example 1: Hesitation markers and believability
+
+## Example 1: Hesitation markers and believability
+
+RQ: Do hesitation markers like “um”/“erm” affect how believable true statements seem?
+
+:::: {.columns}
+::: {.column width="45%"}
+**Examples from condition `hesitation = No`:**
+
+- "A hashtag is technically called an octothorp."
+- "The largest snowflake was bigger than most pizzas."
+- "Pigs don’t sweat."
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="50%"}
+**Examples from condition `hesitation = Yes`:**
+
+- "Erm ... a hashtag is technically called an octothorp."
+- "Erm ... the largest snowflake was bigger than most pizzas."
+- "Erm ... pigs don’t sweat."
+:::
+::::
+
+```{r include=F}
+belief_data <- read_csv("https://uoepsy.github.io/data/erm_belief.csv") |>
+  mutate(
+    hesitation = factor(ifelse(condition == 'disfluent', 'Yes', 'No')),
+  ) |>
+  select(ppt, sentence, statement, hesitation, belief) |>
+  arrange(ppt, sentence)
+```
+
+```{r}
+#| code-fold: true
+
+belief_data |>
+  ggplot(aes(x = hesitation, y = belief, colour = hesitation, fill = hesitation)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(alpha = 0.5, size = 3) +
+  stat_summary(geom = 'point', fun = mean, colour = 'black', size = 5) +
+  theme(
+    legend.position = 'none'
+  )
+```
+
+## The data
+
+```{r}
+belief_data |> head(20)
+```
+
+
+## Step 1: Identify fixed effects
+
+:::dapr3callout
+1. Use your RQ to figure out what your model’s outcome and predictors are (i.e., your model’s fixed effects).
+:::
+
+<br>
+
+RQ: Do hesitation markers like “um”/“erm” affect how believable true statements seem?
+
+<br>
+
+```{r}
+names(belief_data)
+```
+
+- Outcome variable: `belief`
+- Predictor variable: `hesitation`
+
+<br>
+
+The fixed effects part of the model formula will be `belief ~ hesitation`.
+
+
+## Step 2: Identify grouping variables
+
+:::dapr3callout
+2. For all variables that are not the outcome or predictors, identify whether they are grouping variables.
+:::
+
+:::: {.columns}
+::: {.column width="47%"}
+For `ppt`:
+
+```{r eval=F}
+belief_data |>
+  group_by(ppt) |>
+  count()
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+belief_data |>
+  group_by(ppt) |>
+  count()
+), '\n')[1:14])
+cat("...")
+```
+
+<br>
+
+Each value of `ppt` appears more than once.
+`ppt` is a grouping variable &nbsp; ✅
+
+:::
+::: {.column width="5%"}
+:::
+
+::: {.column width="47%"}
+
+For `sentence` (identical data to `statement`):
+
+```{r eval=F}
+belief_data |>
+  group_by(sentence) |>
+  count()
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+belief_data |>
+  group_by(sentence) |>
+  count()
+), '\n')[1:14])
+cat("...")
+```
+<br>
+
+Each value of `sentence` appears more than once.
+`sentence` is a grouping variable &nbsp;  ✅
+
+:::
+::::
+
+
+## Step 3: Random intercepts
+
+:::dapr3callout
+3. Identify which of those grouping variables contribute random / non-manipulated / non-controlled variability to your data (think about the data generating process).
+
+For every randomly-varying grouping variable, your model must contain a random intercept for that grouping variable.
+:::
+
+`ppt`:
+
+- The RQ doesn't specify that we manipulate or control for specific people.
+- We want our results to generalise across different people.
+- If we re-ran the study, we could recruit different participants and still address the RQ.
+- Therefore: **`ppt` contributes random variability, and our model needs at least a random intercept by participant.**
+
+
+`sentence`:
+
+- The RQ doesn't specify that we manipulate or control for specific sentences.
+- We want our results to generalise across different sentences.
+- If we re-ran the study, we could show people different sentences and still address the RQ.
+- Therefore: **`sentence` contributes random variability, and our model needs at least a random intercept by sentence.**
+
+
+The minimum LMM formula now: `belief ~ hesitation + (1 | ppt) + (1 | sentence)`
+
+
+## Step 4: Random slopes
+
+:::dapr3callout
+4. Refer back to all predictors you identified in Step 1. For each randomly-varying grouping variable, check whether at least some of its levels appear with more than one value of each predictor.
+
+If they do, then (in addition to the random intercepts) your model can also contain a random slope over that predictor for that grouping variable.
+
+If they don't, then a random slope over that predictor is impossible.
+:::
+
+:::: {.columns}
+::: {.column width="50%"}
+Do at least some levels of `ppt` appear with more than one value of `hesitation`?
+
+```{r eval=F}
+stats::xtabs(
+  ~ ppt + hesitation, 
+  data = belief_data
+)
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+stats::xtabs(
+  ~ ppt + hesitation, 
+  data = belief_data
+)
+
+), '\n')[1:8])
+cat("...")
+```
+
+Yes! 
+So `(1 + hesitation | ppt)` is possible.
+
+:::
+::: {.column width="50%"}
+
+Do at least some levels of `sentence` appear with more than one value of `hesitation`?
+
+```{r eval=F}
+stats::xtabs(
+  ~ sentence + hesitation, 
+  data = belief_data
+)
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+stats::xtabs(
+  ~ sentence + hesitation, 
+  data = belief_data
+)
+
+), '\n')[1:8])
+cat("...")
+```
+
+Yes! 
+So `(1 + hesitation | sentence)` is possible.
+
+:::
+::::
+
+
+## The model with all possible random effects
+
+<br>
+
+:::hcenter
+`belief ~ hesitation + (1 + hesitation | ppt) + (1 + hesitation | sentence)`
+:::
+
+<br>
+
+Another name for the model with all possible random effects is the **"maximal model".**
+
+
+
+
+
+# Example 2: Test-enhanced learning
+
+## Example 2: Test-enhanced learning
+
+Two groups of participants learn some new material.
+
+One group studied the material twice (the `StudyStudy` group), and the other group studied the material once and then tested themselves on it (the `StudyTest` group).
+
+Recall was tested immediately (one minute) after the learning session and again one week later (recorded in the variable `Delay`).
+
+The recall tests are each identified by a keyword (`Test_word`).
+
+**RQ: Does self-testing improve retention, such that the `StudyStudy` group may perform better on the immediate test, but the `StudyTest` group will perform better on the test one week later?**
+
+```{r include=F}
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+tel_data <- tel |>
+  filter(Test_word != 'Eskimo')
+rm(tel)
+```
+
+```{r}
+#| code-fold: true
+
+tel_data |>
+  ggplot(aes(x = Delay, y = Correct, colour = Group)) +
+  stat_summary(geom = 'pointrange', fun.data = mean_se, size = 1, linewidth = 1.5) +
+  labs(
+    y = 'Proportion correct'
+  )
+```
+
+
+## The data
+
+```{r}
+tel_data |> head(20)
+```
+
+
+
+## Step 1: Identify fixed effects
+
+:::dapr3callout
+1. Use your RQ to figure out what your model’s outcome and predictors are (i.e., your model’s fixed effects).
+:::
+
+<br>
+
+RQ: Does self-testing improve retention, such that the `StudyStudy` group may perform better on the immediate test, but the `StudyTest` group will perform better on the test one week later?
+
+<br>
+
+```{r}
+names(tel_data)
+```
+
+- Outcome variable: `Correct`
+- Predictor variables: `Delay`, `Group`, and their interaction
+
+<br>
+
+The fixed effects part of the model formula will be `Correct ~ Delay * Group`.
+
+
+## Step 2: Identify grouping variables
+
+:::dapr3callout
+2. For all variables that are not the outcome or predictors, identify whether they are grouping variables.
+:::
+
+The remaining variables: `Subject_ID` (categorical), `Test_word` (categorical), and `Rtime` (continuous, so we don't need to check it).
+
+:::: {.columns}
+::: {.column width="47%"}
+For `Subject_ID`:
+
+```{r eval=F}
+tel_data |>
+  group_by(Subject_ID) |>
+  count()
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+
+tel_data |>
+  group_by(Subject_ID) |>
+  count()
+  
+), '\n')[1:10])
+cat("...")
+```
+
+<br>
+
+Each value of `Subject_ID` appears more than once.
+`Subject_ID` is a grouping variable &nbsp; ✅
+
+:::
+::: {.column width="5%"}
+:::
+
+::: {.column width="47%"}
+
+For `Test_word`:
+
+```{r eval=F}
+tel_data |>
+  group_by(Test_word) |>
+  count()
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+  tel_data |>
+  group_by(Test_word) |>
+  count()
+
+), '\n')[1:10])
+cat("...")
+```
+<br>
+
+Each value of `Test_word` appears more than once.
+`Test_word` is a grouping variable &nbsp;  ✅
+
+:::
+::::
+
+
+## Step 3: Random intercepts
+
+
+:::dapr3callout
+3. Identify which of those grouping variables contribute random / non-manipulated / non-controlled variability to your data (think about the data generating process).
+
+For every randomly-varying grouping variable, your model must contain a random intercept for that grouping variable.
+:::
+
+`Subject_ID`:
+
+- The RQ doesn't specify that we manipulate or control for specific people.
+- We want our results to generalise across different people.
+- If we re-ran the study, we could recruit different subjects and still address the RQ.
+- Therefore: **`Subject_ID` contributes random variability, and our model needs at least a random intercept by subject.**
+
+
+`Test_word`:
+
+- The RQ doesn't specify that we manipulate or control for specific test words.
+- We want our results to generalise across different test words.
+- If we re-ran the study, we could show people different test words and still address the RQ.
+- Therefore: **`Test_word` contributes random variability, and our model needs at least a random intercept by test word.**
+
+
+The minimum LMM formula now: `Correct ~ Delay * Group + (1 | Subject_ID) + (1 | Test_word)`
+
+
+## Step 4: Random slopes
+
+:::dapr3callout
+4. Refer back to all predictors you identified in Step 1. For each randomly-varying grouping variable, check whether at least some of its levels appear with more than one value of each predictor.
+
+If they do, then (in addition to the random intercepts) your model can also contain a random slope over that predictor for that grouping variable.
+
+If they don't, then a random slope over that predictor is impossible.
+:::
+
+<br>
+
+We'll need to check all combinations of grouping variables and predictors:
+
+- Do at least some levels of `Subject_ID` appear with more than one value of `Delay`?
+- Do at least some levels of `Subject_ID` appear with more than one value of `Group`?
+- Do at least some levels of `Test_word` appear with more than one value of `Delay`?
+- Do at least some levels of `Test_word` appear with more than one value of `Group`?
+
+
+## Step 4: Random slopes by `Subject_ID`
+
+:::: {.columns}
+::: {.column width="47%"}
+Do at least some levels of `Subject_ID` appear with more than one value of `Delay`?
+
+```{r eval=F}
+stats::xtabs(
+  ~ Subject_ID + Delay, 
+  data = tel_data
+)
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+stats::xtabs(
+  ~ Subject_ID + Delay, 
+  data = tel_data
+)
+
+), '\n')[1:12])
+cat("...")
+```
+
+Yes! 
+So a random slope over `Delay` by `Subject_ID` is possible.
+
+:::
+::: {.column width="3%"}
+:::
+::: {.column width="50%"}
+
+Do at least some levels of `Subject_ID` appear with more than one value of `Group`?
+
+```{r eval=F}
+stats::xtabs(
+  ~ Subject_ID + Group, 
+  data = tel_data
+)
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+stats::xtabs(
+  ~ Subject_ID + Group, 
+  data = tel_data
+)
+
+), '\n')[1:12])
+cat("...")
+```
+
+No!
+People are either in one group or the other.
+We cannot include a random slope over `Group` by `Subject_ID`.
+
+:::
+::::
+
+<br>
+
+**The maximal random effects term for `Subject_ID` is `(1 + Delay | Subject_ID)`.**
+
+
+## Step 4: Random slopes by `Test_word`
+
+:::: {.columns}
+::: {.column width="47%"}
+Do at least some levels of `Test_word` appear with more than one value of `Delay`?
+
+```{r eval=F}
+stats::xtabs(
+  ~ Test_word + Delay, 
+  data = tel_data
+)
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+stats::xtabs(
+  ~ Test_word + Delay, 
+  data = tel_data
+)
+
+), '\n')[1:12])
+cat("...")
+```
+
+Yes! 
+So a random slope over `Delay` by `Test_word` is possible.
+
+:::
+::: {.column width="3%"}
+:::
+::: {.column width="50%"}
+
+Do at least some levels of `Test_word` appear with more than one value of `Group`?
+
+```{r eval=F}
+stats::xtabs(
+  ~ Test_word + Group, 
+  data = tel_data
+)
+```
+
+```{r echo=F}
+cat(paste0(capture.output(
+  
+stats::xtabs(
+  ~ Test_word + Group, 
+  data = tel_data
+)
+
+), '\n')[1:12])
+cat("...")
+```
+
+Yes!
+So we can also add on a random slope over `Group` by `Test_word`.
+
+And because both predictors can have random slopes, we can also include their interaction.
+
+:::
+::::
+
+**The maximal random effects term for `Test_word` is `(1 + Delay * Group | Test_word)`.**
+
+
+## The maximal model
+
+<br>
+
+:::hcenter
+`Correct ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
+:::
+
+
+# Why is it useful to find the maximal model?
+
+## Why is it useful to find the maximal model?
+
+Because the maximal model ...
+
+- ... takes into account all the variability that plays a role in our design.
+- ... gives us the most conservative fixed effect estimates, which lowers the risk of Type I error (that is, rejecting the H0 when there is no effect).
+- ... generalises better to the populations that we want to draw conclusions about.
+
+<br>
+
+From a theoretical perspective, the maximal model is what we should fit.
+But from a practical perspective, sometimes this is actually impossible to do in R.
+
+For example, take the maximal model for our RQ for `tel_data`:
+
+:::hcenter
+`Correct ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
+:::
+
+If we try to fit this model, R will not be able to do it.
+
+Next week, we'll learn how to deal with that issue.
+
+<br>
+
+**Regardless of any practical issues that happen when we try to fit the model, we should always start an analysis by finding the maximal model permitted by our dataset and RQ.**
 
 
 # Back matter
