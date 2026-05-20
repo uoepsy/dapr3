@@ -11,7 +11,7 @@ library(lme4)
 The plots shown on this page are good examples of what you might include in the Results section of a report or (mini)dissertation.
 
 
-## Example: Life satisfaction in Scotland
+## Continuous predictor example: Life satisfaction in Scotland
 
 These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
 
@@ -41,7 +41,7 @@ lifesat_mod <- lmer(
 ```
 
 
-### Step 1: Plot fixed effects
+### Plot fixed effects
 
 With the `effects` library, we get the function `effect()`.
 This function tells us the model-fitted outcome values (in column `fit`) for each value of `age`, along with the `lower` and `upper` bounds of the 95% CI around those fitted values.
@@ -53,14 +53,17 @@ effect(term = "age", mod = lifesat_mod) |>
   as.data.frame()
 ```
 
-`effect()` by default gives five equally-spaced values across the range of the predictor, but to make `effect()` give us fitted values for the whole observed range of `age`, we define the values of `age` we want to see and then tell that to `effects()` using the `xlevels=` argument:
+`effect()` by default gives five equally-spaced values across the range of the predictor.
+But we have observed ages outside this range: we have ages 15 in our data, as well as ages of 65.
+
+So, we need an extra trick: to make `effect()` give us fitted values for the whole observed range of `age`, we define the values of `age` we want to see and then tell that to `effects()` using the `xlevels=` argument:
 
 ```{r}
 # Get fitted values every five years between the min age and max age
 age_range <- seq(
-  min(lifesatscot$age),
-  max(lifesatscot$age),
-  5
+  min(lifesatscot$age),  # this is the first value in the sequence (15)
+  max(lifesatscot$age),  # this is the final value in the sequence (65)
+  5  # this is how spaced out the numbers should be (gives us every fifth number)
 )
 
 effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
@@ -82,8 +85,10 @@ effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   )
 ```
 
+::: {.callout-caution collapse="true"}
+### More advanced plotting: Including the group-level lines
 
-### Step 2: Plot group-level lines
+#### First plot group-level lines on their own
 
 With the package `broom.mixed`, we get the function `augment()`.
 Think of this function as the group-level version of `effects::effect()`: it gives us model-fitted values (in the column `.fitted`) for each level of our grouping variable.
@@ -98,7 +103,7 @@ augment(lifesat_mod) |>
 ```
 
 
-### Step 3: Combine fixed effects and group-level lines
+#### Combine fixed effects and group-level lines
 
 This plot is a bit more complex, since it combines data coming from two different places: `effects()` and `augment()`.
 
@@ -129,8 +134,6 @@ augment(lifesat_mod) |>
   )
 ```
 
-
-::: {.callout-caution collapse="true"}
 #### Add colour by `dwelling`
 
 The only change is to rewrite `group = dwelling` as `colour = dwelling` in the first `geom_line()` call!
@@ -168,8 +171,97 @@ augment(lifesat_mod) |>
 :::
 
 
+## Categorical predictor example: Life satisfaction in Scotland
 
-## More complex example: School grades, motivation, and funding
+Let's imagine we want to see life satisfaction as predicted by the population `size` of the area, rather than by people's age.
+
+The [maximal model](maxmodel.html) is the following.
+
+```{r}
+lifesat_size_mod <- lmer(
+  lifesat ~ size + (1 | dwelling),
+  data = lifesatscot
+)
+```
+
+Again we can use `effect()` to tell us the model-fitted outcome values (in column `fit`) for each of the two levels of our predictor `size`, along with the `lower` and `upper` bounds of their corresponding 95% CIs.
+
+```{r}
+effect(term = "size", mod = lifesat_size_mod) |>
+  as.data.frame()
+```
+
+We'll pipe this data into ggplot and visualise each fitted value as a point and the 95% CIs as error bars.
+
+```{r}
+effect(term = "size", mod = lifesat_size_mod) |>
+  as.data.frame() |>
+  ggplot(aes(x = size, y = fit)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0) +
+  labs(
+    x = 'Size of dwelling (in number of inhabitants)',
+    y = 'Life satisfaction'
+  )
+```
+
+
+::: {.callout-caution collapse="true"}
+### More advanced plotting: Including the group-level points
+
+#### First plot group-level points on their own
+
+`augment()` will add model predictions onto the existing data frame, which can often be very useful, but in the case of categorical predictors, often data gets repeated.
+Notice that there are two rows for Glasgow with identical `.fitted` values, two rows for Dundee with identical `.fitted` values, etc.:
+
+```{r}
+augment(lifesat_size_mod) |> head()
+```
+
+So before plotting, we'll deduplicate this data frame so we only have one row per dwelling.
+
+```{r}
+augment(lifesat_size_mod) |>
+  select(size, dwelling, .fitted) |>  # keep only these three columns
+  distinct()  # keep only one instance of each duplicated row
+```
+
+Now, to plot each dwelling's model-fitted life satisfaction score:
+
+```{r}
+augment(lifesat_size_mod) |>
+  select(size, dwelling, .fitted) |>
+  distinct() |>
+  ggplot(aes(x = size, y = .fitted)) +
+  geom_jitter(width = 0.1)
+```
+
+
+#### Combine fixed effects and group-level points
+
+```{r}
+eff_df <- effect(term = "size", mod = lifesat_size_mod) |>
+  as.data.frame()
+
+augment(lifesat_size_mod) |>
+  select(size, dwelling, .fitted) |>
+  distinct() |>
+  ggplot(aes(x = size)) +
+  geom_jitter(aes(y = .fitted), width = 0.1, alpha = 0.3) +
+  geom_point(data = eff_df, aes(y = fit)) +
+  geom_errorbar(data = eff_df, aes(ymin = lower, ymax = upper), width = 0) +
+  labs(
+    x = 'Size of dwelling (in number of inhabitants)',
+    y = 'Life satisfaction'
+  )
+```
+
+
+:::
+
+
+
+## Num/num interaction example: School grades, motivation, and funding
 
 This dataset contains information on 900 children from 30 different schools across Scotland.
 The data was collected as part of a study looking at **whether education-related motivation is associated with school grades. This is expected to be different for state vs privately funded schools.**   
@@ -204,7 +296,7 @@ We are also including by-school adjustments to the fixed intercept and to the fi
 (For the steps to identify random effect structures, see [Identify possible random effects](identify-ranef.html).)
 
 
-### Step 1: Plot fixed effects
+### Plot fixed effects
 
 Because we've got an interaction model, we include both interacting predictors in the `term=` argument of `effect()`.
 
@@ -216,8 +308,10 @@ effect(term = "motiv * funding", mod = grade_mod) |>
   geom_ribbon(aes(y = fit, ymin = lower, ymax = upper, fill = funding), alpha = .3)
 ```
 
+::: {.callout-caution collapse="true"}
+### More advanced plotting: Including the group-level lines
 
-### Step 2: Plot group-level lines
+#### First plot group-level lines on their own
 
 ```{r}
 augment(grade_mod) |>
@@ -226,7 +320,7 @@ augment(grade_mod) |>
 ```
 
 
-### Step 3: Combine and colour
+#### Combine fixed effects and group-level lines, add colour
 
 ```{r}
 eff_df <- effect(term = "motiv * funding", mod = grade_mod) |>
@@ -244,6 +338,7 @@ augment(grade_mod) |>
 ```
 
 
+:::
 
 
 ## Linked flash cards
