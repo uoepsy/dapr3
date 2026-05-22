@@ -60,11 +60,16 @@ In simple LMs, we only looked out for influential points.
 In LMMs, we should also be on the lookout for influential *groups*, that is, particular levels of a [grouping variable](groupstruc.html) which influence the model's estimates.
 
 There are two main R packages for examining influence in multilevel models: `HLMdiag` and `influence.ME`.
+We'll focus on using `HLMdiag` because it's faster than `influence.ME`, though note that if you are fitting a logistic mixed model with random effects (i.e., if you need to use `glmer()`), you'll need to use `influence.ME` instead (see the rabbit hole below).
+
+
+:::{.callout-caution collapse='true'}
+#### `HLMdiag` vs. `influence.ME`
 
 `HLMdiag`:
 
 - works only for `lmer()`, not `glmer()`
-- runs more quickly than `influence.ME`
+- runs more quickly than `influence.ME` because it only approximates the diagnostic measures instead of dropping each observation/level and re-fitting the model completely
 
 
 `influence.ME`:
@@ -72,12 +77,10 @@ There are two main R packages for examining influence in multilevel models: `HLM
 - works both for `lmer()` and `glmer()`
 - runs more slowly than `HLMdiag`
 
+:::
 
 
-
-### `HLMdiag`
-
-This package gives us a function called `hlm_influence()`.
+`HLMdiag` gives us a function called `hlm_influence()`.
 To check observation-level influence, we use the argument `level = 1`, or to check group-level influence for the `dept` grouping variable, we write `level = 'dept'`.
 Finally, we write `approx = TRUE` to specify that we're only looking for approximate calculations of the influence measures (approximating the measures is why `HLMdiag` is faster than `influence.ME`).
 
@@ -120,9 +123,10 @@ dotplot_diag(inf_dept$cooksd, index = inf_dept$dept, cutoff = "internal")
 The sensitivity analysis below will double-check on the Nursing Studies group to see whether it might be unduly influencing the model's results.
 
 
-### `influence.ME`
+:::{.callout-caution collapse='true'}
+#### Examples with `influence.ME`
 
-The `influence.ME` gives us a function called `influence()`.
+The `influence.ME` library gives us a function called `influence()`.
 To check observation-level influence, we specify `obs = TRUE`, or to check group-level influence for `dept`, we specify `group = "dept"`.
 
 `influence()` does a bit more work behind the scenes, which is what makes it slower: it iteratively deletes each observation or each group, re-fits the model, and compares the complete model to the one with the observation/group deleted.
@@ -150,8 +154,7 @@ plot(inf_dept, which = "cook", sort = TRUE)
 ```
 
 Again, Nursing Studies appears to have a stronger influence on the model than the other departments.
-To see whether it affects our conclusions, we'll do a sensitivity analysis.
-
+:::
 
 ## Sensitivity analysis
 
