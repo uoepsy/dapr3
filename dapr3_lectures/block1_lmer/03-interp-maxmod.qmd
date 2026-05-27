@@ -871,27 +871,60 @@ Two groups of participants learn some new material.
 
 One group studied the material twice (the `StudyStudy` group), and the other group studied the material once and then tested themselves on it (the `StudyTest` group).
 
-Recall was tested immediately (one minute) after the learning session and again one week later (recorded in the variable `Delay`).
+<!-- Recall was tested immediately (one minute) after the learning session and again one week later (recorded in the variable `Delay`). -->
 
-The recall tests are each identified by a keyword (`Test_word`).
+<!-- The recall tests are each identified by a keyword (`Test_word`). -->
 
 **RQ: Does self-testing improve retention, such that the `StudyStudy` group may perform better on the immediate test, but the `StudyTest` group will perform better on the test one week later?**
 
+
 ```{r include=F}
 load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+
+ppts_to_keep <- c(
+  paste0('StudyStudy_', LETTERS[1:10]),
+  paste0('StudyTest_', LETTERS[1:10])
+)
+
+set.seed(1)
 tel_data <- tel |>
-  filter(Test_word != 'Eskimo')
+  filter(
+    Test_word != 'Eskimo',
+    Subject_ID %in% ppts_to_keep
+  ) |>
+  rowwise() |>
+  mutate(
+    TestScore = rnorm(n=1, mean = Correct, sd = 0.5),
+  ) |>
+  ungroup() |>
+  mutate(
+    TestScore = case_when(
+      Group == 'StudyStudy' & Delay == 'min'  ~ TestScore + 0.2,
+      Group == 'StudyStudy' & Delay == 'week' ~ TestScore - 0.5,
+      Group == 'StudyTest'  & Delay == 'min'  ~ TestScore + 0.2,
+      Group == 'StudyTest'  & Delay == 'week' ~ TestScore,
+    ),
+    TestScore = as.numeric(round(datawizard::rescale(TestScore, to = c(0, 100))))
+  ) |>
+  select(-Correct, -Rtime)
+ 
 rm(tel)
 ```
+
 
 ```{r}
 #| code-fold: true
 
 tel_data |>
-  ggplot(aes(x = Delay, y = Correct, colour = Group)) +
-  stat_summary(geom = 'pointrange', fun.data = mean_se, size = 1, linewidth = 1.5) +
-  labs(
-    y = 'Proportion correct'
+  ggplot(aes(x = Delay, y = TestScore, colour = Delay, fill = Delay)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(alpha = 0.15, size = 3) +
+  facet_wrap(~ Group) +
+  stat_summary(geom = 'point', fun = mean, colour = 'black', size = 5) +
+  theme(
+    legend.position = 'none',
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 24)
   )
 ```
 
@@ -920,12 +953,12 @@ RQ: Does self-testing improve retention, such that the `StudyStudy` group may pe
 names(tel_data)
 ```
 
-- Outcome variable: `Correct`
+- Outcome variable: `TestScore`
 - Predictor variables: `Delay`, `Group`, and their interaction
 
 <br>
 
-The fixed effects part of the model formula will be `Correct ~ Delay * Group`.
+The fixed effects part of the model formula will be `TestScore ~ Delay * Group`.
 
 
 ## Step 2: Identify grouping variables
@@ -934,7 +967,7 @@ The fixed effects part of the model formula will be `Correct ~ Delay * Group`.
 2. For all variables that are not the outcome or predictors, identify whether they are grouping variables.
 :::
 
-The remaining variables: `Subject_ID` (categorical), `Test_word` (categorical), and `Rtime` (continuous, so we don't need to check it).
+The remaining variables: `Subject_ID` (categorical) and `Test_word` (categorical).
 
 :::: {.columns}
 ::: {.column width="47%"}
@@ -1020,7 +1053,7 @@ For every randomly-varying grouping variable, your model must contain a random i
 - Therefore: **`Test_word` contributes random variability, and our model needs at least a random intercept by test word.**
 
 
-The minimum LMM formula now: `Correct ~ Delay * Group + (1 | Subject_ID) + (1 | Test_word)`
+Minimum model now: `TestScore ~ Delay * Group + (1 | Subject_ID) + (1 | Test_word)`
 
 
 ## Step 4: Random slopes
@@ -1179,7 +1212,7 @@ And because both predictors can have random slopes, we can also include their in
 <br>
 
 :::hcenter
-`Correct ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
+`TestScore ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
 :::
 
 
@@ -1201,7 +1234,7 @@ But from a practical perspective, sometimes this is actually impossible to do in
 For example, take the maximal model for our RQ for `tel_data`:
 
 :::hcenter
-`Correct ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
+`TestScore ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
 :::
 
 If we try to fit this model, R will not be able to do it.
