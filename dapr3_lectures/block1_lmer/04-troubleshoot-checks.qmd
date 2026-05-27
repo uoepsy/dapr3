@@ -10,8 +10,11 @@ format:
 ```{r setup, include=F}
 library(tidyverse)
 library(patchwork)
-library(emmeans)
-library(simglm)
+
+library(lme4)
+library(lmerTest)
+library(HLMdiag)
+
 library(latex2exp)  # for betas in ggplots
 source('_theme/theme_quarto.R')
 
@@ -154,30 +157,202 @@ But in practice: often run into issues trying to actually fit them.
 
 ## Model failed to converge
 
+**How you can tell:**
+
+:::{style="font-size:150%"}
+```
+warning(s): Model failed to converge with max|grad| = 0.0071877 (tol = 0.002, component 1)
+```
+:::
+
+or
+
+:::{style="font-size:150%"}
+```
+Warning: Model failed to converge with 1 negative eigenvalue: -1.3e+02
+```
+:::
+
+<br>
+
+**What's the problem?**
+
+- LMMs estimate parameters using a process called "maximum likelihood estimation" (MLE).
+- The model's goal is to come up with the parameters that are *maximally likely* to have generated our data.
+- To find the most likely parameters, the model starts with random values that probably don't match our data very well.
+Then the model adjusts those values until they *do* match the data.
+- When the model successfully estimates those numbers, we say the model has "converged".
+- But when this process runs into problems or gets stuck, we say the model has "not converged".
+- **Never trust any numbers from a model that has not converged.**
 
 
 ## Singularity / singular fit
 
+**How you can tell:**
+
+You get the warning
+
+:::{style="font-size:150%"}
+```
+boundary (singular) fit: see ?isSingular
+```
+:::
+
+or the correlations between random effects are –1 or 1, or the SD/variance of random effects are 0.
+
+(We have to check on those variance components manually, we don't get any warnings about those ☹️)
+
+<br>
+
+**What's the problem?**
+
+- The model has encountered techical/mathematical problems when trying to estimate all the parameters we've asked it to estimate.
+- Usually the problem is that the random effect structure is too complex (that is, too many group-level adjustment parameters).
+- **Never trust any numbers from a model with a singular fit.**
 
 
-## Too few observations to support random effect structure
+## Not enough observations for random effect structure
+
+**How you can tell:**
+
+:::{style="font-size:150%"}
+```
+Error: number of observations (=150) <= number of random effects (=150) for term (1 + x | g); the random-effects parameters and the residual variance (or scale parameter) are probably unidentifiable
+```
+:::
+
+<br>
+
+**What's the problem?**
+
+- Again, the random effect structure is too complex for the data to support.
+- This is common when each level of a grouping variable has exactly one observation per level of a predictor.
+  - Strictly speaking, random slopes should be possible, because the predictor does vary within each level of the grouping variable.
+  - But practically speaking, the model needs more data to estimate the random slopes.
+- **Never trust any numbers from a model with unidentifiable parameters.**
 
 
 
 ## Variables need rescaling
 
+**How you can tell:**
+
+:::{style="font-size:150%"}
+```
+Warning messages:
+1: Some predictor variables are on very different scales:
+consider rescaling
+```
+:::
+
+or
+
+:::{style="font-size:150%"}
+```
+Warning messages:
+1: In checkConv(attr(opt, “derivs”), opt$par, ctrl = control$checkConv, :
+Model is nearly unidentifiable: large eigenvalue ratio
+- Rescale variables?
+```
+:::
+
+<br>
+
+**What's the problem?**
+
+- Continuous predictors can measure the same thing on different scales: e.g., my height is 1.79 metres and also 1,790,000 micrometres.
+- Sometimes the scale of the numbers is hard for the model to deal with, because they result in variance values too close to zero, which the model does not like.
+- **Never trust any numbers from a model with unidentifiable parameters.**
 
 
-# How to resolve those issues
+# What to do about these issues
+
+## What to do about these issues
+
+![](figs/TODO-w4-troubleshoot.jpeg){fig-align="center"}
+
 
 ## Change optimiser
+
+LMMs arrive at their parameter values by initialising them to random values, and then adjusting them until they are the parameters that are **maximally likely** to have produced the data we observe.
+
+There are several different ways a model might adjust (or *optimise*) these parameters.
+
+If the default way is not working, then it might help to use a different optimiser.
+
+<br>
+
+One optimiser that generally works well is `bobyqa` (pronounced like "bo-BEE-ka", in IPA [bo.ˈbi.ka]):
+
+```{r eval=F}
+lmer(
+  y ~ 1 + x * z + (1 + x * z | g), 
+  data = df, 
+  control = lmerControl(optimizer = "bobyqa")  # add in this line
+)
+```
+
 
 
 ## Simplify random effect structure
 
+Imagine you're starting with the following maximal model:
+
+:::hcenter
+` y ~ x * z + (1 + x * z | g) `
+:::
+
+We simplify the model bit by bit, and try to fit it again after every simplification step.
+We stop once the model can successfully be fit without any further singularity.
+
+There is no single correct way to simplify a model's random effect structure.
+
+This order of steps is what usually works well for me.
+
+<br>
+
+| Simplification to make | Model formula |
+| ---------------------------------------------------------- | -------------------------------- |
+| *[maximal model]* | `y ~ x * z + (1 + x * z | g)` |
+| Remove the by-group adjustment to the interaction term. | `y ~ x * z + (1 + x + z | g)` |
+| If predictors `x` and `z` are continuous, remove the correlations between by-group adjustments (if predictors are categorical, other weird stuff happens and this step doesn't really simplify the model). | `y ~ x * z + (1 + x + z || g)` |
+| Remove one of the by-group slope adjustments (if one is just a covariate, remove that one first). | `y ~ x * z + (1 + x | g)` |
+| If `x` is continuous, remove the correlations between by-group adjustments. | `y ~ x * z + (1 + x || g)` |
+| Remove the slope adjustments. | `y ~ x * z + (1 | g)` |
+| | |
+
 
 ## Rescale predictor(s)
 
+The simplest solution is to z-score the problematic predictor.
+
+**Recall that when you z-score a variable:**
+
+- its mean becomes 0, and
+- its SD becomes 1.
+
+<br>
+
+
+```{r eval=F}
+df <- df |>
+  mutate(
+    predictor_z = (predictor - mean(predictor) / sd(predictor))
+  )
+```
+
+<br>
+
+Then use the `predictor_z` version in your model instead of the original `predictor`.
+
+And remember to interpret it as a z-score (i.e., with units of standard deviations), not on its original scale (e.g., with units of micrometres).
+
+<br>
+
+You'll get some practice with rescaling in this week's lab!
+
+
+Now let's do a worked example with some data we got to know last week.
 
 
 
@@ -251,7 +426,7 @@ tel_data |>
 ## The data and the maximal model
 
 ```{r}
-tel_data |> head(12)
+tel_data |> head()
 ```
 
 <br>
@@ -259,33 +434,232 @@ tel_data |> head(12)
 
 **The maximal model we worked out last week:**
 
-<br>
-
 :::hcenter
 `TestScore ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
 :::
 
+<!-- - We're predicting people's test score as a function of how delayed the test was (one minute (reference level) or one week later), their study group (StudyStudy (reference level) or StudyTest), and the interaction between these two predictors. -->
+<!-- - The maximal model includes by-subject random intercepts and random slopes over test delay. -->
+<!-- - The maximal model also includes by-word random intercepts and radom slopes over test delay, study group, and their interaction. -->
 
 
 # Try to fit the maximal model
 
 ## Try to fit the maximal model
 
+```{r eval=F}
+library(lme4)      # for fitting LMMs
+library(lmerTest)  # for getting p-values
+
+m1 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) + 
+    (1 + Delay * Group | Test_word),
+  data = tel_data
+)
+```
+
+:::{style="font-size:175%"}
+```
+boundary (singular) fit: see help('isSingular')
+Warning: Model failed to converge with 1 negative eigenvalue: -1.3e+02
+```
+:::
+
+![](figs/TODO-w4-troubleshoot.jpeg){fig-align="center"}
 
 
 ## Will changing the optimiser help?
 
+```{r eval=F}
+m2 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) + 
+    (1 + Delay * Group | Test_word),
+  data = tel_data,
+  control = lmerControl(optimizer = "bobyqa")  # add in this line
+)
+```
 
-## Simplifying random effects, step by step
+:::{style="font-size:175%"}
+```
+boundary (singular) fit: see help('isSingular')
+```
+:::
+
+Nope, we still have a singular fit warning.
+The random effect structure is too complex for the data.
+
+![](figs/TODO-w4-troubleshoot.jpeg){fig-align="center"}
+
+
+## Simplifying random effects (1)
+
+| Simplification to make | Model formula |
+| ---------------------------------------------------------- | -------------------------------- |
+| *[maximal model]* | `y ~ x * z + (1 + x * z | g)` |
+| **Remove the by-group adjustment to the interaction term.** | `y ~ x * z + (1 + x + z | g)` |
+| If predictors `x` and `z` are continuous, remove the correlations between by-group adjustments (if predictors are categorical, other weird stuff happens and this step doesn't really simplify the model). | `y ~ x * z + (1 + x + z || g)` |
+| Remove one of the by-group slope adjustments (if one is just a covariate, remove that one first). | `y ~ x * z + (1 + x | g)` |
+| If `x` is continuous, remove the correlations between by-group adjustments. | `y ~ x * z + (1 + x || g)` |
+| Remove the slope adjustments. | `y ~ x * z + (1 | g)` |
+| | |
+
+<br>
+
+```{r eval=F}
+m3 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) + 
+    (1 + Delay + Group | Test_word),  # before: (1 + Delay * Group | Test_word)
+  data = tel_data
+)
+```
+
+:::{style="font-size:175%"}
+```
+boundary (singular) fit: see help('isSingular')
+```
+:::
 
 
 
 
-## The simplified model
+## Simplifying random effects (2)
+
+| Simplification to make | Model formula |
+| ---------------------------------------------------------- | -------------------------------- |
+| *[maximal model]* | `y ~ x * z + (1 + x * z | g)` |
+| Remove the by-group adjustment to the interaction term. | `y ~ x * z + (1 + x + z | g)` |
+| If predictors `x` and `z` are continuous, remove the correlations between by-group adjustments (if predictors are categorical, other weird stuff happens and this step doesn't really simplify the model). | `y ~ x * z + (1 + x + z || g)` |
+| **Remove one of the by-group slope adjustments (if one is just a covariate, remove that one first).** | `y ~ x * z + (1 + x | g)` |
+| If `x` is continuous, remove the correlations between by-group adjustments. | `y ~ x * z + (1 + x || g)` |
+| Remove the slope adjustments. | `y ~ x * z + (1 | g)` |
+| | |
+
+<br>
+
+```{r eval=F}
+m4 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) + 
+    (1 + Delay | Test_word),  # before: (1 + Delay + Group | Test_word)
+  data = tel_data
+)
+```
+
+:::{style="font-size:175%"}
+```
+boundary (singular) fit: see help('isSingular')
+```
+:::
+
+
+## Simplifying random effects (3)
+
+| Simplification to make | Model formula |
+| ---------------------------------------------------------- | -------------------------------- |
+| *[maximal model]* | `y ~ x * z + (1 + x * z | g)` |
+| Remove the by-group adjustment to the interaction term. | `y ~ x * z + (1 + x + z | g)` |
+| If predictors `x` and `z` are continuous, remove the correlations between by-group adjustments (if predictors are categorical, other weird stuff happens and this step doesn't really simplify the model). | `y ~ x * z + (1 + x + z || g)` |
+| Remove one of the by-group slope adjustments (if one is just a covariate, remove that one first). | `y ~ x * z + (1 + x | g)` |
+| If `x` is continuous, remove the correlations between by-group adjustments. | `y ~ x * z + (1 + x || g)` |
+| **Remove the slope adjustments.** | `y ~ x * z + (1 | g)` |
+| | |
+
+<br>
+
+```{r eval=F}
+m5 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 | Subject_ID) +        # before: (1 + Delay | Subject_ID)
+    (1 + Delay | Test_word),  # before: (1 + Delay + Group | Test_word)
+  data = tel_data
+)
+```
+
+:::{style="font-size:175%"}
+```
+boundary (singular) fit: see help('isSingular')
+```
+:::
 
 
 
-# Check LMM assumptions
+## Simplifying random effects (4)
+
+| Simplification to make | Model formula |
+| ---------------------------------------------------------- | -------------------------------- |
+| *[maximal model]* | `y ~ x * z + (1 + x * z | g)` |
+| Remove the by-group adjustment to the interaction term. | `y ~ x * z + (1 + x + z | g)` |
+| If predictors `x` and `z` are continuous, remove the correlations between by-group adjustments (if predictors are categorical, other weird stuff happens and this step doesn't really simplify the model). | `y ~ x * z + (1 + x + z || g)` |
+| Remove one of the by-group slope adjustments (if one is just a covariate, remove that one first). | `y ~ x * z + (1 + x | g)` |
+| If `x` is continuous, remove the correlations between by-group adjustments. | `y ~ x * z + (1 + x || g)` |
+| **Remove the slope adjustments.** | `y ~ x * z + (1 | g)` |
+| | |
+
+<br>
+
+```{r}
+m6 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 | Subject_ID) +        # before: (1 + Delay | Subject_ID)
+    (1 | Test_word),          # before: (1 + Delay | Test_word)
+  data = tel_data
+)
+```
+
+No warnings! But we still have to check for the sneakier singularities: 
+
+- correlations of –1 or 1 (which we wouldn't have anymore because there are no random slopes)
+- group-level variance or SD of 0.
+
+
+## Check variance components for sneakier singularities
+
+We can extract only the variance components in the model summary using `VarCorr()`:
+
+```{r}
+VarCorr(m6)
+```
+
+<br>
+
+These SDs are all different from 0!
+
+Together with the lack of singular fit warnings, we now know that we can trust the numbers that this model gives us.
+
+Essentially that means that the model's estimates will actually mean what we think they mean, and we can interpret it as usual.
+
+**`m6` is the model that we would use to make inferences and respond to the RQ.**
+
+
+## Reporting the process of model simplification
+
+Tell the reader: what random effect structure would the maximal model have? (No need to explain how you figured this out. And avoid using R variable names.)
+
+> [after describing the outcome and predictors] 
+The maximal random effect structure for this model would include by-subject adjustments to the intercept and to the slope over test delay, as well as by-word adjustments to the intercept, to the slopes over test delay and study group, and to their interaction.
+
+<!-- We aim to predict people’s test score as a function of the test's delay from the learning session, the experimental group subjects were assigned to, and the interaction between these two predictors. -->
+<!-- The test was taken at one minute (reference level) and one week delay, and subjects' experimental group was either StudyStudy (reference level) or StudyTest. -->
+
+Did the maximal model work? If not, what did you do about it?
+
+> The maximal model could not be fit, and just applying the "bobyqa" optimiser didn't help, so we simplified the random effect structure until model fit was achieved.
+
+When simplifying this model, what order did you remove parameters in?
+
+> We first removed the by-word adjustments to the interaction between test delay and experimental group, then the by-word adjustment to the slope over experimental group.
+Then we removed the by-subject adjustment to the slope over test delay, followed by the by-word adjustment to the slope over test delay.
+
+What's the random effect structure of the final simplified model?
+
+> The model was fit successfully when only intercept adjustments for each subject and each word remained.
+
+
+
+# TODO Check LMM assumptions
 
 ## Why do models make assumptions?
 
@@ -309,7 +683,7 @@ tel_data |> head(12)
 
 
 
-# Check diagnostics for high-influence observations and groups
+# TODO Check diagnostics for high-influence observations and groups
 
 ## Check influence of individual observations
 
