@@ -1,0 +1,433 @@
+---
+title: "Troubleshooting model fit, checking assumptions and diagnostics"
+editor_options: 
+  chunk_output_type: inline
+format:
+  revealjs:
+    smaller: true
+---
+
+```{r setup, include=F}
+library(tidyverse)
+library(patchwork)
+library(emmeans)
+library(simglm)
+library(latex2exp)  # for betas in ggplots
+source('_theme/theme_quarto.R')
+
+theme_set(theme_quarto(title_font_size=42))
+theme_update(
+  text = element_text(family = 'Source Sans 3')
+)
+
+dapr3green <- "#88B04B" 
+dapr3dkgreen <- "#5C7C28"
+dapr3ltgreen <- "#E5EED7"
+pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
+```
+
+
+# Course Overview {background-color="white"}
+
+<br>
+
+```{r echo=F}
+#| results: "asis"
+block1_name = "Linear mixed models<br>(with Dr. Elizabeth Pankratz)"
+block1_lecs = c("Regression refresher, intro to group-structured data",
+                "Modelling group-structured data using random effects",
+                "Interpreting LMMs and building maximal models",
+                "Troubleshooting model fit, checking assumptions + diagnostics",
+                "TODO")
+block2_name = "factor analysis<br>working with multi-item measures<br>(with Dr. Josiah King)"
+block2_lecs = c(
+  "measurement and dimensionality",
+  "exploring underlying constructs (EFA)",
+  "testing theoretical models (CFA)",
+  "reliability and validity",
+  "recap & exam prep"
+  )
+
+source("https://raw.githubusercontent.com/uoepsy/junk/refs/heads/main/R/course_table.R")
+course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=4)
+```
+
+## This week's learning objectives
+
+:::dapr3callout
+TODO
+:::
+
+
+  
+## Recap: What does it mean to "adjust the intercept"?
+
+
+:::: {.columns}
+::: {.column width="30%"}
+The average association between predictor and outcome:
+
+<br>
+
+![](figs/TODO-w2-avg.jpg)
+:::
+
+::: {.column width="5%"}
+:::
+
+
+::: {.column width="30%"}
+If a participant has a **higher outcome value than average when predictor = 0**, then they will have a **positive adjustment to the average intercept.**
+
+![](figs/TODO-w2-adj-pos.jpg)
+
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+If a participant has a **lower outcome value than average when predictor = 0**, then they will have a **negative adjustment to the average intercept.**
+
+![](figs/TODO-w2-adj-neg.jpg)
+
+:::
+::::
+
+
+  
+## Recap: What does it mean to "adjust the slope"?
+
+:::: {.columns}
+::: {.column width="30%"}
+The average association between predictor and outcome:
+
+<br>
+
+![](figs/TODO-w2-avg-slp.jpg)
+:::
+
+::: {.column width="5%"}
+:::
+
+
+::: {.column width="30%"}
+If a participant has a **more positive effect than average**, then they will have a **positive adjustment to the fixed slope.**
+
+![](figs/TODO-w2-adj-slp-pos.jpg)
+
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+If a participant has a **more negative effect than average**, then they will have a **negative adjustment to the fixed slope.**
+
+![](figs/TODO-w2-adj-slp-neg.jpg)
+
+:::
+::::
+
+
+
+## Recap: What is a maximal model?
+
+The maximal model is the version of the linear mixed model that contains all possible random effects that the data can support.
+That is, all possible group-level adjustments to the fixed intercept and fixed slope(s).
+
+A maximal model does not need to contain every possible fixed effect.
+(Fixefs should be based on RQ.)
+Just every possible ranef.
+
+In theory: Important as a starting point bc maximal models capture all sources of random variability that we think could play a role in our data.
+
+But in practice: often run into issues trying to actually fit them.
+
+
+# Common issues when fitting LMMs
+
+## Common issues when fitting LMMs
+
+![](figs/TODO-w4-troubleshoot.jpeg){fig-align="center"}
+
+
+## Model failed to converge
+
+
+
+## Singularity / singular fit
+
+
+
+## Too few observations to support random effect structure
+
+
+
+## Variables need rescaling
+
+
+
+# How to resolve those issues
+
+## Change optimiser
+
+
+## Simplify random effect structure
+
+
+## Rescale predictor(s)
+
+
+
+
+
+# This week's data (again): <br> Test-enhanced learning
+
+## This week's data (again): Test-enhanced learning
+
+Two groups of participants learn some new material.
+
+One group studied the material twice (the `StudyStudy` group), and the other group studied the material once and then tested themselves on it (the `StudyTest` group).
+
+Recall was tested immediately (one minute) after the learning session and again one week later (recorded in the variable `Delay`).
+
+<!-- The recall tests are each identified by a keyword (`Test_word`). -->
+
+**RQ: Does self-testing improve retention, such that the `StudyStudy` group may perform better on the immediate test, but the `StudyTest` group will perform better on the test one week later?**
+
+
+```{r include=F}
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+
+ppts_to_keep <- c(
+  paste0('StudyStudy_', LETTERS[1:10]),
+  paste0('StudyTest_', LETTERS[1:10])
+)
+
+set.seed(1)
+tel_data <- tel |>
+  filter(
+    Test_word != 'Eskimo',
+    Subject_ID %in% ppts_to_keep
+  ) |>
+  rowwise() |>
+  mutate(
+    TestScore = rnorm(n=1, mean = Correct, sd = 0.5),
+  ) |>
+  ungroup() |>
+  mutate(
+    TestScore = case_when(
+      Group == 'StudyStudy' & Delay == 'min'  ~ TestScore + 0.2,
+      Group == 'StudyStudy' & Delay == 'week' ~ TestScore - 0.5,
+      Group == 'StudyTest'  & Delay == 'min'  ~ TestScore + 0.2,
+      Group == 'StudyTest'  & Delay == 'week' ~ TestScore,
+    ),
+    TestScore = as.numeric(round(datawizard::rescale(TestScore, to = c(0, 100))))
+  ) |>
+  select(-Correct, -Rtime)
+ 
+rm(tel)
+```
+
+
+```{r}
+#| code-fold: true
+
+tel_data |>
+  ggplot(aes(x = Delay, y = TestScore, colour = Delay, fill = Delay)) +
+  geom_violin(alpha = 0.5) +
+  geom_jitter(alpha = 0.15, size = 3) +
+  facet_wrap(~ Group) +
+  stat_summary(geom = 'point', fun = mean, colour = 'black', size = 5) +
+  theme(
+    legend.position = 'none',
+    strip.background = element_blank(),
+    strip.text.x = element_text(size = 24)
+  )
+```
+
+
+## The data and the maximal model
+
+```{r}
+tel_data |> head(12)
+```
+
+<br>
+<br>
+
+**The maximal model we worked out last week:**
+
+<br>
+
+:::hcenter
+`TestScore ~ Delay * Group +  (1 + Delay | Subject_ID) + (1 + Delay * Group | Test_word)`
+:::
+
+
+
+# Try to fit the maximal model
+
+## Try to fit the maximal model
+
+
+
+## Will changing the optimiser help?
+
+
+## Simplifying random effects, step by step
+
+
+
+
+## The simplified model
+
+
+
+# Check LMM assumptions
+
+## Why do models make assumptions?
+
+## LMM assumptions: "LINEN"
+
+
+## Linearity of association
+
+
+## Independence of errors
+
+
+## Normality of errors
+
+
+## Equal variance of errors
+
+
+## Normality of random effects
+
+
+
+
+# Check diagnostics for high-influence observations and groups
+
+## Check influence of individual observations
+
+
+
+## Check influence of groups
+
+
+
+
+## To see if these actually influence our conclusions: sensitivity analysis
+
+
+
+## Interpreting and reporting sensitivity analysis
+
+
+
+
+
+
+# Back matter
+
+## Learning objectives revisited
+
+
+
+
+## To do this week 
+
+<br>
+
+::::{.columns}
+:::{.column width="50%"}
+**Tasks:**
+
+<br>
+
+![](figs/labs.svg){width=80px style="margin:10px;margin-bottom:-50px"} Work on exercises in labs
+
+<br>
+
+![](figs/exam.svg){width=80px style="margin:10px;margin-bottom:-45px"} Complete the weekly quiz 
+
+
+:::
+
+:::{.column width="50%"}
+**Get support:**
+
+<br>
+
+![](figs/flashcards.svg){width=80px style="margin:10px;margin-bottom:-30px"}
+Consult the [flash cards](https://uoepsy.github.io/dapr3/2627/flashcards/){target="_blank"}
+
+<br>
+
+![](figs/forum.svg){width=80px style="margin:10px;margin-bottom:-50px"}
+Ask questions anonymously on Piazza
+
+<br>
+
+![](figs/oh.svg){width=80px style="margin:10px;margin-bottom:-40px"} 
+We really like seeing you in office hours!
+
+
+
+:::
+::::
+
+
+
+# Appendix {.appendix}
+
+
+
+## abc
+
+dolor sit amet
+
+**dolor sit amet**
+
+`abc`
+
+:::dapr3callout
+abc
+:::
+
+
+<!-- :::: {.columns} -->
+<!-- ::: {.column width="50%"} -->
+<!-- a -->
+<!-- ::: -->
+<!-- ::: {.column width="50%"} -->
+<!-- b -->
+<!-- ::: -->
+<!-- :::: -->
+
+
+
+<!-- :::: {.columns} -->
+<!-- ::: {.column width="30%"} -->
+<!-- a -->
+<!-- ::: -->
+<!-- ::: {.column width="5%"} -->
+<!-- ::: -->
+<!-- ::: {.column width="30%"} -->
+<!-- b -->
+<!-- ::: -->
+<!-- ::: {.column width="5%"} -->
+<!-- ::: -->
+<!-- ::: {.column width="30%"} -->
+<!-- c -->
+<!-- ::: -->
+<!-- :::: -->
+
+
+<!-- style="font-size: 70%;" -->
+
+ <!-- <img style="vertical-align: text-bottom; width: 1.5em;" src="figs/material-symbols--draw-outline.svg"> -->
+ <!-- <img style="vertical-align: text-bottom; width: 1.2em;" src="figs/material-symbols--person-rounded.svg"> -->
