@@ -1,0 +1,224 @@
+---
+title: "Data for Lab 04"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(HLMdiag)
+```
+
+all data drawn from <https://uoepsy.github.io/lmm/00_datasets>
+
+
+# clothing
+
+```{r}
+clothing <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+glimpse(clothing)
+```
+
+
+## get model to converge
+
+```{r}
+clothing_m1 <- lmer(
+  purch_rating ~ price * condition + (1 + price | ppt), 
+  data = clothing
+)
+```
+
+> Show in New Window
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge with max|grad| = 8.80186 (tol = 0.002, component 1)
+  See ?lme4::convergence and ?lme4::troubleshooting.
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model is nearly unidentifiable: very large eigenvalue
+ - Rescale variables?
+ 
+Try diff optimiser: still wants things rescaled.
+ 
+```{r}
+clothing_m2 <- lmer(
+  purch_rating ~ price * condition + (1 + price | ppt), 
+  data = clothing,
+  control = lmerControl(optimizer = "bobyqa")  # add in this line
+)
+```
+ 
+ > Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model is nearly unidentifiable: very large eigenvalue
+ - Rescale variables?
+ 
+ 
+
+```{r}
+clothing <- clothing |>
+  mutate(
+    price_z = (price - mean(price)) / sd(price)
+  )
+
+# check that z-scoring worked the way we want
+clothing$price_z |> mean()
+clothing$price_z |> sd()
+```
+
+
+```{r}
+clothing_m3 <- lmer(
+  purch_rating ~ price_z * condition + (1 + price_z | ppt), 
+  data = clothing
+)
+
+summary(clothing_m3)
+```
+
+
+## assump
+
+### Linearity of association
+
+```{r}
+plot(clothing_m3, 
+     type=c(
+       "p",      # includes points representing Pearson residuals
+       "smooth"  # includes smoothed line representing mean of residuals
+       )
+    )
+```
+
+line is flat = looks good and linear
+
+
+
+### Indep of errors
+
+we fit the model with the maximal ranef structure so we're good to go
+
+
+### Normality of errors
+
+```{r}
+qqnorm(resid(clothing_m3))
+qqline(resid(clothing_m3))
+```
+
+great
+
+### Equal variance of errors
+
+```{r}
+plot(clothing_m3, 
+     type=c(
+       "p",      # includes points representing Pearson residuals
+       "smooth"  # includes smoothed line representing mean of residuals
+       )
+    )
+```
+
+nice even cloud, hurray
+
+
+### Normality of random effects
+
+#### by-ppt intercept adjustments
+
+```{r}
+qqnorm(ranef(clothing_m3)$ppt[,1]); qqline(ranef(clothing_m3)$ppt[,1])
+```
+
+some divergence at extremes but ok
+
+
+#### by-ppt slope over `price_z` adjustments
+
+```{r}
+qqnorm(ranef(clothing_m3)$ppt[,2]); qqline(ranef(clothing_m3)$ppt[,2])
+```
+
+good match
+
+
+## influence diags
+
+### influence of each observation
+
+```{r}
+inf_obs <- hlm_influence(model = clothing_m3, level = 1, approx = TRUE)
+```
+
+```{r}
+dotplot_diag(inf_obs$cooksd, cutoff = "internal")
+```
+
+```{r}
+inf_obs[561,]
+```
+
+```{r}
+clothing[561,]
+
+clothing[-561,]
+```
+
+
+
+#### sensitivity analysis
+
+
+```{r}
+clothing_m3_no561 <- lmer(
+  purch_rating ~ price_z * condition + (1 + price_z | ppt),
+  data = clothing[-561,]
+)
+```
+
+```{r}
+summary(clothing_m3)
+```
+
+```{r}
+summary(clothing_m3_no561)
+```
+
+
+### influence of each ppt
+
+```{r}
+inf_ppt <- hlm_influence(model = clothing_m3, level = 'ppt', approx = TRUE)
+```
+
+```{r}
+dotplot_diag(inf_ppt$cooksd, index = inf_ppt$ppt, cutoff = "internal")
+```
+
+
+
+
+# monkeystatus - GLM CHALLENGE
+
+
+```{r}
+monkeystatus <- read_csv('https://uoepsy.github.io/data/msmr_monkeystatus.csv')
+monkeystatus |>
+  glimpse()
+```
+
+`solved ~ status + difficulty + (1 + difficulty | monkeyID)`
+
+
+### model
+
+```{r eval=F}
+monkeystatus_m1 <- glmer(
+  solved ~ status + difficulty + (1 + difficulty | monkeyID),
+  data = monkeystatus, 
+  family = binomial
+)
+summary(monkeystatus_m1)
+```
+

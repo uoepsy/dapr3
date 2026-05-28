@@ -1,0 +1,496 @@
+---
+title: "Troubleshooting, checking assumptions and diagnostics"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE  # TRUE = collapse sols, FALSE = uncollapse sols
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- when rendering in RStudio/  not production profile:   SHOW_SOLS: TRUE  -->
+<!-- when rendering in terminal/with production profile:   SHOW_SOLS: FALSE -->
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(ggdist)
+library(stats)
+library(lme4)
+library(lmerTest)
+library(HLMdiag)
+
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+In this lab, you'll start with the maximal model you developed last week for the `clothing` dataset.
+The questions will guide you through troubleshooting the model, and once you have a version that fits, you'll practice checking assumptions and diagnostics.
+
+
+:::{.callout-note}
+### Get set up
+
+1. Create a new .Rmd file for this week's exercises.
+1. Save it somewhere you can find it again.
+1. Give it a clear name (for example, `dapr3_lab04.Rmd`).
+1. In the first code chunk, load the packages you'll need this week:
+    - `tidyverse`
+    - `lme4`
+    - `lmerTest`
+    - `HLMdiag`
+:::
+
+---
+
+:::frame
+
+Read in the dataset located at [https://uoepsy.github.io/data/dapr3_mannequin.csv](https://uoepsy.github.io/data/dapr3_mannequin.csv) and name it `clothing`.
+
+RQ: **Are people more likely to purchase clothing when they see it displayed on a model, and is this association dependent on item price?**
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")),
+  description=c("Purchase rating (sliding scale 0 to 100, with higher ratings indicating greater perceived likelihood of purchase)",
+                "Price presented for item (range £5 to £100)",
+                "Participant identifier",
+                "Whether items are seen on a model or on a white background")
+) |> gt::gt()
+```
+
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+Thirty participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it.
+Each participant saw 20 items, ranging in price from £5 to £100.
+15 participants saw these items worn by a model, while the other 15 saw the items hanging against a white background.
+:::
+
+
+**From the Week 3 lab, here's the maximal model for this data and RQ:** 
+
+`purch_rating ~ price * condition + (1 + price | ppt)`
+
+:::
+
+## Fit the model
+
+<!-- # q1 -->
+
+`r qbegin(qcounter())`
+
+The following code aims to fit the maximal model.
+Copy and run this code.
+
+```{r eval=F}
+clothing_m1 <- lmer(
+  purch_rating ~ price * condition + (1 + price | ppt), 
+  data = clothing
+)
+```
+
+What warning messages do you get?
+What problems do these warning messages indicate?
+
+:::dapr3green
+🗂️
+See [Troubleshoot common issues](https://uoepsy.github.io/dapr3/2627/flashcards/block1/troubleshoot.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r echo=F}
+clothing <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+```
+
+Upon running that code, I get the following two warning messages:
+
+```
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model failed to converge with max|grad| = 8.80186 (tol = 0.002, component 1)
+  See ?lme4::convergence and ?lme4::troubleshooting.
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model is nearly unidentifiable: very large eigenvalue
+ - Rescale variables?
+```
+
+The first warning message (the first three lines) tells me that the model failed to converge.
+This tells me that I might need to change the optimiser.
+
+The second warning message (the second three lines) tells me that the model is struggling with the scale of the variables.
+The only predictor that has large values is `price`, so this tells me that I might need to rescale it (that is, transform it into z-scores).
+
+`r solend()`
+
+<!-- # q2 -->
+
+`r qbegin(qcounter())`
+
+Change the model's optimiser to `bobyqa` and re-fit the model (call it `clothing_m2`).
+
+What warning messages do you see now?
+
+:::dapr3green
+🗂️
+See [Change optimiser](https://uoepsy.github.io/dapr3/2627/flashcards/block1/optimiser.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r eval=F}
+clothing_m2 <- lmer(
+  purch_rating ~ price * condition + (1 + price | ppt), 
+  data = clothing,
+  control = lmerControl(optimizer = "bobyqa")
+)
+```
+
+```
+Warning in checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+  Model is nearly unidentifiable: very large eigenvalue
+ - Rescale variables?
+```
+
+The `bobyqa` optimiser has solved the convergence problem (that first message about "Model failed to converge" has gone away).
+But we're still getting the suggestion to rescale variables.
+
+
+`r solend()`
+
+
+<!-- # q3 -->
+
+`r qbegin(qcounter())`
+
+We'll have to rescale the predictor.
+Changing that might solve the convergence issue too.
+
+- Convert `price` into a z-score and call the new variable `price_z`.
+- Check that the mean of `price_z` is 0 and that the standard deviation is 1.
+- In the code to fit `clothing_m1`, replace `price` with `price_z` and re-fit the model (call it `clothing_m3`).
+- Are there any warning messages or other indications of singularity? 
+
+:::dapr3green
+🗂️
+See DAPR2's [Data transformations > Standardisation](https://uoepsy.github.io/dapr2/2425/labs/1_b4_reading.html#data-transformations) flash card.
+
+See also [Troubleshoot common issues](https://uoepsy.github.io/dapr3/2627/flashcards/block1/troubleshoot.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Convert `price` into a z-score and call the new variable `price_z`:
+
+```{r}
+clothing <- clothing |>
+  mutate(
+    price_z = (price - mean(price)) / sd(price)
+  )
+```
+
+Check that the mean of `price_z` is 0 and that the standard deviation is 1:
+
+```{r}
+mean(clothing$price_z)
+sd(clothing$price_z)
+```
+
+In the code to fit `clothing_m1`, replace `price` with `price_z` and re-fit the model (call it `clothing_m3`).
+
+```{r}
+clothing_m3 <- lmer(
+  purch_rating ~ price_z * condition + (1 + price_z | ppt),   
+  # remember to also update the random slope from "price" to "price_z"!
+  data = clothing
+)
+```
+
+Are there any warning messages or other indications of singularity? 
+
+- No warning messages.
+- To check other indications of singularity, we'll need to look at the variance components of the model. We want to make sure that the SDs aren't 0 and the correlations aren't –1 or 1:
+
+```{r}
+VarCorr(clothing_m3)
+```
+
+Looks fine!
+The model is good to go.
+
+`r solend()`
+
+
+## Check assumptions
+
+<!-- # q4 -->
+
+`r qbegin(qcounter())`
+
+Let's move on to checking `clothing_m3`'s assumptions.
+
+Are you satisfied with the assumption that the association between predictor and outcome is sufficiently linear?
+
+:::dapr3green
+🗂️
+See [Check assumptions](https://uoepsy.github.io/dapr3/2627/flashcards/block1/check-assump.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We assess linearity in LMMs using a residuals-vs-fitted plot.
+We want the wobbly blue line to match the horizontal black line.
+
+```{r}
+plot(clothing_m3, 
+     type=c(
+       "p",      # includes points representing Pearson residuals
+       "smooth"  # includes smoothed line representing mean of residuals
+       )
+    )
+```
+
+Good match.
+I'd be satisfied that the association is sufficiently linear.
+
+`r solend()`
+
+<!-- # q5 -->
+
+`r qbegin(qcounter())`
+
+Are you satisfied with the assumption that the errors are independent?
+
+:::dapr3green
+🗂️
+See [Check assumptions](https://uoepsy.github.io/dapr3/2627/flashcards/block1/check-assump.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Our model has the maximal random effect structure licensed by the data, so yes, we can be satisfied that the errors are independent.
+
+(Even if we had to simplify the model in order to get it to converge, we can still assume that errors are sufficiently independent.)
+
+`r solend()`
+
+<!-- # q6 -->
+
+`r qbegin(qcounter())`
+
+Are you satisfied with the assumption that the errors are normally distributed?
+
+:::dapr3green
+🗂️
+See [Check assumptions](https://uoepsy.github.io/dapr3/2627/flashcards/block1/check-assump.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We assess normality of errors using a Q-Q plot.
+We want the points to match the diagonal black line.
+
+```{r}
+qqnorm(resid(clothing_m3)); qqline(resid(clothing_m3))
+```
+
+It's a pretty good match here.
+I'm satisfied that the errors are sufficiently normally distributed.
+
+`r solend()`
+
+<!-- # q7 -->
+
+`r qbegin(qcounter())`
+
+Are you satisfied with the assumption that the errors have equal variance?
+
+:::dapr3green
+🗂️
+See [Check assumptions](https://uoepsy.github.io/dapr3/2627/flashcards/block1/check-assump.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Along with linearity, we also assess equal variance of errors using a residuals-vs-fitted plot.
+We want the cloud of data points to have a similar vertical distance from bottom to top across the whole range of the x axis (i.e., across the range of fitted values).
+
+```{r}
+plot(clothing_m3, 
+     type=c(
+       "p",      # includes points representing Pearson residuals
+       "smooth"  # includes smoothed line representing mean of residuals
+       )
+    )
+```
+
+This cloud of data points has a pretty even vertical spread.
+I'd be satisfied that the residuals have equal enough variance.
+
+`r solend()`
+
+<!-- # q8 -->
+
+`r qbegin(qcounter())`
+
+Are you satisfied with the assumption that each set of participant-level adjustments is normally distributed?
+
+:::dapr3green
+🗂️
+See [Check assumptions](https://uoepsy.github.io/dapr3/2627/flashcards/block1/check-assump.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+We have to check the normality of each set of by-participant adjustments individually.
+That is, we'll check the participant-level intercept adjustments and separately we'll check the participant-level slope adjustments.
+For both, we can use a Q-Q plot again.
+
+**The intercept adjustments:**
+
+```{r}
+qqnorm(ranef(clothing_m3)$ppt[,1]); qqline(ranef(clothing_m3)$ppt[,1])
+```
+
+The points are an OK match to the diagonal, though the extremes (the lower and upper ends) diverge a bit.
+
+This divergence is worth commenting on in a write-up, because when we use the SD to summarise these adjustments, the SD measure works under the assumption that the data we're summarising is approximately normal.
+So when it diverges a bit from normality, like here, then the SD might not be doing a perfect job capturing the variability in the data.
+But it's the best we've got!
+So all we can do is report it and mention that we should be a little bit cautious in its interpretation because the by-participant intercept adjustments appear not to be perfectly normally distributed.
+
+
+**The slope adjustments:**
+
+```{r}
+qqnorm(ranef(clothing_m3)$ppt[,2]); qqline(ranef(clothing_m3)$ppt[,2])
+```
+
+These points are a pretty good match to the diagonal overall!
+I'm satisfied that the by-participant slope adjustments are sufficiently normal.
+
+`r solend()`
+
+<!-- # q9 -->
+
+## Check influence diagnostics
+
+`r qbegin(qcounter())`
+
+Let's move on to the influence diagnostics.
+
+Compute and plot the approximate Cook's Distance for each observation and for each participant.
+
+:::dapr3green
+🗂️
+See [Detect influential points and groups](https://uoepsy.github.io/dapr3/2627/flashcards/block1/influence.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Compute the observation-level and participant-level influence diagnostics:
+
+```{r}
+inf_obs <- hlm_influence(model = clothing_m3, level = 1, approx = TRUE)
+inf_ppt <- hlm_influence(model = clothing_m3, level = 'ppt', approx = TRUE)
+```
+
+Plot the Cook's Distance of each observation:
+
+```{r}
+dotplot_diag(inf_obs$cooksd, cutoff = "internal")
+```
+
+Plot the Cook's Distance of each participant:
+
+```{r}
+dotplot_diag(inf_ppt$cooksd, index = inf_ppt$ppt, cutoff = "internal")
+```
+
+
+`r solend()`
+
+<!-- # q10 -->
+
+`r qbegin(qcounter())`
+
+One of those diagnostic checks from Q9 reveals a particularly high-influence unit.
+
+Run a sensitivity analysis to check whether this unit impacts the pattern of results and changes the conclusions we would draw from this model.
+
+:::dapr3green
+🗂️
+See [Detect influential points and groups](https://uoepsy.github.io/dapr3/2627/flashcards/block1/influence.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+The particularly high-influence unit is in the observation-level plot, observation number 561.
+(No participants exert an influence above the internal Cook's Distance threshold.)
+
+What is observation 561?
+
+```{r}
+clothing[561,]
+```
+
+OK, looks like participant 29 saw an inexpensive piece of clothing on a model and said that they'd be very likely to purchase it.
+Does this one observation drive the estimates that the model has made?
+
+To find out, we'll fit a new model to a version of `clothing` with this observation removed:
+
+```{r}
+clothing_m3_no561 <- lmer(
+  purch_rating ~ price_z * condition + (1 + price_z | ppt),
+  data = clothing[-561,]
+)
+```
+
+And we'll compare the model summaries.
+We're looking specifically for big differences in the fixed effect coefficients and in their statistical significance.
+
+:::: {.columns}
+::: {.column width="48%"}
+```{r}
+summary(clothing_m3)
+```
+
+:::
+
+::: {.column width="4%"}
+:::
+
+::: {.column width="48%"}
+```{r}
+summary(clothing_m3_no561)
+```
+:::
+::::
+
+The coefficients are pretty similar.
+And the pattern of statistical significance does not change at all.
+
+Therefore we can conclude that, although observation 561 has the highest Cook's Distance out of all the observations, it doesn't hugely influence the model's estimates nor change the conclusions we would draw from the analysis.
+
+`r solend()`
