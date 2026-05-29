@@ -12,6 +12,7 @@ library(lmerTest)
 library(stats)
 library(HLMdiag)
 library(effects)
+library(sjPlot)
 
 # Read in data
 eds_data <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
@@ -66,6 +67,22 @@ eds_data |>
 # And we want our results to generalise over lots of schools, not just these,
 # and we could survey different schools and answer the same RQ. So, yes,
 # random variability, and therefore we'll need random intercept by schoolid.
+
+# Describe randomly-varying grouping variables:
+# How many levels?
+n_distinct(eds_data$schoolid)
+# Already computed how many children per school (see above).
+# Summary stats about how many obs per level?
+eds_data |>
+  group_by(schoolid) |>
+  count() |>
+  ungroup() |>
+  summarise(
+    mean_obs = mean(n),
+    med_obs  = median(n),
+    max_obs  = max(n),
+    min_obs  = min(n)
+  )
 
 # Identify random slopes.
 # Does each level of schoolid appear with at least one value of CRQ? Yes.
@@ -187,7 +204,7 @@ VarCorr(eds_m1)
 #   association (not in line with the hypothesis).
 
 # Interpret correlation between intercept and slope adjustments.
-# - The intercept and slope adjustmevts have a fairly large negative correlation
+# - The intercept and slope adjustments have a fairly large negative correlation
 #   of –0.75. This suggests that schools that tend to have students with higher 
 #   emotional dysregulation scores (big intercept) tend to have a more negative 
 #   adjustment to the slope of CRQ. Since this fixed slope is already negative,
