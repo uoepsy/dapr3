@@ -263,7 +263,7 @@ dotplot_diag(inf_schoolid$cooksd, index = inf_schoolid$schoolid, cutoff = "inter
 worth doing sensitivity analysis for 108 and 168, potentially, but can set that aside for reasons of time.
 
 
-### Sensitivity analysis 168 feat bobyqa
+#### Sensitivity analysis 168 feat bobyqa
 
 ```{r}
 # failed to converge
@@ -297,7 +297,7 @@ summary(eds_mod_no168)
 no big diff.
 
 
-### Sensitivity analysis 108
+#### Sensitivity analysis 108
 
 ```{r}
 eds_mod_no108 <- lmer(
@@ -320,7 +320,7 @@ effect(term = c("CRQ", 'schooltype'), mod = eds_mod) |>
 
 CRQ is spaced kind of weird, so let's give it a diff vector of CRQ values
 
-```{r}
+```{r message=F}
 effect(term = c("CRQ", 'schooltype'), mod = eds_mod, xlevels = list(CRQ = 0:7)) |>
   as.data.frame() |>
   ggplot(aes(x = CRQ, y = fit)) +
@@ -334,15 +334,74 @@ effect(term = c("CRQ", 'schooltype'), mod = eds_mod, xlevels = list(CRQ = 0:7)) 
 
 ## interpret fixefs
 
-RESUME
+```{r}
+# summary(eds_mod)
+fixef(eds_mod) |> round(2)
+```
 
-TODO
 
+`(Intercept)`:
+The average estimated emotional dysregulation for pupils in private schools with CRQ = 0 (that is, zero routine) is 4.53 points.
+
+```{r message = F, eval = F}
+effect(term = c("CRQ", 'schooltype'), mod = eds_mod, xlevels = list(CRQ = 0:7)) |>
+  as.data.frame() |>
+  ggplot(aes(x = CRQ, y = fit)) +
+  geom_line(aes(colour = schooltype)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = schooltype), alpha = 0.3) +
+  labs(
+    y = 'Emotion Dysregulation Score (EDS)',
+    x = 'Childhood Routines Questionnaire (CRQ) score'
+  ) +
+  geom_point(x = 0, y = 4.53, size = 5)  # plot the intercept
+```
+
+
+`schooltypeState`:
+Holding CRQ constant (ie, for any value of CRQ), moving from private schools to state schools is associated with a decrease of EDS of 0.17.
+That is, dysregulation decreases, or regulation increases.
+This difference is not significantly different from zero.
+
+`CRQ`:
+Holding school type constant (ie, for any value of school type), an increase of one CRQ point is associated with a decrease of EDS of 0.05.
+That is, dysregulation decreases, or regulation increases.
+This difference is also not significantly different from zero.
 
 
 ## interpret ranefs relative to fixefs
 
+```{r}
+VarCorr(eds_mod)
+```
 
+The by-school intercept adjustments have a SD of 0.46 points.
+Thus the model suggests that 95% of the adjusted school-level intercepts fall between 4.53 – 2 * 0.46 = 3.61 and 4.53 + 2 * 0.46 = 5.45 EDS points.
+
+The by-school adjustments to the slope over `CRQ` have a SD of 0.14 points.
+Thus the model suggests that 95% of the adjusted school-level slopes over `CRQ` fall between –0.17 – 2 * 0.14 = –0.45 and –0.17 + 2 * 0.14 = 0.11.
+Thus most schools show a negative association between CRQ and EDS (meaning that as routine increases, dysregulation decreases—in line with the hypothesis), but some schools are also estimated to show a positive association (not in line with the hypothesis).
+
+The intercept and slope adjustments have a fairly large negative correlation of –0.75.
+This suggests that schools that tend to have students with higher emotional dysregulation scores (big intercept) tend to have a more negative adjustment to the slope of `CRQ`.
+Since this fixed slope is already negative, the more negative adjustments suggest that the effect of `CRQ` tends to be stronger in schools with pupils having higher emotional dysregulation.
+
+```{r}
+dotplot.ranef.mer(ranef(eds_mod))$schoolid
+```
+
+
+
+## Advanced: plot the random effect lines
+
+to sense check our interpretation of the negative correlation
+
+```{r}
+library(broom.mixed)
+
+augment(eds_mod) |>
+  ggplot(aes(x = CRQ, y = .fitted, group = schoolid, colour = schooltype)) +
+  geom_line()
+```
 
 
 

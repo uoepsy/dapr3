@@ -1,61 +1,81 @@
 ---
-title: "Linear modelling workflow"
+title: "LMM analysis workflow"
 ---
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
 ```
 
-<!-- **You do not need to memorise these steps. This page is here so you can refer to it while working through the analyses for your reports, minidissertations, and dissertations.** -->
+**You do not need to memorise these steps. This page is here so you can refer to it while working through LMM analyses for your DAPR reports, minidissertations, and dissertations.**
 
 You won't need to use every step below for every analysis, and they don't need to be in this specific order either.
+This is just the order Elizabeth usually uses 😊
+
 Think of these steps like a buffet to pick and choose from, depending on what your analysis needs.
 
 
-## Phase 0: Before collecting data
+## Phase 0: Before collecting data (if applicable)
 
-- **Run a power analysis** to see how many participants you'll need to recruit, given the effect size you expect to see or the smallest effect size that's still theoretically interesting.
+- **Run a power analysis** to see how many people you'll need to gather data from, given the effect size you expect to see or the smallest effect size that's still theoretically interesting.
 	- see [DAPR2 power flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#statistical-power-effect-size)
 
 
 ## Phase 1: Before model fitting
 
-<!-- TODO: clarify ranef workflow -->
+#### 1a: Set up your code and data
 
-- **Load the required R packages and read in your data.**
+- **Load the required R packages.** You'll probably need at least:
+  - `tidyverse` (for managing and wrangling data)
+  - `lme4` (for fitting LMMs)
+  - `lmerTest` (for displaying p-values for the fixed effect coefficients)
+  - `stats` (for `xtabs()`, useful for identifying possible random slopes)
+  - `HLMdiag` (for computing influence diagnostics)
+  - `effects` (for plotting model-fitted values)
+- **Read in your data.**
 - **Tidy data** (e.g., any missingness, any implausible values? are data types set correctly?).
-- **Identify relevant variables by mapping them to the RQ and data generating process:** What's the outcome? What variables contribute reproducible variability? What grouping variables contribute random variability?
-  - see [data generating process flash card](../block1/dgp.html)
-  - see [grouping variables flash card](../block1/groupstruc.html)
-- **Get summary statistics for the relevant variables.**
-  - see [DAPR2 descriptives flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#descriptives)
-- **Explore patterns in the data by plotting the relevant variables together.**
-  - see [DAPR2 visual exploration flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#visual-exploration)
-- **Set up categorical (fixed) predictors (e.g., factor levels? which a priori coding scheme?).**
-  - see [DAPR2 categorical predictors flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#numeric-outcomes-categorical-predictors)
-- **Set up continuous (fixed) predictors (e.g., any transformations?).**
-  - see [DAPR2 data transformation flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#data-transformations)
-- **Based on the outcome variable, choose whether to use regular regression or logistic regression.**
-  - see [DAPR2 logistic regression flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#logistic-regression)
-- **Based on the RQ, decide whether the RQ requires an interaction model.**
+
+
+#### 1b: Set up the fixed effects
+
+- **Based on the RQ, identify your outcome variable and the predictors (aka the fixed effects).**
+- **Based on the RQ, decide whether your model requires an interaction between predictors.**
   - see [DAPR2 interaction flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#interaction-models)
-- **Identify maximal model.**
-  - see [maximal model flash card](../block1/maxmodel.html)
+- **Based on the outcome variable, decide whether to use regular regression or logistic regression.**
+  - see [DAPR2 logistic regression flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#logistic-regression)
+- **Set up categorical predictors.** (e.g., factor levels? which a priori coding scheme?)
+  - see [DAPR2 categorical predictors flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#numeric-outcomes-categorical-predictors)
+- **Set up continuous predictors.** (e.g., any transformations?)
+  - see [DAPR2 data transformation flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#data-transformations)
+- **Explore patterns in the fixed effects by plotting outcome and predictor variables together.** (It's most reader-friendly to plot the transformed version of the data, the version that you'll also be modelling.)
+  - see [DAPR2 visual exploration flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#visual-exploration)
+
+
+#### 1c: Set up the random effects
+
+- **Identify grouping variables which contribute random variability to your data.** Your model will have random intercepts for each of these grouping variables.
+  - see [Grouping variables flash card](../block1/groupstruc.html)
+  - see [Data generating process flash card](../block1/dgp.html)
+- **Identify the random slopes that your model can contain.**
+  - see [Identify possible random effects flash card](../block1/identify-ranef.html)
+- **Write out the formula for your maximal model.**
+  - see [Maximal model flash card](../block1/maxmodel.html)
 
 
 ## Phase 2: Model fitting and troubleshooting
 
 
 - **Try fitting the maximal model to the data.**
-- **If convergence warnings: Try a different optimiser and fit model again.**
-  - see [model troubleshooting flash card](../block1/troubleshoot.html)
-- **If convergence or singular fit warnings: Simplify random effect structure and fit model again.**
-  - see [model simplification flash card](../block1/simplify.html)
-- **If suggestion to rescale: Convert continuous predictor(s) to z-scores and fit model again.**
-  - see [DAPR2 standardisation flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#data-transformations)
-- **If no warnings, check variance components for sneaky singularities.**
-  - see [model troubleshooting flash card](../block1/troubleshoot.html)
-  
+- **If you get a convergence warning: Try a different optimiser and fit model again.**
+  - see [Troubleshoot common issues flash card](../block1/troubleshoot.html)
+  - see [Change optimiser flash card](../block1/optimiser.html)
+- **If you get a convergence or singular fit warning: Simplify random effect structure and fit model again.**
+  - see [Troubleshoot common issues flash card](../block1/troubleshoot.html)
+  - see [Simplify random effects flash card](../block1/simplify.html)
+- **If you get a suggestion to rescale variables: Convert continuous predictor(s) to z-scores and fit model again.**
+  - see [Troubleshoot common issues flash card](../block1/troubleshoot.html)
+  - see [DAPR2 Standardisation flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#data-transformations)
+- **Even if you get no warnings, manually check variance components for sneaky singularities.**
+  - see [Troubleshoot common issues flash card](../block1/troubleshoot.html)
 
 
 ## Phase 3: After model fitting
@@ -63,33 +83,37 @@ Think of these steps like a buffet to pick and choose from, depending on what yo
 <!-- TODO: interp fixefs -->
 <!-- TODO: interp ranefs relative to fixefs -->
 
+#### 3a: Check assumptions and diagnostics
+
 - **Check model assumptions.**
-   - see [DAPR2 regular regression assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#linear-models-2)
-   - see [DAPR2 logistic regression assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#logistic-models-3)
-   - see [LMM assumptions flash card](../block1/assump.html)
-  - **If model relies on assumptions about normality/equal variance of errors and if these are violated, bootstrap model estimates.**
-	  - see [DAPR2 bootstrapping flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#bootstrap)
+   - see [Check assumptions flash card](../block1/assump.html)
+  - **If model assumptions about normality/equal variance of errors are violated, bootstrap model estimates.**
+	  - see [DAPR2 bootstrapping flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#bootstrap) for how to bootstrap simple linear models.
+	  - for bootstrapping LMMs (not covered in DAPR3), you could try `lme4::bootMer()` ([documentation here](https://www.rdocumentation.org/packages/lme4/versions/1.1-38/topics/bootMer)).
 - **Run diagnostics for multicollinearity.**
   - see [DAPR2 assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#linear-models-2)
-- **Run diagnostics for outlying and influential data points (aka case diagnostics).**
-   - see [DAPR2 regular regression assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#linear-models-2)
-   - see [DAPR2 logistic regression assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#logistic-models-3)
-   - **If outlying/influential data points detected: run sensitivity analysis.**
-      - see [DAPR2 regular regression assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#linear-models-2)
-      - see [DAPR2 logistic regression assumptions flash card](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#logistic-models-3)
-- **Interpret the model estimates.**
+- **Run diagnostics for influential observations and levels of grouping variables.**
+  - see [Detect influential points and groups flash card](../block1/influence.html)
+- **If you find extreme influential observations/groups: run sensitivity analysis.**
+   
+   
+#### 3b: Plot and interpret model estimates
+   
+- **Plot model-fitted values.**
+  - see [plotting fitted values](../block1/plot-fitted.qmd)
+- **Interpret the fixed effect estimates.**
+  - see [Interpret LMM summary flash card](../block1/interpret-lmm.html)
+  - see [Get p-values for LMM coefficients flash card](../block1/pvals.html)
   - see [DAPR2 statistical models flash cards](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#statistical-models)
   - see [DAPR2 logistic regression flash cards](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#logistic-regression) 
   - see [DAPR2 interaction models flash cards](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#interaction-models)
-  - see [interpreting random effects flash card](../block1/interp.html)
-  - see [p-values for LMMs flash card](../block1/pvals.html)
-- **If model contains interactions:**
-  - Compute simple slopes/simple effects (incl. corrections for multiple comparisons, if necessary).
-    - see [DAPR2 num/cat interaction flash cards](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#numeric-x-categorical-example)
-  - Plot simple slopes/simple effects.
-    - see [DAPR2 num/cat interaction flash cards](https://uoepsy.github.io/dapr2/2526/labs/1_b4_reading.html#numeric-x-categorical-example)
-- **Plot model-fitted values.**
-  - see [plotting random effects flash card](../block1/plot-ranefs.qmd)
-  - see [plotting fitted values](../block1/plot-fitted.qmd)
+- **Plot random effects.**
+  - see [Plot random effects flash card](../block1/plot-ranefs.html)
+- **Interpret SD of random effects relative to fixed effects.**
+  - see [Interpret LMM summary flash card](../block1/interpret-lmm.html)
+  
+  
+#### 3c: Write up methods and results
+  
 - **Write up your analysis and results.**
-  - see [reporting LMMs flash card](../block1/reporting.html)
+  - see [Report LMM analyses and results flash card](../block1/reporting.html)
