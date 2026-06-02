@@ -7,32 +7,13 @@ source('../assets/setup.R')
 ```
 
 
-## Basic model formula
-
 The structure of a basic linear model (not a linear mixed model) is:
 
 ```{r eval=F}
-lm(outcome ~ fixed effect, data = mydata)
+lm(outcome ~ predictor, data = mydata)
 ```
 
-For example, imagine we're analysing the effect of stress on motivation levels.
-We distributed a survey and got one pair of `motivation` and `stress` values from each respondent.
-This is a between-subjects design which does not require random effects because all observations are independent (see [random effects](ranef.html), [LMM assumptions](assump.html)).
-
-```{r eval=F}
-lm(motivation ~ stress, data = mydata)
-```
-
-
-## LMM formula
-
-**In general, we add on a random intercept by `group` by writing `(1 | group)`.
-If we also want to include a random slope over `predictor`, we write that as `(1 + predictor | group)`.**
-
-
-Here's how we add those terms into the model fomurla.
-
-First, for LMMs, we need to use the package `lme4`.
+In order to fit an LMM, we need to use the package `lme4`.
 
 ```{r}
 library(lme4)
@@ -40,27 +21,68 @@ library(lme4)
 
 `lme4` gives us the function `lmer()` for modelling a continuous outcome and `glmer(family = binomial)` for modelling a binary outcome.
 
-The structure of a linear mixed model, which includes the random effect specification, is:
+First, the following code shows a model with [random intercepts](rdint.html) by `grouping variable` (aka, intercept adjustments by `grouping variable`).
 
 ```{r eval=F}
-lmer(outcome ~ fixed effect + (1 + fixed effect | grouping variable), data = mydata)
+lmer(
+  outcome ~ predictor + (1 | grouping variable), 
+  data = mydata
+)
 ```
 
-With `lmer()`, we have the addition of __random effect terms__, specified in parenthesis with the `|` operator (the vertical line | is often found to the left of the z key on QWERTY keyboards).  
-We use the `|` operator to separate the parameters (intercept, slope etc.) on the left-hand side, from the grouping variable(s) on the right-hand side, by which we would like to model these parameters as varying.  
 
-
-For example, imagine we're still analysing the effect of stress on motivation levels, but now, each person who responded to our survey did so several times.
-We have several different `motivation` and `stress` scores for each person.
-As such, the data points are no longer independent, because some of them come from the same person (see [LMM assumptions](assump.html)).
-
-Therefore we need to include random intercepts by `respondent`.
-And because we have several `stress` values for each respondent, we can also include a random slope over `stress` for each `respondent`.
-(See [Identify possible random effects](identify-ranef.html).)
+The following code shows a model with [random intercepts](rdint.html) by `grouping variable` (aka, intercept adjustments by `grouping variable`) as well as [random slopes](rdslp.html) over `predictor` by `grouping variable` (aka, adjustments to the slope over `predictor` by `grouping variable`).
 
 ```{r eval=F}
-lmer(motivation ~ stress + (1 + stress | respondent), data = mydata)
+lmer(
+  outcome ~ predictor + (1 + predictor | grouping variable), 
+  data = mydata
+)
 ```
+
+
+To model more than one grouping variable—imagine we now have `groupvar1` and `groupvar2`—we add on more than one parenthetical random effect term.
+
+```{r eval=F}
+lmer(
+  outcome ~ predictor + (1 + predictor | groupvar1) + (1 | groupvar2),
+  data = mydata
+)
+```
+
+
+
+::: {.callout-caution collapse="true"}
+### Code for modelling nested grouping variables
+
+Imagine gathering data from many children, some of whom attend School A, others attend School B, etc.
+In this case, the "child" grouping variable is nested within the "school" grouping variable.
+
+Another example: imagine gathering data from elderly dementia patients, some of whom are treated at Hospital A, others at Hospital B ...
+Here, the "patient" grouping variable is nested within the "hospital" grouping variable.
+
+To model nested structures like this, an extra bit of syntax is required in the random effect specification.
+When specifying that child is nested within school, in place of the grouping variable we can write `child:school`:
+
+```{r eval=F}
+lmer(
+  outcome ~ predictor + (1 + predictor | child:school),
+  data = mydata
+)
+```
+
+And since `school` is its own grouping variable, it probably gets its own random effect term as well, potentially with a random slope over `predictor` (always make this decision based on the affordances of your data!).
+
+```{r eval=F}
+lmer(
+  outcome ~ predictor + (1 + predictor | child:school) + (1 + predictor | school),
+  data = mydata
+)
+```
+
+:::
+
+
 
 
 ## Linked flash cards
