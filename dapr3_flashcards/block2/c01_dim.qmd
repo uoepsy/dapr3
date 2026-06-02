@@ -1,0 +1,329 @@
+---
+title: "Dimensionality of Data"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+xaringanExtra::use_panelset()
+library(tidyverse)
+library(psych)
+```
+
+Take a moment to think about the various things that you are often interested in when discussing psychology. This might be anything from personality traits, to language proficiency, social identity, anxiety etc. 
+How we measure such constructs is a very important consideration for research. The things we're interested in are very rarely the things we are *directly* measuring. 
+
+Consider how we might assess levels of anxiety or depression. Can we ever directly measure anxiety?^[Even if we cut open someone's brain, it's unclear what we would be looking for in order to 'measure' it. It is unclear whether anxiety even exists as a physical thing, or rather if it is simply the overarching concept we apply to a set of behaviours and feelings.] More often than not, we measure these things using a _set_ of different measures which 'look at' an intended construct from a different angle. In psychology, this is often questionnaire based methods, with a set of questions each of which might ask about "anxiety" from a slightly different angle. Twenty questions all measuring different aspects of anxiety are (we hope) going to correlate with one another if they are capturing some commonality (the construct of "anxiety").  
+
+But this introduces a problem for us: how do we deal with, e.g., 10 variables that represent (in broad terms) the same one idea? How can we analyse that key idea that we're interested in (e.g., "changes in anxiety"), and not have to talk separately about every individual variable ("changes on anxiety Q1" and "changes on anxiety Q2" and so on)?  
+
+In addition, not all of our intended constructs (the concepts we're actually interested in) will necessarily exist as one *distinct* thing --- for instance, we often talk about "narcissism", but people argue that this is actually comprised of 3 slightly distinct (but related) constructs of "grandiosity", "vulnerability" and "antagonism".  
+
+What we are touching upon here gets referred to as *dimensionality* of a measurement tool, and the questions we are going to look at are all about how we can go from the big set of observed variables to working with the underlying constructs that we are actually interested in.  
+
+:::sticky
+__What is a "dimension"?__  
+
+Broadly speaking, when we use the term "dimension" here, we are more or less referring to something like the number of rows and columns in a dataset. If I measure $n$ people on 10 questions about anxiety, then my resulting dataset will have $n \times 10$ dimensions.  
+
+But in many cases this contrasts with our research questions, which are concerned with a _construct_ (e.g., the idea of "anxiety") that we consider to be a single dimension (e.g., people are high on anxiety or low on anxiety) rather than 10.  
+
+__When might we want to reduce dimensionality?__
+
+There are many reasons we might want to "reduce the dimensionality" of data:  
+
+- Pragmatic
+  - I have multicollinearity issues/too many variables, how can I defensibly combine my variables? 
+- Test construction
+  - How should I group my questionnaire items into subsets?
+  - Which items are the best measures of my construct(s)?
+  - What are the number and nature of underlying constructs that best explain the pattern of responses to a set of questions?  
+- Theory testing
+  - Does a pre-defined theory about the number and nature of underlying constructs fit well to this dataset?  
+  
+:::
+
+
+## New Dimensions  
+
+
+```{r include=FALSE}
+library(rgl)
+library(psych)
+set.seed(4)
+R = matrix(c(1,.6,.8,
+             .6,1,.8,
+             .8,.8,1),nrow=3)
+Sigma = diag(3)%*%R%*%diag(3)
+Mean <- rep(0,3)
+x <- MASS::mvrnorm(500, Mean, Sigma)
+x <- apply(x,2,\(x) as.numeric(cut(x,9)))
+mydata <- as.data.frame(x)
+
+names(mydata) <- c("M","P","S")
+```
+
+Let's suppose we are interested in capturing how tired people are, and we have data on three different related variables: 
+
+- Subjective Mental Fatigue
+- Subjective Physical Fatigue
+- Subjective Sleepiness
+
+We can visualise these in the 3-dimensional space of the measured variables, which would give us a 3D plot such as @fig-scat.   
+
+Although we have measured 3 variables, when faced with trying to characterise the shape of the 3-dimensional cloud of datapoints, we're more inclined to think about its length, width and depth. You can imagine trying to characterise this shape as the ellipse in @fig-ellip. It looks a little like a baguette or something! It's longer in one direction (green line), wide-ish in another direction (red line), and not very deep (blue line). We can think of those coloured lines as a new set "dimensions" that we could opt to use to characterise the shape of data.  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| label: fig-scat
+#| fig-cap: "3 measured variables"
+plot3d(x, box = FALSE, 
+       xlab="Mental Fatigue",ylab="Physical Fatigue",zlab="Sleepiness")
+rglwidget()
+```
+
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| label: fig-ellip
+#| fig-cap: "An ellipse capturing the cloud of datapoints, the axes shows the length, width and depth of the ellipse"
+plot3d(x, box = FALSE, 
+       xlab="Mental Fatigue",ylab="Physical Fatigue",zlab="Sleepiness")
+plot3d(ellipse3d(cov(mydata), centre = colMeans(mydata)), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(mean(mydata$M),mean(mydata$P),mean(mydata$S),
+             a=principal(x,nfactors=3,cov=TRUE,rotate="none")$loadings[,1],
+             col="green"),lwd=2, add=TRUE)
+plot3d(
+  abclines3d(mean(mydata$M),mean(mydata$P),mean(mydata$S),
+             a=principal(x,nfactors=3,cov=TRUE,rotate="none")$loadings[,2],
+             col="red"), lwd=2, add=TRUE)
+plot3d(
+  abclines3d(mean(mydata$M),mean(mydata$P),mean(mydata$S),
+    a=principal(x,nfactors=3,cov=TRUE,rotate="none")$loadings[,3],
+           col="blue"), lwd=2, add=TRUE)
+rglwidget()
+
+```
+:::
+::::
+
+
+
+::: {.callout-note collapse="true"}
+#### the correlation matrix
+
+The example here has 3 variables, which means 3 dimensions, and this is why we can actually visualise it in the 3D plots. But we could also think of this shape as being described by all the correlations between each pair of variables. Each of these correlations is characterising the plot of each pair of variables, and these are just like viewing the 3-d plot above but looking at it from straight on at each side.^[Rotate the 3D plot to make it match the 2D plots below!] So in cases where we have lots and lots of variables, we might not be able to visualise the n-dimensional shape itself, but we can look at it from all different angles through the correlation matrix!  
+
+::::{.columns}
+:::{.column width="48%"}
+```{r}
+cor(mydata)
+```
+:::
+:::{.column width="4%"}
+:::
+:::{.column width="48%"}
+```{r}
+pairs(mydata)
+```
+:::
+::::
+
+:::
+
+Think a little about what the new dimensions (the coloured axes in @fig-ellip) *represent* - they capture "the ways in which observations vary" across the set of observed variables. 
+
+The long dimension captures that all three variables tend to co-vary (there are lots of people who are high on all of them, and lots who are low on all of them - there aren't many who might rate one question an 8 and the other two questions a 2). 
+
+One way to see this is to just follow the green line to each end of the ellipse and figure out roughly what the scores would be at that point. At one end of the green line we have people scoring 2 on all of the variables, and at the other end we have them scoring 8 on all of them. 
+
+The next longest dimension of the ellipse (the red line) shows another way in which people vary - there are people with similar sleepiness scores but some people are high on physical fatigue and low on mental fatigue, and others are low on physical fatigue but high on mental fatigue (i.e., at one end of the red line we have scores of MF=6, PF=4, S=5, and at the other end we have MF=4, PF=6, S=5). Notice also that people don't vary as much along this red line as they did on the green line (we're talking differences of ~2 points, rather than of ~6).  
+
+Finally the blue dimension of the ellipse is the shortest, capturing the least variability. This dimension seems to differentiate between people who are more sleepy but less fatigued, and those who are less sleepy but more fatigued. It makes sense that there isn't much variability here - we would expect people who are sleepy to be fatigued and vice versa!  
+
+## Discarding Dimensions   
+
+Often it helps to take ideas to the extremes, so think about what these sorts of 3D plots would look like if we *no correlations* or *perfect correlations* between the three variables. If the variables are uncorrelated, then we have a sort of spherical cloud of data, and for any set of three dimensions we try to use to express this shape there is not going to be any one dimension that is longer than the other (@fig-pcano). By contrast, if we have perfect correlations between the variables, then we actually don't even need 3 dimensions in order to identify _exactly_ where each datapoint is: we only really need *one* dimension - the line upon which all observations fall (@fig-pcaff) - and we can *precisely* capture all of the variability.  
+
+The core idea of dimension reduction is that some re-expression of our data into a new set of dimensions might allow us to then _**discard** some of the dimensions_, without losing too much of the shape (i.e., while still capturing a lot of how observations vary).  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| label: fig-pcano
+#| fig-cap: "Dimensions of 3 uncorrelated variables"
+set.seed(33)
+S = runif(3,.4,2)
+f = runif(3,0,.1)
+R = f %*% t(f)
+diag(R) = 1
+Sigma2 = diag(S)%*%R%*%diag(S)
+Mean2 <- rep(0,3)
+x2 <- MASS::mvrnorm(500, Mean2, Sigma2)
+plot3d(x2, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+plot3d( ellipse3d(Sigma2, centre = Mean2), col = "#A41AE4", alpha = 0.4, add = TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,1],
+             col="green"),lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,2],
+             col="red"), lwd=2, add=TRUE)
+plot3d(
+  abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,3],
+           col="blue"), lwd=2, add=TRUE)
+rglwidget()
+```
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+#| label: fig-pcaff
+#| fig-cap: "3 perfectly correlated variables"
+S = runif(3,.4,2)
+f = runif(3,1,1)
+R = f %*% t(f)
+diag(R) = 1
+Sigma2 = diag(S)%*%R%*%diag(S)
+Mean2 <- rep(0,3)
+x2 <- MASS::mvrnorm(500, Mean2, Sigma2)
+
+plot3d(x2, box = FALSE, xlab="y1",ylab="y2",zlab="y3")
+rglwidget()
+```
+:::
+::::
+
+For an analogy, imagine being given a ruler and being asked to give two numbers to provide a measurement of your smartphone. What do you pick? I would take a bet that you will measure its length and then its width. You're likely to ignore the depth because it is much smaller than the other two dimensions. This is pretty much the concept of dimension reduction. 
+
+The idea here is that we can --- without losing *too* much --- preserve the general shape of our data using _fewer_ dimensions. In our Fatigue/Sleepiness example, we could, discard one of our new dimensions (the blue line --- the narrowest dimension of the baguette in @fig-ellip), and consider where our data falls when projected onto the 2-dimensional surface shown in @fig-ellipreduc. Or we could discard yet a further dimension and reduce down to only 1 dimension, as in @fig-ellipreduc2. This would essentially be us choosing to use where the observations fall on the green line in @fig-ellip, instead of using the three original variables of Physical Fatigue, Mental Fatigue and Sleepiness.  
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| label: fig-ellipreduc
+#| fig-cap: "A 2-d ellipse capturing most of the variability in a 3-d cloud of datapoints. Black points show original values on measured variables, blue lines show projections onto the new dimensions."
+set.seed(4)
+R = matrix(c(1,.6,.8,
+             .6,1,.8,
+             .8,.8,1),nrow=3)
+Sigma = diag(3)%*%R%*%diag(3)
+Mean <- rep(0,3)
+x <- MASS::mvrnorm(500, Mean, Sigma)
+
+x <- apply(x,2,\(x) as.numeric(cut(x,9)))
+mydata <- as.data.frame(x)
+
+names(mydata) <- c("M","P","S")
+
+plot3d(x, box = FALSE, xlab="Mental Fatigue",ylab="Physical Fatigue",zlab="Sleepiness", alpha=.5)
+
+xx = apply(x, 2, \(y) resid(lm(y ~ psych::principal(x,3,cov=T,rotate="none")$scores[,3])))
+xx = xx + mean(x)
+plot3d(ellipse3d(cov(xx), centre = colMeans(xx), subdivisions = 50),
+         col = "#A41AE4", alpha = 0.4, add = TRUE)
+
+points3d(xx,add=T,col="#A41AE4")
+for(i in 1:nrow(x)){
+  segments3d(x = c(x[i,1],xx[i,1]),
+              y = c(x[i,2],xx[i,2]),
+              z = c(x[i,3],xx[i,3]),
+              col="blue", lwd=.5, alpha=.5)
+
+}
+rglwidget()
+
+```
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+#| label: fig-ellipreduc2
+#| fig-cap: "A 1-d line capturing most of the variability in a 3-d cloud of datapoints. Black points show original values on measured variables, blue lines show projections onto the new dimensions."
+
+plot3d(x, box = FALSE, xlab="Mental Fatigue",ylab="Physical Fatigue",zlab="Sleepiness", alpha=.5)
+
+# plot3d(abclines3d(0,0,0,a=principal(x,nfactors=3,rotate="none")$loadings[,1],
+#              col = "#A41AE4"), lwd=2, add=TRUE)
+xx = apply(x, 2, \(y) resid(lm(y ~ psych::principal(x,3,rotate="none")$scores[,2:3])))
+xx = xx + mean(x)
+# xx = apply(x, 2, \(y) resid(lm(y ~ rowMeans(x))))
+points3d(xx,add=T,col="#A41AE4")
+lines3d(xx,add=T,col="#A41AE4")
+for(i in 1:nrow(x)){
+  segments3d(x = c(x[i,1],xx[i,1]),
+              y = c(x[i,2],xx[i,2]),
+              z = c(x[i,3],xx[i,3]),
+              col="blue", lwd=.5,lty="dotted",alpha=.5)
+
+}
+
+rglwidget()
+
+```
+
+:::
+::::
+
+## A (slightly) larger example
+
+The conceptual idea of these new 'dimensions' that we're working with here is pretty abstract, and it only gets weirder to think about when we have more than 3 variables and we can no longer easily visualise it in a single plot. 
+
+Take as an example what we would expect to see if we asked 100 people to rate how much they like each of these snacks:  
+
+
+1. digestive biscuits
+2. hobnobs
+3. oreos
+4. walkers crisps
+5. pringles
+6. kettle chips
+
+We wouldn't be able to plot all of these at once like we did in the 3D plot (it would have to be a 6D plot!), but we can look at all the different pairwise relationships:  
+
+```{r}
+#| include: false
+library(lavaan)
+set.seed(35)
+dgp="
+b =~ .7*oreos+.8*digestive+.9*hobnob
+d =~ .8*walkers+.8*pringles+.7*kettle
+b ~~.3*d
+"
+simulateData(dgp, sample.nobs = 100) |>
+  apply(2,\(x) cut(x,7,labels=F)) |> as.data.frame() -> snackdata
+```
+
+
+::::panelset
+:::panel
+#### correlation matrix
+```{r}
+cor(snackdata)
+```
+:::
+:::panel
+#### correlation heatmap
+```{r}
+heatmap(cor(snackdata))
+```
+
+
+:::
+:::panel
+#### scatterplot matrix
+```{r}
+pairs(snackdata)
+```
+
+:::
+::::
+
+It's a little hard to see, but if we look carefully, we'll notice that questions 1, 2, 3 all correlate higher with one another and less with the other variables, and questions 4, 5 and 6 do the same! 
+This makes complete sense when we reflect on the questions themselves - the first 3 are getting at something different from the last 3. What we're seeing is that peoples' responses vary in two key ways: people vary on how much they like biscuits (oreos, digestives, hobnobs), but then separately from this biscuit angle, they vary in how much they like crisps (walkers, pringles, kettle). And *within* each of these sets of variables (the biscuit variables, and the crisp variables), there is less variability --- i.e., we don't often see people rating high on hobnobs and low on digestives. What we are seeing here is that instead of having to work with 6 variables, we might be able to get away with only 2 things. 
+
