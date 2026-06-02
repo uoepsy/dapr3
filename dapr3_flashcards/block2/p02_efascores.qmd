@@ -1,0 +1,92 @@
+---
+title: "Factor Scores"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(psych)
+```
+
+:::frame
+__Dataset: phoneaddiction.csv__  
+
+The dataset at [https://uoepsy.github.io/data/phoneaddiction.csv](https://uoepsy.github.io/data/phoneaddiction.csv){target="_blank"} comes from a (fake) study that is interested in developing a measure of "phone-attachment/addiction" - i.e., the idea of being overly attached to a phone.  
+
+We have a set of 10 statements (@tbl-phdict) that get at different aspects of this idea, and we asked 240 people to rate how much they agreed with each of the 10 statements on a 1-5 scale (1 = strongly disagree, 5 = strongly agree).
+
+```{r}
+phdat <- read_csv("https://uoepsy.github.io/data/phoneaddiction.csv")
+```
+
+
+```{r}
+#| echo: false
+#| label: tbl-phdict
+#| tbl-cap: "Item wordings for phoneaddiction.csv"
+itemqs = c("I often reach for my phone even when I don't have a specific reason to use it.",
+"I feel a strong urge to check my phone frequently, even during meals or social interactions.",
+"I spend a large portion of my day using my phone, often for more hours than I intend.",
+"My phone use has interfered with my ability to complete tasks or responsibilities at school, work, or home.",
+"When I cannot use my phone (e.g., no battery or no signal), I feel anxious or uncomfortable.",
+"My phone use has negatively affected my sleep schedule, such as staying up late scrolling.",
+"I find it difficult to avoid checking my phone immediately upon waking up or right before bed.",
+"I often check my phone even in situations where it's distracting or socially inappropriate (e.g., meetings or classes).",
+"I sometimes feel that others are overly concerned about my phone use in social situations.",
+"I have tried to reduce my phone usage but find it challenging to do so.")
+
+m = "
+ lv1 =~ .8*item1 + .8*item2 + .8*item3 + .8*item7 + .8*item8 + .1*item9
+ lv2 =~ .8*item4 + .8*item5 + .8*item6 + .2*item9 + .8*item10
+ lv1 ~~ .5*lv2
+"
+set.seed(2345)
+df = lavaan::simulateData(m,sample.nobs = 240)
+df = apply(df, 2, \(x) as.numeric(cut(x,5))) |> as_tibble()
+df = df |> select(paste0("item",1:10))
+phdat <- df
+# write_csv(phdat, file="../../data/phoneaddiction.csv")
+
+tibble(
+  variable = names(df),
+  question = itemqs
+) |> gt::gt()
+
+```
+:::
+
+After all the focus on trying to better understand the underlying structure of factors that are resulting in our observed responses, we have somewhat lost sight of the fact that this might all be in aid of some other purpose - trying to create a score for each person in our dataset for each of the factors!  
+
+Much like PCA (see [Chapter 2](02_pca.html)), the scores from factor models will be taking into account the extent to which each individual observed variable might differently reflect the underlying factor. So this will contrast with naive mean/sum scores which assume each variable is equally reflective of the construct.  
+
+Unlike PCA, however, in factor analysis everything is **indeterminate**. Much like how we can have infinitely many sets of loadings (depend on how we rotate them) that are numerically indistinguishable in terms of the implied model, there are infinitely many sets of factor scores that we could create - we have "factor score indeterminacy".   
+
+There are many various methods to estimated factor scores, and they will all combine the observed responses, the factor loadings, and the factor correlations.  
+
+We can get them all using the `factor.scores()` function. We need to give this function our data, our factor model, and tell it which method to use.  
+
+So let's assume we want to use our 2 factor model of phone-addiction, and we are removing that problematic question 9.  
+
+```{r}
+ph_efa2a <- fa(phdat[,-9], nfactors = 2, 
+               rotate = "oblimin", fm = "ml")
+```
+
+For example, to extract factor scores using the Bartlett method:  
+
+```{r}
+#| eval: false
+factor.scores(phdat[,-9], ph_efa2a, method="Bartlett")$scores
+```
+```{r}
+#| echo: false
+factor.scores(phdat[,-9], ph_efa2a, method="Bartlett")$scores |> head()
+```
+
+A brilliant paper by Skrondal & Laake^[Skrondal, A., & Laake, P. (2001). Regression among factor scores. Psychometrika, 66, 563-575.] suggests the following methods to be used depending on your eventual purpose:  
+
+- If the construct is going to be used as a dependent variable, use Bartlett (`method = "Bartlett"`)  
+- If the construct is going to be used as a predictor, use Thurstone (`method = "Thurstone"`)  
+- If the construct is a covariate, less important
+
+

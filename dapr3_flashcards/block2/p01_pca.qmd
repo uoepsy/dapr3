@@ -1,0 +1,195 @@
+---
+title: "Getting PCA Scores"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+```
+
+
+```{r}
+#| include: false
+somedata = lavaan::simulateData(
+  paste0("f1=~",paste0(runif(3,.8,1),"*y",1:3,collapse="+"),
+         "\nf2=~",paste0(runif(3,.8,1),"*y",4:6,collapse="+"),
+         "\nf1~~-.3*f2")
+) |> mutate(across(everything(), ~as.numeric(cut(.,9))))
+
+cor(somedata) |> round(2)
+
+set.seed(475)
+nitem <- 6
+A <- matrix(runif(nitem^2,.41,1)*2-1, ncol=nitem) 
+scor <- t(A) %*% A
+df <- MASS::mvrnorm(n=220,mu=rep(0,6),Sigma = scor) |> as.data.frame()
+
+physfunc <- df |> transmute(
+  mobility = round(550 + scale(V1)[,1]*75),
+  balance = round(20 + scale(V2)[,1]*5, 2),
+  flexibility = round(7.5 + scale(V3)[,1]*1.25 + 2),
+  strength = round(35 + scale(V4)[,1]*7.5),
+  coordination = round(1.5+scale(V5)[,1]*.25, 3),
+  fine_motor = round(20+scale(V6)[,1]*2.5,2)
+) 
+
+nitem <- 2
+A <- matrix(runif(nitem^2,.41,1)*2-1, ncol=nitem) 
+scor <- t(A) %*% A
+df <- MASS::mvrnorm(n=220,mu=rep(0,2),Sigma = scor) |> as.data.frame()
+physfunc2 <- df |> transmute(
+  respiratory = round(550 + scale(V1)[,1]*100),
+  endurance = round(15 + scale(V2)[,1]*2.5, 2)
+)
+physfunc <- bind_cols(physfunc,physfunc2) |>
+  relocate(endurance, .after=balance)
+# write_csv(physfunc, file="../../data/physfunc.csv")
+
+```
+
+## Data
+
+:::frame
+__Dataset: physfunc.csv__  
+
+These data contain measurements on 220 individuals on various measures of physical functioning:  
+
+- Mobility: 6-Minute Walk Test (distance in metres walked in 6 minutes).
+- Balance: Single-Leg Stance Test (time in seconds standing on one leg). 
+- Endurance: Stair Climb Test (time in seconds taken to climb a set number of stairs).
+- Flexibility: Sit and Reach Test (distance in cm reached beyond the feet while seated).
+- Strength: Grip Strength Test (measured in kilograms using a dynamometer).
+- Fine Motor Skills: Nine-Hole Peg Test (time in seconds to place and remove pegs from a board).
+- Respiratory Function: Forced Expiratory Volume in 1 Second (FEV1) (measured in Liters per second using a spirometer).  
+
+Dataset: [https://uoepsy.github.io/data/physfunc.csv](https://uoepsy.github.io/data/physfunc.csv){target="_blank"}
+
+:::
+
+```{r}
+physfunc <- read_csv("https://uoepsy.github.io/data/physfunc.csv")
+head(physfunc)
+```
+
+## Doing PCA
+
+
+Using `principal()` from the **{psych}** package, with 8 observed variables, we are working in 8 observed dimensions (our measured variables). These variables are all correlated, and PCA re-expresses the information onto **un**-correlated (i.e. perpendicular) dimensions.  
+
+With 8 measured variables, we get out 8 orthogonal dimensions, which here we call "principal components".  
+In the `principal()` function, we can set `nfactors = 8` to extract 8 dimensions. 
+If we specified a lower number, e.g., `nfactors = 6`, it would simply _not show_ the 7th and 8th components.  
+
+Setting `rotate = "none"` ensures that these new dimensions are orthogonal to one another.   
+
+```{r}
+library(psych)
+fullpca <- principal(physfunc, nfactors = 8, 
+                     rotate = "none")
+```
+
+
+The output of our PCA gives us two sections: 
+
+- "loadings": correlations between each new dimension and the original dimensions
+- "SSloadings": total variance captured by each new dimension.  
+
+Along with various other methods, we can use the latter to decide how many components to keep.  
+
+::: {.callout-tip collapse="true"}
+#### the output
+
+```{r}
+fullpca
+```
+
+:::
+
+
+## How many components should we keep?  
+
+Using methods detailed in [Deciding on the Number of Components](p01_ndim.html), we make a decision on how many components to keep, and therefore how many to discard.  
+
+For this dataset, we might end up with these recommendations:  
+
+| method | suggestion |
+| ------ | ---------- |
+| scree plot | 1 or 2 |
+| MAP | 1 | 
+| parallel analysis | 2 |
+| keeping 50% variance | 1 |
+| keeping 75% variance | 2 |
+| keeping 80% variance | 3 |
+| keeping 90% variance | 4 |
+
+::: {.callout-tip collapse="true"}
+#### See for yourself
+
+__Variance captured__  
+We can see the cumulative proportion of variance being captured in the bottom row here:  
+
+```{r}
+fullpca$Vaccounted
+```
+
+
+The first component captures 55.8%  
+The first two components capture 78.6%
+The first three components capture 88.5%  
+...
+...
+All eight components capture 100%  
+
+__Scree Plot__  
+
+The screeplot shows a possible kink at either the second or third, indicating that we keep either 1 or 2.  
+```{r}
+cor(physfunc) |>
+  scree()
+```
+
+__Minimum Average Partial (MAP)__  
+There's a lot of output from `VSS()` and we're only really interested in the map values, so let's pull those out.  
+We can see that the first value is lowest, suggesting 1 component:  
+```{r}
+VSS(physfunc, n = 8, 
+    rotate = "none", plot = FALSE)$map
+```
+
+
+__Parallel Analysis__  
+This approach suggests 2 components:  
+```{r}
+fa.parallel(physfunc,
+            fa = "pc",
+            n.iter = 500)
+```
+:::
+
+
+Let's suppose that we decide to retain two components, capturing 79% of the total variance:   
+
+```{r}
+pca_2dim <- principal(physfunc, 
+                      nfactors = 2, rotate = "none")
+```
+
+
+## extracting scores
+
+When it comes to _using_ the principal components in some subsequent analysis, we need to access the "scores".  
+
+These are already stored in the PCA, in the `$scores` slot:  
+
+```{r}
+pca_2dim$scores
+```
+
+
+So we can add these scores to our data: 
+```{r}
+physfunc$pc1 <- pca_2dim$scores[,1]
+physfunc$pc2 <- pca_2dim$scores[,2]
+```
+And then go and use those in some subsequent analysis instead of our original 8 variables!  
+

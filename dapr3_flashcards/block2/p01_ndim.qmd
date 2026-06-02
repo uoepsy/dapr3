@@ -1,0 +1,140 @@
+---
+title: "Identifying the Number of Components/Factors"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+```
+
+
+
+:::frame
+__Dataset: physfunc.csv__  
+
+These data contain measurements on 220 individuals on various measures of physical functioning:  
+
+- Mobility: 6-Minute Walk Test (distance in metres walked in 6 minutes).
+- Balance: Single-Leg Stance Test (time in seconds standing on one leg). 
+- Endurance: Stair Climb Test (time in seconds taken to climb a set number of stairs).
+- Flexibility: Sit and Reach Test (distance in cm reached beyond the feet while seated).
+- Strength: Grip Strength Test (measured in kilograms using a dynamometer).
+- Fine Motor Skills: Nine-Hole Peg Test (time in seconds to place and remove pegs from a board).
+- Respiratory Function: Forced Expiratory Volume in 1 Second (FEV1) (measured in Liters per second using a spirometer).  
+
+Dataset: [https://uoepsy.github.io/data/physfunc.csv](https://uoepsy.github.io/data/physfunc.csv){target="_blank"}
+
+:::
+
+```{r}
+physfunc <- read_csv("https://uoepsy.github.io/data/physfunc.csv")
+head(physfunc)
+library(psych)
+fullpca <- principal(physfunc, nfactors = 8, 
+                     rotate = "none")
+```
+
+Because the process of eigen decomposition is essentially just a _re-expression_ of our correlation matrix, we if we take our 8 principal components all together, we are explaining **all** of the variance in the original data. In other words, the total variance of the principal components (the sum of their variances) is equal to the total variance in the original data (the sum of the variances of the variables). This makes sense - we have simply gone from having 8 correlated variables to having 8 orthogonal (unrelated) components - we haven't lost any variance. 
+
+The key benefit of PCA is that our orthogonal components have *sequential variance maximisation* - i.e., the first captures the most variance, then the second captures the second most, and so on.. So if we just want to reduce down to 1 dimension, then we just keep the first component. If we want to keep some pre-specified amount (e.g., 80%) of variability, then accessing `Vaccounted` will give us information on the amount of variance captured by each component:  
+
+```{r}
+fullpca$Vaccounted
+```
+
+- **SS loadings:** The sum of the squared loadings (these are also the "eigenvalues"). These represent the amount of variance explained by each component, out of the total variance (which is 8, because we have 8 variables (the variables are all standardised, meaning they each have a variance of 1. $8 \times 1 = 8$ so we can think of the total variance as 8!)  
+- **Proportion Var:** The proportion the overall variance the component accounts for out of all the variables. 
+- **Cumulative Var:** The cumulative sum of Proportion Var.
+- **Proportion Explained:** relative amount of variance explained ($\frac{\text{Proportion Var}}{\text{sum(Proportion Var)}}$.
+- **Cumulative Proportion:** cumulative sum of Proportion Explained.
+
+There are lots of methods to help us decide how many components we should keep. 
+
+::: {.callout-tip collapse="false"}
+### Scree plot 
+
+Scree plots show the eigenvalues for each component (each new dimension). A typical scree plot features higher variances for the initial components and quickly drops to small variances where the curve is almost flat. The flat part of the curve represents the noise components, which are not able to capture the main sources of variability in the system. 
+
+According to the scree plot criterion, we should **keep as many principal components up to where the "kink" (or "elbow") in the plot occurs.** So in the above plot, the kink occurs at 3 by my reckoning (yours might be different!), so I would keep 2.  
+
+__NOTE: Scree plots are subjective and may have multiple or no obvious kinks/elbows, making them hard to interpret__  
+
+```{r}
+scree(physfunc[,1:8], pc = TRUE, factors = FALSE)
+```
+
+The horizontal line is an additional suggestion that we should keep all components for which the eigenvalue is >1. This is known as "Kaiser's Criterion"  
+
+:::
+
+::: {.callout-tip collapse="false"}
+### Parallel analysis
+
+ 
+Parallel analysis involves simulating lots of datasets of the same dimension but in which the variables are uncorrelated. For each of these simulations, a PCA is conducted on its correlation matrix, and the eigenvalues are extracted. We can then compare our eigenvalues from the PCA on our *actual* data to the average eigenvalues across these simulations. 
+In theory, for uncorrelated variables, no components should explain more variance than any others, and eigenvalues should be equal to 1. In reality, variables are rarely truly uncorrelated, and so there will be slight variation in the magnitude of eigenvalues simply due to chance. 
+The parallel analysis method suggests keeping those components for which the eigenvalues are greater than those from the simulations. 
+
+It can be conducted in R using the `fa.parallel()` function.  
+When conducting an EFA (we'll see this later on in these readings) as opposed to a PCA, you can set `fa = "both"` to do this for both factor extraction and principal components.  
+
+```{r}
+fa.parallel(physfunc[,1:8], fa = "pc", n.iter = 500)
+```
+
+__NOTE: Parallel analysis will sometimes tend to over-extract (suggest too many components)__  
+
+:::
+
+::: {.callout-tip collapse="false"}
+### MAP
+
+The Minimum Average Partial (MAP) test computes the partial correlation matrix (adjusting for and removing a component from the correlation matrix), sequentially partialling out each component. At each step, the partial correlations are squared and their average is computed.  
+At first, the components which are removed will be those that are most representative of the shared variance between 2+ variables, meaning that the "average squared partial correlation" will decrease. At some point in the process, the components being removed will begin represent variance that is specific to individual variables, meaning that the average squared partial correlation will increase.  
+The MAP method is to keep the number of components for which the average squared partial correlation is at the minimum. 
+
+We can conduct MAP in R using the `VSS()` function.  
+```{r}
+library(psych)
+VSS(physfunc[,1:8], rotate = "none", 
+    plot = FALSE, fm = "pc")
+```
+
+There is a lot of other information in this output too!
+For now just focus on the map column, and the part of the output that says "The Velicer MAP achieves a minimum of 0.14  with 1 factors".  
+This statement tells us that the minimum average squared partial correlation is achieved for 1 factor, which means that MAP suggests we keep only one factor.
+(The `map` column shows us the average squared partial correlation for each number of factors, and the MAP test will find the lowest value in that column and recommend to us the corresponding number of factors.)
+
+
+
+
+
+__NOTE: The MAP method will sometimes tend to under-extract (suggest too few components)__ 
+ 
+
+```{r}
+#| eval: false
+VSS(somedata[,1:6],rotate = "none",fm = "pc")$map
+
+loopdata <- somedata[,1:6]
+for(i in 1:6){
+  loopdata = apply(loopdata, 2, \(y) resid(lm(y ~ principal(loopdata,nfactors=1,rotate="none")$scores[,1])))
+  cc = cor(loopdata)
+  cc[lower.tri(cc)]^2 |> mean() |> print()
+}
+```
+
+:::
+
+
+
+## Linked flash cards
+
+### Outgoing links
+
+- TODO
+
+
+### Backlinks
+
+- TODO

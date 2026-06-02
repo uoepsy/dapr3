@@ -1,0 +1,240 @@
+---
+title: "EFA Step 1. Suitability for Factor Analysis"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(psych)
+```
+
+:::frame
+__Dataset: phoneaddiction.csv__  
+
+The dataset at [https://uoepsy.github.io/data/phoneaddiction.csv](https://uoepsy.github.io/data/phoneaddiction.csv){target="_blank"} comes from a (fake) study that is interested in developing a measure of "phone-attachment/addiction" - i.e., the idea of being overly attached to a phone.  
+
+We have a set of 10 statements (@tbl-phdict) that get at different aspects of this idea, and we asked 240 people to rate how much they agreed with each of the 10 statements on a 1-5 scale (1 = strongly disagree, 5 = strongly agree).
+
+```{r}
+phdat <- read_csv("https://uoepsy.github.io/data/phoneaddiction.csv")
+```
+
+
+```{r}
+#| echo: false
+#| label: tbl-phdict
+#| tbl-cap: "Item wordings for phoneaddiction.csv"
+itemqs = c("I often reach for my phone even when I don't have a specific reason to use it.",
+"I feel a strong urge to check my phone frequently, even during meals or social interactions.",
+"I spend a large portion of my day using my phone, often for more hours than I intend.",
+"My phone use has interfered with my ability to complete tasks or responsibilities at school, work, or home.",
+"When I cannot use my phone (e.g., no battery or no signal), I feel anxious or uncomfortable.",
+"My phone use has negatively affected my sleep schedule, such as staying up late scrolling.",
+"I find it difficult to avoid checking my phone immediately upon waking up or right before bed.",
+"I often check my phone even in situations where it's distracting or socially inappropriate (e.g., meetings or classes).",
+"I sometimes feel that others are overly concerned about my phone use in social situations.",
+"I have tried to reduce my phone usage but find it challenging to do so.")
+
+m = "
+ lv1 =~ .8*item1 + .8*item2 + .8*item3 + .8*item7 + .8*item8 + .1*item9
+ lv2 =~ .8*item4 + .8*item5 + .8*item6 + .2*item9 + .8*item10
+ lv1 ~~ .5*lv2
+"
+set.seed(2345)
+df = lavaan::simulateData(m,sample.nobs = 240)
+df = apply(df, 2, \(x) as.numeric(cut(x,5))) |> as_tibble()
+df = df |> select(paste0("item",1:10))
+phdat <- df
+# write_csv(phdat, file="../../data/phoneaddiction.csv")
+
+tibble(
+  variable = names(df),
+  question = itemqs
+) |> gt::gt()
+
+```
+:::
+
+There are various ways of assessing the suitability of our items for exploratory factor analysis, and most of them rely on examining the observed correlations between items.  
+
+::: {.callout-note collapse="true"}
+#### Look at the correlation matrix  
+
+Use a function such as `cor` or `corr.test(data)` (from the **psych** package) to create the correlation matrix. If it's a big matrix (they get big quite quickly!) then we can make some sort of visual to get a better sense.  
+
+
+__phoneaddiction.csv example:__  
+Most of the correlations are in the range from 0.2 to 0.4. So they aren't hugely strong correlations, but they _are_ all related. From the plot below item9 already looks to be a weird one, which is something to keep in mind.  
+
+```{r}
+library(pheatmap)
+pheatmap(cor(phdat), cluster_rows = F, cluster_cols = F)
+```
+
+:::
+
+::: {.callout-caution collapse="true"}
+#### optional: what if our variables are not continuous?
+
+In psychological research, we spend a lot of time recording responses on a Likert scale (e.g.: "strongly disagree","disgree","neither","agree","strongly agree"). 
+
+If our measurements have 5+ Likert-like options, it is quite common convention to simply treat them as continuous variables. 
+
+But if we have fewer response options (or if people only ever _used_ fewer options), then we don't want to just use a standard Pearson's correlation in order to capture the relationships.  
+
+Instead we would want to use **polychoric** correlations, which we can get out the `polychoric()` function 
+
+```{r}
+#| eval: false
+library(psych)
+# get a matrix of polychoric correlations:  
+polychoric(data)$rho
+```
+
+And we can easily then conduct the factor analysis by adding `cor = "poly"` into the use of the `fa()` function.  
+
+```{r}
+#| eval: false
+fa(data, nfactors = ??, fm = ??, 
+         rotate = ??, cor = "poly")
+```
+
+
+::::{.columns}
+:::{.column width="40%"}
+"Polychoric correlations" are estimates of the correlation between two theorized normally distributed continuous variables, based on their observed ordinal manifestations. 
+
+:::
+:::{.column width="60%"}
+```{r}
+#| echo: false
+#| label: fig-polychor
+#| fig-cap: "the idea of polychoric correlation is to estimate the correlation between two unobserved continuous variables by examining the distributions across the set of ordered categories that we *do* observe"
+set.seed(444)
+ddf <- tibble(
+  item1 = rnorm(1e3),
+  item2 = .6*item1 + rnorm(1e3)
+)
+ddf <- as.data.frame(apply(ddf,2,scale))
+ddf2 <- apply(ddf,2,function(x) cut(x,3,labels=c("disagree","neither","agree")))
+names(ddf) <- paste0("l",names(ddf))
+ddf <- cbind(ddf,ddf2)
+
+
+thresh1 <- ddf |> group_by(item1) |>
+  summarise(
+    min = min(litem1),
+    max = max(litem1),
+    lab = max-((max-min)/2)
+  )
+
+thresh2 <- ddf |> group_by(item2) |>
+  summarise(
+    min = min(litem2),
+    max = max(litem2),
+    lab = max-((max-min)/2)
+  )
+
+ggplot(ddf,aes(x=litem1,y=litem2,col=interaction(item1,item2)))+
+  geom_point(size=3,alpha=.5)+
+  guides(col="none") +
+  geom_vline(data=thresh1[-2,], aes(xintercept=min))+
+  geom_hline(data=thresh2[-2,], aes(yintercept=min))+
+  geom_text(data=thresh1,inherit.aes=F,aes(x=lab,y=-3,label=item1))+
+  geom_text(data=thresh2,inherit.aes=F,aes(y=lab,x=-3.3,label=item2),angle=90)+
+  labs(x="underlying agreement with item 1",
+       y="underlying agreement with item 2")
+```
+:::
+
+::::
+
+:::
+
+
+::: {.callout-note collapse="true"}
+#### Bartlett's Test  
+
+The function `cortest.bartlett(cor(data), n = nrow(data))` conducts "Bartlett's test". This tests against the null that the correlation matrix is proportional to the identity matrix (a matrix of all 0s except for 1s on the diagonal).  
+
+  - Null hypothesis: observed correlation matrix is equivalent to the identity matrix  
+  - Alternative hypothesis: observed correlation matrix is not equivalent to the identity matrix.  
+  
+::: {.callout-note collapse="true"}
+#### What is the identity matrix?
+
+The "Identity matrix" is a matrix of all 0s except for 1s on the diagonal.  
+e.g. for a 3x3 matrix:  
+$$
+\begin{bmatrix}
+1 & 0 & 0 \\
+0 & 1 & 0 \\
+0 & 0 & 1 \\
+\end{bmatrix}
+$$
+If a correlation matrix looks like this, then it means there is __no__ shared variance between the items, so it is not suitable for factor analysis.  
+
+:::
+
+__phoneaddiction.csv example:__  
+The Bartlett test is significant here, meaning that we reject the null hypothesis that our correlation matrix is equivalent to the identity matrix.  
+This is a good thing - we _want_ it to be different in order to justify doing factor analysis.  
+```{r}
+cortest.bartlett(phdat)
+```
+
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Kaiser, Meyer, Olkin Measure of Sampling Adequacy  
+
+You can check the "factorability" of the correlation matrix using `KMO(data)` (also from **psych**!).  
+
+- Rules of thumb: 
+    - $0.8 < MSA < 1$: the sampling is adequate
+    - $MSA <0.6$: sampling is not adequate 
+    - $MSA \sim 0$: large partial correlations compared to the sum of correlations. Not good for FA  
+    
+    
+::: {.callout-note collapse="true"}
+#### Kaiser's suggested cuts  
+
+These are Kaiser's corresponding adjectives suggested for each level of the KMO:  
+
+- 0.00 to 0.49 "unacceptable"  
+- 0.50 to 0.59 "miserable"  
+- 0.60 to 0.69 "mediocre"  
+- 0.70 to 0.79 "middling"  
+- 0.80 to 0.89 "meritorious"  
+- 0.90 to 1.00 "marvelous"  
+
+:::
+
+__phoneaddiction.csv example:__  
+Overall KMO is good here at 0.83, and individual item KMOs are also looking pretty 'meritorious' too! The only thorny one is item9, again!  
+```{r}
+KMO(phdat)
+```
+
+
+
+:::
+
+::: {.callout-note collapse="true"}
+#### Check for linearity  
+
+It also makes sense to check for linearity of relationships prior to conducting EFA. EFA is all based on correlations, which assume the relations we are capturing are linear.  
+
+You can check linearity of relations using `pairs.panels(data)` (also from **psych**), and you can view the histograms on the diagonals, allowing you to check univariate normality (which is usually a good enough proxy for multivariate normality). 
+
+__phoneaddiction.csv example:__  
+Because these items are measured on likert scales of 1-5, looking at scatterplots can be a bit harder. The red lines on the plots are essentially "smooth" lines, which follow the mean of the variable on the y-axis as it moves across the x-axis. So we want them to all be straight-ish, which they are.  We can see from the diagonals of this plot that the items are all fairly normally distributed too.  
+
+```{r}
+pairs.panels(phdat)
+```
+
+:::
+
+

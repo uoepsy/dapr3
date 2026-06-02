@@ -1,0 +1,134 @@
+---
+title: "Refresher: Variance, Covariance, Correlation"
+format: html
+---
+
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+set.seed(4)
+R = matrix(c(1,.6,.8,
+             .6,1,.8,
+             .8,.8,1),nrow=3)
+Sigma = diag(3)%*%R%*%diag(3)
+Mean <- rep(0,3)
+x <- MASS::mvrnorm(500, Mean, Sigma)
+x <- apply(x,2,\(x) as.numeric(cut(x,9)))
+mydata <- as.data.frame(x)
+
+names(mydata) <- c("M","P","S")
+```
+
+#### optional: what's "correlation" again?
+
+Just like standard deviations are a standardised version of variance, **you can think of correlations as a standardised version of covariance.**
+Correlations are standardised to only take on values between –1 and 1, no matter what the original scale of the data was.
+<!-- On the other hand, covariance is on the scale of the original variable. -->
+
+
+#### optional: what's "covariance" again?
+
+**Intuition:**
+
+You can think of the covariance of Item A and Item B as follows: If you already know the values of Item A, how well can you guess the values of Item B?
+
+- If responses to Item B are generally **high** when responses to Item A are also **high**, then the two items have **positive** covariance.
+- If responses to Item B are generally **low** when responses to Item A are **high**, then the two items have **negative** covariance.
+- If responses to Item B are **all over the place** when responses to Item A are **high**, then the two items have **near-zero** covariance.
+
+
+**Concretely:**
+
+Let's look back at our data on mental fatigue (M), physical fatigue (P), and sleepiness (S).
+We'll plot physical fatigue against mental fatigue.
+
+```{r}
+mydata |>
+  ggplot(aes(x = P, y = M)) +
+  geom_point()
+```
+
+This plot shows a positive association: 
+
+- small P co-occurs with small M, and not with large M;
+- large P co-occurs with large M, and not with small M.
+
+In other words: if you've observed a high value of P, you can be fairly confident that you'll also observe a high value of M.
+This suggests that P and M co-vary in the positive direction.
+
+Let's check.
+
+```{r}
+cov(mydata$P, mydata$M)
+```
+
+Yes! The covariance is positive.
+
+<br>
+
+**How do we show the covariance of more than two variables?**
+
+The original data on mental fatigue (M), physical fatigue (P), and sleepiness (S) has three variables, not just the two we plotted above.
+If we wanted to report the covariance of all of those variables with one another, we could tediously write out sentences (which would get even more tedious as the number of pairs of variables increases):
+
+- "Mental fatigue and physical fatigue have a covariance of 1.4."
+- "Mental fatigue and sleepiness have a covariance of 1.6."
+- "Physical fatigue and sleepiness have a covariance of 1.7."
+
+More succinctly, though, we can represent all combinations of variables as a table, where each row and each column represent one variable:
+
+|     | M                  | P                  | S                  |
+| --- | ------------------ | ------------------ | ------------------ |
+| M   | `cov(M, M) = var(M)` | `cov(M, P)`          | `cov(M, S)`          |
+| P   | `cov(P, M)`          | `cov(P, P) = var(P)` | `cov(P, S)`          |
+| S   | `cov(S, M)`          | `cov(S, P)`          | `cov(S, S) = var(S)` |
+
+Filled in with the actual covariance numbers, we get:
+
+|     | M   | P   | S   |
+| --- | --- | --- | --- |
+| M   | 2.3 | 1.4 | 1.6 |
+| P   | 1.4 | 2.6 | 1.7 |
+| S   | 1.6 | 1.7 | 1.9 |
+
+
+A couple things to notice here:
+
+- The covariance of a variable with itself is the same as that variable's variance. That's what we get on the top-left-to-bottom-right diagonal of this table.
+  - So, a covariance table like this has an added benefit of showing us each variable's variance too.
+- The order in which we name the items doesn't matter. The covariance of mental fatigue with sleepiness is the same as the covariance of sleepiness with mental fatigue.
+
+We can use R to get the covariance matrix for this data as follows, rounded to one decimal place for ease:
+
+```{r}
+cov(mydata) |> round(1)
+```
+
+To look at the correlations between multiple variables in a dataset—for example, the tiredness data from before, with mental fatigue (M), physical fatigue (P), and sleepiness (S)—we can show all possible pairs of variables in a table, where each row and each column represent one variable:
+
+|     | M                  | P                  | S                  |
+| --- | ------------------ | ------------------ | ------------------ |
+| M   | `cor(M, M)` | `cor(M, P)` | `cor(M, S)` |
+| P   | `cor(P, M)` | `cor(P, P)` | `cor(P, S)` |
+| S   | `cor(S, M)` | `cor(S, P)` | `cor(S, S)` |
+
+Filled in with the actual correlations, we get:
+
+|     | M   | P   | S   |
+| --- | --- | --- | --- |
+| M   | 1.0 | 0.6 | 0.7 |
+| P   | 0.6 | 1.0 | 0.8 |
+| S   | 0.7 | 0.8 | 1.0 |
+
+In the diagonal from the top left to the bottom right, we see a bunch of 1.0s.
+A 1 represents a perfect correlation, which should make some sense—each variable is perfectly correlated with itself.
+
+Maths people will call a table of numbers a "matrix".
+And when the numbers represent the correlations between a bunch of variables, we're dealing with a "correlation matrix".
+
+We can use R to get the correlation matrix for this data as follows, rounded to one decimal place for ease:
+
+```{r}
+cor(mydata) |> round(1)
+```
+

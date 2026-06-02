@@ -1,0 +1,139 @@
+---
+title: "EFA Step 6. Scale Development"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(psych)
+```
+
+:::frame
+__Dataset: phoneaddiction.csv__  
+
+The dataset at [https://uoepsy.github.io/data/phoneaddiction.csv](https://uoepsy.github.io/data/phoneaddiction.csv){target="_blank"} comes from a (fake) study that is interested in developing a measure of "phone-attachment/addiction" - i.e., the idea of being overly attached to a phone.  
+
+We have a set of 10 statements (@tbl-phdict) that get at different aspects of this idea, and we asked 240 people to rate how much they agreed with each of the 10 statements on a 1-5 scale (1 = strongly disagree, 5 = strongly agree).
+
+```{r}
+phdat <- read_csv("https://uoepsy.github.io/data/phoneaddiction.csv")
+```
+
+
+```{r}
+#| echo: false
+#| label: tbl-phdict
+#| tbl-cap: "Item wordings for phoneaddiction.csv"
+itemqs = c("I often reach for my phone even when I don't have a specific reason to use it.",
+"I feel a strong urge to check my phone frequently, even during meals or social interactions.",
+"I spend a large portion of my day using my phone, often for more hours than I intend.",
+"My phone use has interfered with my ability to complete tasks or responsibilities at school, work, or home.",
+"When I cannot use my phone (e.g., no battery or no signal), I feel anxious or uncomfortable.",
+"My phone use has negatively affected my sleep schedule, such as staying up late scrolling.",
+"I find it difficult to avoid checking my phone immediately upon waking up or right before bed.",
+"I often check my phone even in situations where it's distracting or socially inappropriate (e.g., meetings or classes).",
+"I sometimes feel that others are overly concerned about my phone use in social situations.",
+"I have tried to reduce my phone usage but find it challenging to do so.")
+
+m = "
+ lv1 =~ .8*item1 + .8*item2 + .8*item3 + .8*item7 + .8*item8 + .1*item9
+ lv2 =~ .8*item4 + .8*item5 + .8*item6 + .2*item9 + .8*item10
+ lv1 ~~ .5*lv2
+"
+set.seed(2345)
+df = lavaan::simulateData(m,sample.nobs = 240)
+df = apply(df, 2, \(x) as.numeric(cut(x,5))) |> as_tibble()
+df = df |> select(paste0("item",1:10))
+phdat <- df
+# write_csv(phdat, file="../../data/phoneaddiction.csv")
+
+tibble(
+  variable = names(df),
+  question = itemqs
+) |> gt::gt()
+
+```
+:::
+
+
+If our goal here is to design a nice questionnaire for future research that captures stuff about people's addiction to their phones, then item 9 isn't proving very useful here. At this point we may also want to consider if there are any other items that are maybe redundant (it's always good to try and keep a questionnaire short to reduce participant burden!).
+
+Removing item9, and doing the **entire** process over again, we end up still finding that it's between a 1 or a 2 factor solution. 
+
+::: {.callout-note collapse="true"}
+#### determining the number of factors  
+
+```{r}
+scree(phdat[,-9])
+fa.parallel(phdat, fa = "both")
+VSS(phdat, rotate = "oblimin", plot = FALSE, fm = "ml")
+```
+
+:::
+
+::::{.columns}
+:::{.column width="48%"}
+__1 factor solution (excluding item 9)__  
+
+```{r}
+ph_efa1a <- fa(phdat[,-9], nfactors = 1, 
+               fm = "ml")
+print(ph_efa1a$loadings, cutoff = .3)
+```
+:::
+:::{.column width="4%"}
+:::
+:::{.column width="48%"}
+__2 factor solution (excluding item 9)__  
+
+```{r}
+ph_efa2a <- fa(phdat[,-9], nfactors = 2, 
+               rotate = "oblimin", fm = "ml")
+print(ph_efa2a$loadings, cutoff = .3)
+ph_efa2a$Phi
+```
+:::
+::::
+
+Finally, we now have a judgment call. Both solutions look okay in terms of the numbers of items on each factor etc. One thing to consider is whether we prefer the idea of 1 thing that explains 28% of the variance, or 2 *related* things (the two factors are fairly correlated in the 2 factor solution) that together explain 35%. Is that a big enough increase?   
+
+The other thing we should definitely be considering is the theoretical coherence of the solutions. The 1 factor solution is easy - we have just one factor, and that represents "addiction to your phone".  
+In the 2 factor solution we need to pay more attention to which items go with which factor.  
+
+Given the item wordings below - we might try to define Factor 1 as "frequency of use" and Factor 2 as "impact on life".  
+Are these distinct enough for you? Personally I would say maybe not - some of the wordings of items in Factor 1 are still related to "impact on life" (i.e., "often for more hours than I intend"?)  
+
+::::{.columns}
+:::{.column width="48%"}
+__Factor 1__  
+
+```{r}
+#| echo: false
+tibble(
+  variable = names(df),
+  question = itemqs
+)[c(1,2,3,7,8),] |> gt::gt()
+
+```
+
+
+:::
+:::{.column width="4%"}
+:::
+:::{.column width="48%"}
+__Factor 2__  
+
+```{r}
+#| echo: false
+tibble(
+  variable = names(df),
+  question = itemqs
+)[c(4,5,6,10),] |> gt::gt()
+```
+
+
+:::
+::::
+
+Developing measurement instruments (often called "scale development") is lot of back and forth, and at this point we might consider re-wording some of the items to make the two factors more clearly distinct, then giving the edited questionnaire to a whole load of new people, and going through the whole process again until we're happy with a coherent structure!
+
