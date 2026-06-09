@@ -1,0 +1,283 @@
+---
+title: "Fitting and Comparing EFA solutions"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+xaringanExtra::use_panelset()
+library(tidyverse)
+library(psych)
+```
+
+## Fitting EFA in R
+
+The code to perform an EFA is very straightforward. It's just one line:  
+
+```{r}
+#| eval: false
+library(psych)
+my_efa <- fa(data, nfactors = ?? , rotate = ??, fm = ??)
+```
+
+The first two things we're giving the `fa()` function are straightforward - we give it the dataset and we tell it how many factors we want.
+For rotations (`rotate`) and factor extraction method (`fm`) see [Deciding on Rotation and Factor Extraction Methods](p02_efa_rotfm.html).  
+
+<!-- ```{r} -->
+<!-- #| eval: false -->
+<!-- library(psych) -->
+<!-- my_efa <- fa(data, nfactors = ?? , rotate = ??, fm = ??) -->
+<!-- ``` -->
+
+## Data 
+
+:::frame
+__Dataset: phoneaddiction.csv__  
+
+The dataset at [https://uoepsy.github.io/data/phoneaddiction.csv](https://uoepsy.github.io/data/phoneaddiction.csv){target="_blank"} comes from a (fake) study that is interested in developing a measure of "phone-attachment/addiction" - i.e., the idea of being overly attached to a phone.  
+
+We have a set of 10 statements (@tbl-phdict) that get at different aspects of this idea, and we asked 240 people to rate how much they agreed with each of the 10 statements on a 1-5 scale (1 = strongly disagree, 5 = strongly agree).
+
+```{r}
+phdat <- read_csv("https://uoepsy.github.io/data/phoneaddiction.csv")
+```
+
+
+```{r}
+#| echo: false
+#| label: tbl-phdict
+#| tbl-cap: "Item wordings for phoneaddiction.csv"
+itemqs = c("I often reach for my phone even when I don't have a specific reason to use it.",
+"I feel a strong urge to check my phone frequently, even during meals or social interactions.",
+"I spend a large portion of my day using my phone, often for more hours than I intend.",
+"My phone use has interfered with my ability to complete tasks or responsibilities at school, work, or home.",
+"When I cannot use my phone (e.g., no battery or no signal), I feel anxious or uncomfortable.",
+"My phone use has negatively affected my sleep schedule, such as staying up late scrolling.",
+"I find it difficult to avoid checking my phone immediately upon waking up or right before bed.",
+"I often check my phone even in situations where it's distracting or socially inappropriate (e.g., meetings or classes).",
+"I sometimes feel that others are overly concerned about my phone use in social situations.",
+"I have tried to reduce my phone usage but find it challenging to do so.")
+
+m = "
+ lv1 =~ .8*item1 + .8*item2 + .8*item3 + .8*item7 + .8*item8 + .1*item9
+ lv2 =~ .8*item4 + .8*item5 + .8*item6 + .2*item9 + .8*item10
+ lv1 ~~ .5*lv2
+"
+set.seed(2345)
+df = lavaan::simulateData(m,sample.nobs = 240)
+df = apply(df, 2, \(x) as.numeric(cut(x,5))) |> as_tibble()
+df = df |> select(paste0("item",1:10))
+phdat <- df
+# write_csv(phdat, file="../../data/phoneaddiction.csv")
+
+tibble(
+  variable = names(df),
+  question = itemqs
+) |> gt::gt()
+
+```
+:::
+
+Supposing that we are conducting EFA on our phone-addiction data, to examine what number of factors might best explain the patterns of responses to the questions.  
+
+We examine the various [methods to determine a range](p01_ndim.html) for how many factors, and decide to consider anything from 
+
+
+:::panelset
+:::panel
+#### Summary
+
+| method  | suggestion |
+| ------ |------ |
+| kaiser |  3   |
+| scree plot | 1 or 2/3? or 5? quite hard to tell! |  
+| MAP | 1 |
+| parallel analysis | 2 |
+
+:::
+:::panel
+#### Scree plot 
+
+```{r}
+scree(phdat)
+```
+
+:::
+:::panel
+#### Parallel analysis
+
+We can set `fa = "both"` to do the parallel analysis method for both factor extraction and principal components.  
+
+`r set.seed(33)`
+
+```{r}
+fa.parallel(phdat)
+```
+:::
+:::panel
+#### MAP
+
+```{r}
+VSS(phdat, rotate = "oblimin", plot = FALSE, fm = "ml")
+```
+
+:::
+::::
+
+
+## Fitting EFA models  
+
+We're going to use an oblique rotation, because any sub-dimensions of phone-addiction are likely to be correlated (e.g., if you're high on a 'social FOMO driven phone-addiction' dimension then you're also likely to be high on a dimension that is more about being used to the physical feeling of your phone in the pocket).  
+
+We have 240 people here, and only 10 items. We will use `minres` to extract our factors (mainly just because it's the default!). 
+
+We will fit a 1-, a 2-, and a 3-factor model:  
+
+```{r}
+ph_efa1 <- fa(phdat, nfactors = 1, 
+              fm = "minres")
+
+ph_efa2 <- fa(phdat, nfactors = 2, 
+              fm = "minres", rotate = "oblimin")
+
+ph_efa3 <- fa(phdat, nfactors = 3, 
+              fm = "minres", rotate = "oblimin")
+```
+
+
+## Comparing EFA models  
+
+::::panelset
+:::panel
+#### 1 factor solution
+```{r}
+print(ph_efa1$loadings, cutoff=.3)
+```
+:::
+:::panel
+#### 2 factor solution
+```{r}
+print(ph_efa2$loadings, cutoff=.3)
+ph_efa2$Phi
+```
+
+:::
+:::panel
+#### 3 factor solution
+
+```{r}
+print(ph_efa3$loadings, cutoff=.3)
+ph_efa3$Phi
+```
+:::
+::::
+
+<br>
+Following ['What makes a good factor solution?'](c02_efa.html#what-makes-a-good-factor-solution), we would probably initially conclude that the 3-factor solution is not worthwhile. 
+It only explains 2.6% more variance (33.8 vs 31.2) than the 2-factor model, and the third factor only has one single item (`item6`) loaded on to it, and it's not even that item's primary loading.  
+
+However, in all three solutions, `item9` looks like a problem item. It has smaller loadings than the other items, and doesn't reach salience on any factor. The smaller the loading, the less well the item is targeting whatever construct the factor represents. And in none of our models does it look like the item is actually measuring anything we're interested in.  
+
+Looking at `item9`, the wording is "`r itemqs[9]`" This maybe represents something slightly different from just "being addicted to your phone" - it also contains a self-consciousness / feeling judged by others etc, which is something completely different. We can come up with a reasonably argument that this is perhaps capturing something _separate_ from what the other variables are measuring.  
+
+## Removing problematic items
+
+When doing EFA, our goal will probably either be: 
+
+- to try and get a good measure that we can use in our subsequent analysis
+- to develop a suitable questionnaire/measurement tool for future research  
+
+In either case, `item9` isn't proving very useful here. So we remove the variable, and then start by doing doing the **entire** process over again!  
+
+```{r}
+phdatB <- phdat |> select(-item9)
+```
+
+## Begin again... 
+
+Once we remove `item9`, we must go back to determining a range for the number of factors: 
+
+| method  | suggestion |
+| ------ |------ |
+| kaiser |  2  |
+| scree plot | 1 or 2 |  
+| MAP | 1 |
+| parallel analysis | 1 or 2 |
+
+And then fitting these to the new, reduced data. We are no longer examining the 3-factor model because that no longer looked as feasible given the methods above. 
+
+```{r}
+ph_efaB1 <- fa(phdatB, nfactors = 1, 
+              fm = "minres")
+
+ph_efaB2 <- fa(phdatB, nfactors = 2, 
+              fm = "minres", rotate = "oblimin")
+```
+
+
+
+## Comparing EFA models  
+
+::::panelset
+:::panel
+#### 1 factor solution
+```{r}
+print(ph_efaB1$loadings, cutoff=.3)
+```
+:::
+:::panel
+#### 2 factor solution
+```{r}
+print(ph_efaB2$loadings, cutoff=.3)
+ph_efa2$Phi
+```
+
+:::
+::::
+
+Comparing these two solutions (1-factor and 2-factor), we can see that the 2-factor model explains 7% more variance (34.5 vs 27.5). 
+Both solutions have factors have >3 items with salient loadings, and there are no cross-loadings or anything looking too problematic.
+
+Numerically, both look fine! And the increase in variance explained is ~7%, which isn't nothing, but it doesn't feel like a huge amount either. 
+
+This is a good example of where the theoretical coherence of the two models is going to come to the fore.  
+
+In the 1-factor solution, we are saying that there is just one underlying thing, and that thing is "phone-attachment/addiction".
+
+In the 2-factor solution, we are saying that we need 2 related things (with a correlation of 0.58) to explain how people respond to the questions. 
+
+Those two things are defined by how they relate to the different items. Given the item wordings below, we might try to define Factor 1 as "frequency of use" and Factor 2 as "impact on life".  
+Are these distinct enough for you? Personally I would say maybe not - some of the wordings of items in Factor 1 are still related to "impact on life" (i.e., "often for more hours than I intend"?)
+
+This is ultimately a judgement call, and will require more background reading into the literature on addiction/phone-addiction etc. A really strong investigation could be paired with some qualitative interviews with people 'thinking-aloud' through their response process for the set of items.  
+
+
+::::{.columns}
+:::{.column width="48%"}
+__Factor 1__  
+```{r}
+#| echo: false
+tibble(
+  variable = names(df),
+  question = itemqs
+)[c(1,2,3,7,8),] |> gt::gt()
+
+```
+:::
+:::{.column width="4%"}
+:::
+:::{.column width="48%"}
+__Factor 2__  
+```{r}
+#| echo: false
+tibble(
+  variable = names(df),
+  question = itemqs
+)[c(4,5,6,10),] |> gt::gt()
+```
+:::
+::::
+
+
+
+ 
+

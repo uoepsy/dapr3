@@ -1,0 +1,460 @@
+---
+title: "Rotations in EFA"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(psych)
+
+library(psych)
+set.seed(4)
+R = matrix(c(1,.6,.8,
+             .6,1,.8,
+             .8,.8,1),nrow=3)
+Sigma = diag(3)%*%R%*%diag(3)
+Mean <- rep(0,3)
+x <- MASS::mvrnorm(500, Mean, Sigma)
+x <- apply(x,2,\(x) as.numeric(cut(x,9)))
+mydata <- as.data.frame(x)
+
+names(mydata) <- c("M","P","S")
+ll = fa(mydata, nfactors=1,rotate="none")$loadings[,1]
+uu = fa(mydata, nfactors=1,rotate="none")$uniqueness
+cor(mydata) |> round(2)
+round(ll %*% t(ll), 2)
+
+```
+
+
+```{r}
+#| echo: false
+
+tiredq <- read_csv("https://uoepsy.github.io/data/tiredq.csv")
+
+mn = fa(tiredq, nfactors=2, rotate = "none", fm="ml")
+mr = fa(tiredq, nfactors=2, rotate = "varimax", fm="ml")
+mor = fa(tiredq, nfactors=2, rotate = "oblimin", fm="ml")
+
+x_axis <- c(1, 0)
+y_axis <- c(0, 1)
+new_x_axis <- mr$rot.mat %*% x_axis
+new_y_axis <- mr$rot.mat %*% y_axis
+newo_x_axis <- (mor$rot.mat %*% mor$Phi) %*% x_axis
+newo_y_axis <- (mor$rot.mat %*% mor$Phi) %*% y_axis
+original_axes <- data.frame(
+  x = c(0, x_axis[1], 0, y_axis[1]),
+  y = c(0, x_axis[2], 0, y_axis[2]),
+  axis = c("Original X", "Original X", "Original Y", "Original Y")
+)
+rotated_axes <- data.frame(
+  x = c(0, new_x_axis[1], 0, new_y_axis[1]),
+  y = c(0, new_x_axis[2], 0, new_y_axis[2]),
+  axis = c("Rotated X", "Rotated X", "Rotated Y", "Rotated Y")
+)
+orotated_axes <- data.frame(
+  x = c(0, newo_x_axis[1], 0, newo_y_axis[1]),
+  y = c(0, newo_x_axis[2], 0, newo_y_axis[2]),
+  axis = c("Rotated X", "Rotated X", "Rotated Y", "Rotated Y")
+)
+
+p1 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_text(aes(label=rowname),hjust=-.2, size=3)+
+  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
+  #              alpha=.6)+
+  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
+  #              alpha=.6)+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  scale_colour_manual(values = c('#f8766d', '#7cae00'))
+  
+p2 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_text(aes(label=rowname),hjust=-.2, size=3)+
+  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
+  #              alpha=.3)+
+  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
+  #              alpha=.3)+
+  xlim(-1,1)+ylim(-1,1)+
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               linetype = "longdash", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               linetype = "longdash", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")
+
+p3 <- mn$loadings[,1:2] |>
+  as.data.frame() |>
+  rownames_to_column() |>
+  ggplot(aes(x=ML1,y=ML2))+
+  geom_point()+
+  geom_vline(xintercept=0,size=1)+
+  geom_hline(yintercept=0,size=1)+
+  geom_text(aes(label=rowname),hjust=-.2, size = 3)+
+  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
+  #              alpha=.3)+
+  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
+  #              alpha=.3)+
+  labs(x="Loadings on Factor 1",
+       y="Loadings on Factor 2")+
+  xlim(-1,1)+ylim(-1,1)+
+    geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+               linetype = "longdash", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
+  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+               linetype = "longdash", arrow = arrow(length = unit(0.2, "cm")), size = 1) 
+
+```
+
+
+
+A slightly complex part of factor analysis that we need to devote some time to is the idea of "rotations".  
+
+At the very highest level, when we talk about applying rotations in EFA, we are doing a procedure that will do one or both of: 
+
+- try to achieve a clean and 'simple structure' to the patterns of factor loadings
+- allow the latent factors to be correlated
+
+Think back to scaling predictors in a linear model, or choosing different contrast coding schemes. 
+If we convert a continuous predictor to z-scores, or choose between dummy coding or effect coding for a categorical predictor, then all that will change between versions of the model is the model's coefficients.
+The data itself does not change, and crucially, the predictions that the model makes (e.g., if you use `predict()` or `emmeans()`) also do not change.
+All that changes is the model's internal representation of things.
+
+In a similar way, in EFA, we can transform the set of relationships between measured variables and factors (i.e., transform the set of loadings) without changing what the model predicts.^[In fact, there are infinitely many kinds of transformations that we could apply that would all result in models which make identical predictions!
+This idea is called "rotational indeterminacy".]
+
+Let's return to our tiredness example (also seen in [Exploratory Factor Analysis (EFA) flashcard](c02_efa.html)), where we had ten questions about tiredness:  
+
+1. I feel physically exhausted even after doing minor tasks.
+2. My muscles feel strong and full of energy today.
+3. Mentally, I feel completely drained and empty.
+4. I feel motivated and eager to start new activities.
+5. I have to fight to keep my eyes open during the day.
+6. I feel alert and wide awake when sitting quietly.
+7. If I closed my eyes right now, I would fall asleep instantly.
+8. I feel a strong urge to take a nap.
+9. My reaction times feel incredibly slow.
+10. I find myself staring blankly into space without thinking.
+
+And let's suppose that we are extracting **two** factors.  
+Based on the factor loadings below, which in principle can range from –1 to 1, how would we interpret the dimensions represented by the first factor (`ML1`) and the second factor (`ML2`)? (*Note that any loading less than 0.3 isn't shown in the output*)
+
+```{r}
+#| code-fold: true
+# read in the data
+tiredq <- read_csv("https://uoepsy.github.io/data/tiredq.csv")
+# fit the factor model, no rotation
+tired_fa1 <- fa(tiredq, nfactors=2, rotate = "none", fm="ml")
+# print the loadings
+print(tired_fa1$loadings, cutoff = .3)
+```
+
+
+The first factor is associated fairly highly with all 10 variables.
+So maybe it represents a construct of "general fatigue"?
+The second factor is even less clear.
+It only has loadings above 0.3 for three items: it's negatively associated with mental fatigue, and positively associated with physical fatigue.
+The resulting concept is kind of awkward to describe: at one end of this factor, you're physically fatigued but not mentally, and at the other end you are mentally fatigued but not physically.
+It's not the clearest idea, especially as when we introduced these questions we actually had a clearer notion (i.e., some questions about mental fatigue, some questions about physical fatigue, and a couple of others)
+
+And this is where **rotation** comes in. We can transform those sets of loadings in such a way that aims to make each variable load high on to one factor and low on to other factors, without changing the amount of variability we're explaining.  
+The result will be factors that are much easier to interpret.
+
+One way to *see* this rotation is to start by plotting the loadings for each variable on to each factor: @fig-biplot-none (this is only really possible here because we have just two factors, ML1 on the x axis and ML2 on the y axis).
+All ten variables are positively loaded on Factor 1, and they're split between positive and negative on Factor 2.
+
+```{r}
+#| echo: false
+#| label: fig-biplot-none
+#| fig-cap: "Loadings of each variable onto the two factors (no rotation)"
+p1 + labs(title="No Rotation") + coord_fixed()
+```
+
+Now, let's see what happens if we rotate these axes, as in @fig-biplot-orth.
+Tilt your head 45 degrees to the right to understand this plot: the dashed purple line is the new y axis (the new "vertical"), and the dashed cyan line is the new x axis (the new "horizontal").
+Now, the physical fatigue variables are high on the purple axis, while the mental fatigue variables are high on the cyan axis.
+Thus, each axis can be more easily interpreted with respect to the variables that load highly on it.
+We have one factor that seems to represent mental fatigue + sleepiness, and another factor that seems to represent physical fatigue + sleepiness.  
+
+```{r}
+#| echo: false
+#| label: fig-biplot-orth
+#| fig-cap: "Loadings of each variable onto the two factors (orthogonal rotation)"
+p2 + labs(title="Orthogonal Rotation") + coord_fixed()
+```
+
+The total variance explained by this rotated solution is just the same as our unrotated solution.
+We can see this when we run the following R code, where the "varimax" rotation gives us the orthogonal rotation visualised above.
+Before, the cumulative variance explained after two factors was 0.366 (you can scroll up to double-check), and below, we see that the cumulative variance explained after two factors is still 0.366, even with the rotation.
+This number tells us that together, these two factors capture 36.6% of the total variance in our data.
+
+```{r}
+tired_fa2 <- fa(tiredq, nfactors=2, rotate = "varimax", fm="ml")
+print(tired_fa2$loadings, cutoff = .3)
+```
+
+Look at the orthogonal rotation plot (@fig-biplot-orth) again.
+When two lines are orthogonal, they are at 90 degrees to one another—that's what "orthogonal" means.
+Our starting X and Y axes were orthogonal to one another, and when we choose an orthogonal rotation, our new axes are still orthogonal to one another.
+
+Requiring that the axes be orthogonal means that we're insisting that there is no correlation between the two factors.
+In other words, we assume that if someone is high on the mental fatigue dimension, we would have absolutely no idea whether they're high or low on the physical fatigue dimension.
+But this feels weird!
+Surely we'd expect mental and physical fatigue to be correlated?
+
+We can allow factors to be correlated by relaxing the constraint about orthogonal axes.
+Instead of choosing an orthogonal rotation, we use what's called an "oblique rotation".
+In R code, this means choosing the rotation method "oblimin".
+The idea is much the same as the "orthogonal rotation" above, but we don't have to keep the right angle between the factors:
+
+```{r}
+#| echo: false
+#| label: fig-biplot-obl
+#| fig-cap: "Loadings of each variable onto the two factors (oblique rotation)"
+p3 + labs(title="Oblique Rotation") + coord_fixed()
+```
+
+
+The pattern of factor loadings that emerges now is a lovely clean structure!
+Each variable is clearly linked to one factor and not as much to the other: for each item, there is only one loading above our cutoff of 0.3.
+And we've let the factors be correlated – so for someone who is high on factor 1 (which now looks like the 'physical fatigue' factor) we would also expect them to be high on factor 2 ('mental fatigue').  
+
+```{r}
+tired_fa3 <- fa(tiredq, nfactors=2, rotate = "oblimin", fm="ml")
+print(tired_fa3$loadings, cutoff = .3)
+```
+
+In this situation, we also get out the correlation between the factors.^[If you're a trigonometry fan (I'm not!), the correlation between factors is the cosine of the angle between the axes!]
+We can extract the specific values using:
+
+```{r}
+tired_fa3$Phi
+```
+
+
+:::sticky
+__Rotations & Simple Structures__  
+
+The idea of rotations in EFA is ultimately to help us get to a solution that "makes more sense".  
+
+**Important Note:** "makes more sense" here is largely a theory driven idea. We need to think whether the proposed sets of factor loadings fit with what we know about the variables (how they're worded etc) and the underlying construct that we are trying to measure.  
+
+In the discussion of rotations above, we talked about a 'cleaner' solution - where each variable tends to have one high loading and the other loadings are small. In essence we are trying to make a pattern that looks a bit like this, in diagrammatic form:  
+
+```{r}
+#| echo: false
+#| out-width: "100%"
+knitr::include_graphics("../images/diag_efa2.png")
+```
+
+This idea is typically referred to as a **"simple structure"**, where each variable is "univocal" (it speaks to one factor only, and not to the others). This simplifies the interpretation of factors, making them more distinct and more easily understandable.  
+
+
+
+| type                | common methods | what happens &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+| ------------------- | ---------------| ------------------------------ |
+| no rotation         | rotate = "none"   | Tries to maximise loadings on to the first factor       |
+| orthogonal rotation | rotate = "varimax"                      | Keeping factors uncorrelated (orthogonal), tries to maximise the variance of loadings (i.e. have lots of high loadings and lots of low loadings) |
+| oblique rotation    | rotate = "oblimin"<br>rotate = "promax" | Tries to find a balance between a simple factor structure and the degree of correlation between factors |
+ 
+:::
+
+::: {.callout-caution collapse="true"}
+#### Rabbit Hole: Explanation with matrices
+
+Our starting point is, again "outcome = model + error", and here we remember that the outcome is the correlation matrix, the model is the factor loadings, and the error is the 'uniqueness' of each observed variable:  
+
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \text{Factor Loadings}^2 \,+\, \color{magenta} \text{Uniqueness} \\
+\end{align}
+
+It's going to be horrendous trying to see it with 10 items, so let's pretend we have observed five variables, meaning we have a 5x5 correlation matrix, and we're extracting two factors, so we have two columns of factor loadings. Our original, un-rotated solution is this:  
+
+
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \mathbf{\Lambda}\mathbf{\Lambda'} \,+\, \color{magenta} \text{Uniqueness} \\
+&= \color{blue}
+\begin{bmatrix}
+0.64 & -0.29 \\
+0.70 & -0.25 \\
+0.73 & -0.14 \\
+0.33  & 0.49 \\
+0.42  & 0.73 \\
+\end{bmatrix}
+\begin{bmatrix}
+0.64 & 0.70 & 0.73 & 0.33 & 0.42 \\
+-0.29 & -0.25 & -0.14 & 0.49 & 0.73 \\
+\end{bmatrix} \,+\,
+ \color{magenta}
+ \text{Uniqueness} \\
+
+&= \color{blue}
+\begin{bmatrix}
+0.49 & 0.52 & 0.51 & 0.07 & 0.05 \\
+0.52 & 0.56 & 0.55 & 0.11 & 0.11 \\
+0.51 & 0.55 & 0.56 & 0.17 & 0.20 \\
+0.07 & 0.11 & 0.17 & 0.35 & 0.50 \\
+0.05 & 0.11 & 0.20 & 0.50 & 0.71 \\
+\end{bmatrix} \,+\,
+ \color{magenta}
+ \text{Uniqueness}
+\end{align}
+
+
+But as it happens, there are infinitely many sets of numbers that we could put in and get out the same values when we do $\mathbf{\Lambda}\mathbf{\Lambda'}$. Or, if we want to include an additional matrix in our model that specifies how the factors are correlated (we'll call it $\mathbf{\Phi}$), then we have infinitely (again) many more set of values that are numerically equivalent models:  
+  
+Original factor model:  
+$$
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \mathbf{\Lambda}\mathbf{\Lambda'} \,+\, \color{magenta} \text{Uniqueness} \\
+\end{align}
+$$
+Orthogonally rotated:  
+$$
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \mathbf{\Lambda_{orth}}\mathbf{\Lambda_{orth}'} \,+\, \color{magenta} \text{Uniqueness} \\
+\end{align}
+$$
+
+Obliquely rotated:
+$$
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \mathbf{\Lambda_{obl}}\mathbf{\Phi}\mathbf{\Lambda_{obl}'} \,+\, \color{magenta} \text{Uniqueness} \\
+\end{align}
+$$
+
+As an example, we could use a different set of values $\mathbf{\Lambda_{orth}}$ instead of our original $\mathbf{\Lambda}$ and achieve the same model
+
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \mathbf{\Lambda_{orth}}\mathbf{\Lambda_{orth}'} \,+\, \color{magenta} \text{Uniqueness} \\
+&= \color{blue}
+\begin{bmatrix}
+0.70 & 0.01 \\
+0.74 & 0.08 \\
+0.72 & 0.19 \\
+0.08 & 0.59 \\
+0.06 & 0.84 \\
+\end{bmatrix}
+\begin{bmatrix}
+0.70 & 0.74 & 0.72 & 0.08 & 0.06 \\
+0.01 & 0.08 & 0.19 & 0.59 & 0.84 \\
+\end{bmatrix} \,+\,
+ \color{magenta}
+ \text{Uniqueness} \\
+
+&= \color{blue}
+\begin{bmatrix}
+0.49 & 0.52 & 0.51 & 0.07 & 0.05 \\
+0.52 & 0.56 & 0.55 & 0.11 & 0.11 \\
+0.51 & 0.55 & 0.56 & 0.17 & 0.20 \\
+0.07 & 0.11 & 0.17 & 0.35 & 0.50 \\
+0.05 & 0.11 & 0.20 & 0.50 & 0.71 \\
+\end{bmatrix} \,+\,
+ \color{magenta}
+ \text{Uniqueness}
+\end{align}
+
+Or a set of numbers $\mathbf{\Lambda_{obl}}$ but also specifying the factor correlations $\mathbf{\Phi}$ we can get to the exact same model again:  
+
+\begin{align}
+\color{red} \text{Correlation Matrix} &= \color{blue} \mathbf{\Lambda_{obl}}\mathbf{\Phi}\mathbf{\Lambda_{obl}'} \,+\, \color{magenta} \text{Uniqueness} \\
+&= \color{blue}
+\begin{bmatrix}
+ 0.71 & -0.08 \\
+ 0.75 & -0.02 \\
+ 0.72 &  0.10 \\
+ 0.04 &  0.58 \\
+-0.01 &  0.85 \\
+\end{bmatrix}
+\begin{bmatrix}
+1.00 & 0.21 \\
+0.21 & 1.00 \\
+\end{bmatrix}
+\begin{bmatrix}
+0.71 & 0.75 & 0.72 & 0.04  & -0.01 \\
+ -0.08 & -0.02 & 0.10 & 0.58 &  0.85  \\
+\end{bmatrix} \,+\,
+ \color{magenta}
+ \text{Uniqueness} \\
+&= \color{blue}
+\begin{bmatrix}
+0.49 & 0.52 & 0.51 & 0.07 & 0.05 \\
+0.52 & 0.56 & 0.55 & 0.11 & 0.11 \\
+0.51 & 0.55 & 0.56 & 0.17 & 0.20 \\
+0.07 & 0.11 & 0.17 & 0.35 & 0.50 \\
+0.05 & 0.11 & 0.20 & 0.50 & 0.71 \\
+\end{bmatrix} \,+\,
+ \color{magenta}
+ \text{Uniqueness}
+\end{align}
+
+For each of these different possible sets of numbers that we could use to be numerically identical, we could write them in terms of our original numbers $\mathbf{\Lambda}$ and multiplying it by some matrix $\mathbf{T}$. So we could write:   
+
+$$
+\begin{align}
+\color{blue} \mathbf{\Lambda_{new}} &= \color{blue} \mathbf{\Lambda_{original}}\mathbf{T} 
+\end{align}
+$$
+
+So our "model" here could be written as $\mathbf{(\Lambda T)(\Lambda T)'}$. This simplifies to $\mathbf{\Lambda (T T') \Lambda'}$. The difference between orthogonal and oblique rotations comes in how this transformation matrix $\mathbf{T}$ works - if $\mathbf{TT'}$ results in the identity matrix $\begin{bmatrix} 1 & 0 \\ 0 & 1 \\ \end{bmatrix}$, then this doesn't change the perpendicularity of our factors. If it doesn't, then we need to also include the correlation of the factors ($\mathbf{\Phi}$) in our model. 
+
+
+```{r}
+#| include: false
+set.seed(07)
+RR = matrix(c(1,.5,.5,.2,.2,
+              .5,1,.5,.2,.2,
+              .5,.5,1,.2,.2,
+              .2,.2,.2,1,.5,
+              .2,.2,.2,.5,1), nrow=5)
+tdf = MASS::mvrnorm(2e2,mu=c(0,0,0,0,0),Sigma=RR)
+cor(tdf) |> round(2)
+
+ll = fa(tdf, nfactors=2,rotate="none")$loadings[,1:2]
+uu = fa(tdf, nfactors=2,rotate="none")$uniqueness
+
+
+ll_orth = fa(tdf, nfactors=2,rotate="varimax")$loadings[,1:2]
+ll_obl = fa(tdf, nfactors=2,rotate="oblimin")$loadings[,1:2]
+phi_obl = fa(tdf, nfactors=2,rotate="oblimin")$Phi
+
+fa(tdf, nfactors=2,rotate="oblimin")$rot.mat
+
+
+round(ll_orth)
+
+cor(tdf) |> round(2)
+round( ll %*% t(ll), 2)
+round( ll_orth %*% t(ll_orth), 2)
+round( ll_obl %*% phi_obl %*% t(ll_obl), 2)
+```
+
+
+:::
+
+
+
+
