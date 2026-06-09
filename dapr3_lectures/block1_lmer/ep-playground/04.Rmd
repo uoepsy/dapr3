@@ -1,0 +1,292 @@
+---
+title: "04 playground"
+output: html_document
+---
+
+```{r setup}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(HLMdiag)
+```
+
+
+```{r}
+load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
+
+ppts_to_keep <- c(
+  paste0('StudyStudy_', LETTERS[1:10]),
+  paste0('StudyTest_', LETTERS[1:10])
+)
+
+set.seed(1)
+tel_data <- tel |>
+  filter(
+    Test_word != 'Eskimo',
+    Subject_ID %in% ppts_to_keep
+  ) |>
+  rowwise() |>
+  mutate(
+    TestScore = rnorm(n=1, mean = Correct, sd = 0.5),
+  ) |>
+  ungroup() |>
+  mutate(
+    TestScore = case_when(
+      Group == 'StudyStudy' & Delay == 'min'  ~ TestScore + 0.2,
+      Group == 'StudyStudy' & Delay == 'week' ~ TestScore - 0.5,
+      Group == 'StudyTest'  & Delay == 'min'  ~ TestScore + 0.2,
+      Group == 'StudyTest'  & Delay == 'week' ~ TestScore,
+    ),
+    TestScore = round(datawizard::rescale(TestScore, to = c(0, 100)))
+  )
+ 
+rm(tel)
+
+tel_data |>
+  ggplot(aes(x = Delay, y = TestScore, colour = Group)) +
+  geom_violin(alpha = 0.2) +
+  geom_jitter(alpha = 0.2) +
+  facet_wrap(~ Group) +
+  stat_summary(geom = 'pointrange', colour = 'black')
+```
+
+
+# TEL TestScore lm
+
+## simplify models
+
+if so, will have to update lec 3 about this as well
+
+```{r eval=F}
+# singular fit
+m1 <- lmer(
+  TestScore ~ Delay * Group + 
+    (1 + Delay | Subject_ID) +
+    (1 + Delay * Group | Test_word),
+  data = tel_data
+)
+
+# singular fit
+m2 <- lmer(
+  TestScore ~ Delay * Group +
+    (1 + Delay | Subject_ID) +
+    (1 + Delay + Group | Test_word),
+  data = tel_data
+)
+
+m3 <- lmer(
+  TestScore ~ Delay * Group +
+    (1 + Delay | Subject_ID) +
+    (1 + Delay | Test_word),
+  data = tel_data
+)
+
+# singular fit
+m4 <- lmer(
+  TestScore ~ Delay * Group +
+    (1 | Subject_ID) +
+    (1 + Delay | Test_word),
+  data = tel_data
+)
+```
+
+
+```{r}
+# no singual fit
+m5 <- lmer(
+  TestScore ~ Delay * Group +
+    (1 + Delay | Subject_ID) +
+    (1 | Test_word),
+  data = tel_data
+)
+
+summary(m5)
+```
+
+
+
+
+
+
+## check assump
+
+### linearity
+
+```{r}
+plot(
+  m5, 
+  type=c(
+    "p",      # includes points representing Pearson residuals
+    "smooth"  # includes smoothed line representing mean of residuals
+  )
+)
+```
+
+two weird clouds, kind of bimodal distribution of test scores evidently, but fine
+
+horizontal enough!
+
+
+### normdist errors
+
+```{r}
+qqnorm(resid(m5))
+qqline(resid(m5))
+```
+
+pretty darn good
+
+
+### equal varc errors
+
+```{r}
+plot(
+  m5, 
+  type=c(
+    "p",      # includes points representing Pearson residuals
+    "smooth"  # includes smoothed line representing mean of residuals
+  )
+)
+```
+
+vertical spread of errors is OK
+no fan or funnel shapes, which is what we generally would be worried about
+
+fine.
+
+
+### normdist ranefs
+
+#### by-ppt int adjs
+
+```{r}
+qqnorm(ranef(m5)$Subject_ID[,1]) 
+qqline(ranef(m5)$Subject_ID[,1])
+```
+
+not a great match ... positive adjustments are closer to zero than would be ideal, and negative adjustments are farther from zero than would be ideal
+
+so in this case, would be something to report and just say that we gotta take the SD with a grain of salt
+
+
+#### by-ppt slp adjs
+
+```{r}
+qqnorm(ranef(m5)$Subject_ID[,2]) 
+qqline(ranef(m5)$Subject_ID[,2])
+```
+
+better ish fit
+
+
+
+#### by-word int adjs
+
+
+```{r}
+qqnorm(ranef(m5)$Test_word[,1]) 
+qqline(ranef(m5)$Test_word[,1])
+```
+
+again, some more negative residuals at the lower end and some also smaller residuals at the pos end
+but w/e it's close enough, not too severe
+
+
+
+## checking influential obs and groups
+
+```{r eval=F}
+inf_obs  <- hlm_influence(model = m5, level = 1, approx = TRUE)
+inf_subj <- hlm_influence(model = m5, level = "Subject_ID", approx = TRUE)
+inf_word <- hlm_influence(model = m5, level = "Test_word", approx = TRUE)
+
+#save to rda file
+save(inf_obs,  file = "../data/m5_inf_obs.rda")
+save(inf_subj, file = "../data/m5_inf_subj.rda")
+save(inf_word, file = "../data/m5_inf_word.rda")
+```
+
+```{r}
+load("../data/m5_inf_obs.rda")
+load("../data/m5_inf_subj.rda")
+load("../data/m5_inf_word.rda")
+```
+
+```{r}
+dotplot_diag(inf_obs$cooksd, cutoff = "internal")
+dotplot_diag(inf_subj$cooksd, index = inf_subj$Subject_ID, cutoff = "internal")
+dotplot_diag(inf_word$cooksd, index = inf_word$Test_word, cutoff = "internal")
+```
+
+```{r eval=F}
+inf_word$Test_word[137]
+inf_word$Test_word[61]
+```
+
+
+### sensitivity analysis
+
+<https://uoepsy.github.io/dapr3/2627/flashcards/block1/influence.html> 
+
+Check on the influence of each of these words individually
+
+#### noseless
+
+```{r}
+m5_noseless <- lmer(
+  TestScore ~ Delay * Group +
+    (1 + Delay | Subject_ID) +
+    (1 | Test_word),
+  data = tel_data |> filter(Test_word != "nose")
+)
+```
+
+
+```{r}
+summary(m5)
+```
+
+```{r}
+summary(m5_noseless)
+```
+
+#### saddleless
+
+```{r}
+m5_saddleless <- lmer(
+  TestScore ~ Delay * Group +
+    (1 + Delay | Subject_ID) +
+    (1 | Test_word),
+  data = tel_data |> filter(Test_word != "saddle")
+)
+```
+
+```{r}
+summary(m5_saddleless)
+```
+
+
+
+
+---
+
+# TEL GLM – nah
+
+nah bc
+
+- GLM assumptions are different
+- the GLM actually fits out of the gate, don't need to simplify ranefs
+
+
+```{r eval=F}
+# takes a while
+m1 <- lmer(
+  Correct ~ Delay * Group + 
+    (1 + Delay | Subject_ID) +
+    (1 + Delay * Group | Test_word),
+  data = tel_data,
+)
+
+summary(m1)
+```
+

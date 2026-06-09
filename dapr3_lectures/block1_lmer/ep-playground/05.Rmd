@@ -1,0 +1,577 @@
+---
+title: "05 playground"
+output: html_document
+---
+
+```{r setup}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(HLMdiag)
+library(effects)
+```
+
+
+# Routine and emotional dysregulation in children
+
+## playin around
+
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
+```
+
+RQ: Are children with more day-to-day routine better at regulating their emotions, while controlling for the type of school children attend (as a proxy for SES)?
+
+```{r}
+df |>
+  ggplot(aes(x = CRQ, y = EDS, colour = schooltype)) +
+  geom_point()
+```
+
+
+```{r}
+mod1 <- lmer(EDS ~ schooltype + CRQ + 
+       (1 + CRQ | schoolid), 
+       data = df)
+
+summary(mod1)
+```
+
+
+## phase 1 
+
+### Load required R packages and read in data
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(stats)
+library(HLMdiag)
+library(effects)
+
+eds_data <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
+glimpse(eds_data)
+```
+
+
+### Identify fixefs based on RQ
+
+RQ: Are children with more day-to-day routine better at regulating their emotions, while controlling for the type of school children attend (as a proxy for SES)?
+
+Outcome: `EDS` (emotional dysregulation score)
+Predictors: `CRQ` (childhood routines questionnaire) + `schooltype` (no interaction bc we're just controlling for this, not looking for how assocs may change)
+
+Fixef model formula: `EDS ~ CRQ + schooltype`
+
+
+
+### Plot fixef variables all together
+
+```{r}
+eds_data |>
+  ggplot(aes(x = CRQ, y = EDS, colour = schooltype)) +
+  geom_point()
+```
+
+
+### Set up categorical (fixed) predictors
+
+```{r}
+eds_data <- eds_data |>
+  mutate(
+    schooltype = factor(schooltype)
+  )
+
+contrasts(eds_data$schooltype)
+```
+
+Ref level of `schooltype`: `Private`
+
+
+### Set up continuous predictors
+
+```{r}
+eds_data$CRQ
+```
+
+where does zero fall relative to these values?
+
+zero IS a possible value for the CRQ (it ranges 0 to 7, and 0 means no routine), but we don't have it in our dataset.
+
+so there's a reasonable motivation to mean-centre CRQ (make the mean = 0), but also reasonable motivation to keep CRQ as-is (model makes estimates at 0 = people with no routine)
+
+
+### Identify grouping variables that contribute random variability (these will be random intercepts)
+
+```{r}
+glimpse(eds_data)
+```
+
+Only remaining var: `schoolid`
+
+```{r}
+eds_data |>
+  group_by(schoolid) |>
+  count()
+```
+
+Yes, mult children from ea school.
+So `schoolid` is a grouping variable.
+
+Does it contribute controlled / reproducible variability or random variability?
+
+If we did this study again, we could sample diff schools.
+And we want our results to generalise across schools.
+So it contributes random variability.
+
+That means our model will have random intercepts by `schoolid`.
+
+Model formula so far: `EDS ~ CRQ + schooltype + (1 | schoolid)`
+
+
+### Identify what random slopes are possible in maximal model
+
+Do at least some levels of each grouping variable appear with more than one value of each predictor?
+
+- Do at least some levels of `schoolid` appear with more than one value of `CRQ`?
+- Do at least some levels of `schoolid` appear with more than one value of `schooltype`?
+
+
+
+First: Do at least some levels of `schoolid` appear with more than one value of `CRQ`?
+Yes.
+
+```{r}
+xtabs(~ schoolid + CRQ, data = eds_data)
+```
+
+
+```{r}
+# a trick from the flash cards to count all the non-zero entries in each row:
+(xtabs(~ schoolid + CRQ, data = eds_data)  != 0) |>
+  rowSums()
+```
+
+
+So, we can have random slopes over `CRQ` for each `schoolid`.
+
+
+Second: Do at least some levels of `schoolid` appear with more than one value of `schooltype`?
+
+```{r}
+xtabs(~ schoolid + schooltype, data = eds_data)
+```
+
+No! A school is either Private or State.
+
+So our maximal model formula is:
+
+`EDS ~ CRQ + schooltype + (1 | schoolid)`
+
+
+
+## phase 2
+
+### fit maximal model
+
+```{r}
+eds_mod <- lmer(
+  EDS ~ schooltype + CRQ + (1 + CRQ | schoolid), 
+  data = eds_data
+)
+# no warnings, but let's check variance components to make sure we're ok
+VarCorr(eds_mod)
+```
+Good! model converges + needs no massaging.
+
+
+## phase 3
+
+### Check assumptions
+
+```{r}
+plot(eds_mod, 
+     type=c(
+       "p",      # includes points representing Pearson residuals
+       "smooth"  # includes smoothed line representing mean of residuals
+       )
+    )
+```
+
+Could be some deviation from linearity, but oh well.
+satisfied it's linear enough that our model will be okay.
+
+Equal variance looks OK.
+
+
+
+```{r}
+qqnorm(resid(eds_mod)); qqline(resid(eds_mod))
+```
+
+oo yes, it's weird at the extremes.
+that's because our outcome variable of EDS is bounded between 1 and 6, which is not something that a linear model can technically handle.
+
+In worlds beyond DAPR, there are ways to model this kind of bounded data properly.
+But a lot of scientists will still analyse it like this, even though the assumptions aren't totally supported.
+So if we accept this assumption, which we will have to in order to use the linear modelling machinery, then we just live with this.
+
+
+
+Normality of ranefs:
+
+```{r}
+ranef(eds_mod)$schoolid[,1]  # int
+ranef(eds_mod)$schoolid[,2]  # slp
+```
+
+
+```{r}
+qqnorm(ranef(eds_mod)$schoolid[,1]); qqline(ranef(eds_mod)$schoolid[,1])
+```
+
+Some divergence—it's not as nice as it could be.
+But not as bad as it could be either.
+
+
+
+
+```{r}
+qqnorm(ranef(eds_mod)$schoolid[,2]); qqline(ranef(eds_mod)$schoolid[,2])
+```
+
+Better, except for one of the slope adjustments being more negative than we'd expect!
+Oh well, not bad overall.
+
+
+### Check influential observations/schools
+
+```{r}
+inf_obs  <- hlm_influence(model = eds_mod, level = 1, approx = TRUE)
+inf_schoolid <- hlm_influence(model = eds_mod, level = "schoolid", approx = TRUE)
+```
+
+```{r}
+dotplot_diag(inf_obs$cooksd, cutoff = "internal")
+```
+
+```{r}
+dotplot_diag(inf_schoolid$cooksd, index = inf_schoolid$schoolid, cutoff = "internal")
+```
+
+
+worth doing sensitivity analysis for 108 and 168, potentially, but can set that aside for reasons of time.
+
+
+#### Sensitivity analysis 168 feat bobyqa
+
+```{r}
+# failed to converge
+eds_mod_no168 <- lmer(
+  EDS ~ schooltype + CRQ + (1 + CRQ | schoolid), 
+  data = eds_data[-168,]
+)
+
+# add in bobyqa
+eds_mod_no168 <- lmer(
+  EDS ~ schooltype + CRQ + (1 + CRQ | schoolid), 
+  data = eds_data[-168,],
+  control = lmerControl(optimizer = "bobyqa")  # add in this line
+)
+
+# to compare to main model, re-fit that model with bobyqa too
+# (we want only one thing to be diff between the models we compare)
+eds_mod_bobyqa <- lmer(
+  EDS ~ schooltype + CRQ + (1 + CRQ | schoolid), 
+  data = eds_data,
+  control = lmerControl(optimizer = "bobyqa")  # add in this line
+)
+```
+
+```{r}
+summary(eds_mod_bobyqa)
+summary(eds_mod_no168)
+```
+
+
+no big diff.
+
+
+#### Sensitivity analysis 108
+
+```{r}
+eds_mod_no108 <- lmer(
+  EDS ~ schooltype + CRQ + (1 + CRQ | schoolid), 
+  data = eds_data[-108,]
+)
+
+summary(eds_mod_no108)
+```
+
+no difference
+
+
+### plot model estimates
+
+```{r}
+effect(term = c("CRQ", 'schooltype'), mod = eds_mod) |>
+  as.data.frame()
+```
+
+CRQ is spaced kind of weird, so let's give it a diff vector of CRQ values
+
+```{r message=F}
+effect(term = c("CRQ", 'schooltype'), mod = eds_mod, xlevels = list(CRQ = 0:7)) |>
+  as.data.frame() |>
+  ggplot(aes(x = CRQ, y = fit)) +
+  geom_line(aes(colour = schooltype)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = schooltype), alpha = 0.3) +
+  labs(
+    y = 'Emotion Dysregulation Score (EDS)',
+    x = 'Childhood Routines Questionnaire (CRQ) score'
+  )
+```
+
+## interpret fixefs
+
+```{r}
+# summary(eds_mod)
+fixef(eds_mod) |> round(2)
+```
+
+
+`(Intercept)`:
+The average estimated emotional dysregulation for pupils in private schools with CRQ = 0 (that is, zero routine) is 4.53 points.
+
+```{r message = F, eval = F}
+effect(term = c("CRQ", 'schooltype'), mod = eds_mod, xlevels = list(CRQ = 0:7)) |>
+  as.data.frame() |>
+  ggplot(aes(x = CRQ, y = fit)) +
+  geom_line(aes(colour = schooltype)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper, fill = schooltype), alpha = 0.3) +
+  labs(
+    y = 'Emotion Dysregulation Score (EDS)',
+    x = 'Childhood Routines Questionnaire (CRQ) score'
+  ) +
+  geom_point(x = 0, y = 4.53, size = 5)  # plot the intercept
+```
+
+
+`schooltypeState`:
+Holding CRQ constant (ie, for any value of CRQ), moving from private schools to state schools is associated with a decrease of EDS of 0.17.
+That is, dysregulation decreases, or regulation increases.
+This difference is not significantly different from zero.
+
+`CRQ`:
+Holding school type constant (ie, for any value of school type), an increase of one CRQ point is associated with a decrease of EDS of 0.05.
+That is, dysregulation decreases, or regulation increases.
+This difference is also not significantly different from zero.
+
+
+## interpret ranefs relative to fixefs
+
+```{r}
+VarCorr(eds_mod)
+```
+
+The by-school intercept adjustments have a SD of 0.46 points.
+Thus the model suggests that 95% of the adjusted school-level intercepts fall between 4.53 – 2 * 0.46 = 3.61 and 4.53 + 2 * 0.46 = 5.45 EDS points.
+
+The by-school adjustments to the slope over `CRQ` have a SD of 0.14 points.
+Thus the model suggests that 95% of the adjusted school-level slopes over `CRQ` fall between –0.17 – 2 * 0.14 = –0.45 and –0.17 + 2 * 0.14 = 0.11.
+Thus most schools show a negative association between CRQ and EDS (meaning that as routine increases, dysregulation decreases—in line with the hypothesis), but some schools are also estimated to show a positive association (not in line with the hypothesis).
+
+The intercept and slope adjustments have a fairly large negative correlation of –0.75.
+This suggests that schools that tend to have students with higher emotional dysregulation scores (big intercept) tend to have a more negative adjustment to the slope of `CRQ`.
+Since this fixed slope is already negative, the more negative adjustments suggest that the effect of `CRQ` tends to be stronger in schools with pupils having higher emotional dysregulation.
+
+```{r}
+dotplot.ranef.mer(ranef(eds_mod))$schoolid
+```
+
+
+
+## Advanced: plot the random effect lines
+
+to sense check our interpretation of the negative correlation
+
+```{r}
+library(broom.mixed)
+
+augment(eds_mod) |>
+  ggplot(aes(x = CRQ, y = .fitted, group = schoolid, colour = schooltype)) +
+  geom_line()
+```
+
+
+
+
+# OLD
+
+
+# stress and CBD drinks
+
+## playin around
+
+
+```{r}
+unique(df$pid)
+```
+
+
+```{r}
+df <- read_csv("https://uoepsy.github.io/data/stressweek1.csv")
+# re-center 'day' so the intercept is day 1
+# df$day <- df$day-1
+
+glimpse(df)
+```
+
+
+```{r}
+staff_gender <- tibble(
+  pid = unique(df$pid), 
+  gender = c( 'F', 'M', 'M', 'M', 'F', 'M', 'M', 'M', 'M', 'F', 'F', 'F', 'M', 'M', 'F', 'M', 'M', 'F', 'F', 'M' ) 
+)
+
+df <- df |>
+  merge(staff_gender, by = 'pid')
+```
+
+
+
+
+RQ: Does consuming CBD drinks affect Psych staff members' stress levels across the working week, when controlling for staff members' gender?
+
+```{r}
+mod1 <- lmer(stress ~ 1 + day * CBD + gender+ 
+               (1 + day | pid), 
+             data = df)
+
+summary(mod1)
+```
+
+
+
+
+# Needless Game Violence
+
+## playin around
+
+```{r}
+ngv <- read_csv('https://uoepsy.github.io/data/NGV.csv')
+
+ngv |>
+  ggplot(aes(x = mode, y = NGV, fill = mode, colour = mode)) +
+  geom_violin(alpha = 0.5) + 
+  geom_jitter(alpha = 0.5, size = 3) +
+  stat_summary(fun = mean, geom = 'point', colour = 'black', size = 5) +
+  facet_wrap(~ character) +
+  theme(legend.position = 'none')
+```
+
+```{r}
+m <- lmer(NGV ~ character * mode + (1 + character | PID) +  (1 + mode | level), data = ngv)
+summary(m)
+```
+
+
+RQ: **How is the realism of games associated with unnecessarily violent gameplay? How is this association impacted by the mode of play (on a screen vs. a virtual reality (VR) headset)?**
+
+
+## phase 1 
+
+### Load required R packages and read in data
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(lmerTest)
+library(HLMdiag)
+
+ngv <- read_csv('https://uoepsy.github.io/data/NGV.csv')
+glimpse(ngv)
+```
+
+
+### Identify fixefs based on RQ
+
+RQ: **How is the realism of games associated with unnecessarily violent gameplay? How is this association impacted by the mode of play (on a screen vs. a virtual reality (VR) headset)?**
+
+It is possible to answer these qs with a single model, so that's what we should do.
+
+Outcome: `NGV` score
+Predictors: `character`, `mode`, and their interaction
+
+Model formula: `NGV ~ character * mode`
+
+
+### Plot fixef variables all together
+
+```{r}
+ngv |>
+  ggplot(aes(x = mode, y = NGV, fill = mode, colour = mode)) +
+  geom_violin(alpha = 0.5) + 
+  geom_jitter(alpha = 0.5, size = 3) +
+  stat_summary(fun = mean, geom = 'point', colour = 'black', size = 5) +
+  facet_wrap(~ character) +
+  theme(legend.position = 'none')
+```
+
+### Set up categorical (fixed) predictors
+
+```{r}
+ngv <- ngv |>
+  mutate(
+    mode = factor(mode),
+    character = factor(character)
+  )
+
+contrasts(ngv$mode)
+contrasts(ngv$character)
+```
+
+Ref level of `mode`: `screen`
+Ref level of `character`: `realistic`:
+
+
+### Identify grouping variables that contribute random variability (these will be random intercepts)
+
+```{r}
+glimpse(ngv)
+```
+
+Remaining categorical or ordinal variables:
+- `PID`
+- `level`
+- `P` psychopathy
+- `N` narcissism
+- `M` machiavellianism
+
+
+Think about data generating process: 
+
+- the dark triad traits are plausible covariates – controlled variability
+- `PID` and `level` are random variability ... hmm but `level` could also be controlled, do we want htings to generalise across all levels? i guess so. i guess that's why.
+
+
+### Identify what random slopes are possible in maximal model
+
+
+
+
+
+
+
+
+
+
+
+
+## phase 2
+
+
+## phase 3
+
+

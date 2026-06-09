@@ -1,19 +1,102 @@
 ---
-title: "Troubleshooting"
+title: "Troubleshoot common issues"
 ---
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
 ```
 
-## Singular fit
+If you fit a model and any of the following situations arise, **you cannot trust the estimates given to you by that model.**
+You will need to tweak the model, as outlined in each section below, until the problems are solved.
 
 
-## Failure to converge
+## Model failed to converge
+
+This warning typically looks something like:
+
+<p style="color:red">warning(s): Model failed to converge with max|grad| = 0.0071877 (tol = 0.002, component 1)</p>
+
+What does it mean for a model to "fail to converge"?
+
+A bit of backstory: LMMs are fit using a method called "maximum likelihood estimation", abbreviated as MLE. 
+This process involves taking a guess at the model's parameters, seeing how likely it is that those parameters would have generated the observed data, and then improving our guesses until we've found the parameters with the greatest probability of having generated the observed data.
+Once we've found those most likely parameters, we say the model has "converged".
+
+Sometimes, however, the MLE process can get stuck, resulting in "non-convergence" or "failure to converge". 
+Non-convergence is pretty common when we try to fit a maximal model, because with more parameters, there are more places for MLE to go wrong.
+
+**If your model fails to converge, try [changing the model's optimiser](optimiser.html), and if that doesn't work, then try  [simplifying](simplify.html) the random effect structure.**
 
 
-## Must rescale predictor
+## Singularity
 
+This warning typically looks like:
+
+<p style="color:red">boundary (singular) fit: see ?isSingular</p>
+
+But the model will not always warn you about singularities, so you also need to look carefully at the variance components in the model summary.
+
+If you see:
+
+- a correlation between intercept and slope adjustments of 1 or –1, or
+- SD or variance of 0 for any random effects
+
+then these numbers don't represent the actual variances or correlations in the data.
+This situation is another instance of a singularity: a technical problem in estimating the model parameters.
+
+If your model has a "singular fit", then that means that the random effect structure that you've defined is too complex to be supported by the data.
+In other words, the model is not able to accurately estimate all of the parameters that you want it to estimate.
+
+**In case of a singularity, try [changing the model's optimiser](optimiser.html), and if that doesn't work, then try  [simplifying](simplify.html) the random effect structure.**
+
+:::{.callout-caution collapse='true'}
+## More detail on the variance component issue
+
+In linear algebra terms, an extreme correlation value or an estimate of 0 variance/SD both indicate that **the model's variance-covariance matrix is degenerate.**
+
+If a matrix is degenerate, then it cannot be inverted.
+This is a problem because behind the scenes, the model must invert the variance-covariance matrix in order to estimate the fixed effect parameters.
+So when the matrix cannot be inverted, then the fixed effects cannot be reliably estimated.
+
+:::
+
+
+## Too few observations
+
+This warning might look something like:
+
+<p style="color:red">Error: number of observations (=150) <= number of random effects (=150) for term (1 + music | pid); the random-effects parameters and the residual variance (or scale parameter) are probably unidentifiable</p>
+
+This warning arises when the random effect structure is too complex for the given data to support.
+It's common when each level of a grouping variable has exactly one observation for each level of a predictor, for example.
+
+**If you have too many random effects for too little data, the best solution is to [simplify](simplify.html) the random effect structure.**
+
+
+## Variables need rescaling
+
+This warning usually looks something like:
+
+<p style="color:red">Warning messages:<br>
+1: Some predictor variables are on very different scales:<br> consider rescaling</p>
+
+<p style="color:red">Warning messages:<br>
+1: In checkConv(attr(opt, "derivs"), opt\$par, ctrl = control\$checkConv,  :<br>Model is nearly unidentifiable: large eigenvalue ratio<br>  - Rescale variables?</p>
+
+<!-- To see what's going on here, imagine we were fitting a model of `shoe_size ~ height`. -->
+<!-- The estimated coefficient is going to depend on how we measure `height`. -->
+<!-- If we measure it in millimetres, then we'll probably have a very small coefficient (people's shoe size will only change by a tiny amount for every 1mm height they gain). -->
+<!-- But if we measure height in kilometres, then we'll have a very big coefficient ("grow an extra kilometer in height, and your shoe size will increase 10000 sizes"!).   -->
+
+LMMs can have a hard time estimating parameters when variances are too close to zero.
+In that situation, warnings like these can arise.
+
+**If your model recommends that you rescale your variables, the best solution is to mean-centre or z-score your predictor(s)—and make sure you interpret the coefficients accordingly!**
+
+## Other issues?
+
+- Google your error messages
+- Check on Stack Overflow / Stack Exchange for solutions others have used
 
 
 ## Linked flash cards

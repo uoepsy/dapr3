@@ -1,0 +1,213 @@
+---
+title: "Detect influential points and groups"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
+```
+
+
+After fitting our LMM, we can check whether any individual points or any particular levels of our grouping variables are unduly influencing our model's estimates.
+
+
+## Example: University job satisfaction
+
+Let's suppose we are studying employee job satisfaction at the university, and we want to estimate the **association between pay-scale and job satisfaction, controlling for the NSS rating of departments**.   
+
+We have 399 employees from 25 different departments, and we got them to fill in a job satisfaction questionnaire, and got information on what their payscale was.
+We have also taken information from the National Student Survey on the level of student satisfaction for each department.  
+
+Each datapoint here represents an individual employee, and these employees are grouped into departments.  
+
+```{r}
+#| echo: false
+tibble(variable=names(read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")),
+       description = c(
+         "National Student Satisfaction rating for the department",
+         "Department name",
+         "Pay scale of employee",
+         "Job satisfaction of employee",
+         "Binary question of whether the employee considered themselves to be satisfied with their work (1) or not (0)"
+       )
+) %>% gt::gt()
+```
+
+```{r}
+jobsat <- read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")
+```
+
+
+Here's the [maximal model](maxmodel.html) for this data:
+
+```{r}
+jobsat_mod <- lmerTest::lmer(
+  jobsat ~ 1 + payscale + NSSrating + (1 + payscale | dept), 
+  data = jobsat
+)
+```
+
+We are predicting employee's job satisfaction as a function of their pay scale and the department's NSS rating.
+We're also including by-department adjustments to the fixed intercept and to the slope over `payscale`.
+
+To see where the `lmerTest::lmer()` bit comes from, see [Get p-values for LMM coefficients](pvals.html).
+
+
+## Detecting influential points and groups
+
+In simple LMs, we only looked out for influential points.
+In LMMs, we should also be on the lookout for influential *groups*, that is, particular levels of a [grouping variable](groupstruc.html) which influence the model's estimates.
+
+There are two main R packages for examining influence in multilevel models: `HLMdiag` and `influence.ME`.
+We'll focus on using `HLMdiag` because it's faster than `influence.ME`, though note that if you are fitting a logistic mixed model with random effects (i.e., if you need to use `glmer()`), you'll need to use `influence.ME` instead (see the rabbit hole below).
+
+
+:::{.callout-caution collapse='true'}
+#### `HLMdiag` vs. `influence.ME`
+
+`HLMdiag`:
+
+- works only for `lmer()`, not `glmer()`
+- runs more quickly than `influence.ME` because it only approximates the diagnostic measures instead of dropping each observation/level and re-fitting the model completely
+
+
+`influence.ME`:
+
+- works both for `lmer()` and `glmer()`
+- runs more slowly than `HLMdiag`
+
+:::
+
+
+`HLMdiag` gives us a function called `hlm_influence()`.
+To check observation-level influence, we use the argument `level = 1`, or to check group-level influence for the `dept` grouping variable, we write `level = 'dept'`.
+Finally, we write `approx = TRUE` to specify that we're only looking for approximate calculations of the influence measures (approximating the measures is why `HLMdiag` is faster than `influence.ME`).
+
+```{r}
+library(HLMdiag)
+
+inf_obs  <- hlm_influence(model = jobsat_mod, level = 1, approx = TRUE)
+inf_dept <- hlm_influence(model = jobsat_mod, level = "dept", approx = TRUE)
+```
+
+The resulting data frames contain a lot of different influence measures.
+For example, here are the approximated Cook's Distances of the first six observations:
+
+```{r}
+inf_obs$cooksd |> head()
+```
+
+And here are the approximated Cook's Distances of the first six `dept`s:
+
+```{r}
+inf_dept$cooksd |> head()
+```
+
+We can also plot these metrics.
+
+Here's the Cook's Distance for all observations, including a cutoff (the red line) at the third quartile + three times the inter-quartile range of the observed Cook's Distances.
+This is a somewhat arbitrary threshold—to really check the impact of these observations, you'd want to run a sensitivity analysis (see below).
+
+```{r}
+dotplot_diag(inf_obs$cooksd, cutoff = "internal")
+```
+
+
+And here is the Cook's Distance for each department:
+
+```{r}
+dotplot_diag(inf_dept$cooksd, index = inf_dept$dept, cutoff = "internal")
+```
+
+The sensitivity analysis below will double-check on the Nursing Studies group to see whether it might be unduly influencing the model's results.
+
+
+:::{.callout-caution collapse='true'}
+#### Examples with `influence.ME`
+
+The `influence.ME` library gives us a function called `influence()`.
+To check observation-level influence, we specify `obs = TRUE`, or to check group-level influence for `dept`, we specify `group = "dept"`.
+
+`influence()` does a bit more work behind the scenes, which is what makes it slower: it iteratively deletes each observation or each group, re-fits the model, and compares the complete model to the one with the observation/group deleted.
+
+```{r}
+library(influence.ME)
+
+inf_obs  <- influence(model = jobsat_mod, obs = TRUE)
+inf_dept <- influence(model = jobsat_mod, group = "dept")
+```
+
+
+Now we can use `plot()` to show influence measures like Cook's Distance.
+
+The Cook's Distance for each observation (the y axis labels are the index of each observation, but so squished together that you can't really read them):
+
+```{r}
+plot(inf_obs, which = "cook", sort = TRUE)
+```
+
+For each `dept`:
+
+```{r}
+plot(inf_dept, which = "cook", sort = TRUE)
+```
+
+Again, Nursing Studies appears to have a stronger influence on the model than the other departments.
+:::
+
+## Sensitivity analysis
+
+A sensitivity analysis involves fitting our model with and without a given observation/group and examining whether/how our conclusions change.
+
+Because Nursing Studies appears to have fairly strong influence on `jobsat_mod`, let's try fitting another version of this model that doesn't include the Nursing Studies data.
+
+```{r}
+jobsat_mod_NS <- lmerTest::lmer(
+  jobsat ~ 1 + payscale + NSSrating +  (1 + payscale| dept), 
+  data = jobsat |> filter(dept != "Nursing Studies")
+)
+```
+
+
+And we'll compare the coefficients and pattern of significance in the two models.
+
+:::: {.columns}
+
+::: {.column width="45%"}
+WITH Nursing Studies:
+
+```{r}
+summary(jobsat_mod)
+```
+:::
+
+::: {.column width="10%"}
+:::
+
+::: {.column width="45%"}
+WITHOUT Nursing Studies:
+
+```{r}
+summary(jobsat_mod_NS)
+```
+:::
+
+::::
+
+
+The effect size for `NSSrating` becomes a bit smaller once we exclude Nursing Studies.
+But at $\alpha = .05$ (the standard significance level in Psychology and related fields), the pattern of significance does not change.
+So the sensitivity analysis allows us to conclude that the model's estimates aren't being driven purely by the data from the Nursing Studies department.
+
+
+## Linked flash cards
+
+### Outgoing links
+
+- TODO
+
+
+### Backlinks
+
+- TODO

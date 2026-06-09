@@ -9,64 +9,768 @@ output:
 library(tidyverse)
 library(lme4)
 
+theme_set(theme_bw())
+
 source('simfns.R')  # load simdat functions
 ```
 
-# One idea: erm_belief
+
+
+# Implicit association test
+
+<https://psych.wisc.edu/Brauer/BrauerLab/index.php/implicit-bias/>
+
+condition fully crossed w ppts and w items
 
 ```{r}
-df <- read_csv("https://uoepsy.github.io/data/erm_belief.csv")
+n_ppts  <- 100
+n_items <- 32
 
-# make trial_n numeric
-df$trial_n <- as.numeric(gsub("trial_","",df$trial_n))
-# relevel condition:
-df$condition <- factor(df$condition, levels=c("fluent","disfluent"))
+set.seed(1)
+implicit_data <- simcross(
+  seed=1,
+  b0=2, 
+  b1=1,  # wi_itms_wi_ppts
+  b2=1,  # wi_ppts_btw_itms
+  b3=2,  # x or xcat
+  n_ppts=n_ppts, n_itms=n_items,
+  n_obs_per=2
+) |>
+  select(ppts, itms, xcat, y) |>
+  rename(
+    ppt_id = ppts,
+    item_id = itms,
+    pairing = xcat,
+    logRT = y
+  ) |>
+  mutate(
+    pairing = factor(ifelse(pairing == 'a', 'Associated', 'Unassociated'), levels = c('Unassociated', 'Associated')),
+    ppt_id = paste0('ppt', ppt_id),
+    item_id = paste0('item', item_id),
+    logRT = datawizard::rescale(logRT, to = c(0.28, 8.62))
+  )
+
+write_csv(implicit_data, '../data/iat.csv')
 ```
 
 
-```{r eval=F}
-# failed to converge
-mod1 <- lmer(
-  belief ~ trial_n + condition + 
-    (1 + trial_n + condition | ppt) + 
-    (1 + condition | statement), 
-  data = df
-)
-
-# converges, and vcov matrix doesn't look degenerate
-mod2 <- lmer(
-  belief ~ trial_n + condition + 
-    (1 + condition | ppt) + 
-    (1 + condition | statement), 
-  data = df
-)
-
-summary(mod2)
+```{r}
+implicit_data |>
+  ggplot(aes(x = pairing, y = logRT)) +
+  geom_violin() +
+  geom_jitter () +
+  NULL
+  # facet_wrap(~ ppt_id)
 ```
 
-Don't use trial_n, just use condition.
+```{r}
+# stats::xtabs(~ ppt_id + item_id + pairing, data = implicit_data)
+```
 
 ```{r}
-mod3 <- lmer(
-  belief ~ condition +
-    (1 + condition | ppt) +
-    (1 + condition | statement),
-  data = df
+m <- lmer(
+  logRT ~ pairing + 
+    # (1 | ppt_id),
+    # (1 + pairing | ppt_id),
+    (1 + pairing | ppt_id) + (1 + pairing | item_id),
+  data = implicit_data
 )
-summary(mod3)
+summary(m)
+```
+
+```{r}
+ranef(m)$ppt_id |>
+  arrange(desc(pairingAssociated))
+```
+
+
+```{r}
+dotplot.ranef.mer(ranef(m))$ppt_id
+dotplot.ranef.mer(ranef(m))$item_id
+```
+
+## plot by-ppt data
+
+```{r}
+ppts_to_plot <- c(56, 14, 33, 24, 44, 31, 67, 97, 99)
+
+p_implicit_ppts <- implicit_data |>
+  mutate(
+    pairing_num = ifelse(pairing == 'Unassociated', 0, 1)
+  ) |>
+  filter(ppt_id %in% paste0('ppt', ppts_to_plot)) |>
+  ggplot(aes(x = pairing_num, y = logRT)) +
+  geom_jitter(alpha = 0.3, width = 0.1) +
+  stat_summary(fun = mean, geom = 'point') +
+  stat_summary(aes(group = ppt_id), fun = mean, geom = 'line') +
+  facet_wrap(~ ppt_id) +
+  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('Unassociated', 'Associated')) +
+  labs(x = 'Topic pairing') +
+  theme(
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+p_implicit_ppts
+```
+
+
+## simple LM
+
+```{r}
+implicit_lm <- lm(logRT ~ pairing, data = implicit_data)
+summary(implicit_lm)
+```
+
+```{r}
+coef(implicit_lm)[['(Intercept)']]
+coef(implicit_lm)[['pairingAssociated']]
+```
+
+```{r}
+p_implicit_ppts +
+  geom_abline(
+    intercept = coef(implicit_lm)[['(Intercept)']],
+    slope = coef(implicit_lm)[['pairingAssociated']],
+    colour = 'red'
+  ) 
+```
+
+wrong bc 
+
+- errors are no longer independent
+- ignores that ppts have diff effects
+
+
+## diff LMs to each ppt
+
+NOT WHAT YOU SHOULD DO
+
+```{r}
+implicit_lmlist <- lmList(
+  logRT ~ pairing | ppt_id,
+  data = implicit_data
+)
+
+implicit_lmlist
+```
+
+```{r}
+indiv_ppt_coefs <- coef(implicit_lmlist) |>
+  rownames_to_column(var = 'ppt_id')
+
+p_implicit_ppts +
+  geom_abline(
+    data = filter(indiv_ppt_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
+  )  +
+  theme(legend.position = 'none')
+```
+
+
+wrong bc
+
+- we're still collapsing/aggregating over items
+- goal: look at ALL sources of variability, not just by ppt but also by item
+
+here's what we actually do! the current state of the art in psych and adjacent fields.
+
+## intro intercept adjustments
+
+- in between fitting one single LM and fitting one indiv LM per ppt.
+- crucial twist: a new `+ (1 | ppt_id)` thing in the model formula
+	- this adjusts the intercept estimate by some amount for each subj
+	- if ppt has smaller intercept than avg, then int adjustment neg; if higher, then int adjustment pos
+
+```{r}
+library(lme4)
+
+implicit_lmm_int <- lmer(
+  logRT ~ pairing + (1 | ppt_id),
+  data = implicit_data
+)
+
+summary(implicit_lmm_int)
+```
+
+- ^ new stuff: residual variance sigma, and one more source of variance: SD of ppt's intercept adjustments. this represents how variable ppts are around fixed intercept
+
+```{r}
+ranef(implicit_lmm_int)$ppt_id
+```
+
+```{r}
+dotplot.ranef.mer(ranef(implicit_lmm_int))$ppt_id
+```
+
+- ppt_56 most above average intercept
+- ppt_24 most below average intercept
+ 
+ 
+Actual line parameters:
+
+- every ppt has diff intercept (fixed intercept  + each ppt's intercept adjustment)
+- every ppt has same slope
+ 
+```{r}
+random_int_coefs <- coef(implicit_lmm_int)$ppt_id |>
+  rownames_to_column(var = 'ppt_id')
+random_int_coefs
+```
+ 
+```{r}
+p_implicit_ppts +
+  geom_abline(
+    data = filter(random_int_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
+  )  +
+  theme(legend.position = 'none')
+```
+  
+ 
+<!-- - show mathematically as term being added on to intercept -->
+<!-- 		- compare simple and new models: -->
+<!-- 			- simple lm intercept: beta0. -->
+<!-- 			- varying-intercepts mixed model intercept: beta0 + u0i for each ppt i -->
+
+
+ 
+## intro slp adj
+
+```{r}
+implicit_int_slp <- lmer(
+  logRT ~ pairing + (1 + pairing | ppt_id),
+  data = implicit_data
+)
+
+summary(implicit_int_slp)
+```
+
+```{r}
+random_int_slp_coefs <- coef(implicit_int_slp)$ppt_id |>
+  rownames_to_column(var = 'ppt_id')
+random_int_slp_coefs
+```
+
+
+```{r}
+p_implicit_ppts +
+  geom_abline(
+    data = filter(random_int_slp_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
+  )  +
+  theme(legend.position = 'none')
+```
+
+
+not yet the final form, because there's more than one grouping variable, and we're not adjusting for different effects for each item...
+
+```{r}
+items_to_plot <- c(1, 2, 4, 13, 6, 8, 14, 27, 32)
+
+p_implicit_items <- implicit_data |>
+  mutate(
+    pairing_num = ifelse(pairing == 'Unassociated', 0, 1)
+  ) |>
+  filter(item_id %in% paste0('item', items_to_plot)) |>
+  ggplot(aes(x = pairing_num, y = logRT)) +
+  geom_jitter(alpha = 0.3, width = 0.1) +
+  stat_summary(fun = mean, geom = 'point') +
+  stat_summary(aes(group = item_id), fun = mean, geom = 'line') +
+  facet_wrap(~ item_id) +
+  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('Unassociated', 'Associated')) +
+  labs(x = 'Topic pairing') +
+  theme(
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+p_implicit_items
+```
+
+
+
+
+```{r}
+p_implicit_items +
+  geom_abline(
+    intercept = fixef(implicit_int_slp)[['(Intercept)']],
+    slope = fixef(implicit_int_slp)[['pairingAssociated']],
+    colour = 'red'
+  ) 
+```
+
+
+
+## Week 3: intro to >1 ranefs
+
+```{r}
+implicit_maximal_model <- lmer(
+  logRT ~ pairing + (1 + pairing | ppt_id) + (1 + pairing | item_id),
+  data = implicit_data
+)
+
+summary(implicit_maximal_model)
+```
+
+```{r}
+dotplot.ranef.mer(ranef(implicit_maximal_model))$ppt_id
+dotplot.ranef.mer(ranef(implicit_maximal_model))$item_id
+```
+
+
+```{r}
+maximal_ppt_coefs <- coef(implicit_maximal_model)$ppt_id |>
+  rownames_to_column(var = 'ppt_id')
+maximal_ppt_coefs
+
+maximal_item_coefs <- coef(implicit_maximal_model)$item_id |>
+  rownames_to_column(var = 'item_id')
+maximal_item_coefs
+```
+
+Plot with adjustments by ppt:
+
+```{r}
+p_implicit_ppts +
+  geom_abline(
+    data = filter(maximal_ppt_coefs, ppt_id %in% paste0('ppt', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = ppt_id),
+  )  +
+  theme(legend.position = 'none')
+```
+
+^ notice how the lines fit even better now that we've taken the by-item variability into acct!
+
+
+
+
+Plot with adjustments by item:
+
+```{r}
+p_implicit_items +
+  geom_abline(
+    data = filter(maximal_item_coefs, item_id %in% paste0('item', items_to_plot)),
+    aes(intercept = `(Intercept)`, slope = pairingAssociated, colour = item_id),
+  )  +
+  theme(legend.position = 'none')
+```
+
+
+
+
+
+----
+
+# LEGACY
+
+# DOES NOT CONVERGE: erm_belief
+
+MWE
+
+```{r}
+belief_data <- read_csv("https://uoepsy.github.io/data/erm_belief.csv") |>
+  mutate(
+    fluent = ifelse(condition == 'disfluent', 'No', 'Yes'),
+    fluent = factor(fluent, levels = c('Yes', 'No')),
+  )
+ 
+belief_mod <- lmer(
+  # max mod of belief ~ fluent + (1 + fluent | ppt) + (1 + fluent | statement) works no problem
+  belief ~ fluent + (1 + fluent || ppt),
+  data = belief_data
+)
+ 
+summary(belief_mod)
+```
+
+
+```{r}
+belief_data <- read_csv("https://uoepsy.github.io/data/erm_belief.csv") |>
+  mutate(
+    fluent = ifelse(condition == 'disfluent', 'No', 'Yes'),
+    fluent = factor(fluent, levels = c('Yes', 'No')),
+    fluent_num = ifelse(fluent == 'Yes', 0, 1)
+  ) |>
+  select(ppt, sentence, statement, fluent, fluent_num, belief, trial_n) |>
+  arrange(ppt, sentence)
+
+belief_data
+```
+
+
+```{r}
+m <- lmer(
+  belief ~ fluent 
+    + (1 + fluent | ppt)
+    # + (1 + fluent || statement)
+  ,
+  data = belief_data,
+  control = lmerControl(optimizer = 'bobyqa')
+)
+
+summary(m)
 ```
 
 
 fully crossed (yay)
 
-RESUME
+```{r}
+belief_mod <- lmer(
+  belief ~ trial_n + (1 + trial_n || ppt),
+  data = belief_data |> mutate(trial_n=parse_number(trial_n))
+)
+summary(belief_mod)
+```
+
+
+## plot data
+
+By ppt, aggregating over statement:
+
+```{r}
+p_belief_all_ppts <- belief_data |>
+  ggplot(aes(x = fluent_num, y = belief)) +
+  geom_jitter(alpha = 0.3, width = 0.1) +
+  stat_summary(fun = mean, geom = 'point') +
+  stat_summary(aes(group = ppt), fun = mean, geom = 'line') +
+  facet_wrap(~ ppt) +
+  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('No', 'Yes')) +
+  labs(x = 'fluent?') +
+  theme(
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+p_belief_all_ppts
+```
+
+
+By statement, aggregating over ppt:
+
+```{r eval=F}
+belief_data |>
+  ggplot(aes(x = fluent, y = belief)) +
+  geom_jitter(alpha = 0.3, width = 0.1) +
+  stat_summary(fun = mean, geom = 'point') +
+  stat_summary(aes(group = statement), fun = mean, geom = 'line') +
+  facet_wrap(~ statement) +
+  theme(
+    strip.background = element_blank()
+  )
+```
+
+
+Zoom in on some particular ppts with different patterns:
+
+```{r}
+ppts_to_plot <- c(4, 7, 20, 22, 25)
+
+p_belief_3ppts <- belief_data |>
+  filter(ppt %in% paste0('ppt_', ppts_to_plot)) |>
+  ggplot(aes(x = fluent_num, y = belief)) +
+  geom_jitter(alpha = 0.3, width = 0.1) +
+  stat_summary(fun = mean, geom = 'point') +
+  stat_summary(aes(group = ppt), fun = mean, geom = 'line') +
+  facet_wrap(~ ppt) +
+  scale_x_continuous(breaks = c(0, 1), limits = c(-0.3, 1.3), labels = c('No', 'Yes')) +
+  labs(x = 'fluent?') +
+  theme(
+    strip.background = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+p_belief_3ppts
+```
+
+
+## simple LM
+
+```{r}
+belief_lm <- lm(belief ~ fluent, data = belief_data)
+summary(belief_lm)
+```
+
+```{r}
+coef(belief_lm)[['(Intercept)']]
+coef(belief_lm)[['fluentNo']]
+```
+
+```{r}
+p_belief_all_ppts +
+  geom_abline(
+    intercept = coef(belief_lm)[['(Intercept)']],
+    slope = coef(belief_lm)[['fluentNo']],
+    colour = 'red'
+  ) 
+
+p_belief_3ppts +
+  geom_abline(
+    intercept = coef(belief_lm)[['(Intercept)']],
+    slope = coef(belief_lm)[['fluentNo']],
+    colour = 'red'
+  ) 
+```
+
+wrong bc 
+
+- errors are no longer independent
+- ignores that ppts have diff effects
+
+
+## diff LMs to each ppt
+
+NOT WHAT YOU SHOULD DO
+
+```{r}
+belief_lmlist <- lmList(
+  belief ~ fluent | ppt,
+  data = belief_data
+)
+
+belief_lmlist
+```
+
+```{r}
+indiv_ppt_coefs <- coef(belief_lmlist) |>
+  rownames_to_column(var = 'ppt')
+
+# names(indiv_ppt_params) <- c('ppt', 'intercept', 'slope')
+```
+
+```{r}
+p_belief_all_ppts +
+  geom_abline(
+    data = indiv_ppt_coefs,
+    aes(intercept = `(Intercept)`, slope = fluentNo, colour = ppt),
+  )  +
+  theme(legend.position = 'none')
+```
+
+```{r}
+p_belief_3ppts +
+  geom_abline(
+    data = filter(indiv_ppt_coefs, ppt %in% paste0('ppt_', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = fluentNo, colour = ppt),
+  )  +
+  theme(legend.position = 'none')
+```
+
+
+wrong bc
+
+- we're still collapsing/aggregating over statements
+- goal: look at ALL sources of variability, not just by ppt but also by statement
+
+here's what we actually do! the current state of the art in psych and adjacent fields.
+
+## intro intercept adjustments
+
+- in between fitting one single LM and fitting one indiv LM per ppt.
+- crucial twist: a new `+ (1 | ppt)` thing in the model formula
+	- this adjusts the intercept estimate by some amount for each subj
+	- if ppt has smaller intercept than avg, then int adjustment neg; if higher, then int adjustment pos
+
+```{r}
+library(lme4)
+
+belief_lmm_int <- lmer(
+  belief ~ fluent + (1 | ppt),
+  data = belief_data
+)
+
+summary(belief_lmm_int)
+```
+
+- ^ new stuff: residual variance sigma, and one more source of variance: SD of ppt's intercept adjustments. this represents how variable ppts are around fixed intercept
+
+```{r}
+ranef(belief_lmm_int)$ppt
+```
+
+```{r}
+dotplot.ranef.mer(ranef(belief_lmm_int))$ppt
+```
+
+
+- ppt_22 most above average intercept
+- ppt_4 most below average intercept
+ 
+ 
+Actual line parameters:
+
+- every ppt has diff intercept (fixed intercept of 49.30 points + each ppt's intercept adjustment)
+- every ppt has same slope
+ 
+```{r}
+random_int_coefs <- coef(belief_lmm_int)$ppt |>
+  rownames_to_column(var = 'ppt')
+random_int_coefs
+```
+ 
+ 
+```{r}
+p_belief_all_ppts +
+  geom_abline(
+    data = random_int_coefs,
+    aes(intercept = `(Intercept)`, slope = fluentNo, colour = ppt),
+  )  +
+  theme(legend.position = 'none')
+```
+
+  
+```{r}
+p_belief_3ppts +
+  geom_abline(
+    data = filter(random_int_coefs, ppt %in% paste0('ppt_', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = fluentNo, colour = ppt),
+  )  +
+  theme(legend.position = 'none')
+```
+  
+ 
+<!-- - show mathematically as term being added on to intercept -->
+<!-- 		- compare simple and new models: -->
+<!-- 			- simple lm intercept: beta0. -->
+<!-- 			- varying-intercepts mixed model intercept: beta0 + u0i for each ppt i -->
 
 
 
+## intro slp adjustments
 
+need to allow the slopes to vary as well.
+
+- add another source of variance: slopes varying by subj
+- "varying intercepts + varying slopes by subject model"
+<!-- - use (1 + x || subj), no correl, for now. "just trust me for now, I will explain what that is about soon" -->
+
+
+```{r}
+belief_lmm_int_slp <- lmer(
+  belief ~ fluent + (1 + fluent | ppt),
+  data = belief_data,
+)
+
+summary(belief_lmm_int_slp)
+```
+
+```{r}
+random_int_slp_coefs <- coef(belief_lmm_int_slp)$ppt |>
+  rownames_to_column(var = 'ppt')
+random_int_slp_coefs
+```
+
+```{r}
+dotplot.ranef.mer(ranef(belief_lmm_int_slp))$ppt
+```
+
+ 
+```{r}
+p_belief_all_ppts +
+  geom_abline(
+    data = random_int_slp_coefs,
+    aes(intercept = `(Intercept)`, slope = fluentNo, colour = ppt),
+  )  +
+  theme(legend.position = 'none')
+```
+
+  
+```{r}
+p_belief_3ppts +
+  geom_abline(
+    data = filter(random_int_slp_coefs, ppt %in% paste0('ppt_', ppts_to_plot)),
+    aes(intercept = `(Intercept)`, slope = fluentNo, colour = ppt),
+  )  +
+  theme(legend.position = 'none')
+```
+ 
+cry!
+
+
+<!-- --- -->
+
+<!-- JK comments from 13.05.26 on why uncorrelated ranefs look the way they do for categ preds. -->
+
+<!-- if you uncorrelate intercepts and slopes, then it essentially creates a second grouping var (which is just the same groups as the first grouping var). so it's like saying:  -->
+<!--  G1==G2 -->
+<!-- intercept varies by grouping G1 -->
+<!-- slope of x varies by grouping G2 -->
+<!-- so if you had:  -->
+<!-- belief_mod <- lmer( -->
+
+<!--   belief ~ trial_n + ( + trial_n || ppt), -->
+
+<!--   data = belief_data |> mutate(trial_n=parse_number(trial_n)) -->
+
+<!-- ) -->
+
+<!-- summary(belief_mod) -->
+<!-- then it just uncorrelates the two things by creating a second grouping to separate them out.  -->
+
+<!-- but....  -->
+<!-- with a categorical predictor, this is more confusing. it keep the correlations within the levels of the predictor.  -->
+
+<!-- so what your model is showing is:  -->
+<!-- ppt variability at intercept -->
+<!-- ppt variability at fluentYes -->
+<!-- ppt variability at fluentNo -->
+<!-- cor between 2 and 3 -->
+<!-- the intercept is the same as the variability at fluentYes, so you've kind of got that in there twice.  -->
+
+<!-- what i think you want is:  -->
+<!-- belief_mod <- lmer( -->
+
+<!--   belief ~ fluent + (0 + fluent | ppt), -->
+
+<!--   data = belief_data -->
+
+<!-- ) -->
+
+<!-- VarCorr(belief_mod) -->
+<!-- # ppt SD in fluentYes condition - 0.78 -->
+
+<!-- # ppt variance in fluentNo condition - 0.44 -->
+<!-- as opposed to:  -->
+<!-- belief_mod <- lmer( -->
+
+<!--   belief ~ fluent + (1 + fluent | ppt), -->
+
+<!--   data = belief_data -->
+
+<!-- ) -->
+
+<!-- VarCorr(belief_mod) -->
+
+<!-- # ppt SD in fluentYes condition - 0.78 -->
+
+<!-- # ppt variance in fluentNo-fluentYes difference - 0.34 -->
+
+
+
+<!-- but in that you'll still have the within-predictor correlations!! -->
+
+<!-- so... -->
+
+<!-- (suspensful..) -->
+
+<!-- categorical effects on the RHS!  -->
+<!-- belief_mod <- lmer( -->
+
+<!--   belief ~ fluent + (1 | ppt) + (1 | ppt:fluent), -->
+
+<!--   data = belief_data -->
+
+<!-- ) -->
+
+
+<!-- only it doesn't converge in this case  -->
+ 
+
+----
 
 
 # OLD idea: Test enhanced learning
+
 
 ```{r}
 load(url("https://uoepsy.github.io/data/testenhancedlearning.RData"))
@@ -199,93 +903,3 @@ tel |>
 I thiiiink I might still stick with the TEL one, just bc then when we get to the maximal model bit, I can  be like "ah hah there is also an interaction, now what" 
 
 
-
-
-# OLD idea for running example for lec 2
-
-latin square, condition fully crossed w ppts and w items
-
-The story: masked priming, primed with a related word vs. when primed with a distractor
-
-```{r eval=F}
-n_ppts  <- 4
-n_items <- 20
-
-dat <- simcross(
-  seed=1,
-  b0=2, 
-  b1=1,  # wi_itms_wi_ppts
-  b2=1,  # wi_ppts_btw_itms
-  b3=2,  # x or xcat
-  n_ppts=n_ppts, n_itms=n_items,
-  n_obs_per=2
-) |>
-  select(ppts, itms, xcat, y) |>
-  rename(
-    ppt_id = ppts,
-    item_id = itms,
-    priming_cond = xcat,
-    logRT = y
-  ) |>
-  mutate(
-    priming_cond = ifelse(priming_cond == 'a', 'related_prime', 'distractor_prime'),
-    ppt_id = paste0('ppt', ppt_id),
-    item_id = paste0('item', item_id),
-  )
-
-dat |>
-  ggplot(aes(x = priming_cond, y = logRT)) +
-  geom_violin() +
-  geom_jitter () +
-  facet_wrap(~ ppt_id)
-```
-
-
-Identify grouping structure:
-
-- we are looking only at categorical variables
-- we want to see: what categorical variables have values that are associated with more than one data point?
-
-```{r eval=F}
-dat |> head()
-```
-
-what cat vars do we have? (not including the outcome, if it's binary)
-- ppt_id
-- item_id
-- priming_cond
-
-we'll go through each of these.
-
-assuming data is set up for analysis using lm, with one column per variable and one row per observation, then we should just be able to count how many times each value shows up
-
-```{r eval=F}
-dat |>
-  group_by(ppt_id) |>
-  count()
-```
-
-can sense check by visually inspecting df. "ppt1" shows up with a bunch of different logRTs.
-
-```{r eval=F}
-dat |>
-  group_by(item_id) |>
-  count()
-```
-
-each item also appears multiple times.
-
-```{r eval=F}
-dat |>
-  group_by(priming_cond) |>
-  count()
-```
-
-and each priming condition shows up multiple times.
-
-So we have three groups that each contribute multiple data points:
-
-- `ppt_id`
-- `item_id`
-- `priming_cond`
- 

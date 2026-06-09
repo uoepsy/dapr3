@@ -1,0 +1,714 @@
+---
+title: "Building maximal models and interpreting LMM estimates"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE  # TRUE = collapse sols, FALSE = uncollapse sols
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- when rendering in RStudio/  not production profile:   SHOW_SOLS: TRUE  -->
+<!-- when rendering in terminal/with production profile:   SHOW_SOLS: FALSE -->
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+library(ggdist)
+library(stats)
+library(lme4)
+library(lmerTest)
+
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+```
+
+In this lab, you'll apply the tools you saw in the lectures this week to the same three datasets you got to know in Week 1.
+You'll work out the maximal model structure for each one.
+
+And in Question 10 (which is more substantial than the first nine), you'll fit one of those maximal models and interpret its estimates.
+
+
+:::{.callout-note}
+### Get set up
+
+1. Create a new .Rmd file for this week's exercises.
+1. Save it somewhere you can find it again.
+1. Give it a clear name (for example, `dapr3_lab03.Rmd`).
+1. In the first code chunk, load the packages you'll need this week:
+    - `tidyverse`
+    - `lme4`
+    - `lmerTest`
+    - `stats` (for `xtabs()`)
+:::
+
+---
+
+
+
+## Clothing
+
+:::frame
+
+Read in the dataset located at [https://uoepsy.github.io/data/dapr3_mannequin.csv](https://uoepsy.github.io/data/dapr3_mannequin.csv) and name it `clothing`.
+
+RQ: **Are people more likely to purchase clothing when they see it displayed on a model, and is this association dependent on item price?**
+
+```{r}
+#| echo: false
+tibble(
+  variable=names(read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")),
+  description=c("Purchase rating (sliding scale 0 to 100, with higher ratings indicating greater perceived likelihood of purchase)",
+                "Price presented for item (range £5 to £100)",
+                "Participant identifier",
+                "Whether items are seen on a model or on a white background")
+) |> gt::gt()
+```
+
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+Thirty participants were presented with a set of pictures of items of clothing, and rated each item how likely they were to buy it.
+Each participant saw 20 items, ranging in price from £5 to £100.
+15 participants saw these items worn by a model, while the other 15 saw the items hanging against a white background.
+:::
+
+
+**From the Week 1 lab, here's the key information about `clothing`:**
+
+- Outcome: `purch_rating`
+- Predictors: `price`, `condition` (and their interaction)
+- Randomly-varying grouping variable: `ppt`
+
+:::
+
+<!-- q1 -->
+
+`r qbegin(qcounter())`
+
+**Write the R formula for the fixed effects part of this model** (that is, the `y ~ x + z` part).
+
+:::dapr3green
+🗂️
+See [Fixed effects](https://uoepsy.github.io/dapr3/2627/flashcards/block1/fixef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+purch_rating ~ price * condition
+```
+
+(Note: We know this has to be an interaction model because the RQ is asking about how an *association* between predictor and outcome *depends on* the value of another predictor.)
+
+
+`r solend()`
+
+<!-- q2 -->
+
+`r qbegin(qcounter())`
+
+In the Week 1 lab, you identified the randomly-varying grouping variable(s) in this dataset.
+**For each randomly-varying grouping variable, we know that a maximal model requires a random intercept—an adjustment to the fixed intercept for each level of the grouping variable.**
+Additionally, for each of those variables, a maximal model *may* contain a random slope over each predictor—an adjustment to the fixed slope for each level of the grouping variable.
+
+**Identify the random slopes that this model can contain.**
+You can figure this out by asking: for a given randomly-varying grouping variable, do at least some of its levels appear with more than one distinct value of a given predictor?
+If yes, then it's possible to include a random slope over the given predictor by the given grouping variable.
+
+Specifically, for `clothing`:
+
+- Do at least some levels of `ppt` appear with more than one distinct value of `price`?
+Can we include a random slope over `price` by `ppt`?
+- Do at least some levels of `ppt` appear with more than one distinct value of `condition`?
+Can we include a random slope over `condition` by `ppt`?
+
+:::dapr3green
+🗂️
+See [Identify possible random effects](https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html) flash card.
+:::
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+clothing <- read_csv("https://uoepsy.github.io/data/dapr3_mannequin.csv")
+```
+
+**Do at least some levels of `ppt` appear with more than one distinct value of `price`?**
+**Yes,** every `ppt` sees every `price` once.
+In other words, `price` varies within `ppt`.
+
+```{r}
+xtabs(~ ppt + price, data = clothing)
+```
+
+Each value of `ppt` appears with more than one value of `price` (that is, each participant sees more than one price), so we can include a random slope over `price` by `ppt`.
+
+<br>
+
+**Do at least some levels of `ppt` appear with more than one distinct value of `condition`?**
+**No,** every `ppt` sees only one `condition` or the other, not both.
+In other words, `condition` varies between `ppt`s.
+
+```{r}
+xtabs(~ ppt + condition, data = clothing)
+```
+
+Each value of `ppt` appears with only one value of `condition` (that is, each participant sees only one condition, not both), so we cannot include a random slope over `condition` by `ppt`.
+
+`r solend()`
+
+<!-- q3 -->
+
+`r qbegin(qcounter())`
+**Write out the complete R formula for this maximal model** (expanding on the fixed-effects-only model you wrote above by adding on the appropriate random effects).
+
+:::dapr3green
+🗂️
+See [Add random effects to a model formula](https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+purch_rating ~ price * condition + (1 + price | ppt)
+```
+
+`r solend()`
+
+
+## Monkey status
+
+:::frame
+Read in the dataset located at [https://uoepsy.github.io/data/msmr_monkeystatus.csv](https://uoepsy.github.io/data/msmr_monkeystatus.csv) and name it `monkey`.
+
+RQ: **How is the social status of monkeys associated with their ability to solve problems, while controlling for the difficulty of the problem?**
+
+```{r}
+#| echo: false
+tibble(variable=
+         names(read_csv("https://uoepsy.github.io/data/msmr_monkeystatus.csv")),
+       description = c(
+         "Social status of monkey (adolescent, subordinate adult, or dominant adult)",
+         "Problem difficulty ('easy' vs 'difficult')",
+         "Monkey name",
+         "Whether or not the problem was successfully solved by the monkey")
+) |> gt::gt()
+```
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+Researchers have given a sample of Rhesus Macaques various problems to solve in order to receive treats.
+Troops of Macaques have a complex social structure, but adult monkeys tend can be loosely categorised as having either a "dominant" or "subordinate" status.
+The monkeys in our sample are either adolescent monkeys, subordinate adults, or dominant adults.
+Each monkey attempted various problems before they got bored/distracted/full of treats.
+Each problems were classed as either "easy" or "difficult", and the researchers recorded whether or not the monkey solved each problem.
+:::
+
+**From the Week 1 lab, here's the key information about `monkeystatus`:**
+
+- Outcome: `solved`
+- Predictors: `status`, `difficulty`
+- Randomly-varying grouping variable: `monkeyID`
+
+:::
+
+<!-- q4 -->
+
+`r qbegin(qcounter())`
+
+Write the R formula for the fixed effects part of this model.
+
+:::dapr3green
+🗂️
+See [Fixed effects](https://uoepsy.github.io/dapr3/2627/flashcards/block1/fixef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+solved ~ status + difficulty
+```
+
+(Note: We know this is not an interaction model because the RQ is asking for us to control for a specific variable, not to estimate how one effect depends on a different variable.
+To control for a specific covariate, we just need to add it on.)
+
+
+`r solend()`
+
+<!-- q5 -->
+
+`r qbegin(qcounter())`
+
+We already know what random intercepts the model must have (one per randomly-varying grouping variable).
+
+Identify the possible random slopes.
+
+:::dapr3green
+🗂️
+See [Identify possible random effects](https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+monkey <- read_csv('https://uoepsy.github.io/data/msmr_monkeystatus.csv')
+```
+
+**Do at least some levels of `monkeyID` appear with more than one distinct value of `status`?**
+**No,** every `monkeyID` has only one `status`.
+
+```{r}
+xtabs(~ monkeyID + status, data = monkey)
+```
+
+Because each monkey only has one status, no random slope over `status` is possible.
+
+<br>
+
+
+**Do at least some levels of `monkeyID` appear with more than one distinct value of `difficulty`?**
+**Yes,** nearly every `monkeyID` sees both levels of `difficulty`.
+
+```{r}
+xtabs(~ monkeyID + difficulty, data = monkey)
+```
+
+Because at least some monkeys have seen both levels of difficulty, we can include a random slope by `monkey` over `difficulty`.
+
+(It's fine that Nadheera and Richard only see one difficulty level each—we have enough data from the other monkeys to still be able to estimate the random slopes.)
+
+`r solend()`
+
+
+<!-- q6 -->
+
+`r qbegin(qcounter())`
+
+Write out the complete R formula for this maximal model.
+
+:::dapr3green
+🗂️
+See [Add random effects to a model formula](https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+solved ~ status + difficulty + (1 + difficulty | monkeyID)
+```
+
+`r solend()`
+
+
+
+
+## Laughs
+
+:::frame
+
+Read in the dataset located at [https://uoepsy.github.io/data/lmm_laughs.csv](https://uoepsy.github.io/data/lmm_laughs.csv) and name it `laughs`.
+
+RQ: **How is the delivery format of jokes (audio-only vs. audio AND video) associated with differences in humour ratings?**
+
+```{r}
+#| echo: false
+tibble(
+  variable = c(
+    'ppt',
+    'joke_label',
+    'joke_id',
+    'delivery',
+    'rating'
+  ),
+  description = c("Participant identification number",
+                  "Joke presented",
+                  "Joke identification number",
+                  "Experimental manipulation: whether joke was presented in audio-only ('audio') or in audiovideo ('video')",
+                  "Humour rating chosen on a slider from 0 to 100")
+) |> gt::gt()
+```
+
+:::{.callout-note collapse='true'}
+### More detail about this dataset
+
+These data are simulated to imitate an experiment that investigates the effect of visual non-verbal communication (i.e., gestures, facial expressions) on joke appreciation.
+Ninety participants took part in the experiment, in which they each rated how funny they found a set of 30 jokes.
+For each participant, the order of these 30 jokes was randomised for each run of the experiment.
+For each participant, the set of jokes was randomly split into two halves, with the first half being presented in audio-only, and the second half being presented in audio and video.
+This meant that each participant saw 15 jokes with video and 15 without, and each joke would be presented with video roughly half of the time.
+:::
+
+**From the Week 1 lab, here's the key information about `laughs`:**
+
+- Outcome: `rating`
+- Predictors: `delivery`
+- Randomly-varying grouping variables: `ppt` and `joke_label`/`joke_id` (two forms of the same information; for simplicity we can just use `joke_id`)
+
+:::
+
+<!-- q7 -->
+
+`r qbegin(qcounter())`
+
+Write the R formula for the fixed effects part of this model.
+
+:::dapr3green
+🗂️
+See [Fixed effects](https://uoepsy.github.io/dapr3/2627/flashcards/block1/fixef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+rating ~ delivery
+```
+
+
+`r solend()`
+
+<!-- q8 -->
+
+`r qbegin(qcounter())`
+
+We already know what random intercepts the model must have (one per randomly-varying grouping variable).
+
+Identify the possible random slopes.
+
+:::dapr3green
+🗂️
+See [Identify possible random effects](https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+laughs <- read_csv('https://uoepsy.github.io/data/lmm_laughs.csv')
+```
+
+**Do at least some levels of `ppt` appear with more than one distinct value of `delivery`?**
+**Yes,** every `ppt` sees both kinds of `delivery`.
+
+```{r}
+xtabs(~ ppt + delivery, data = laughs)
+```
+
+Because each participant has seen each kind of delivery, we can include random slopes over `delivery` by `ppt`.
+
+<br>
+
+**Do at least some levels of `joke_id` appear with more than one distinct value of `delivery`?**
+**Yes,** every `joke_id` is told with both kinds of `delivery`.
+
+```{r}
+xtabs(~ joke_id + delivery, data = laughs)
+```
+
+Because each joke was told in each kind of delivery, we  can include random slopes over `delivery` by `joke_id`.
+
+`r solend()`
+
+<!-- q9 -->
+
+`r qbegin(qcounter())`
+
+Write out the complete R formula for this maximal model.
+
+:::dapr3green
+🗂️
+See [Add random effects to a model formula](https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```
+rating ~ delivery + (1 + delivery | ppt) + (1 + delivery | joke_id)
+```
+
+`r solend()`
+
+
+
+## Practice interpreting the LMM summary
+
+<!-- q10 -->
+
+`r qbegin(qcounter())`
+
+**Fit the LMM that you have developed for the `laughs` dataset, using the maximal model formula you wrote for Q9.**
+(You can just use R's default treatment coding for `delivery`, so that `audio` is the reference level and `video` is the non-reference level.)
+
+Use the model summary to respond to the following questions.
+
+**Fixed effects:**
+
+a. What does the model's intercept mean?
+b. What does the coefficient `deliveryvideo` mean?
+
+
+**By-participant random effects:**
+
+c. Within what range will approximately 95% of participant-level intercepts fall?
+d. Within what range will approximately 95% of participant-level slopes over `delivery` fall? 
+e. Could some participants show an effect of `delivery` that goes in the opposite direction than the fixed effect?
+
+
+**By-joke random effects:**
+
+f. Within what range will approximately 95% of joke-level intercepts fall?
+g. Within what range will approximately 95% of joke-level slopes over `delivery` fall?
+h. Could some jokes elicit an effect of `delivery` that goes in the opposite direction than the fixed effect?
+
+:::dapr3green
+🗂️
+See [Interpret LMM summary](https://uoepsy.github.io/dapr3/2627/flashcards/block1/interpret-lmm.html) flash card.
+:::
+
+`r qend()`
+
+`r solbegin(label="– Model code and summary", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+joke_mod <- lmer(
+  rating ~ delivery + 
+    (1 + delivery | joke_id) +
+    (1 + delivery | ppt), 
+  data = laughs
+)
+
+summary(joke_mod)
+```
+
+
+
+`r solend()`
+
+`r solbegin(label="– Fixed effects", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+a. **What does the model's intercept mean?**
+
+- The average estimated humour rating when jokes were presented in audio-only format (the reference level of `delivery`, coded as 0) is 39.02 points.
+
+
+b. **What does the coefficient `deliveryvideo` mean?**
+
+- On average, presenting a joke in audio-video format increases its humour rating by an estimated 1.41 points compared to audio-only presentation.
+- This change is significantly different from zero ($p$ = 0.008).
+
+`r solend()`
+
+`r solbegin(label="– By-participant random effects", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+c. **Within what range will approximately 95% of participant-level intercepts fall?**
+
+- The fixed intercept is 39.02 points, and the SD of participant-level intercept adjustments is 3.51 points.
+- To get the approximate bounds of the central 95% of participant-level intercepts, use the following formulas.
+- Lower bound: 
+
+$$
+\begin{align}
+& ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&~ 39.02 - (2 \times 3.51) \\
+=&~ 32.00 \\
+\end{align}
+$$
+
+- Upper bound:
+
+$$
+\begin{align}
+& ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&~ 39.02 + (2 \times 3.51) \\
+=&~ 46.04 \\
+\end{align}
+$$
+
+- Approximately 95% of participant-level intercepts will fall between 32 and 46.04 points.
+  
+:::{.callout-tip collapse='true'}
+#### Calculate central 95% of participant-level intercepts with R
+  
+```{r}
+fixed_int <- fixef(joke_mod)[['(Intercept)']]
+by_ppt_int_sd <- attributes( VarCorr(joke_mod)$ppt )$stddev[['(Intercept)']]
+
+c(
+  lower = (fixed_int - 2*by_ppt_int_sd) |> round(2),
+  upper = (fixed_int + 2*by_ppt_int_sd) |> round(2)
+)
+```
+  
+:::
+
+
+d. **Within what range will approximately 95% of participant-level slopes over `delivery` fall? **
+
+- The fixed slope over `delivery` is 1.41 points, and the SD of participant-level adjustments to the slope over `delivery` is 1.78 points.
+- Lower bound: 
+
+$$
+\begin{align}
+& ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&~ 1.41 - (2 \times 1.78) \\
+=&~ -2.15 \\
+\end{align}
+$$
+
+- Upper bound:
+
+$$
+\begin{align}
+& ~\text{fixed estimate} + (2 \times \text{group-level SD}) \\
+=&~ 1.41 + (2 \times 1.78) \\
+=&~ 4.97 \\
+\end{align}
+$$
+
+- Approximately 95% of participant-level slopes over `delivery` will fall between –2.15 and 4.97 points.
+
+:::{.callout-tip collapse='true'}
+#### Calculate central 95% of participant-level intercepts with R
+
+```{r}
+fixed_slp <- fixef(joke_mod)[['deliveryvideo']]
+by_ppt_slp_sd <- attributes( VarCorr(joke_mod)$ppt )$stddev[['deliveryvideo']]
+
+c(
+  lower = (fixed_slp - 2*by_ppt_slp_sd) |> round(2),  
+  upper = (fixed_slp + 2*by_ppt_slp_sd) |> round(2)
+)
+```
+  
+The R code yields slightly different values because it takes into account a lot of decimal places, while we only used two, so the difference is due to rounding error.
+This is not a big deal (the values are approximations anyway), so either version is acceptable.
+
+:::
+
+
+
+e. **Could some participants show an effect of `delivery` that goes in the opposite direction than the fixed effect?**
+
+- The fixed effect is positive, but some participants are estimated to show a negative slope.
+- We know this because the lower bound of the range where 95% of participant-level slopes fall is negative (the opposite direction from the fixed effect).
+- So: yes! It's estimated that some people find audio-only presentation to be funnier than audio-video presentation.
+
+`r solend()`
+
+
+`r solbegin(label="– By-joke random effects", show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+f. **Within what range will approximately 95% of joke-level intercepts fall?**
+
+
+- The fixed intercept is 39.02 points, and the SD of joke-level intercept adjustments is 2.15 points.
+- Lower bound: 
+
+$$
+\begin{align}
+& ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&~ 39.02 - (2 \times 2.15) \\
+=&~ 34.72 \\
+\end{align}
+$$
+
+- Upper bound:
+
+$$
+\begin{align}
+& ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&~ 39.02 + (2 \times 2.15) \\
+=&~ 43.32 \\
+\end{align}
+$$
+
+- Approximately 95% of joke-level intercepts will fall between 34.72 and 43.32 points.
+
+:::{.callout-tip collapse='true'}
+#### Calculate central 95% of participant-level intercepts with R
+  
+```{r}
+fixed_int <- fixef(joke_mod)[['(Intercept)']]
+by_joke_int_sd <- attributes( VarCorr(joke_mod)$joke_id )$stddev[['(Intercept)']]
+
+c(
+  lower = (fixed_int - 2*by_joke_int_sd) |> round(2),
+  upper = (fixed_int + 2*by_joke_int_sd) |> round(2)
+)
+```
+  
+:::
+
+
+
+g. **Within what range will approximately 95% of joke-level slopes over `delivery` fall?**
+
+- The fixed slope over `delivery` is 1.41 points, and the SD of joke-level adjustments to the slope over `delivery` is 2.24 points.
+- Lower bound: 
+
+$$
+\begin{align}
+& ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&~ 1.41 - (2 \times 2.24) \\
+=&~ -3.07 \\
+\end{align}
+$$
+
+- Upper bound:
+
+$$
+\begin{align}
+& ~\text{fixed estimate} + (2 \times \text{group-level SD}) \\
+=&~ 1.41 + (2 \times 2.24) \\
+=&~ 5.89 \\
+\end{align}
+$$
+
+- Approximately 95% of joke-level slopes over `delivery` will fall between –3.07 and 5.89 points. 
+- This range is wider for jokes than for participants, so the effect of `delivery` varies more from joke to joke than from person to person.
+
+:::{.callout-tip collapse='true'}
+#### Calculate central 95% of participant-level intercepts with R
+
+```{r}
+fixed_slp <- fixef(joke_mod)[['deliveryvideo']]
+by_joke_slp_sd <- attributes( VarCorr(joke_mod)$joke_id )$stddev[['deliveryvideo']]
+
+c(
+  lower = (fixed_slp - 2*by_joke_slp_sd) |> round(2),  
+  upper = (fixed_slp + 2*by_joke_slp_sd) |> round(2)
+)
+```
+
+:::
+
+
+h. **Could some jokes elicit an effect of `delivery` that goes in the opposite direction than the fixed effect?**
+
+- The fixed effect is positive, but some jokes are estimated to show a negative slope.
+- We know this because the lower bound of the range where 95% of joke-level slopes fall is negative (the opposite direction from the fixed effect).
+- So: yes! It's estimated that some jokes are rated as funnier in audio-only format than they are in audio-video format.
+
+
+
+`r solend()`

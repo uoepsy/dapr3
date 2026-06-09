@@ -1,0 +1,263 @@
+---
+title: "Identify possible random effects"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+```
+
+## The process in words
+
+1. Use your RQ to figure out what your model's outcome and predictors are (i.e., your model's [fixed effects](fixef.html){target="_blank"}).
+
+1. [Identify the grouping variables](identify-group.html) in your dataset.
+
+1. Think about the [data generating process](dgp.html) and figure out which grouping variables contribute random / non-manipulated / non-controlled variability to your data.
+**For every randomly-varying grouping variable, your model must contain a random intercept for that grouping variable.**
+
+1. Refer back to all predictors you identified in Step 1. 
+For each randomly-varying grouping variable you have identified, do at least some of its levels appear with more than one value of each predictor?
+**If yes—if some levels of the grouping variable appear with more than one value of a predictor—then (in addition to the random intercepts) your model can _also_ contain a random slope over that predictor for that grouping variable.**
+
+
+## The process in a flowchart
+
+[TODO ranef flowchart]
+
+
+## Example 1: Life satisfaction in Scotland
+
+These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
+
+Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
+
+```{r}
+#| echo: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+tibble(
+  variable = names(df),
+  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
+) |> gt::gt()
+```
+
+```{r}
+lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+```
+
+### 1. Predictors
+
+The RQ asks whether there's an association betwen `age` and `lifesat`.
+The model's outcome is `lifesat` and the predictor is `age`.
+
+The RQ doesn't mention `size`, so we will not consider it a predictor.
+(In principle, it looks like a plausible covariate, that is, a way to control for how populous each area is.)
+
+
+### 2. Grouping variables
+
+The grouping variables are
+
+- `age` (treated as ordinal because each value is spaced five years apart)
+- `dwelling` (categorical)
+- `size` (categorical)
+
+```{r}
+# age:
+lifesatscot |> group_by(age) |> count()
+```
+
+```{r}
+# dwelling:
+lifesatscot |> group_by(dwelling) |> count()
+```
+
+```{r}
+# size:
+lifesatscot |> group_by(size) |> count()
+```
+
+
+### 3. Random intercepts
+
+Thinking about what kind of variability each grouping variable contributes:
+
+- `age` contributes **reproducible (manipulated) variability:** the researchers have gathered data from a bunch of different ages. We are interested in drawing conclusions specifically about the ages analysed.
+- `dwelling` contributes **random variability:** the RQ doesn't specify that we manipulate or control for the dwelling place. And we want our results to be able to generalise beyond these twelve dwelling places.
+- `size` contributes **reproducible (controlled) variability:** the researchers have recorded how big each dwelling is in case this information might otherwise confound the association between `lifesat` and `age`.
+
+**Because `dwelling` contributes random variability, our model formula must at least include a random intercept by `dwelling`, which looks like `(1 | dwelling)`.**
+
+
+### 4. Random slopes
+
+Our model's only predictor is `age`, and our only randomly-varying grouping variable is `dwelling`.
+
+Do at least some levels of `dwelling` appear with more than one value of `age`?
+
+```{r}
+stats::xtabs(~ dwelling + age, data = lifesatscot)
+```
+
+Yes: in every `dwelling`, there is more than one value that's not a zero.
+
+**Therefore we can have random slopes over `age` by `dwelling`: instead of just `(1 | dwelling)`, our model will include `(1 + age | dwelling)`.**
+
+
+:::{.callout-caution collapse='true'}
+### Automatically count the non-zero values for each `dwelling`
+
+It might be nice to get R to count how many non-zero values there are for each level of `dwelling`.
+This way we can make extra sure that the numbers are bigger than 1.
+
+First we check whether each cell's value is different from zero:
+
+```{r}
+stats::xtabs(~ dwelling + age, data = lifesatscot) != 0
+```
+
+And we can pipe this table into `rowSums()` to add up the number of `TRUE` values per row.
+(This works because underlyingly, R stores `TRUE` as the number 1 and `FALSE` as the number 0.)
+
+```{r}
+(stats::xtabs(~ dwelling + age, data = lifesatscot) != 0) |>
+  rowSums()
+```
+
+So in Aberdeen, for example, we have five distinct values of `age`, and in Kirkcaldy, we have two.
+All of these numbers are bigger than 1, so we know we can have random slopes over `age` by `dwelling`.
+
+:::
+
+
+
+
+## Example 2: CBT and stress
+
+These data are simulated to represent data from 50 participants, each measured at three different time-points (pre, during, and post) on a measure of stress. Participants were randomly allocated such that half received some cognitive behavioural therapy (CBT) treatment, and half did not. This study is interested in assessing **whether the two groups (control vs treatment) differ in changes in stress across the three time points**. 
+
+The data are available at [https://uoepsy.github.io/data/stressint.csv](https://uoepsy.github.io/data/stressint.csv).  
+
+```{r echo=FALSE}
+tibble(
+  variable = names(read_csv("https://uoepsy.github.io/data/stressint.csv")),
+  description = c("Participant Identifier","Stress (range 0 to 100)","Time (Pre/During/Post)",
+                  "Whether participant is in the CBT group or control group")
+) |> gt::gt()
+```
+
+```{r}
+stress <- read_csv("https://uoepsy.github.io/data/stressint.csv")
+```
+
+
+### 1. Predictors
+
+The RQ asks whether control vs. treatment groups differ in how their stress changes across the three time points.
+(Alarm bells for an interaction model should be ringing!)
+
+The outcome variable is `stress`.
+The predictors are `time` and `group`.
+
+
+### 2. Grouping variables
+
+The grouping variables are
+
+- `ppt` (categorical)
+- `time` (categorical)
+- `group` (categorical)
+
+
+```{r}
+# ppt:
+stress |> group_by(ppt) |> count()
+```
+
+```{r}
+# time:
+stress |> group_by(time) |> count()
+```
+
+```{r}
+# group:
+stress |> group_by(group) |> count()
+```
+
+
+### 3. Random intercepts
+
+Thinking about what kind of variability each grouping variable contributes:
+
+- `ppt` contributes **random variability:** we're not interested in these participants specifically; we want our conclusions to be able to generalise across different people than the ones we've studied here.
+If we ran this study again, we would recruit different participants.
+- `time` contributes **reproducible variability:** we're interested in drawing conclusions specifically about these three time points. 
+If we ran this study again, we would keep the `time` variable the same.
+- `group` contributes **reproducible variability:** the design manipulates whether people are in the control group or treatment (CBT) group, and we care about these levels specifically.
+If we ran this study again, we would keep the `group` variable the same.
+
+**Because `ppt` contributes random variability, our model formula must at least include a random intercept by `ppt`, which looks like `(1 | ppt)`.**
+
+### 4. Random slopes
+
+There's one randomly-varying grouping variable, `ppt`, and two predictors, `time` and `group`.
+We'll check each predictor in turn.
+
+Do at least some levels of `ppt` appear with more than one value of `time`?
+
+```{r}
+stats::xtabs(~ ppt + time, data = stress)
+```
+
+Yes: every `ppt` has one data point for every `time`.
+**Therefore in principle, we can have random slopes over `time` by `ppt`: instead of just `(1 | ppt)`, we can write `(1 + time | ppt)`.**
+
+(We'll see in the [troubleshooting flash card](troubleshoot.html){target="_blank"} that although *in principle* these random slopes are possible, in practice the model won't always manage to fit them.)
+
+
+:::{.callout-caution collapse='true'}
+### Automatically count the non-zero `time` values for each `ppt`
+
+```{r}
+(stats::xtabs(~ ppt + time, data = stress) != 0 ) |>
+  rowSums()
+```
+Because these values are greater than 1, random slopes over `time` by `ppt` are possible in principle.
+
+
+:::
+
+Now: do at least some levels of `ppt` appear with more than one value of `group`, the other predictor?
+
+```{r}
+stats::xtabs(~ ppt + group, data = stress)
+```
+
+No!
+Each participant is in only one group (control or treatment), not both.
+**Therefore we cannot include random slopes over `group` by `ppt`. Our random effect for `ppt` remains `(1 + time | ppt)`.**
+
+
+:::{.callout-caution collapse='true'}
+### Automatically count the non-zero `group` values for each `ppt`
+
+```{r}
+(stats::xtabs(~ ppt + group, data = stress) != 0 ) |>
+  rowSums()
+```
+
+Because these values are all equal to 1, random slopes over `group` by `ppt` are not possible.
+
+:::
+
+
+## Linked flash cards
+
+### Outgoing links
+
+- TODO
+
+
+### Backlinks
+
+- TODO

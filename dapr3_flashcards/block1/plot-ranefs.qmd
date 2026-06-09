@@ -1,12 +1,95 @@
 ---
-title: "Plotting random effects"
+title: "Plot random effects"
 ---
 
 ```{r setup, include=FALSE}
 source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
 ```
 
-lorem ipsum
+To explore the patterns that your model has identified, it's often useful to plot the random effects, that is, the group-level adjustments to the fixed effect parameters.
+
+This kind of plot is often nice to include in the appendix of a report or (mini)dissertation.
+
+For the kind of plot that's best for the Results section, see [Plot model-fitted values](plot-fitted.html).
+
+
+
+## Example: Life satisfaction in Scotland
+
+These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
+
+Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
+
+```{r}
+#| echo: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+tibble(
+  variable = names(df),
+  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
+) |> gt::gt()
+```
+
+```{r}
+lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+```
+
+
+Our model is the following (to see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html)).
+
+```{r}
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot
+)
+```
+
+
+## Plot group-level adjustments
+
+The function `dotplot.ranef.mer()` will take the model's group-level adjustments (extracted via `ranef()`; see [Extract estimates from a fitted model](extract-ranefs.html)) and plot them.
+
+```{r}
+dotplot.ranef.mer(ranef(lifesat_mod))$dwelling
+```
+
+In the plot above, the `age` adjustments all appear tightly clustered around 0.
+This is because their magnitude (i.e., the size of the numbers) is a lot smaller than the magnitude of the intercept adjustments.
+
+To "zoom in" on the `age` adjustments for each dwelling, we can add a bit of extra code that allows the scales of each subplot to vary:
+
+```{r}
+dotplot.ranef.mer(
+  ranef(lifesat_mod),
+  scales = list(x = list(relation = 'free'))  # allow scales of subplots to vary
+)$dwelling
+```
+
+Much better!
+
+
+## Reading random effects plots
+
+In general:
+
+- Each subplot/panel/facet contains the adjustments to one fixed effect parameter.
+- Each "row" represents one level of the grouping variable.
+- The dots represent the estimated adjustment values for each dwelling place for each fixed effect.
+- The black error bars represent the 95% confidence interval for each adjustment value.
+
+
+Things to notice about this plot in particular:
+
+- Dwellings with negative intercept adjustments tend to have positive adjustments to the slope over `age`. This suggests that the intercept and slope adjustments for each dwelling are **negatively correlated**. Let's check:
+
+```{r}
+VarCorr(lifesat_mod)
+```
+
+Yes indeed: the `Corr` column shows a correlation between intercept and slope of –0.87 (see [Interpret LMM summary > The random effects](interpret-lmm.html#the-random-effects) and [Interpret LMM summary > Interpreting the numbers: Correlation](interpret-lmm.html#interpreting-the-numbers-correlation)).
+
+
 
 
 ## Linked flash cards

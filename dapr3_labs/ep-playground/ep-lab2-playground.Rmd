@@ -1,0 +1,345 @@
+---
+title: "Data for Lab 02"
+output: 
+  html_notebook:
+    toc: true
+---
+
+```{r}
+library(tidyverse)
+library(lme4)
+```
+
+```{r}
+wp_data <- read_csv("https://uoepsy.github.io/data/lmm_jsup.csv")
+
+wp_lmm <- lmer(
+  wp ~ employment_length + seniority + (1 + employment_length + seniority | dept), 
+  data = wp_data
+)
+
+summary(wp_lmm)
+```
+
+Explore data visually:
+
+```{r}
+wp_data |>
+  ggplot(aes(x = seniority)) +
+  geom_histogram()
+
+
+wp_data |>
+  ggplot(aes(x = employment_length)) +
+  geom_histogram()
+
+
+wp_data |>
+  ggplot(aes(y = seniority, x = employment_length)) +
+  geom_point(alpha = 0.2)
+
+# car::vif(wp_lmm)  # fine, close to 1
+```
+
+
+Multivar plots:
+
+```{r}
+wp_data |>
+  ggplot(aes(x = employment_length, y = wp, colour = seniority)) +
+  # ggplot(aes(colour = employment_length, y = wp, x = seniority)) +
+  geom_point()
+```
+
+
+```{r}
+wp_data |>
+  ggplot(aes(x = employment_length, y = wp, colour = seniority)) +
+  facet_wrap(~ dept) +
+  geom_point()
+```
+
+```{r}
+dotplot.ranef.mer(ranef(wp_lmm))$dept
+```
+
+## lab qs
+
+### 1
+
+(x) read in data
+
+```{r}
+wp_data <- read_csv("https://uoepsy.github.io/data/lmm_jsup.csv")
+```
+
+```{r}
+names(wp_data)
+```
+
+Not all the vars are relev.
+We want to know: how do seniority and employment_length predict workplace pride wp?
+So we know we want `seniority` `employment_length` and `wp`.
+
+### 2
+
+(x) Another variable in this dataset is a grouping variable which contributes random variability.
+Without looking ahead at future questions, can you work out which variable that is?
+
+- solution: `dept` or `department_name` (same data)
+- other contenders:
+  - `virtual` = controlled
+  - `role` = controlled
+
+
+### 3
+
+(x) Describe the grouping variable:
+- How many levels are there? What does each level represent?
+- How many observations do we have from each level? What does each observation represent?
+
+```{r}
+# solution
+wp_data |>
+  group_by(dept) |>
+  count()
+```
+
+
+### 4
+
+(x) based on this plot of overall data, modify the plot to show the same data split into different panels / facets, one for each level of the grouping variable (flashcards link)
+
+```{r}
+# given plot
+wp_data |>
+  ggplot(aes(x = employment_length, y = wp, colour = seniority)) +
+  geom_point()
+```
+
+
+```{r}
+# solution plot
+wp_data |>
+  ggplot(aes(x = employment_length, y = wp, colour = seniority)) +
+  facet_wrap(~ dept) +
+  geom_point()
+```
+
+
+
+### 5
+
+(x) Based on the plot you made in TODO:
+
+- do you think that some levels have higher/lower workplace pride than others?
+  - name one or two that you think might behave differently than the others.
+- do you think that some levels have a stronger effect of `employment_length` on workplace pride than others?
+  - name one or two that you think might behave differently than the others.
+
+You'll return to these later.
+
+### 6
+
+(x) Fit a linear mixed model to this dataset.
+We know we want to estimate the effects of employment_length and seniority on workplace pride, so the fixed effects are `wp ~ employment_length + seniority`.
+Fill in the `...` blanks in the R code below with the appropriate values and variables.
+(see flash cards)
+
+```{r eval=F}
+# given
+wp_lmm <- lmer(
+  wp ~ employment_length + seniority + (... + ... + ... | ...), 
+  data = wp_data
+)
+```
+
+
+```{r}
+# solution
+wp_lmm <- lmer(
+  wp ~ employment_length + seniority + (1 + employment_length + seniority | dept), 
+  data = wp_data
+)
+```
+
+### 7
+
+(x) Plot the random effects estimated by this model using `dotplot.ranef.mer()`.
+
+```{r}
+# solution
+dotplot.ranef.mer(ranef(wp_lmm))$dept
+```
+
+### 8
+
+(x) Describe in one sentence what is being shown in each of the panels in the dotplot above.
+
+- solution:
+  - by-dept adjustments to the intercept
+  - by-dept adjustments to slope over `employment_length`
+  - by-dept adjustments to slope over `seniority`
+  
+  
+### 9
+
+(x) In question TODO, you named a few levels that you thought might behave differently than the others.
+Find those same levels in the dotplot above—does it look like they are behaving differently from average in the way you predicted?
+How can you tell?
+<!-- The random effects shown in the dotplot  -->
+
+### 10
+
+(x) What is the difference between the outputs of `ranef(wp_lmm)` and `coef(wp_lmm)`?
+Explain in a sentence or two.
+
+```{r}
+ranef(wp_lmm)
+```
+
+```{r}
+coef(wp_lmm)
+```
+
+
+
+
+
+
+### 10
+
+Bonus: How would you use the values of `ranef()` and `fixef()` to calculate the values of `coef()`?
+
+
+solution: add em together
+
+To get the equivalent of 
+
+```{r}
+select(coef(wp_lmm)$dept, `(Intercept)`)
+```
+
+Add together the fixed intercept and each department's intercept adjustment.
+
+```{r}
+select(ranef(wp_lmm)$dept, `(Intercept)`) + fixef(wp_lmm)[['(Intercept)']]
+```
+
+
+Same for the slope adjustment to `employment_length`:
+
+```{r}
+select(coef(wp_lmm)$dept,  employment_length)
+select(ranef(wp_lmm)$dept, employment_length) + fixef(wp_lmm)[['employment_length']]
+```
+
+Same with the slope over `seniority`:
+
+```{r}
+select(coef(wp_lmm)$dept,  seniority)
+select(ranef(wp_lmm)$dept, seniority) + fixef(wp_lmm)[['seniority']]
+```
+
+
+
+
+## too advanced / irrelevant
+
+(x) 
+
+The average workplace pride is
+
+```{r}
+(overall_mean_wp <- mean(wp_data$wp))
+```
+
+
+Use the following code template (just inserting the correct variable names where the [...] placeholder stands) to compute the mean and SD workplace pride for each level of the grouping variable.
+
+```{r eval=F}
+# given
+wp_data |>
+  group_by(...) |>
+  summarise(
+    wp_mean = mean(...),
+    wp_sd   = sd(...)
+  ) |>
+  arrange(wp_mean)  # this sorts the wp_mean column in ascending numeric order
+```
+
+```{r}
+# solution
+wp_data |>
+  group_by(dept) |>
+  summarise(
+    wp_mean = mean(wp),
+    wp_sd   = sd(wp)   
+  ) |>
+  arrange(wp_mean)  # this sorts the wp_mean column in ascending numeric order
+```
+
+(x) OPTIONAL CHALLENGE Q (leave this til the end + come back if you have extra time): based on the counts and means and SD from each level of the grouping variable, work out the 95% CI for each level's workplace pride.
+
+The formula for SE =
+$\frac{\sigma}{\sqrt{n}}$
+=
+$\frac{\text{standard deviation}}{\text{square root of the number of observations}}$
+
+and the formula for the upper bound of the 95% CI:
+
+$\mu + 1.96 \times SE$
+
+= mean plus 1.96 $\times$ standard error
+
+
+And the lower bound:
+
+$$\mu - 1.96 \times SE$$
+
+= mean minus 1.96 $\times$ standard error
+
+```{r}
+wp_data |>
+  group_by(dept) |>
+  summarise(
+    wp_mean = mean(wp),
+    wp_sd   = sd(wp),
+    n       = n(),
+  ) |>
+  mutate(
+    # work out standard error based on SD and N
+    wp_se = wp_sd / sqrt(n),
+    lower = wp_mean - 1.96 * wp_se,
+    upper = wp_mean + 1.96 * wp_se
+  )
+```
+
+
+(x) Based on the plot you made in TODO and the averages you computed in TODO, name one department that you suspect has higher workplace pride than average, and name one department that you suspect has lower workplace pride than average.
+
+Higher than average:
+
+
+Lower than average:
+
+
+```{r}
+wp_data |>
+  group_by(dept) |>
+  summarise(
+    wp_mean = mean(wp),
+    wp_sd   = sd(wp)   
+  ) |>
+  arrange(wp_mean) |>
+  mutate(
+    higher_than_avg_wp = wp_mean > overall_mean_wp
+  )
+```
+
+
+
+
+
+
+
