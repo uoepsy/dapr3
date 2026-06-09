@@ -11,6 +11,7 @@ format:
 library(tidyverse)
 library(patchwork)
 source('_theme/theme_quarto.R')
+options(digits=2)
 
 theme_set(theme_quarto(title_font_size=42))
 theme_update(
@@ -770,7 +771,7 @@ creating scale scores
 #| label: sscore
 #| eval: false
 #| echo: true
-lsatdat$ScaleScore = rowMeans(lsatdat[,2:4])
+lsatdat$ScaleScore = rowMeans(lsatdat[,3:5])
 ```
 :::
 :::{.codewindow .r}
@@ -808,7 +809,7 @@ head(lsatdat)
 :::{.column width="30%"}
 ```{r}
 #| echo: false
-lsatdat$ScaleScore = rowMeans(lsatdat[,2:4])
+lsatdat$ScaleScore = rowMeans(lsatdat[,3:5])
 tibble(
   variable = names(lsatdat),
   description = c(
@@ -1083,19 +1084,17 @@ rglwidget()
 
 ## how do we get at these axes?  
 
-scale scores try, but it just cuts through the middle of all the variables
+- Scale scores try, but they just cut through the middle, being pulled equally by every variable.  
 
-
-
-
-PCA! 
+- What about a weighted score? $LifeSat = Q1 + Q2 + 0.5*Q3$?    
+    - How can we work out suitable weights? 
+    - ...
 
 ## Principal Component Analysis (PCA)
 
-
 In short:  
 
-- re-express covariances between $k$ items as $k$ dimensions  
+- re-express covariances/correlations between $k$ measured variables as $k$ new dimensions  
 
 - dimensions are termed "components" and are _orthogonal_ (perpendicular/uncorrelated)
 
@@ -1119,6 +1118,7 @@ plot3d(
   abclines3d(mean(lsat3$Q1),mean(lsat3$Q2),mean(lsat3$Q3),
     a=principal(lsat3,nfactors=3,cov=TRUE,rotate="none")$loadings[,3],
            col="blue"), lwd=2, add=TRUE)
+rglwidget()
 ```
 
 - we can then discard the components that don't capture as much variation 
@@ -1281,62 +1281,363 @@ lsat_word |>
 
 ## sometimes one thing is not just one thing
 
+::::{.columns}
+:::{.column width="50%"}
+:::{.codewindow .r}
+correlation matrix
 ```{r}
+#| eval: false
+#| echo: true
 cor(lsat10[,2:11])
+```
+:::
+```{r}
+#| echo: false
+cor(lsat10[,2:11]) |> round(2)
+```
+:::
+:::{.column width="50%"}
+:::{.codewindow .r}
+scatterplot matrix
+```{r}
+#| label: splom
+#| eval: false
+#| echo: true
 plot(lsat10[,2:11])
 ```
+:::
+```{r}
+#| label: splom
+#| eval: true
+#| echo: false
+```
+:::
+::::
+
+
+
 
 ## sometimes one thing is not just one thing
 
+::::{.columns}
+:::{.column width="50%"}
+:::{.codewindow .r}
+correlation heatmap
 ```{r}
-heatmap(cor(lsat10[,2:11]))
+#| label: heatmap
+#| eval: false
+#| echo: true
+cor(lsat10[,2:11]) |>
+  heatmap()
 ```
+:::
+```{r}
+#| label: heatmap
+#| eval: true
+#| echo: false
+```
+
+
+:::
+:::{.column width="50%"}
+
+:::
+::::
+
+
 
 ## PCA
 
+:::{.codewindow .r}
+correlation heatmap
 ```{r}
-principal(lsat10[,2:11], nfactors = 10, rotate = "none")
+#| label: pca10
+#| eval: false
+#| echo: true
+lsat_pca <- principal(lsat10[,2:11], nfactors = 10, rotate = "none")
+
+lsat_pca
 ```
+:::
+```{r}
+#| label: pca10
+#| eval: true
+#| echo: false
+```
+
 
 ## how many of the dimensions do we keep?
 
+- how many do you want? 
+
+- how many look to be relevant/important?  
+
+## variance accounted for
+
+:::{.codewindow .r}
+Vaccounted
+```{r}
+#| label: pca10v
+#| eval: false
+#| echo: true
+lsat_pca$Vaccounted
+```
+:::
+```{r}
+#| label: pca10v
+#| eval: true
+#| echo: false
+```
 
 ## screeplots
 
+:::{.codewindow .r}
+scree
 ```{r}
+#| label: scree
+#| eval: false
+#| echo: true
 scree(lsat10[,2:11])
 ```
+:::
+```{r}
+#| label: scree
+#| eval: true
+#| echo: false
+```
+
 
 ## how many of the dimensions do we keep?
 
 ::::{.columns}
 :::{.column width="50%"}
-parallel analysis  
 
+:::{.codewindow .r}
+parallel analysis
 ```{r}
-fa.parallel(lsat10[,-1], fa = "pc", n.iter = 500)
+#| label: parallel
+#| eval: false
+#| echo: true
+fa.parallel(lsat10[,-1])
 ```
+:::
+```{r}
+#| label: parallel
+#| eval: true
+#| echo: false
+```
+
 :::
 :::{.column width="50%"}
 
+:::{.codewindow .r}
 minimum average partial  
-
 ```{r}
+#| label: map
+#| eval: false
+#| echo: true
 VSS(lsat10[,-1], rotate = "none", plot = FALSE)
 ```
+:::
+```{r}
+#| label: map
+#| eval: true
+#| echo: false
+```
+
 :::
 ::::
 
 ## scores
 
+:::{.codewindow .r}
+pca scores
 ```{r}
-full <- cbind(
+#| label: pca10scores
+#| eval: false
+#| echo: true
+lsat_pca2 <- principal(lsat10[,2:11], nfactors = 2, rotate = "none")
+
+lsat_pca2$scores
+```
+:::
+```{r}
+#| label: pca10scores
+#| eval: true
+#| echo: false
+```
+
+## scores (2)
+
+:::{.codewindow .r}
+attaching pca scores
+```{r}
+#| label: pca10scoresbind
+#| eval: false
+#| echo: true
+cbind(data, pca$scores)
+```
+:::
+```{r}
+#| eval: true
+#| echo: false
+full_lsat <- bind_cols(
   RiskTake=df$RiskTake,
   lsat10,
   principal(lsat10[,2:11], nfactors = 10, rotate = "none")$scores[,1:2]
-)
-lm(RiskTake ~ PC1+PC2,full) |> summary()
+) |> select(id,Q1:Q10,PC1,PC2,RiskTake)
+head(full_lsat)
+```
 
+## back to our 3-item example
+
+::::{.columns}
+:::{.column width="60%"}
+:::{.codewindow .r}
+```{r}
+#| eval: false
+head(lsatdat)
+```
+:::
+```
+    id RiskTake Q1 Q2 Q3 ScaleScore
+1 P001       20 40 50 20       36.7
+2 P002       10 30 40 70       46.7
+3 P003       28 77 72 56       68.3
+4 P004       20 65 60 90       71.7
+5 P005        7 57 56 39       50.7
+. ....       .. .. .. ..       ....
+. ....       .. .. .. ..       ....
+```
+:::
+:::{.column width="5%"}
+:::
+:::{.column width="30%"}
+```{r}
+#| echo: false
+tibble(
+  variable = names(lsatdat),
+  description = c(
+    "Participant ID",
+    "The Balloon Analogue Risk Task (essentially - how far do you pump up a balloon)",
+    "I am satisfied with my life as a whole",
+    "The conditions of my life are excellent",
+    "I feel content with how things have gone today",
+    "Average/Sum of Scores on Q1, Q2 and Q3"
+  )
+) |> gt::gt(caption="Data Dictionary")
+```
+:::
+::::
+
+
+## lm with scale scores 
+
+The noise from Q3 makes things difficult to see!  
+
+:::{.codewindow .r width="60%"}
+model
+```{r}
+#| label: mod2
+#| eval: false
+#| echo: true
+```
+:::
+
+```{r}
+#| label: mod2
+#| eval: true
+#| echo: false
+```
+
+
+
+## back to our 3-item example (2)
+
+::::{.columns}
+:::{.column width="50%"}
+:::{.codewindow .r}
+pca
+```{r}
+#| label: pca3b
+#| echo: true
+#| eval: false
+lsat_1pc <- principal(lsatdat[,3:5], 
+          nfactors = 1, 
+          rotate = "none") 
+          
+lsat_1pc
+```
+:::
+```{r}
+#| label: pca3b
+#| echo: false
+#| eval: true
+```
+:::
+:::{.column width="50%"}
+
+:::{.codewindow .r}
+pca scores
+```{r}
+#| eval: false
+lsatdat$PC1 <- lsat_1pc$scores
+
+head(lsatdat)
+```
+:::
+```
+    id RiskTake Q1 Q2 Q3 ScaleScore    PC1
+1 P001       20 40 50 20       36.7  -0.65
+2 P002       10 30 40 70       46.7  -0.56
+3 P003       28 77 72 56       68.3   1.55
+4 P004       20 65 60 90       71.7   1.31
+5 P005        7 57 56 39       50.7   0.28
+. ....       .. .. .. ..       ....   ...
+. ....       .. .. .. ..       ....   ...
+```
+
+<br>
+
+$$
+\begin{align}
+scores = Z(\,\, & 0.91 \cdot Z(Q1) \,+ \\
+& 0.91 \cdot Z(Q2) \,+ \\
+& 0.64 \cdot Z(Q3) \,\,\,\,\,)
+\end{align}
+$$
+
+
+- $Z()$ here is standardisation - $Z(x) = \frac{x - \bar x}{sd_x}$
+
+
+:::
+::::
+
+
+## lm with PC scores
+
+```{r}
+#| include: false
+lsatdat$PC1 <- lsat_1pc$scores
+```
+
+downweighting Q3 means the error in that variable contributes less to the score!  
+
+:::{.codewindow .r width="60%"}
+model
+```{r}
+#| label: mod3
+#| eval: false
+mod3 <- lm(RiskTake ~ PC1, data = lsatdat)
+summary(mod3)
+```
+:::
+
+```{r}
+#| label: mod3
+#| eval: true
+#| echo: false
 ```
 
 
@@ -1345,19 +1646,7 @@ lm(RiskTake ~ PC1+PC2,full) |> summary()
 
 i have measured 98 different boxes from a "well known online retailer"   
 
-i have measured:  
-
-length
-width
-height
-volume (cubic inches)
-area of face 1
-area of face 2
-area of face 3
-total area of all outer faces
-diagonal of face 1
-diagonal of face 2
-diagonal of face 3
+i have measured 11 attributes: length, width, height, volume (cubic inches), area of face 1, area of face 2, area of face 3, total area of all outer faces, diagonal of face 1, diagonal of face 2, diagonal of face 3
 
 ```{r}
 #| echo: false
@@ -1373,26 +1662,38 @@ boxes$diagonal_f1 = sqrt(boxes$length_inches^2 + boxes$width_inches^2)
 boxes$diagonal_f2 = sqrt(boxes$length_inches^2 + boxes$height_inches^2)
 boxes$diagonal_f3 = sqrt(boxes$width_inches^2 + boxes$height_inches^2)
 
-boxes$total_surface = boxes$area_f1*2 + boxes$area_f2*2 + boxes$area_f3*2
-boxes$total_volume = boxes$length_inches * boxes$width_inches * boxes$height_inches
+boxes$tot_surf = boxes$area_f1*2 + boxes$area_f2*2 + boxes$area_f3*2
+boxes$tot_vol = boxes$length_inches * boxes$width_inches * boxes$height_inches
+  
+names(boxes) <- gsub("_inches|onal","",names(boxes))
 head(boxes)
 ```
 
+![](img_sandbox/box.png)
+
+## fun little challenge
+
+:::{.codewindow .r width="60%"}
+box pca
 ```{r}
+#| label: box_pca
 #| eval: false
 #| echo: true
-psych::principal(boxes[,-1], nfactors = 3, rotate="none")
+psych::principal(boxes[,-1], nfactors = 11, rotate="none")
 ```
+:::
 
-what value is in ??? 
+What value is ??? 
+
+
 ```
 ...
 ...
-                      PC1  PC2  PC3
-SS loadings           ---  ---  ---
-Proportion Var        ---  ---  ---
-Cumulative Var        ---  ---  ---
-Proportion Explained  ---  ---  ---
+                      PC1  PC2  PC3  PC4  PC5  PC6  PC7 ... ...
+SS loadings           ---  ---  ---  ...  ...  ...  ...
+Proportion Var        ---  ---  ---  ...  ...  ...  
+Cumulative Var        ---  ---  ---  ...  ...
+Proportion Explained  ---  ---  ---  ...  ...
 Cumulative Proportion ---  ---  ???
 ```
 
