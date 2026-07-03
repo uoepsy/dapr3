@@ -369,7 +369,7 @@ When we confuse testing with measurement:
 ## Example
 
 
-![](img_sandbox/dougnuts.png)
+![](img_sandbox/dougnuts/Slide1.PNG)
 
 
 
@@ -453,8 +453,6 @@ variance, sd, covariance, correlation
 # Dimensions
 
 
-## Wide data!  
-
 ```{r}
 #| include: false
 #set.seed(89650)
@@ -508,7 +506,7 @@ lsat3 <- df[,1:3]
 ```
 
 
-## Dimensions
+## data (wide format)! 
 
 ::::{.columns}
 :::{.column width="60%"}
@@ -568,6 +566,8 @@ tibble(
 ```
 :::
 ::::
+
+
 
 ## initial thoughts?  
 
@@ -1191,10 +1191,9 @@ saying that we want these dimensions to be orthogonal (in future weeks we'll mix
 
 
 
+# A bigger example
 
-
-## more variables
-
+## 10 variables
 
 ```{r}
 #| echo: false
@@ -1214,7 +1213,9 @@ dff <- tibble(
   Q9 = rnorm(100,.6*Q1,17),
   Q10 = rnorm(100,.7*df$Q1,18)
 )
+dff$Q4 = rnorm(100,rowMeans(cbind(df$Q1,.8*df$Q3)),15)
 dff[,-1] = apply(dff[,-1],2,\(x) round(pmin(100,pmax(0,x)))) |> as.data.frame()
+
 
 #cor(dff) |> pheatmap::pheatmap()
 # scree(dff)
@@ -1237,7 +1238,7 @@ lsat_word =
               "Overall, I am satisfied with my life.",
               "The conditions of my life are excellent.",
               "I feel content with how things have gone today.",
-              "In most ways my life is close to my ideal.",
+              "I am deeply happy with the way my life has turned out.",
               "I feel a sense of inner peace and satisfaction.",
               "I wake up most mornings feeling positive about the day ahead.",
               "I have gotten the important things I want in life.",
@@ -1275,11 +1276,10 @@ lsat_word |>
   gt::gt(caption = "Data Dictionary")
 ```
 
-
 :::
 ::::
 
-## sometimes one thing is not just one thing
+## harder to see
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -1288,6 +1288,7 @@ correlation matrix
 ```{r}
 #| eval: false
 #| echo: true
+lsat10 <- read_csv("data/lsatdat2.csv")
 cor(lsat10[,2:11])
 ```
 :::
@@ -1314,10 +1315,7 @@ plot(lsat10[,2:11])
 :::
 ::::
 
-
-
-
-## sometimes one thing is not just one thing
+## harder to see?  
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -1343,8 +1341,6 @@ cor(lsat10[,2:11]) |>
 
 :::
 ::::
-
-
 
 ## PCA
 
@@ -1448,46 +1444,7 @@ VSS(lsat10[,-1], rotate = "none", plot = FALSE)
 :::
 ::::
 
-## scores
-
-:::{.codewindow .r}
-pca scores
-```{r}
-#| label: pca10scores
-#| eval: false
-#| echo: true
-lsat_pca2 <- principal(lsat10[,2:11], nfactors = 2, rotate = "none")
-
-lsat_pca2$scores
-```
-:::
-```{r}
-#| label: pca10scores
-#| eval: true
-#| echo: false
-```
-
-## scores (2)
-
-:::{.codewindow .r}
-attaching pca scores
-```{r}
-#| label: pca10scoresbind
-#| eval: false
-#| echo: true
-cbind(data, pca$scores)
-```
-:::
-```{r}
-#| eval: true
-#| echo: false
-full_lsat <- bind_cols(
-  RiskTake=df$RiskTake,
-  lsat10,
-  principal(lsat10[,2:11], nfactors = 10, rotate = "none")$scores[,1:2]
-) |> select(id,Q1:Q10,PC1,PC2,RiskTake)
-head(full_lsat)
-```
+# Using PCA in context  
 
 ## back to our 3-item example
 
@@ -1530,29 +1487,7 @@ tibble(
 :::
 ::::
 
-
-## lm with scale scores 
-
-The noise from Q3 makes things difficult to see!  
-
-:::{.codewindow .r width="60%"}
-model
-```{r}
-#| label: mod2
-#| eval: false
-#| echo: true
-```
-:::
-
-```{r}
-#| label: mod2
-#| eval: true
-#| echo: false
-```
-
-
-
-## back to our 3-item example (2)
+## PCA scores
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -1615,6 +1550,69 @@ $$
 ::::
 
 
+<!-- ## scores -->
+
+<!-- :::{.codewindow .r} -->
+<!-- pca scores -->
+<!-- ```{r} -->
+<!-- #| label: pca10scores -->
+<!-- #| eval: false -->
+<!-- #| echo: true -->
+<!-- lsat_pca2 <- principal(lsat10[,2:11], nfactors = 2, rotate = "none") -->
+
+<!-- lsat_pca2$scores -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- ```{r} -->
+<!-- #| label: pca10scores -->
+<!-- #| eval: true -->
+<!-- #| echo: false -->
+<!-- ``` -->
+
+<!-- ## scores (2) -->
+
+<!-- :::{.codewindow .r} -->
+<!-- attaching pca scores -->
+<!-- ```{r} -->
+<!-- #| label: pca10scoresbind -->
+<!-- #| eval: false -->
+<!-- #| echo: true -->
+<!-- cbind(data, pca$scores) -->
+<!-- ``` -->
+<!-- ::: -->
+<!-- ```{r} -->
+<!-- #| eval: true -->
+<!-- #| echo: false -->
+<!-- full_lsat <- bind_cols( -->
+<!--   RiskTake=df$RiskTake, -->
+<!--   lsat10, -->
+<!--   principal(lsat10[,2:11], nfactors = 10, rotate = "none")$scores[,1:2] -->
+<!-- ) |> select(id,Q1:Q10,PC1,PC2,RiskTake) -->
+<!-- head(full_lsat) -->
+<!-- ``` -->
+
+
+
+## lm with scale scores
+
+The noise from Q3 makes things difficult to see!
+
+:::{.codewindow .r width="60%"}
+model
+```{r}
+#| label: mod2
+#| eval: false
+#| echo: true
+```
+:::
+
+```{r}
+#| label: mod2
+#| eval: true
+#| echo: false
+```
+
+
 ## lm with PC scores
 
 ```{r}
@@ -1622,7 +1620,7 @@ $$
 lsatdat$PC1 <- lsat_1pc$scores
 ```
 
-downweighting Q3 means the error in that variable contributes less to the score!  
+downweighting Q3 means that the variance in that variable contributes less to the score!  
 
 :::{.codewindow .r width="60%"}
 model
@@ -1640,7 +1638,7 @@ summary(mod3)
 #| echo: false
 ```
 
-
+# Extra
 
 ## fun little challenge
 
@@ -1679,7 +1677,7 @@ box pca
 #| label: box_pca
 #| eval: false
 #| echo: true
-psych::principal(boxes[,-1], nfactors = 11, rotate="none")
+principal(boxes[,-1], nfactors = 11, rotate="none")
 ```
 :::
 
