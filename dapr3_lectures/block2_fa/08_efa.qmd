@@ -24,6 +24,58 @@ dapr3ltgreen <- "#E5EED7"
 pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
 ```
 
+```{r}
+#| include: false
+#set.seed(89650)
+while(TRUE){
+  eseed=runif(1,1,1e5)
+  eseed=55071
+  set.seed(eseed)
+  LS=rnorm(100,50,10)
+  df <- tibble(
+    V1 = rnorm(100,LS,10),
+    V2 = rnorm(100,V1,10),
+    V3 = rnorm(100,LS,20),
+    Y = rnorm(100,.3*LS,10)
+  )
+  df = apply(df,2,\(x) round(pmin(100,pmax(0,x)))) |> as.data.frame()
+  
+  df[1,1:3]<-c(40,50,20)
+  df[2,1:4]<-c(30,40,70,28)
+  
+  df$PC = psych::principal(df[,1:3],1)$scores[,1]
+
+  if(all(summary(lm(Y~V1+V2+V3,df))$coefficients[2:4,4]>.05) &
+      (summary(lm(Y~I(V1+V2+V3),df))$coefficients[2,4]>.05) &
+        summary(lm(Y~PC,df))$coefficients[2,4]<.05) {
+  break }
+}
+
+plot(df[,1:3])
+cor(df[,1:3])
+print(eseed)
+
+df$Y = max(df$Y)-df$Y
+
+sjPlot::tab_model(
+  lm(Y~V1+V2+V3,df),
+  lm(Y~I(V1+V2+V3),df),
+  lm(Y~PC,df)
+)
+
+df$SS = rowMeans(df[,1:3])
+df$LS = LS
+
+df <- df[c(1,2,7,14,9,10, setdiff(1:nrow(df),c(1,2,7,14,9,10))),]
+rownames(df) <- 1:nrow(df)
+names(df)[1:4] <- c("Q1","Q2","Q3","RiskTake")
+df$id <- paste0("P",sprintf("%03d", 1:100))
+  
+lsatdat <- df[,c(8,4,1:3)]
+# write_csv(lsatdat, file="data/lsatdat1.csv")
+lsat3 <- df[,1:3]
+```
+
 
 
 # Course Overview {background-color="white"}
@@ -54,32 +106,33 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
 ## Week 7 TR;DL
 
 1. measurement is hard, especially in psych
-2. multi-item measurement tools mean we have lots of variables capturing the same thing
-3. in our original variables, lots of dimensions (i.e., lots of columns)
-4. our goal in the second half of DAPR3 is to explore ways of expressing a lot of the same information using fewer variables. this is called "dimensionality reduction"
+2. multi-item measurement tools mean we have lots of variables capturing the same thing (lots of "dimensions")  
+4. our goal in the second half of DAPR3 is to explore ways of expressing a lot of the same information using fewer variables ("dimensionality reduction")
 5. one way to reduce dimensionality is to take a scale score  (i.e., mean or sum of all individual scores) 
     - this assumes each item is equally representative of our construct
 6. another way is PCA:  
-    - finds new dimensions ("components") that:
+    - for $k$ variable, finds $k$ new dimensions ("components") that:
       - are a weighted sum of original variables: 
       - sequentially capture variability in the data
-      - are orthogonal (uncorrelated)
-	- we can reduce dimensionality by taking the first $k$ components
+      - are orthogonal (uncorrelated) to one another
+	    - we then reduce by taking the first $k$ components
 7. a constant reminder: getting some numbers is not the same thing as measurement  
 
 ## This week
 
-- model based thinking of measurements: EFA vs PCA
-- EFA in R
+- from reduction to measurement models (from PCA to EFA)
+- Why EFA?
+- How (broadly) EFA works
 - "Rotations" & Simple Structures
 - Evaluating Factor Solutions
 
+# Conceptual overview
 
 ## Questions to ask before you start
 
 ::: columns
 ::: {.column width="50%"}
-### PCA
+<center>**PCA**</center>
 
 -   Why are your variables correlated?
     -   Agnostic/don't care
@@ -88,7 +141,7 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
         
 :::
 ::: {.column width="50%" .fragment}
-### EFA
+<center>**EFA**</center>
 
 -   Why are your variables correlated?
     -   Believe there exist underlying "causes" of these correlations
@@ -100,37 +153,57 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
 :::
 
 
-## "components" vs "factors"
-
-
-- components are "weighted composites" of variables. 
-    - a little bit of column A, a little bit of column B
-
-- factors are the theoretical underlying cause
-
-- **Theorized common cause** of responses to a set of variables
-
-    -   *Explain* correlations between measured variables
-    -   Held to be real (can never test this)
-
-## graphical thinking
-
-::::{.columns}
-:::{.column width="50%"}
-
-![](img_sandbox/quickdiags/Slide1.png)
-:::
-:::{.column width="50%" .fragment}
-
-![](img_sandbox/quickdiags/Slide2.png)
-:::
-::::
-
-## PCA versus EFA: How are they different?
+## What are your new dimensions?  
 
 ::: columns
 ::: {.column width="50%"}
-**PCA**
+<center>**Components**</center>
+
+- a weighted composite of the variables.  
+    - "a little bit of column A, a little bit of column B"
+    
+- nothing more.  
+
+:::
+::: {.column width="50%" .fragment}
+<center>**Factors**</center>
+
+- **theorized common cause** of responses to a set of variables
+
+- something that *explains* correlations between measured variables
+
+- assumed to be real (unobservable) things in the world
+
+:::
+:::
+
+
+## thinking in diagrams
+
+![](img_sandbox/quickdiags/Slide1.png)
+
+## thinking in diagrams (2)
+
+<br>
+
+::::{.columns}
+:::{.column width="50%" .fragment}
+<center>**PCA**</center>
+
+![](img_sandbox/quickdiags/Slide2.png)
+:::
+:::{.column width="50%"}
+<center>**EFA**</center>
+
+![](img_sandbox/quickdiags/Slide3.png)
+:::
+::::
+
+## PCA vs EFA
+
+::: columns
+::: {.column width="50%"}
+<center>**PCA**</center>
 
 - The observed measures are independent variables
     - (arrows go from observed variables to components)
@@ -143,7 +216,7 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
 :::
 
 ::: {.column width="50%"}
-**EFA**
+<center>**EFA**</center>
 
 - The observed measures are dependent variables
     - (arrows go from factors to observed variables)
@@ -191,6 +264,33 @@ https://app.wooclap.com/events/ZFTQYR/
 - Motivation
 - Identity
 
+## Why prefer EFA over PCA?  
+
+- We give **meaning** to the new dimensions.  
+
+- new dimensions do not need to be "orthogonal" (uncorrelated)  
+    - more on this shortly!  
+
+- We learn something.  
+    - are there two different parts to our 'life satisfaction' measure, or only 1? or maybe 3?  
+
+## directions/magnitudes
+
+TODO 
+loadings/variance explained
+
+last week we mainly looked at Vaccounted. 
+
+this week.. 
+
+patterns of loadings, 
+
+you can use PCA like an EFA.  
+if you do, you're essentially doing EFA, but with formative indicators.. 
+
+
+
+# How (high level) factor models work
 
 ## EFA: a model of observed relationships
 
@@ -205,10 +305,15 @@ https://app.wooclap.com/events/ZFTQYR/
 :::{.column width="50%"}
 ```{r}
 #| echo: false
-read_csv("data/lsatdat1.csv") |>
-  select(id, Q1:Q3) |>
-  head() |> gt::gt() |>
-  gt::tab_spanner(columns = paste0("Q",1:3), label="life satisfaction")
+library(gt)
+cbind(True_LS = LS, lsatdat) |> 
+  select(id, True_LS, Q1:Q3) |>
+  head() |>
+  gt() |>
+  tab_style(
+    style = cell_text(color = "grey70"),
+    locations = cells_body(columns = True_LS)
+  )
 ```
 
 
@@ -223,12 +328,119 @@ $$
 \end{align}
 $$
 
-
-
 :::
 ::::
 
 
+## EFA: a model of observed relationships
+
+::: {style="font-size: 0.8em;"}
+$$
+\begin{align}
+\text{Outcome} &= \quad\quad\quad\text{Model} &&+ \text{Error} \quad\quad\quad\quad\quad \\
+\quad \\
+\text{Correlation Matrix} &= \quad\quad\quad\begin{aligned}[c] &\text{How each variable} \\ &\text{reflects the shared} \\ &\text{factor(s)} \end{aligned} &&+ \begin{aligned}[c] &\text{How each variable} \\ &\text{is unique} \end{aligned}
+\end{align}
+$$
+:::
+
+## EFA: a model of observed relationships
+
+::: {style="font-size: 0.8em;"}
+$$
+\begin{align}
+\text{Outcome} &= \quad\quad\quad\text{Model} &&+ \text{Error} \quad\quad\quad\quad\quad \\
+\quad \\
+\text{Correlation Matrix} &= \quad\quad\quad\begin{aligned}[c] &\text{How each variable} \\ &\text{reflects the shared} \\ &\text{factor(s)} \end{aligned} &&+ \begin{aligned}[c] &\text{How each variable} \\ &\text{is unique} \end{aligned} \\
+\quad \\
+\text{Correlation matrix} &= \quad\quad\quad\text{Factor loadings} &&+ \text{Unique variances} \quad\quad\quad\quad\quad \\
+\quad \\
+\end{align}
+$$
+:::
+
+![](img_sandbox/diag_efa1simpl.png)
+
+
+## EFA: a model of observed relationships {data-background-color="#e2fce1"}
+
+```{r}
+#| include: false
+set.seed(34567)
+RR = matrix(c(1,.6,.6,.6,
+              .6,1,.6,.6,
+              .6,.6,1,.6,
+              .6,.6,.6,1), nrow=4)
+tdf = MASS::mvrnorm(2e2,mu=c(0,0,0,0),Sigma=RR)
+cor(tdf) |> round(2)
+
+ll = fa(tdf, nfactors=1,rotate="none")$loadings[,1]
+uu = fa(tdf, nfactors=1,rotate="none")$uniqueness
+
+ll %*% t(ll) + diag(uu)
+
+```
+
+::: {style="font-size: 0.8em;"}
+$$
+\begin{align}
+\text{Outcome} &= \quad\quad\quad\text{Model} &&+ \text{Error} \quad\quad\quad\quad\quad \\
+\quad \\
+\text{Correlation Matrix} &= \quad\quad\quad\begin{aligned}[c] &\text{How each variable} \\ &\text{reflects the shared} \\ &\text{factor(s)} \end{aligned} &&+ \begin{aligned}[c] &\text{How each variable} \\ &\text{is unique} \end{aligned} \\
+\quad \\
+\text{Correlation matrix} &= \quad\quad\quad\text{Factor loadings} &&+ \text{Unique variances} \quad\quad\quad\quad\quad \\
+\quad \\
+\quad \\
+\mathbf{\Sigma} &= \quad\quad\quad\mathbf{\Lambda}\mathbf{\Lambda'} &&+ \mathbf{\Psi} \quad\quad\quad\quad\quad\quad  \\
+\quad \\
+\begin{bmatrix}
+1 & 0.53 & 0.57 & 0.57 \\
+0.53 & 1 & 0.54 & 0.56 \\
+0.57 & 0.54 & 1 & 0.56 \\
+0.57 & 0.56 & 0.56 & 1 \\
+\end{bmatrix} &= 
+\begin{bmatrix}
+0.747 \\
+0.725 \\ 
+0.746 \\ 
+0.764 \\
+\end{bmatrix}
+\begin{bmatrix}
+0.747 & 0.725 & 0.746 & 0.764 \\
+\end{bmatrix} &&+
+\begin{bmatrix}
+0.44 & 0 & 0 & 0 \\
+0 & 0.47 & 0 & 0 \\
+0 & 0 & 0.44 & 0 \\
+0 & 0 & 0 & 0.42  \\
+\end{bmatrix} \\
+\quad \\
+\begin{bmatrix}
+1 & 0.53 & 0.57 & 0.57 \\
+0.53 & 1 & 0.54 & 0.56 \\
+0.57 & 0.54 & 1 & 0.56 \\
+0.57 & 0.56 & 0.56 & 1 \\
+\end{bmatrix} &= 
+\begin{bmatrix}
+0.56 & 0.54 & 0.56 & 0.57 \\
+0.54 & 0.53 & 0.54 & 0.55 \\
+0.56 & 0.54 & 0.56 & 0.57 \\
+0.57 & 0.55 & 0.57 & 0.58 \\
+\end{bmatrix} &&+
+\begin{bmatrix}
+0.44 & 0 & 0 & 0 \\
+0 & 0.47 & 0 & 0 \\
+0 & 0 & 0.44 & 0 \\
+0 & 0 & 0 & 0.42  \\
+\end{bmatrix} \\
+\end{align}
+$$
+
+:::
+
+:::{.center-img}
+![](img_sandbox/rabbit_green.png)
+:::
 
 ## Sources of variance  
 
@@ -252,135 +464,35 @@ $$
 
 
 
-## Optional: general factor model equation
-
-$$\mathbf{\Sigma}=\mathbf{\Lambda}\mathbf{\Phi}\mathbf{\Lambda'}+\mathbf{\Psi}$$
-
--   $\mathbf{\Sigma}$: A $p \times p$ observed correlation matrix (from data)
-
--   $\mathbf{\Lambda}$: A $p \times m$ matrix of factor loadings (relates the $m$ factors to the $p$ items)
-
--   $\mathbf{\Phi}$: An $m \times m$ matrix of correlations between factors ("goes away" with orthogonal factors)
-
--   $\mathbf{\Psi}$: A diagonal matrix with $p$ elements indicating unique (error) variance for each item
-    
-
-## Optional: general factor model equation
-
-```{r}
-#| include: false
-set.seed(34567)
-RR = matrix(c(1,.6,.6,.6,
-              .6,1,.6,.6,
-              .6,.6,1,.6,
-              .6,.6,.6,1), nrow=4)
-tdf = MASS::mvrnorm(2e2,mu=c(0,0,0,0),Sigma=RR)
-cor(tdf) |> round(2)
-
-ll = fa(tdf, nfactors=1,rotate="none")$loadings[,1]
-uu = fa(tdf, nfactors=1,rotate="none")$uniqueness
-
-ll %*% t(ll) + diag(uu)
-
-```
-
-$$
-\begin{align}
-\text{Outcome} &= \quad\quad\quad\text{Model} &+ \text{Error} \quad\quad\quad\quad\quad \\
-\quad \\
-\mathbf{\Sigma} &= \quad\quad\quad\mathbf{\Lambda}\mathbf{\Lambda'} &+ \mathbf{\Psi} \quad\quad\quad\quad\quad\quad  \\
-\quad \\
-\begin{bmatrix}
-1 & 0.53 & 0.57 & 0.57 \\
-0.53 & 1 & 0.54 & 0.56 \\
-0.57 & 0.54 & 1 & 0.56 \\
-0.57 & 0.56 & 0.56 & 1 \\
-\end{bmatrix} &= 
-\begin{bmatrix}
-0.747 \\
-0.725 \\ 
-0.746 \\ 
-0.764 \\
-\end{bmatrix}
-\begin{bmatrix}
-0.747 & 0.725 & 0.746 & 0.764 \\
-\end{bmatrix} &+
-\begin{bmatrix}
-0.44 & 0 & 0 & 0 \\
-0 & 0.47 & 0 & 0 \\
-0 & 0 & 0.44 & 0 \\
-0 & 0 & 0 & 0.42  \\
-\end{bmatrix} \\
-\quad \\
-\begin{bmatrix}
-1 & 0.53 & 0.57 & 0.57 \\
-0.53 & 1 & 0.54 & 0.56 \\
-0.57 & 0.54 & 1 & 0.56 \\
-0.57 & 0.56 & 0.56 & 1 \\
-\end{bmatrix} &= 
-\begin{bmatrix}
-0.56 & 0.54 & 0.56 & 0.57 \\
-0.54 & 0.53 & 0.54 & 0.55 \\
-0.56 & 0.54 & 0.56 & 0.57 \\
-0.57 & 0.55 & 0.57 & 0.58 \\
-\end{bmatrix} &+
-\begin{bmatrix}
-0.44 & 0 & 0 & 0 \\
-0 & 0.47 & 0 & 0 \\
-0 & 0 & 0.44 & 0 \\
-0 & 0 & 0 & 0.42  \\
-\end{bmatrix} \\
-\end{align}
-$$
-
-
-
 ## We make assumptions when we use models
 
-- As EFA is a model, just like linear models and other statistical tools, using it requires us to make some assumptions:
+As EFA is a model, just like linear models and other statistical tools, using it requires us to make some assumptions:
 
-    1.  The error terms are uncorrelated
-    2.  The residuals/errors are not correlated with the factor
-    3.  Relationships between items and factors should be linear, although there are models that can account for nonlinear relationships
-        
-## We make assumptions when we use models (2)
+::::{.columns}
+:::{.column width="50%"}
 
-![](img_sandbox/diag_efa1.png)
+1.  The error terms are uncorrelated
+2.  The residuals/errors are not correlated with the factor
+3.  Relationships between items and factors should be linear, although there are models that can account for nonlinear relationships
 
-## Why choose EFA?  
-
-::: columns
-::: {.column width="50%"}
-### PCA
-
--   Why are your variables correlated?
-    -   Agnostic/don't care
--   What are your goals?
-    -   Reduce reduce reduce!  
-        
-:::
-::: {.column width="50%" .fragment}
-### EFA
-
--   Why are your variables correlated?
-    -   Believe there exist underlying "causes" of these correlations
--   What are your goals?
-    -   Reduce, but also **learn** about/model their underlying (latent) causes
-        
 
 :::
+:::{.column width="50%"}
+![](img_sandbox/diag_efa1simpl.png)
 :::
+::::
 
-to learn something.  
 
-can't be divorced from theory.  
-are there two different parts to our 'life satisfaction' measure, or only 1? or maybe 3?  
-PCA doesn't care. we don't really give meaning to the components (other than "it's all the variables smushed together to various degrees")  
 
-EFA is about comparing competing models of the measurement instrument.  
-does a 2 factor model "fit better" than a 3 factor model?   
 
-# Doing EFA
+
+
+
+
+
+
+
+# EFA Workflow
 
 ```{r}
 #| include: false
@@ -392,7 +504,7 @@ lsat_word =
               "Overall, I am satisfied with my life.",
               "The conditions of my life are excellent.",
               "I feel content with how things have gone today.",
-              "In most ways my life is close to my ideal.",
+              "I am deeply happy with the way my life has turned out.",
               "I feel a sense of inner peace and satisfaction.",
               "I wake up most mornings feeling positive about the day ahead.",
               "I have gotten the important things I want in life.",
@@ -403,19 +515,18 @@ lsat_word =
   )
 ```
 
-## EFA workflow
+## Workflow steps
 
 So how do we move from data and correlations to a factor analysis?
 
-1. check suitability of items.
-2. decide on factor extraction method and rotation.  
-3. examine plausible number of factors.
-4. based on 3, choose the range to examine from $n_{min}$ factors to $n_{max}$ factors.
+1. check suitability of items ("items" is often used to refer to the set of measured variables in a questionnaire)
+2. decide on appropriate rotation and factor extraction method
+3. examine plausible number of factors
+4. based on the plausible number of factors from (3), choose the range to examine from $n_{min}$ factors to $n_{max}$ factors
 5. do EFA, extracting from $n_{min}$ to $n_{max}$ factors. Compare each of these 'solutions' in terms of structure, variance explained, and --- by examining how the factors from each solution relate to the observed items --- assess how much theoretical sense they make.  
-6. _if the aim is to develop a scale for future use_ - consider removing "problematic" items and start over again.
+6. consider removing "problematic" items. If you do, then go back and start over again.  
 
-
-## example: are you not satisfied? 
+## Running Example: are you not satisfied? 
 
 ::::{.columns}
 :::{.column width="60%"}
@@ -445,14 +556,8 @@ lsat_word |>
 :::
 ::::
 
-## item suitability
 
-basically - are items correlated? 
-
-
-## EFA in R
-
-
+## How do I fit an EFA in R?
 
 :::{.codewindow .r width="70%"}
 ```{r}
@@ -467,32 +572,23 @@ library(psych)
 `fa()`   
 can take a covariance matrix, a correlation matrix, or the raw data.  
 `nfactors = ?`  
-tells it to estimate a ??? factor model
+tells it to estimate a ??? factor model  
 `rotate = ??`  
-tells it whether or not we think those factors could be correlated (more on this shortly)
+tells it whether or not we think those factors could be correlated (more on this shortly)  
 `fm = ???`  
 tells it how to estimate the model  
 `cor = ????`  
 tells it what sort of correlations to use (a little more on this later on)
 
 
-## factor extraction methods - fm = ?
+## What does EFA in R look like?  
 
-## polychoric correlations - cor =  ?
-
-
-## EFA in R
-
-:::{.codewindow .r width="70%"}
 ```{r}
 #| label: efa1a
-#| echo: true
+#| echo: false
 #| eval: false
 fa(lsat10[,2:11], nfactors = 2, rotate = "none", fm = "ml", cor = "cor")  
 ```
-:::
-
-## What does EFA in R look like?  
 
 :::{.codewindow .r width="70%"}
 ```{r}
@@ -507,26 +603,36 @@ fa(lsat10[,2:11], nfactors = 2, rotate = "none", fm = "ml", cor = "cor")
 #| eval: true
 ```
 
-## rotations!  
 
-::: {.r-stack}
-::: {.fragment .fade-out fragment-index=1}
-![](img_sandbox/diag_efa1.png)
-:::
+## 1/6 How's the data? 
 
-::: {.fragment .fade-in fragment-index=1}
-![](img_sandbox/diag_efa2.png)
-:::
-:::
+basically - are items correlated? 
 
-## rotations!
+if few response options, normal cor is not ideal.
+use polychoric.  
 
--   Factor rotation is an approach that aims to clarify the relationships
-    between items and factors.
+in R this would mean doing:
+
+```{r}
+#| eval: false
+fa(......, cor = "poly")  
+```
+
+## 2/6 Which "factor extraction methods"? 
+
+| method | what it does | best for | requirements |
+| ------ | -------- | ---- | ----------- |
+| `minres` | Minimizes squared differences between observed and model implied correlation matrices | You have a large number of variables, or ML fails to converge |  |
+| `ml` | Estimates factor loadings most likely (max likelihood) to have produced the observed correlation matrix | large sample size | multivariate normality |
+| `paf` | Uses squared multiple correlations as initial communality estimates | When data appear non-normal, or unsuitable for ML |  |
+
+## 2/6 What is rotation?  
+
+-   Factor rotation is an approach that aims to clarify the relationships between items and factors.
 
     -   Rotation aims to maximize the relationship of a measured item with a single factor.
-    -   That is, make an item's primary loading big and cross-loadings small.
-    
+    -   That is, make an item's more related to one factor and less to the others  
+
 
 ```{r}
 #| echo: false
@@ -626,13 +732,13 @@ p3 <- mn$loadings[,1:2] |>
 
 ```
 
-## What is rotation?  
+## 2/6 Why rotate?
 
-Factor solutions can sometimes be complex to interpret.
+- Without rotation, the pattern of the factor loadings can often be unclear.  
 
--   the pattern of the factor loadings is not clear.
--   The difference between the primary and cross-loadings is small
+- Rotation is essentially a transformation applied to the loadings.  
 
+- it doesn't change the model fit. like scaling a predictor in a `lm()`  
 
 ::::{.columns}
 :::{.column width="50%"}
@@ -649,7 +755,7 @@ fa(eg2, nfactors=2, rotate = "none", fm="ml")$loadings
 :::
 ::::
 
-## Types of rotation
+## 2/6 Which rotation? 
 
 ```{r}
 #| eval: false
@@ -686,12 +792,27 @@ p3 + theme(legend.position="bottom")
 :::
 ::::
 
-# getting back to our aim..  
+---
 
-how many factors are we measuring?   
-compare and contrast models!   
+::: {.r-stack}
+::: {.fragment .fade-out fragment-index=1}
+![](img_sandbox/diag_efa1.png)
+:::
 
-## choose a range
+::: {.fragment .fade-in fragment-index=1}
+![](img_sandbox/diag_efa2.png)
+:::
+:::
+
+## 2/6 Which rotation? 
+
+- Question: do we want to **allow** our factors to correlate?  
+
+- easy answer: yes. it doesn't mean they _have_ to.. 
+
+- so go with an oblique rotation?  
+
+## 3/6 how many factors? 
 
 ```{r}
 #| eval: false
@@ -709,12 +830,14 @@ VSS(eg_data, plot = FALSE)
  
 But... if there's no strong steer, then we want a **range.**   
 
+## 4/6 a range for the number of factors
+
 - Treat MAP as a minimum
 - PA as a maximum
 - Explore all solutions in this range and select the one that yields the best numerically and theoretically.
 
 
-## compare and contrast
+## 5/6 compare and contrast!  
 
 ::::{.columns}
 :::{.column width="30%"}
@@ -745,7 +868,7 @@ print(fa3$loadings, cutoff = .3)
 :::
 ::::
 
-## compare and contrast
+## 5/6 compare and contrast
 
 __BUT **HOW**!?__  
 
@@ -761,7 +884,6 @@ __BUT **HOW**!?__
 
 - Theoretical coherence
     - does it make sense? 
-
 
 and when in doubt, parsimony.  
 
