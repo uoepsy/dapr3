@@ -1,7 +1,7 @@
 ---
 title: "Regression refresher, <br> intro to group-structured data"
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 format:
   revealjs:
     smaller: true
@@ -37,9 +37,9 @@ pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
 block1_name = "Linear mixed models<br>(with Dr. Elizabeth Pankratz)"
 block1_lecs = c("Regression refresher, intro to group-structured data",
                 "Modelling group-structured data using random effects",
-                "TODO",
-                "TODO",
-                "recap")
+                "Interpreting LMMs and building maximal models",
+                "Troubleshooting model fit, checking assumptions + diagnostics",
+                "LMMs: Practice analysis")
 block2_name = "factor analysis<br>working with multi-item measures<br>(with Dr. Josiah King)"
 block2_lecs = c(
   "measurement and dimensionality",
@@ -104,7 +104,7 @@ The purpose of this activity is to help you remember a few of the ways that a fe
 :::
 ::::
 
-## Part 3: Think back to linear models
+## Part 3: Think back to the properties of lines
 
 <br>
 
@@ -116,7 +116,7 @@ https://app.wooclap.com/events/SIQRER/
 
 
 
-# Regression refresher
+# Linear regression refresher
 
 ## Data: After one week of mindfulness treatments, life satisfaction ratings from 36 people
 
@@ -133,6 +133,7 @@ lifesat <- lifesat_week |>
 ```{r fig.width = 8, fig.height = 6}
 #| code-fold: true
 
+set.seed(1)
 p_lifesat <- lifesat |>
   ggplot(aes(x = condition, y = lifesat, fill = condition, colour = condition)) +
   geom_violin(alpha = 0.5) +
@@ -158,51 +159,146 @@ Numerically, there is a difference between condition means: "meditate" has highe
 
 We want to test: **Is that difference between condition means sufficiently unlikely to equal zero?**
 
+## Is the difference between condition means sufficiently unlikely to equal zero?
 
-## Prepare the data for the model
+A linear model will fit a line that passes through the two group means.
 
-contrasts
+
+```{r echo=F, fig.width = 8, fig.height = 6}
+lifesat_mod <- lm(lifesat ~ condition, data = lifesat)
+
+set.seed(1)
+p_lifesat_line <- p_lifesat +
+  geom_abline(
+    intercept = coef(lifesat_mod)[['(Intercept)']] - coef(lifesat_mod)[['conditionmeditate']],
+    slope = coef(lifesat_mod)[['conditionmeditate']],
+    linewidth = 1
+  )
+p_lifesat_line
+```
+
+- To answer our question, we will first assume that in reality, the true slope of this line is zero: the groups are not different at all (= our null hypothesis).
+
+- We know the distribution of values the slope might have in that reality where the groups are no different.
+
+- We compare our observed slope to that null distribution.
+
+- If the observed slope falls in either tail of that null distribution, then we can say that the slope is significantly different from zero!
 
 
 ## Fit the model
 
-math
+```{r}
+lifesat_mod <- lm(
+  lifesat ~ condition,   # outcome ~ predictor
+  data = lifesat
+)
+```
 
-summary
+```{r}
+summary(lifesat_mod)
+```
 
-## Interpret model estimates
 
-plot + summary + prose
+## Interpret model coefficients
+
+::::{.columns}
+:::{.column width="60%"}
+
+```{r echo=F, fig.width = 8, fig.height = 6}
+set.seed(1)
+p_lifesat_line
+```
+
+:::{style="font-size:80%;"}
+
+```{r echo=F}
+cat(paste0(capture.output(
+  summary(lifesat_mod)
+), '\n')[9:12])
+```
+
+:::
+
+
+:::
+:::{.column width="40%"}
+
+**`(Intercept)`:** The estimated average `lifesat` for the reference level of `condition`, which is `journal`.
+
+- People who journal are estimated to have a life satisfaction of 40.95 points, on average.
+
+<br>
+
+**`conditionmeditate`:** The difference between the average `lifesat` when `condition = meditate` and the average `lifesat` when `condition = journal`.
+
+- People who meditate are estimated to have a life satisfaction that's 18.47 points greater than people who journal.
+- This estimate is significantly different from zero ($p$ < .001).
+
+:::
+::::
+
+<br>
+
+So yes, the difference between condition means is sufficiently unlikely to equal zero!
+
+We reject the H0 and declare that the groups are significantly different.
+
 
 # Now that we're warmed up: welcome to DAPR3 ✨
 
 ## This week's learning objectives
 
-:::dapr3callout
-How do we identify grouping structure in a dataset?
+<br>
 
+:::dapr3callout
+What is a grouping variable?
 
 <!-- 
-- First make sure the dataset is "tidy": one column per variable, one row per observation.
-- Then, we look for categorical variables whose values appear more than once. -->
+- A categorical variable whose values appear more than once in the dataset. 
+-->
 :::
 
 :::dapr3callout
-How do we describe the process that has generated our data?
+Why are grouping variables important to know about?
 
-<!-- - In terms of different sources of variability. -->
-<!-- - Manipulated / controlled / reproducible variability comes from from our predictor variables (our "fixed effects"). -->
-<!-- - Non-manipulated / non-controlled / random variability comes from our grouping variables (our "random effects"). -->
+<!-- 
+- Because if we have multiple observations from a single source (e.g., a single person) which contribute random variability to our data, then our observations are no longer independent.
+- Therefore the linear model's assumption about independent errors is not met.
+-->
+:::
+
+
+:::dapr3callout
+What does a statistical model aim to represent / to capture / to formalise?
+
+<!-- - The process that generated the data we are modelling. -->
+:::
+
+:::dapr3callout
+What are the different kinds of variability that a statistical model must account for?
+
+<!-- - Manipulated / controlled / reproducible variability comes from from our predictor variables. -->
+<!-- - Non-manipulated / non-controlled / random variability comes from our grouping variables. -->
 <!-- - Other random variability not associated with specific variables is modelled as residual error. -->
 :::
 
+
+
+
+
+
 # Between-subjects vs. repeated measures
 
-## Between-subjects vs. repeated measures
+## Between-subjects vs. repeated measures: What do these terms mean to you?
 
-woo: what do these terms mean to you
+<br>
 
-
+:::hcenter
+:::woo
+https://app.wooclap.com/events/SIQRER/
+:::
+:::
 
 ## An example of repeated-measures data:<br> One week of mindfulness treatments
 
@@ -233,8 +329,9 @@ lifesat_week |>
 :::
 ::::
 
-(In the regression refresher example from before, we were looking at data from Day 7 only!)
+(In the example from before, we were looking at data from Day 7 only!)
 
+RQs: **Does life satisfaction increase, the longer people take part in treatment? Is one treatment associated with greater life satisfaction than the other?**
 
 ## How do we know that this is repeated measures data?
 
@@ -262,29 +359,55 @@ lifesat_week |>
 <br>
 
 :::dapr3callout
-- Because each participant contributed multiple observations, we call `ppt_id` a **grouping variable.**
-- Notice that `day` and `condition` also contain multiple observations of the same value. In this way, they are also grouping variables. But they're conceptually a bit different from `ppt_id`, as we'll see soon.
+Because each participant contributed multiple observations, we call `ppt_id` a **"grouping variable".**
+
+- `day` and `condition` also contain multiple observations of the same value. In this way, they are also grouping variables. But they're conceptually a bit different from `ppt_id`, as we'll see soon.
 :::
 
 
+# Why are grouping variables important?
 
-## How do we identify grouping structure?
+## Why are grouping variables important?
 
-We want to know: 
+<br>
 
-For categorical or ordinal predictors that have more than one level, how many times does each level appear?
+If you took DAPR2, you might remember that linear models make four assumptions:
 
-<!-- What grouping variable(s) does this dataset contain? -->
-<!-- How many levels/different values does each grouping variable have? (If the answer is 1, then it's not a grouping variable.) -->
+1. **Linearity of association:** The association between predictors and outcome can reasonably be modelled as a straight line.
+1. **Independence of errors:** Each data point is independent from each other data point. (Knowing something about one data point tells you nothing about any of the other data points.)
+1. **Normality of errors:** The model's errors (the distance between observed point and model-estimated line) are normally-distributed.
+1. **Equal variance of errors:** The model's errors have similar variance across the whole range of model-fitted values.
+
+<br>
+
+As soon as we have repeated-measures data, **the data points are no longer independent.**
+
+## Why aren't the data points independent?
+
+```{r}
+#| code-fold: true
+lifesat_week |>
+  filter(ppt_id %in% c('j16', 'm9')) |>
+  ggplot(aes(x = day, y = lifesat, colour = ppt_id, shape = ppt_id)) +
+  geom_point(size = 5) +
+  scale_colour_manual(values = pal[2:3]) +
+  scale_x_continuous(breaks = 1:7) +
+  theme(
+    legend.position = 'bottom',
+    panel.grid.minor.x = element_blank()
+  ) +
+  NULL
+```
+
+- If we know one data point from `j16`, we can make some good guesses about what values `j16`'s other data points might have. Same for `m9`.
+- In other words: Some of our data gives us information about other parts of our data. 
+- In other words: Data points from one person are not independent of other data points from that person.
+- We use grouping variables to tell the model that data points are not independent, and instead are grouped together in this way.
+  - The specifics of *how* we tell the model about grouping variables: next week.
+  - This week: how we identify grouping variables in any dataset.
 
 
-We'll use R code to count for us.
-
-Identifying grouping structure is a key skill for DAPR3.
-In this week's lab, you'll have a chance to practice it with five different datasets.
-
-
-# Identifying grouping structure: Two examples
+# How to identify grouping variables: Two examples
 
 ## Ex. 1: Mindfulness treatments, Day 7
 
@@ -474,12 +597,12 @@ Each value of `ppt_id` appears more than once.
 
 <br>
 
-Our RQ is about how different `condition`s and different `day`s are associated with `lifesat`.
+Our RQs are about how different `condition`s and different `day`s are associated with `lifesat`.
 
 <br>
 
 :::dapr3callout
-- Notice that this RQ refers to only two of the grouping variables, `condition` and `day`.
+- Notice that these RQs refers to only two of the grouping variables, `condition` and `day`.
 - **`condition` and `day` are manipulated / controlled by our experimental design.**
 :::
   
@@ -499,10 +622,11 @@ Our RQ is about how different `condition`s and different `day`s are associated w
 
 ## Ex. 1: Mindfulness treatments, Day 7
 
+
 :::: {.columns}
 ::: {.column width="50%"}
 
-```{r fig.width = 8, fig.height = 6, echo=F}
+```{r fig.width = 8, fig.height = 5, echo=F}
 p_lifesat
 ```
 
@@ -515,7 +639,10 @@ p_lifesat
 :::
 ::::
 
+
 ## Ex. 2: A week of mindfulness treatments
+
+When we have multiple observations from a single source (here, a single person), there's a one more kind of variability that we need to account for.
 
 
 :::: {.columns}
@@ -532,6 +659,8 @@ p_lifesat_week
 
 :::
 ::::
+
+
 
 
 ## Identifying reproducible vs. random variability
@@ -570,6 +699,34 @@ Could the variable **potentially contain different values, and the RQ would stil
 ## Learning objectives revisited
 
 
+:::dapr3callout
+**What is a grouping variable?**
+
+- A categorical variable whose values appear more than once in the dataset.
+:::
+
+
+:::dapr3callout
+**Why are grouping variables important to know about?**
+
+- Because if we have multiple observations from a single source (e.g., a single person) which contribute random variability to our data, then our observations are no longer independent.
+- Therefore the linear model's assumption about independent errors is not met.
+:::
+
+
+:::dapr3callout
+**What does a statistical model aim to represent / to capture / to formalise?**
+
+- The process that generated the data we are modelling.
+:::
+
+:::dapr3callout
+**What are the different kinds of variability that a statistical model must account for?**
+
+- Manipulated / controlled / reproducible variability comes from from our predictor variables.
+- Non-manipulated / non-controlled / random variability comes from our grouping variables.
+- Other random variability not associated with specific variables is modelled as residual error.
+:::
 
 ## To do this week 
 
@@ -670,35 +827,3 @@ p4 <- ggplot() +
 
 p1 + p2 + p3 + p4
 ```
-
-
-
-
-## abc
-
-dolor sit amet
-
-**dolor sit amet**
-
-`abc`
-
-:::dapr3callout
-abc
-:::
-
-
-<!-- :::: {.columns} -->
-<!-- ::: {.column width="50%"} -->
-<!-- a -->
-<!-- ::: -->
-<!-- ::: {.column width="50%"} -->
-<!-- b -->
-<!-- ::: -->
-<!-- :::: -->
-
-
-
-<!-- style="font-size: 70%;" -->
-
- <!-- <img style="vertical-align: text-bottom; width: 1.5em;" src="figs/material-symbols--draw-outline.svg"> -->
- <!-- <img style="vertical-align: text-bottom; width: 1.2em;" src="figs/material-symbols--person-rounded.svg"> -->
