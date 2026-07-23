@@ -54,33 +54,39 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=3)
 
 ## This week's learning objectives
 
-How do we interpret the random effect summaries in the output of `summary()`?
-- always relative to the fixed effects; no sig testing; ask whether pm 2 SDs changes direction of effect for some group
+:::dapr3callout
+In the model summary for an LMM, how do we interpret the random effect summaries?
 
+- always relative to the fixed effects; no sig testing; ask whether pm 2 SDs changes direction of effect for some group
+:::
+
+
+:::dapr3callout
 How do we know if a model can include random intercepts for a given grouping variable?
 
+- By thinking about the data generating process, and specifically the kind of variability that the grouping variable contributes to the data.
+- If the grouping variable contributes random variability to the data, then a model of that data must include random intercepts for that grouping variable.
+:::
+
+:::dapr3callout
 How do we know if a model can include random slopes over a given predictor for a given grouping variable?
 
+- Check if the data contains more than one value of a given predictor within at least some levels of the grouping variable.
+- (Why? Because we need at least two observations to fit a line. If there's only one value for a given predictor and a given participant, then we have no idea what a line fit to that data would look like because we don't know the second point that the line would connect.)
+:::
+
+
+:::dapr3callout
 What is a maximal model?
 
+- A model that contains all possible random effects that are permitted by the data structure.
+:::
 
 
-# Today's data (again): Log reaction times
-
-## Log reaction times in the <br> Implicit Association Test (IAT)
-
-- You're asked to categorise words from different topics together.
-- In theory, if you implicitly associate the topics, then your reaction times in the categorisation task should be faster.
-- IAT is pretty much debunked—it has very poor test–retest reliability and doesn't relate to people's behaviour ([source](https://psych.wisc.edu/Brauer/BrauerLab/index.php/implicit-bias/)) but the data is structured perfectly to teach you what I want to teach you.
+# Recap: Linear mixed models (LMMs)
 
 
-**Example of an IAT trial to test whether you implicitly relate anxiety with yourself:**
-
-![](figs/TODO-w2-IAT-calm.jpg){width=50% fig-align="center"}
-
-
-
-## Example data: Log reaction times in the <br> Implicit Association Test (IAT)
+## The data: Log reaction times in the <br> Implicit Association Test (IAT)
 
 ```{r include=F}
 implicit_data <- read_csv('data/iat.csv') |>
@@ -90,7 +96,7 @@ implicit_data <- read_csv('data/iat.csv') |>
 :::: {.columns}
 ::: {.column width="50%"}
 
-```{r fig.width = 7, fig.height = 7}
+```{r fig.width = 7, fig.height = 6.5}
 #| code-fold: true
 set.seed(1)
 implicit_data |>
@@ -107,7 +113,7 @@ implicit_data |>
 
 ```{r}
 implicit_data |>
-  head(16)
+  head(12)
 ```
 
 
@@ -115,39 +121,47 @@ implicit_data |>
 ::::
 
 :::dapr3callout
-Why do we need to model this data using random effects / a linear mixed model (LMM)?
+Why is a simple linear model not appropriate for this data?
 
-[WOO TODO]
+:::hcenter
+:::woo
+https://app.wooclap.com/events/FUNOEYF/
+:::
+:::
+
 :::
 
 
 
 ## Modelling this data with an LMM
 
-
 ```{r}
 library(lme4)
 
-implicit_full_lmm <- lmer(
-  logRT ~ pairing + 
-    (1 + pairing | ppt_id) + 
-    (1 + pairing | item_id),
+implicit_full_lmm <- lmer(      # LMMs use lme4::lmer(), not lm()
+  
+  logRT ~ pairing +             # fixed effects: predict logRT by pairing
+                                # (0 = Unassociated, 1 = Associated)
+    
+                                # random effects:
+    (1 + pairing | ppt_id) +    # for each ppt, adjust the intercept and the slope
+    
+    (1 + pairing | item_id),    # for each item, adjust the intercept and the slope
+  
   data = implicit_data
 )
 ```
 
 
   
-## Recap: What does it mean to "adjust the intercept"?
+## What does it mean to "adjust the intercept"?
+
 
 
 :::: {.columns}
 ::: {.column width="30%"}
-The average association between `logRT` and `pairing`:
+The average association between `logRT` and `pairing` (the line defined by the fixed intercept and fixed slope):
 
-<br>
-
-![](figs/TODO-w2-avg.jpg)
 :::
 
 ::: {.column width="5%"}
@@ -155,9 +169,8 @@ The average association between `logRT` and `pairing`:
 
 
 ::: {.column width="30%"}
-If a participant has a **higher log RT than average**, then they will have a **positive adjustment to the average intercept.**
+If a participant or an item has a **higher log RT than average**, then they will have a **positive adjustment** to the fixed intercept.
 
-![](figs/TODO-w2-adj-pos.jpg)
 
 :::
 
@@ -165,25 +178,46 @@ If a participant has a **higher log RT than average**, then they will have a **p
 :::
 
 ::: {.column width="30%"}
-If a participant has a **lower log RT than average**, then they will have a **negative adjustment to the average intercept.**
+If a participant or an item has a **lower log RT than average**, then they will have a **negative adjustment** to the fixed intercept.
 
-![](figs/TODO-w2-adj-neg.jpg)
 
 :::
 ::::
 
-When we include random intercepts by `ppt_id` in the model formula, we tell the model to **estimate how much the average intercept should be nudged up or down by,** in order to fit the data from each participant.
+
+:::: {.columns}
+::: {.column width="30%"}
+
+![](figs/w3-adj-recap-avg.svg)
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+
+![](figs/w3-adj-recap-int-pos.svg)
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+
+![](figs/w3-adj-recap-int-neg.svg)
+:::
+
+:::
+
+When the model includes random intercepts by `ppt_id` and by `item_id`, it will **estimate how much the fixed intercept should be nudged up or down,** in order to better fit the data from each participant and each item.
 
   
-## Recap: What does it mean to "adjust the slope"?
+## What does it mean to "adjust the slope"?
 
 :::: {.columns}
 ::: {.column width="30%"}
-The average association between `logRT` and `pairing`:
+The average association between `logRT` and `pairing` (the line defined by the fixed intercept and fixed slope):
 
-<br>
-
-![](figs/TODO-w2-avg-slp.jpg)
 :::
 
 ::: {.column width="5%"}
@@ -191,9 +225,8 @@ The average association between `logRT` and `pairing`:
 
 
 ::: {.column width="30%"}
-If a participant has a **more positive effect of `pairing` than average**, then they will have a **positive adjustment to the fixed slope of `pairing`.**
+If a participant or an item has a **more positive effect of `pairing` than average**, then they will have a **positive adjustment** to the fixed slope over `pairing`.
 
-![](figs/TODO-w2-adj-slp-pos.jpg)
 
 :::
 
@@ -201,50 +234,82 @@ If a participant has a **more positive effect of `pairing` than average**, then 
 :::
 
 ::: {.column width="30%"}
-If a participant has a **more negative effect of `pairing` than average**, then they will have a **negative adjustment to the fixed slope of `pairing`.**
+If a participant or an item has a **more negative effect of `pairing` than average**, then they will have a **negative adjustment** to the fixed slope over `pairing`.
 
-![](figs/TODO-w2-adj-slp-neg.jpg)
 
 :::
 ::::
 
-When we include random slopes over `pairing` by `ppt_id` in the model formula, we tell the model to **estimate how much the fixed intercept AND the fixed slope over `pairing` should be nudged up or down by** in order to fit the data from each participant.
 
-## Reporting this LMM structure
+:::: {.columns}
+::: {.column width="30%"}
 
-```{r eval=F}
-lmer(
-  logRT ~ pairing + 
-    (1 + pairing | ppt_id) + 
-    (1 + pairing | item_id),
-  data = implicit_data
-)
-```
+![](figs/w3-adj-recap-avg.svg)
+:::
 
-To describe this model in text, we could write
+::: {.column width="5%"}
+:::
 
-> We fit a linear mixed model to predict log RT as a function of topic pairing (treatment-coded, with the reference level "Unassociated" coded as 0 and "Associated" coded as 1).
-This model includes by-participant random intercepts and random slopes over topic pairing, as well as by-item random intercepts and random slopes over topic pairing.
+::: {.column width="30%"}
 
-or (less traditional phrasing, but more transparent about what the random effects are actually doing)
+![](figs/w3-adj-recap-slp-pos.svg)
+:::
 
-> ... This model includes by-participant and by-item adjustments both to the intercept and to the slope over topic pairing.
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+
+![](figs/w3-adj-recap-slp-neg.svg)
+:::
+
+:::
 
 <br>
 
-The golden rule when describing random effects: **be crystal clear about which grouping variables get which intercept/slope adjustments.**
+When the model includes random intercepts by `ppt_id` and by `item_id` as well as random slopes over `pairing` by `ppt_id` and by `item_id`, it will 
+
+- **estimate how much the fixed intercept should be nudged up or down** (last slide) AND
+- **how much the fixed slope should be swung up or down** (this slide)
+
+in order to better fit the data from each participant and each item.
+
+
+<!-- ## Reporting this LMM structure -->
+
+<!-- ```{r eval=F} -->
+<!-- lmer( -->
+<!--   logRT ~ pairing +  -->
+<!--     (1 + pairing | ppt_id) +  -->
+<!--     (1 + pairing | item_id), -->
+<!--   data = implicit_data -->
+<!-- ) -->
+<!-- ``` -->
+
+<!-- To describe this model in text, we could write -->
+
+<!-- > We fit a linear mixed model to predict log RT as a function of topic pairing (treatment-coded, with the reference level "Unassociated" coded as 0 and "Associated" coded as 1). -->
+<!-- This model includes by-participant random intercepts and random slopes over topic pairing, as well as by-item random intercepts and random slopes over topic pairing. -->
+
+<!-- or (less traditional phrasing, but more transparent about what the random effects are actually doing) -->
+
+<!-- > ... This model includes by-participant and by-item adjustments both to the intercept and to the slope over topic pairing. -->
+
+<!-- <br> -->
+
+<!-- The golden rule when describing random effects: **be crystal clear about which grouping variables get which intercept/slope adjustments.** -->
 
 
 # Deep dive: Interpreting LMM summaries
 
-## The full LMM summary
+## The full summary
 
 ```{r}
 summary(implicit_full_lmm)
 ```
 
 
-## We start with the fixed effects
+## Start with the fixed effects
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -253,35 +318,31 @@ cat(paste0(capture.output(
 ```
  
 <br>
+
+**Interpret the fixed effects the same way you interpret coefficients in a simple linear model.**
+
+<br>
  
-`(Intercept)`:
+**`(Intercept)`** = the estimated mean outcome when all predictors are equal to zero.
 
-- Intercepts in general:
-The estimated mean outcome when all predictors are equal to zero.
-
-- **This intercept:**
-The estimated mean log reaction time when the topic pairing is unassociated (the reference level, coded as 0) is 4.77 log units.
+- The estimated mean log reaction time when the topic pairing is unassociated (the reference level, coded as 0) is 4.77 log units.
 
 
-`pairingAssociated`:
+**`pairingAssociated`** = the estimated increase/decrease in the outcome when the predictor moves from 0 to 1.
 
-- Single-predictor regression slopes in general:
-The estimated change in the outcome when the predictor moves from 0 to 1.
-
-- **This slope:**
-When moving from unassociated pairings to associated pairings, log reaction time is estimated to decrease by 0.76 log units.
+- The log reaction time for associated pairings is estimated to be 0.76 log units smaller than the log reaction time for unassociated pairings.
 
 <br>
 
-**You may be wondering: there are t-values, so why are there no p-values?**
+**Where are the p-values?**
 
 
-## Why are there no p-values?
+## Where are the p-values?
 
-Because of the mathematics behind random effects (which you do not need to know!), we cannot translate t-values into p-values in the same way we did for simple linear models.
+The mathematics that make the random effects work (which you do not need to know!) means that we can't easily translate t-values to p-values.
+But clever people have come up with good approximations!
 
-But clever people have come up with good approximations.
-Add those approximated p-values into the model summary by 
+Add the approximated p-values into the model summary by 
 
 - loading the library `lmerTest`, and
 - re-fitting the LMM using `lmer()`.
@@ -316,7 +377,7 @@ cat('\n...')
 ```
 
 
-## Full fixed effects interpretation, <br> now including p-values
+## Fixed effects, now with p-values
 
 ```{r echo=F}
 cat(paste0(
@@ -330,36 +391,42 @@ cat(paste0(
 `(Intercept)`:
 
 - The estimated mean log reaction time when the topic pairing is unassociated (the reference level, coded as 0) is 4.77 log units.
-- (significance testing for intercepts is usually only interesting for logistic regression models—where 0 log-odds is the same as 50/50 chance of success—so no need to discuss the intercept's p-value for this model)
+- (it's usually only interesting to talk about the intercept's p-value if we're fitting a logistic regression model, so for continuous outcomes like log RT, we will skip it)
 
 
 `pairingAssociated`:
 
-- When moving from unassociated pairings to associated pairings, log reaction time is estimated to decrease by 0.76 log units.
-- This decrease is significantly different from zero (p < 0.001).
+- The log reaction time for associated pairings is estimated to be 0.76 log units smaller than the log reaction time for unassociated pairings.
+- This estimate is significantly different from zero ($p$ < .001).
 
 <br>
 
 
 
-## Now we can look at the random effects
+## Next, look at the random effects
 
 ```{r echo=F}
 cat(paste0(capture.output(
   summary(implicit_full_lmm)
 ), '\n')[12:20])
 ```
-**First:** sense check the quantities in the final line.
+**First:** Sense check the quantities in the final line.
 
-- Is the stated number of observations (6400) correct?
-- Is the stated number of distinct levels of `ppt_id` (100) correct?
-- Is the stated number of distinct levels of `item_id` (32) correct?
+- Is the number of observations (6400) correct?
+- Is the number of distinct levels of `ppt_id` (100) correct?
+- Is the number of distinct levels of `item_id` (32) correct?
+
+If not, the data is probably not formatted correctly. Do any fixes you need.
 
 
-**Then:** read the rest of this output like a table with columns named `Groups`, `Name`, `Variance`, `Std.Dev.`, and `Corr`.
+<br>
+
+**Then:** Look at the rest of the output and try to read it like a table like this:
+
+![](figs/w3-ranef-tab.svg){fig-align="center"}
 
 
-## Interpreting random effects, piece by piece (1)
+## Intercept adjustments for each `ppt_id`
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -384,7 +451,7 @@ The number 0.78 doesn't mean much on its own.
 
 Approx 95% of participant-level intercepts are estimated to fall between about `r 4.77 - (2 * 0.78)` log units and `r 4.77 + (2 * 0.78)` log units.
 
-## Interpreting random effects, piece by piece (2)
+## `pairingAssociated` adjustments for each `ppt_id`
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -394,7 +461,7 @@ cat(paste0(capture.output(
 
 <br>
 
-**The `pairingAssociated` adjustments for each level of `ppt_id` have a SD of 0.31 log units.**
+**The `pairingAssociated` adjustments (i.e., slope adjustments over `pairing`) for each level of `ppt_id` have a SD of 0.31 log units.**
 
 Again, in order to make this number meaningful, we must interpret it in relation to the fixed effect it's adjusting: the `pairingAssociated` fixed slope estimate of –0.76.
 
@@ -405,7 +472,7 @@ Approx 95% of participant-level slopes over `pairing` are estimated to fall betw
 
 
 
-## Interpreting random effects, piece by piece (3)
+## Correlation between by-participant slope and intercept adjustments
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -424,7 +491,7 @@ dotplot.ranef.mer(ranef(implicit_full_lmm))$ppt_id
 
 
 
-## Interpreting random effects, piece by piece (4)
+## Intercept adjustments for each `item_id`
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -450,7 +517,7 @@ Approx 95% of item-level intercepts are estimated to fall between about `r 4.77 
 This range for items is larger than the range for participants, which means that items show more variability around the fixed intercept than participants do.
 
 
-## Interpreting random effects, piece by piece (5)
+## `pairingAssociated` adjustments for each `item_id`
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -476,7 +543,7 @@ In other words, they might elicit faster reactions for unassociated pairings and
 Again, the item-level variation in slopes over `pairing` is greater than participant-level variation.
 
 
-## Interpreting random effects, piece by piece (6)
+## Residuals
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -499,7 +566,7 @@ dotplot.ranef.mer(ranef(implicit_full_lmm))$item_id
 
 
 
-## Interpreting random effects, piece by piece (7)
+## Correlation between by-item intercept and slope adjustments
 
 ```{r echo=F}
 cat(paste0(capture.output(
@@ -524,21 +591,19 @@ We can usually just ignore it.)
 
 # Plotting model-fitted values from LMMs
 
-## Use `effect()` to compute the model's predicted values
+## Use `Effect()` to compute the model's predicted values
 
-In the library `effects`, there is a function called `effect()`.
+In the library `effects`, there is a function called `Effect()`.
 
-<!-- It is a bit like `emmeans()` from DAPR2, but it works for continuous AND categorical predictors. -->
-
-`effect()` tells us the outcome values that the model would estimate/predict for each level of our predictor, as well as the 95% CI around those values.
+It gives us the outcome values that the model would estimate/predict for each level of our predictor, as well as the 95% CI around those values.
 
 
 ```{r}
 library(effects)
 
-effect(
-  term = "pairing",         # what predictor do we want predictions for?
-  mod = implicit_full_lmm   # what model should predictions be based on?
+Effect(
+  focal.predictors = c("pairing"),   # what predictor do we want predictions for?
+  mod = implicit_full_lmm            # what model should predictions be based on?
 ) |>
   as.data.frame()
 ```
