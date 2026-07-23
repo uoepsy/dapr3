@@ -54,45 +54,54 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=2)
 
 ## This week's learning objectives
 
-:::dapr3callout
-How do we tell a linear model that relationships between variables might be different for different levels of our grouping variables?
-:::
+<!-- - How do we tell a linear model that relationships between variables might be different for different levels of our grouping variables? -->
 
-:::dapr3callout
-What makes a linear mixed model different from a simple linear model?
-:::
+- What makes a linear mixed model different from a simple linear model?
+- What are intercept adjustments?
+- What are slope adjustments?
+- What are random effects?
+
 
 
 # This week's data
 
 ## Example data: Reaction times in the <br> Implicit Association Test (IAT)
 
-- You're asked to categorise words from different topics together.
-- In theory, if you implicitly associate the topics, then your reaction times in the categorisation task should be faster.
-- IAT is pretty much debunked—it has very poor test–retest reliability and doesn't relate to people's behaviour ([source](https://psych.wisc.edu/Brauer/BrauerLab/index.php/implicit-bias/)) but the data is structured perfectly to teach you what I want to teach you.
+The IAT asks you to categorise words from different topics together as quickly and accurately as you can.
 
-:::{.fragment}
-
-**Example of an IAT to test whether you implicitly relate anxiety with yourself:**
+For example, to test if you implicitly associate anxiety with yourself:
 
 ::::{.r-stack}
 
-![](figs/TODO-w2-IAT-calm.jpg){width=50% fig-align="center"}
+:::{.fragment}
+
+![](figs/w2-IAT-calm.svg){width=50% fig-align="center"}
+:::
 
 :::{.fragment}
 
-![](figs/TODO-w2-IAT-stressed.jpg){width=50% fig-align="center"}
-
+![](figs/w2-IAT-stressed.svg){width=50% fig-align="center"}
 
 :::
 
 
 :::{.fragment}
 
-![](figs/TODO-w2-IAT-self.jpg){width=50% fig-align="center"}
+![](figs/w2-IAT-self.svg){width=50% fig-align="center"}
+
 :::
 ::::
+
+:::fragment
+
+In theory, if you implicitly associate anxiety and yourself, then your reaction times should be faster for the category "anxious and me" (associated) compared to the category, e.g., "anxious and others" (unassociated).
+
+Note: The IAT 
+[doesn't actually work](https://psych.wisc.edu/Brauer/BrauerLab/index.php/implicit-bias/){target="_blank"}, but the data is structured perfectly to teach you what I want to teach you!
+
 :::
+
+
 
 ## Example data: Log reaction times in the <br> Implicit Association Test (IAT)
 
@@ -168,7 +177,7 @@ implicit_data |>
 :::
 ::::
 
-Reaction times in milliseconds are mostly very small, so **the assumption of normal distribution of errors is not met.**
+Reaction times in milliseconds have a very skewed distribution, so **the assumption of normal distribution of errors is not met.**
 To get around this, we take their logarithm.
 
 
@@ -187,10 +196,11 @@ implicit_data |>
   count()
 ```
 
+
 :::
 ::: {.column width="50%"}
 
-`item_id`: the word that people categorise (e.g., "self", "supported", "calm").
+`item_id`: the word that people categorise (e.g., "calm", "stressed", "self").
 
 ```{r}
 implicit_data |>
@@ -213,7 +223,7 @@ This is something that `xtabs()` from the `stats` package can do for us.
 
 ```{r}
 stats::xtabs(
-  ~ ppt_id + item_id,    # write the variables to crosstabulate in this weird format
+  ~ ppt_id + item_id,    # write the variables to crosstabulate in this format
   data = implicit_data
 )
 ```
@@ -241,7 +251,7 @@ p_implicit_ppts <- implicit_data |>
   theme(
     strip.background = element_blank(),
     panel.border = element_rect(linewidth = 1),
-    panel.grid.minor = element_blank()
+    panel.grid = element_blank()
   )
 
 p_implicit_ppts
@@ -269,14 +279,14 @@ p_implicit_items <- implicit_data |>
   theme(
     strip.background = element_blank(),
     panel.border = element_rect(linewidth = 1),
-    panel.grid.minor = element_blank()
+    panel.grid = element_blank()
   )
 
 p_implicit_items
 ```
 
 
-## How do we tell a model that the relationship between variables can be different for different participants and different items?
+## How do we tell a model that particpants and items don't all perform the same?
 
 <br>
 
@@ -287,11 +297,11 @@ We'll start with how *not* to model this data, each time getting closer to how w
 
 # The first wrong way to model this data
 
-## The first wrong way to model this data: <br> Just fit a simple LM
+## The first wrong way to model this data: <br> Ignore groups and fit a simple LM
 
 ```{r}
 implicit_lm <- lm(
-  logRT ~ pairing,  # predicting logRT as a function of pairing (unassoc. vs. assoc.)
+  logRT ~ pairing,  # predict logRT as a function of pairing (Unassoc = 0, Assoc = 1)
   data = implicit_data
 )
 ```
@@ -415,7 +425,7 @@ Fit one simple linear model to the whole dataset
 ::: {.column width="30%" .fragment fragment-index=3}
 **Fit one linear model which**
 
-- **estimates the average relationship across the whole dataset**
+- **estimates the average effect across the whole dataset**
 - **also estimates how each participant and each item *differ* from that average**
 
 <br>
@@ -442,13 +452,28 @@ Fit a different simple linear model to data from each participant or each item
 ::::
 
 
+## What does it mean for participants/items to differ from the average effect?
+
+<br>
+
+Let's start thinking it through together.
+
+<br>
+
+
+:::hcenter
+:::woo
+https://app.wooclap.com/events/UGASPNX/
+:::
+:::
+
 
 
 
 
 # The right way to model this data: A linear mixed model (LMM)
 
-## Linear mixed models (LMMs)
+## Our first linear mixed model (LMM)
 
 Instead of `lm()`, we have to use `lmer()` from the library `lme4`.
 
@@ -465,53 +490,54 @@ implicit_lmm_int <- lmer(
 
 **What is `(1 | ppt_id)`?**
 
-It tells the model to *adjust* the main intercept estimate for each `ppt_id`.
+- It tells the model to *adjust* the main intercept estimate for each `ppt_id`.
+- We call it an "intercept adjustment by `ppt_id`" or a "random intercept by `ppt_id`".
 
  
   
-## What does it mean to "adjust the intercept"?
+## Intercept adjustments by `ppt_id`
 
-
-:::: {.columns}
-::: {.column width="30%"}
-The average association between `logRT` and `pairing`:
+`(1 | ppt_id)` tells the model to **estimate how much the average intercept should be nudged up or down,** in order to best fit the data from each participant.
 
 <br>
 
-![](figs/TODO-w2-avg.jpg)
-:::
-
-::: {.column width="5%"}
-:::
-
-
-::: {.column width="30%"}
-If a participant has a **higher log RT than average**, then they will have a **positive adjustment to the average intercept.**
-
-![](figs/TODO-w2-adj-pos.jpg)
-
-:::
-
-::: {.column width="5%"}
-:::
-
-::: {.column width="30%"}
-If a participant has a **lower log RT than average**, then they will have a **negative adjustment to the average intercept.**
-
-![](figs/TODO-w2-adj-neg.jpg)
-
-:::
-::::
-
-When we include `(1 | ppt_id)` in the model formula, we tell the model to **estimate how much the average intercept should be nudged up or down by,** in order to fit the data from each participant.
-
-The model can give us a list of adjustments, one for each `ppt_id`, for example:
+We can use `ranef()` to extract the list of these adjustments:
 
 ```{r}
 ranef(implicit_lmm_int)$ppt_id |> head()
 ```
 
 
+<br>
+
+:::: {.columns}
+::: {.column width="30%"}
+For example, for `ppt1`:
+
+![](figs/w2-int-ppt1.svg)
+:::
+
+::: {.column width="5%"}
+:::
+
+
+::: {.column width="30%"}
+For `ppt10`:
+
+![](figs/w2-int-ppt10.svg)
+
+:::
+
+::: {.column width="5%"}
+:::
+
+::: {.column width="30%"}
+For `ppt100`:
+
+![](figs/w2-int-ppt100.svg)
+
+:::
+::::
 
 ## Plot each participant's intercept adjustments
 
@@ -536,18 +562,17 @@ summary(implicit_lmm_int)
 
 New sections in the model summary!
 
-**Random effects:**
+**"Random effects:"**
 
 - The by-participant adjustments to the intercept (and how variable they are).
-  - Also called **random intercepts** or **varying intercepts**.
 - The residuals, that is, how far each participant's data points are from their adjusted line (and how variable the residuals are).
 
 
-**Fixed effects:**
+**"Fixed effects:"**
 
 - The average intercept and average slope for the whole dataset.
   - Also called **fixed intercept** and **fixed slope.**
-- These are the same $\beta$ coefficients you got to know in DAPR2.
+- These are the same $\beta$ coefficients as always. Same interpretations apply.
 
 :::
 ::::
@@ -589,6 +614,23 @@ Each participant's line has a different intercept, but they all still have the s
 
 ## Adding slope adjustments for each participant
 
+<br>
+
+Let's think together about what different slope adjustments might look like.
+
+<br>
+
+:::hcenter
+:::woo
+https://app.wooclap.com/events/UGASPNX/
+:::
+:::
+
+
+
+
+## Estimating intercept AND slope adjustments for each participant
+
 ```{r}
 implicit_lmm_int_slp <- lmer(
   logRT ~ pairing + (1 + pairing | ppt_id),
@@ -600,55 +642,74 @@ implicit_lmm_int_slp <- lmer(
 
 `(1 + pairing| ppt_id)` tells the model to adjust the fixed intercept **and** the fixed slope over `pairing` for each `ppt_id`.
 
-- The `1` represents the adjustment to the fixed intercept.
-- The `+ pairing` represents the adjustment to the fixed slope over `pairing`.
+- `1` represents the adjustment to the fixed intercept.
+- `+ pairing` represents the adjustment to the fixed slope over `pairing`.
 <!-- - It is possible and common to include intercept adjustments without slope adjustments. -->
   <!-- - You'll probably never need to estimate slope adjustments without intercept adjustments.  -->
   <!-- - In other words, if your model has a slope adjustment, your model should also have an intercept adjustment; but if your model has an intercept adjustment, it may or may not have a slope adjustment. -->
  
-  
-## What does it mean to "adjust the slope"?
+
+<!-- ## What does it mean to "adjust the slope"? -->
 
 
-:::: {.columns}
-::: {.column width="30%"}
-The average association between `logRT` and `pairing`:
+<!-- :::: {.columns} -->
+<!-- ::: {.column width="30%"} -->
+<!-- The average association between `logRT` and `pairing`: -->
 
-<br>
+<!-- <br> -->
 
-![](figs/TODO-w2-avg-slp.jpg)
-:::
+<!-- ![](figs/TODO-w2-avg-slp.jpg) -->
+<!-- ::: -->
 
-::: {.column width="5%"}
-:::
+<!-- ::: {.column width="5%"} -->
+<!-- ::: -->
 
 
-::: {.column width="30%"}
-If a participant has a **more positive effect of `pairing` than average**, then they will have a **positive adjustment to the fixed slope of `pairing`.**
+<!-- ::: {.column width="30%"} -->
+<!-- If a participant has a **more positive effect of `pairing` than average**, then they will have a **positive adjustment to the fixed slope of `pairing`.** -->
 
-![](figs/TODO-w2-adj-slp-pos.jpg)
+<!-- ![](figs/TODO-w2-adj-slp-pos.jpg) -->
 
-:::
+<!-- ::: -->
 
-::: {.column width="5%"}
-:::
+<!-- ::: {.column width="5%"} -->
+<!-- ::: -->
 
-::: {.column width="30%"}
-If a participant has a **more negative effect of `pairing` than average**, then they will have a **negative adjustment to the fixed slope of `pairing`.**
+<!-- ::: {.column width="30%"} -->
+<!-- If a participant has a **more negative effect of `pairing` than average**, then they will have a **negative adjustment to the fixed slope of `pairing`.** -->
 
-![](figs/TODO-w2-adj-slp-neg.jpg)
+<!-- ![](figs/TODO-w2-adj-slp-neg.jpg) -->
 
-:::
-::::
+<!-- ::: -->
+<!-- :::: -->
+
+
+## Intercept and slope adjustments
 
 When we include `(1 + pairing | ppt_id)` in the model formula, we tell the model to **estimate how much the fixed intercept AND the fixed slope over `pairing` should be nudged up or down by** in order to fit the data from each participant.
 
-The model can give us a list of adjustments, one for each `ppt_id`, for example:
+<br>
+
+Let's look at the adjustments that the model has estimated:
 
 ```{r}
 ranef(implicit_lmm_int_slp)$ppt_id |> head()
 ```
 
+<br>
+
+::::{.columns}
+:::{.column width="50%"}
+For example, for `ppt1`:
+
+![](figs/w2-intslp-ppt1.svg){width="70%"}
+:::
+:::{.column width="50%"}
+For `ppt10`:
+
+![](figs/w2-intslp-ppt10.svg){width="70%"}
+:::
+::::
 
 
 ## Plot each participant's intercept and slope adjustments
@@ -759,6 +820,37 @@ and also
 - random slopes (aka slope adjustments) over `pairing` by `item_id`
 
 
+## Look at all the adjustments
+
+::::{.columns}
+:::{.column width="50%"}
+```{r}
+ranef(implicit_full_lmm)$ppt_id |> 
+  head(12)
+```
+
+<br>
+
+For example, for `ppt1:`
+
+![](figs/w2-full-lmm-intslp-ppt1.svg){width="70%" fig-align="center"}
+:::
+:::{.column width="50%"}
+```{r}
+ranef(implicit_full_lmm)$item_id |> 
+  head(12)
+```
+
+<br>
+
+For example, for `item1:`
+
+![](figs/w2-full-lmm-intslp-item1.svg){width="70%" fig-align="center"}
+:::
+::::
+
+
+
 ## Plot the by-participant intercept and slope adjustments
 
 ```{r}
@@ -814,6 +906,9 @@ p_implicit_items +
   - **A linear mixed model has random effects.**
 
 - "Random effects": an umbrella term that refers to both **random intercepts** and **random slopes**.
+
+- Sometimes we fit LMMs that have only random intercepts, or LMMs that have both random intercepts and random slopes.
+  - We don't really ever fit LMMs that have only random slopes.
 
 - We are teaching you how to use LMMs because they are the current state of the art for doing inferential statistics in Psychology and adjacent fields (especially for experimental/clinical research.)
 
@@ -874,49 +969,45 @@ We really like seeing you in office hours!
 # Appendix {.appendix}
 
 
+## Wooclap images (1)
 
-## abc
+Is the participant's intercept more positive or more negative than the average intercept?
 
-dolor sit amet
+:::hcenter
 
-**dolor sit amet**
+![](figs/woo/w2-adj-int-pos1.png){width="40%"}
 
-`abc`
+![](figs/woo/w2-adj-int-neg1.png){width="40%"}
 
-:::dapr3callout
-abc
+![](figs/woo/w2-adj-int-pos2.png){width="40%"}
+
+:::
+
+## Wooclap images (2)
+
+Is the participant's slope more positive or more negative than the average slope?
+
+:::hcenter
+
+![](figs/woo/w2-adj-slp-neg1.png){width="40%"}
+
+![](figs/woo/w2-adj-slp-neg2.png){width="40%"}
+
+![](figs/woo/w2-adj-slp-pos1.png){width="40%"}
+
 :::
 
 
-<!-- :::: {.columns} -->
-<!-- ::: {.column width="50%"} -->
-<!-- a -->
-<!-- ::: -->
-<!-- ::: {.column width="50%"} -->
-<!-- b -->
-<!-- ::: -->
-<!-- :::: -->
+## Wooclap images (3)
 
+Are the participant's intercept and slope each more positive or more negative than the average intercept and slope?
 
+:::hcenter
 
-<!-- :::: {.columns} -->
-<!-- ::: {.column width="30%"} -->
-<!-- a -->
-<!-- ::: -->
-<!-- ::: {.column width="5%"} -->
-<!-- ::: -->
-<!-- ::: {.column width="30%"} -->
-<!-- b -->
-<!-- ::: -->
-<!-- ::: {.column width="5%"} -->
-<!-- ::: -->
-<!-- ::: {.column width="30%"} -->
-<!-- c -->
-<!-- ::: -->
-<!-- :::: -->
+![](figs/woo/w2-adj-int-pos-slp-pos.png){width="40%"}
 
+![](figs/woo/w2-adj-int-pos-slp-neg.png){width="40%"}
 
-<!-- style="font-size: 70%;" -->
+![](figs/woo/w2-adj-int-neg-slp-pos.png){width="40%"}
 
- <!-- <img style="vertical-align: text-bottom; width: 1.5em;" src="figs/material-symbols--draw-outline.svg"> -->
- <!-- <img style="vertical-align: text-bottom; width: 1.2em;" src="figs/material-symbols--person-rounded.svg"> -->
+:::
