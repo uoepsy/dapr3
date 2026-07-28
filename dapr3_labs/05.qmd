@@ -95,33 +95,39 @@ library(lmerTest)
 library(stats)
 library(HLMdiag)
 library(effects)
-library(sjPlot)
+library(car)
 
 # Read in data
 eds_data <- read_csv("https://uoepsy.github.io/data/crqeds.csv")
 
-# Tidy data -- looks fine
+# Tidy data
 glimpse(eds_data)
+
+summary(eds_data$EDS)
+summary(eds_data$CRQ)
+table(eds_data$schoolid)
+table(eds_data$schooltype)
+
 is.na(eds_data) |> table()
 
 
 ## 1b: Set up fixed effects ----
 
-# Identify outcome + fixefs:
+# Identify outcome + predictors:
 # RQ: Controlling for the type of school that children attend, are children with
 # stronger routines better at regulating their emotions?
 # - Outcome: EDS
 # - Predictors: schooltype, CRQ
 
 # Do we need an interaction?
-# No, because we're just controlling for schooltype, not looking at how 
-# different schooltypes affect the association between EDS and CRQ.
+# - No, because we're just controlling for schooltype, not looking at how 
+#   different schooltypes affect the association between EDS and CRQ.
 
 # Regular or logistic regression?
-# EDS is not a binary variable, so regular regression.
+# - EDS is not a binary variable, so regular regression.
 
 # Set up categorical predictors: schooltype.
-# Convert schooltype to factor and check ref level.
+# - Convert schooltype to factor and check ref level.
 eds_data <- eds_data |>
   mutate(
     schooltype = factor(schooltype)
@@ -129,33 +135,38 @@ eds_data <- eds_data |>
 contrasts(eds_data$schooltype)  # ref level = Private
 
 # Set up continuous predictors: CRQ.
-# CRQ ranges from 0 to 7, so it's justifiable to leave it as-is.
-# NB: Mean-centering would also be justifiable, since no observations = 0.
+# - CRQ ranges from 0 to 7, so it's justifiable to leave it as-is.
+# - NB: Mean-centering would also be justifiable, since no observations = 0.
 eds_data$CRQ |> sort()
 
 # Explore patterns by plotting outcome and predictor variables together.
+# - one version with schooltype as colour
 eds_data |>
   ggplot(aes(x = CRQ, y = EDS, colour = schooltype)) +
   geom_point()
-
+# - another version with schooltype as facets
+eds_data |>
+  ggplot(aes(x = CRQ, y = EDS)) +
+  geom_point() +
+  facet_wrap(~ schooltype)
 
 ## 1c: Set up random effects ----
 
 # Identify grouping variables that contribute random variability:
-# The only remaining variable is schoolid, so check if it is a
-# grouping variable -- and it is.
+# - The only remaining variable is schoolid, so check if it is a
+# - grouping variable (i.e., if each schoolid has multiple observations)
 eds_data |>
   group_by(schoolid) |>
   count()
-# And we want our results to generalise over lots of schools, not just these,
-# and we could survey different schools and answer the same RQ. So, yes,
-# random variability, and therefore we'll need random intercept by schoolid.
+# - And we want our results to generalise over lots of schools, not just these,
+#   and we could survey different schools and answer the same RQ. So, yes,
+#   random variability, and therefore we'll need random intercept by schoolid.
 
 # Describe randomly-varying grouping variables:
-# How many levels?
+# - How many levels?
 n_distinct(eds_data$schoolid)
-# Already computed how many children per school (see above).
-# Summary stats about how many obs per level?
+# - Just computed how many children per school (see above).
+# - Summary stats about how many obs per level?
 eds_data |>
   group_by(schoolid) |>
   count() |>
@@ -163,21 +174,23 @@ eds_data |>
   summarise(
     mean_obs = mean(n),
     med_obs  = median(n),
-    max_obs  = max(n),
-    min_obs  = min(n)
+    min_obs  = min(n),
+    max_obs  = max(n)
   )
 
 # Identify random slopes.
-# Does each level of schoolid appear with at least one value of CRQ? Yes.
+# - Does each level of schoolid appear with at least one value of CRQ? 
+# - Yes, though the xtabs trick is a bit silly with a continuous predictor.
 xtabs(~ schoolid + CRQ, data = eds_data)
-# A trick from the flash cards to count the non-zero values: 
+# - A trick from the flash cards to count all the non-zero values per school: 
 (xtabs(~ schoolid + CRQ, data = eds_data)  != 0) |> rowSums()
 
-# Does each level of schoolid appear with at least one value of schooltype? No.
+# Does each level of schoolid appear with at least one value of schooltype? 
+# - No.
 xtabs(~ schoolid + schooltype, data = eds_data)
 
 # Maximal model formula:
-# EDS ~ schooltype + CRQ + (1 + CRQ | schoolid)
+# - EDS ~ schooltype + CRQ + (1 + CRQ | schoolid)
 
 
 # PHASE 2 ----
@@ -195,38 +208,42 @@ VarCorr(eds_m1)
 
 # PHASE 3 ----
 
-
 ## 3a: Check assumptions and diagnostics ----
 
 # Check model assumptions:
 
-# Linearity of association:
+# - Linearity of association:
 plot(eds_m1, 
      type=c(
        "p",      # includes points representing Pearson residuals
        "smooth"  # includes smoothed line representing mean of residuals
      )
 )
-# Linearity appears violated, but fun fact: residual-vs-fitted plots for LMMs
-# often trend upward like this, especially when there are only a few observations
-# per level of grouping variable. So not actually a cause for concern.
+# - Linearity appears violated, but fun fact: residual-vs-fitted plots for LMMs
+# - often trend upward like this, especially when there are only a few observations
+# - per level of grouping variable. So not actually a cause for concern.
 
-# Normality of errors:
+# - Normality of errors:
 qqnorm(resid(eds_m1)); qqline(resid(eds_m1))
-# Deviation at extremes.
-# This is because EDS is bounded between 1 and 6, and LMs aren't built to handle that.
-# Beyond DAPR3, there are other kinds of generalised LMs that are better for 
-# bounded data.
+# - Some deviations at extremes.
+# - This is because EDS is bounded between 1 and 6, and we see the taper that reflects this.
+# - But this LMM assumes outcome is truly continuous.
+# - Beyond DAPR3, there are other kinds of generalised LMs that are better for 
+#   bounded data. But it's OK for now.
 
-# Revisit residuals-vs-fitted plot for equal variance of errors: looks fine.
+# - Revisit residuals-vs-fitted plot for equal variance of errors: looks fine.
 
-# Normality of random effects:
+# - Normality of random effects:
 qqnorm(ranef(eds_m1)$schoolid[,1]); qqline(ranef(eds_m1)$schoolid[,1])
-# ^ could be better. could also be worse.
+# - ^ could be better. could also be worse.
 qqnorm(ranef(eds_m1)$schoolid[,2]); qqline(ranef(eds_m1)$schoolid[,2])
-# ^ better except for one slope adjustment being smaller than we'd expect!
+# - ^ better except for one slope adjustment being way smaller than we'd expect!
 # Not perfect but OK overall.
 # SD will probably be an OK representation of the spread of these adjustments.
+
+
+# Run diagnostics for multicollinearity.
+vif(eds_m1)  # all = 1
 
 
 # Check influence of observations and schools
@@ -242,12 +259,24 @@ dotplot_diag(inf_schoolid$cooksd, index = inf_schoolid$schoolid, cutoff = "inter
 ## 3b: Plot and interpret model estimates ----
 
 # Plot model-fitted values:
-effect(term = c("CRQ", 'schooltype'), mod = eds_m1) |> as.data.frame()
-# CRQ is spaced weird, so we'll manually define a range from 0 to 7
-effect(term = c("CRQ", 'schooltype'), mod = eds_m1, xlevels = list(CRQ = 0:7)) |>
+
+Effect(focal.predictors = c("CRQ", 'schooltype'), mod = eds_m1) |> 
+  as.data.frame()
+
+# - CRQ is spaced weird, so we'll ask for more levels
+Effect(
+  focal.predictors = c("CRQ", 'schooltype'), 
+  mod = eds_m1, 
+  xlevels = 20  # how many levels for continuous x axis predictor
+) |>
   as.data.frame() 
-# better. now plot it:
-effect(term = c("CRQ", 'schooltype'), mod = eds_m1, xlevels = list(CRQ = 0:7)) |>
+
+# - better. now plot it:
+Effect(
+  focal.predictors = c("CRQ", 'schooltype'), 
+  mod = eds_m1, 
+  xlevels = 20
+) |>
   as.data.frame() |>
   ggplot(aes(x = CRQ, y = fit)) +
   geom_line(aes(colour = schooltype)) +
@@ -276,11 +305,14 @@ dotplot.ranef.mer(ranef(eds_m1))
 # Interpret SD of random effects relative to fixed effects.
 VarCorr(eds_m1)
 # - The by-school intercept adjustments have a SD of 0.46 points. Thus the model
-#   suggests that 95% of the adjusted school-level intercepts fall between 4.53 –
-#   2 * 0.46 = 3.61 and 4.53 + 2 * 0.46 = 5.45 EDS points.
+#   suggests that 95% of the adjusted school-level intercepts fall between 
+4.53 - 2 * 0.46 #  3.61 and 
+4.53 + 2 * 0.46 #  5.45 EDS points.
 # - The by-school adjustments to the slope over CRQ have a SD of 0.14 points. 
 #   Thus the model suggests that 95% of the adjusted school-level slopes over 
-#   CRQ fall between –0.17 – 2 * 0.14 = –0.45 and –0.17 + 2 * 0.14 = 0.11. 
+#   CRQ fall between 
+-0.17 - 2 * 0.14 #  -0.45 and 
+-0.17 + 2 * 0.14 #  0.11.
 #   Thus most schools show a negative association between CRQ and EDS (meaning 
 #   that as routine increases, dysregulation decreases—in line with the 
 #   hypothesis), but some schools are also estimated to show a positive 
@@ -293,7 +325,12 @@ VarCorr(eds_m1)
 #   adjustment to the slope of CRQ. Since this fixed slope is already negative,
 #   the more negative adjustments suggest that the effect of CRQ tends to be 
 #   stronger in schools with pupils having higher emotional dysregulation.
+
+## 3c: Write up methods and results ----
+
 ```
+
+
 
 
 :::
