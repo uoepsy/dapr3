@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAPR3 EFA Interactive Workflow Guide</title>
+<style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --secondary: #475569;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #0f172a;
+            --border-color: #cbd5e1;
+            --code-bg: #090d16;
+            --code-text: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            max-width: 850px;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+            font-size: 1.75rem;
+        }
+
+        .stepper-container {
+            width: 100%;
+            max-width: 950px; /* Slightly widened container to fit code comfortably */
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05);
+        }
+
+        .progress-indicator {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .step-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .step-dot.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 0 0 4px var(--primary-light);
+        }
+
+        .step-dot.completed {
+            background: #10b981;
+            color: white;
+        }
+
+        .step-content-area {
+            min-height: 340px;
+        }
+
+        .step-header-title {
+            color: var(--primary);
+            font-size: 1.2rem;
+            margin-top: 0;
+            margin-bottom: 0.3rem;
+        }
+
+        .step-desc {
+            color: var(--secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Adjusted grid ratio: Gives more space to the text column (1.25fr) than the code column (0.85fr) */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.0fr 1.0fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .section-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--secondary);
+            margin-bottom: 0.4rem;
+        }
+
+        .steps-list {
+            padding-left: 1.1rem;
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .steps-list li {
+            margin-bottom: 0.45rem;
+        }
+
+        pre.code-block-wrapper {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 0;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        code.code-box {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            border-radius: 0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.72rem;
+            white-space: pre-wrap; /* Allows long code strings to wrap cleanly without forcing massive horizontal scroll */
+            word-break: break-word;
+            display: block;
+            line-height: 1.4;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.25rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #1d4ed8;
+        }
+
+        .btn:disabled {
+            background: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: var(--secondary);
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>EFA Workflow</h1>
+    </header>
+
+    <div class="stepper-container">
+        
+        <!-- Progress Dots -->
+        <div class="progress-indicator" id="progress-dots"></div>
+
+        <!-- Step Details Area -->
+        <div class="step-content-area" id="step-content"></div>
+
+        <!-- Navigation Buttons -->
+        <div class="nav-buttons">
+            <button class="btn btn-secondary" id="prev-btn" onclick="changeStep(-1)">&#8592; Previous Step</button>
+            <span id="step-counter" style="font-size: 0.85rem; font-weight: 600; color: var(--secondary);"></span>
+            <button class="btn" id="next-btn" onclick="changeStep(1)">Next Step &#8594;</button>
+        </div>
+
+    </div>
+
+    <script>
+        const efaSteps = [
+            {
+                id: 1,
+                title: "Step 1: Check suitability of items",
+                summary: "",
+                details: [
+                    "<strong>Scatterplots & Linearity:</strong> Use <code>pairs.panels()</code> to inspect pairwise scatterplots. EFA assumes continuous variables with linear relationships between them.",
+                    "<strong>Bartlett's Test:</strong> Tests whether the correlation matrix is different from the identity matrix. You want p < .05.",
+                    "<strong>Kaiser-Meyer-Olkin (KMO):</strong> measure of sampling adequacy - the proportion of variance among items that might be shared/common variance. Overall KMO and individual item values should ideally be >0.60 for EFA."
+                ],
+                code: `library(psych)
+# using the bfi data:
+mydata <- bfi
+item_cols <- c("A1","A2","A3","A4","A5","C1","C2","C3","C4","C5")
+
+# scatterplots
+pairs.panels(mydata[, item_cols])
+
+# bartlett
+cortest.bartlett(mydata[, item_cols])
+
+# KMO
+KMO(mydata[, item_cols])`
+            },
+            {
+                id: 2,
+                title: "Step 2: Decide on rotation & factor extraction method",
+                summary: "",
+                details: [
+                    "<strong>Extraction Method:</strong> <code>fm='minres'</code> (minimum residual, default), <code>fm='ml'</code> (maximum likelihood), or <code>fm='pa'</code> (principal axis factoring).",
+                    "<strong>Rotation:</strong> Orthogonal (e.g., <code>'varimax'</code>) constraints factors to be uncorrelated. Oblique (e.g., <code>'oblimin'</code> and <code>'promax'</code>) allow factors to correlate. If in doubt, go oblique!"
+                ],
+                code: `# The fa() function requires us to specify, e.g.:  
+
+# using max likelihood estimation
+fa(...., ...., fm = "ml", ....)
+
+# using an oblique rotation
+fa(...., rotate = "oblimin", ....)`
+            },
+            {
+                id: 3,
+                title: "Step 3: Examine plausible number of factors",
+                summary: "",
+                details: [
+                    "<strong>Parallel analysis:</strong> Compares eigenvalues for observed data against simulated random data. Will recommend a number",
+                    "<strong>Scree plot:</strong> Keep factors up until the scree plot flattens out (keep those before the 'kink'/'elbow')",
+                    "<strong>Minimum Average Partial (MAP):</strong> sequentially removes components and examines average partial correlation. Will recommend a number"
+
+                ],
+                code: `library(psych)
+# using the bfi data:
+mydata <- bfi
+item_cols <- c("A1","A2","A3","A4","A5","C1","C2","C3","C4","C5")
+
+# paralel analysis: 
+fa.parallel(mydata[, item_cols])
+
+# scree plot:
+scree(mydata[, item_cols])
+
+# MAP:
+VSS(mydata[, item_cols])`
+            },
+            {
+                id: 4,
+                title: "Step 4: Choose range of factor solutions to fit and compare",
+                summary: "",
+                details: [
+                    "<strong>Use all methods:</strong> parallel analysis provides a max, MAP provides a min.",
+                    "<strong>Be robust:</strong> if all methods recommend the same number of factors, examine 1 either side too."
+                ],
+                code: ""
+            },
+            {
+                id: 5,
+                title: "Step 5: Fit factor models & evaluate/compare solutions",
+                summary: "",
+                details: [
+                    "<strong>Variance explained:</strong> compare solutions with respect to total variance accounted for, proportion of variance per factor, etc.",  
+                    "<strong>Simple structure & patterns of loadings:</strong> look at the pattern matrix. Look for clean, interpretable solutions where each item loads strongly onto one factor (salient loading > 0.30) and minimally on others.",
+                    "<strong>Look for over/under extraction:</strong> factors with <3 items that have it as their primary loading indicates too many factors! Very high factor correlations may indicate you have needlessly split a factor into two. Lots of high cross-loadings (items loaded on multiple factors) may indicate too few factors!",
+		    "<strong>Watch out for Heywood cases:</strong> factor loadings and communalities can't be greater than 1!",
+	            "<strong>Theoretical coherence:</strong> do the grouping of items into factors align with the substantive construct definitions? Does it make sense?"
+                ],
+                code: `library(psych)
+# using the bfi data:
+mydata <- bfi
+item_cols <- c("A1","A2","A3","A4","A5","C1","C2","C3","C4","C5")
+
+# examining 1, 2, and 3 factor solutions:
+sol1 <- fa(mydata[,item_cols], nfactors = 1, fm = "ml")
+sol2 <- fa(mydata[,item_cols], nfactors = 2, rotate = "oblimin", fm = "ml")
+sol3 <- fa(mydata[,item_cols], nfactors = 3, rotate = "oblimin", fm = "ml")
+
+# Inspect solutions side by side (e.g., 2-factor vs 3-factor)
+print(sol1$loadings, cutoff = 0.3, sort = TRUE)
+print(sol2$loadings, cutoff = 0.3, sort = TRUE)
+print(sol3$loadings, cutoff = 0.3, sort = TRUE)`
+            },
+            {
+                id: 6,
+                title: "Step 6: Consider removing problematic items",
+                summary: "",
+                details: [
+                    "<strong>What counts as 'problematic'?</strong> Items with very low communalities, very high cross-loadings/complexity, may flag issues. Pay attention also to the item's specific meaning/wording.",
+                    "<strong>Back to the start!</strong> If you remove/modify items, then <span style='color:#dc2626; font-weight:600;'>go back to Step 1</span> and start from scratch!."
+                ],
+                code: ""
+            }
+        ];
+
+        let currentStep = 1;
+
+        function renderStepper() {
+            const dotsContainer = document.getElementById('progress-dots');
+            dotsContainer.innerHTML = '';
+            efaSteps.forEach((s) => {
+                const dot = document.createElement('div');
+                dot.className = `step-dot ${s.id === currentStep ? 'active' : ''} ${s.id < currentStep ? 'completed' : ''}`;
+                dot.innerText = s.id;
+                dot.onclick = () => goToStep(s.id);
+                dotsContainer.appendChild(dot);
+            });
+
+            const step = efaSteps[currentStep - 1];
+            const contentArea = document.getElementById('step-content');
+            
+            // Conditionally adjust grid layout or hide code section if step.code is empty
+            const hasCode = step.code && step.code.trim() !== "";
+            
+            contentArea.innerHTML = `
+                <h3 class="step-header-title">${step.title}</h3>
+                <p class="step-desc">${step.summary}</p>
+                <div class="content-grid" style="${hasCode ? '' : 'grid-template-columns: 1fr;'}">
+                    <div>
+                        <div class="section-title"></div>
+                        <ul class="steps-list">
+                            ${step.details.map(d => `<li>${d}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ${hasCode ? `
+                    <div>
+                        <div class="section-title">Minimal R Example</div>
+                        <pre class="code-block-wrapper"><code class="code-box">${step.code}</code></pre>
+                    </div>` : ''}
+                </div>
+            `;
+
+            document.getElementById('prev-btn').disabled = currentStep === 1;
+            document.getElementById('next-btn').disabled = currentStep === efaSteps.length;
+            document.getElementById('step-counter').innerText = `Step ${currentStep} of ${efaSteps.length}`;
+        }
+
+        function changeStep(direction) {
+            currentStep += direction;
+            if (currentStep < 1) currentStep = 1;
+            if (currentStep > efaSteps.length) currentStep = efaSteps.length;
+            renderStepper();
+        }
+
+        function goToStep(id) {
+            currentStep = id;
+            renderStepper();
+        }
+
+        renderStepper();
+    </script>
+
+</body>
+</html>
