@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAPR3 Block 2 Overview</title>
+    <style>
+        :root {
+            --primary: #1d4ed8;
+            --primary-light: #eff6ff;
+            --secondary: #475569;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-color: #0f172a;
+            --border-color: #cbd5e1;
+            --code-bg: #090d16;
+            --code-text: #f1f5f9;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+            font-size: 1.75rem;
+        }
+
+        .flowchart-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 900px;
+            gap: 1rem;
+        }
+
+        .node {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            width: 100%;
+            max-width: 550px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            text-align: center;
+        }
+
+        .node h3 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 1.05rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .split-row {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+
+        .goal-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .goal-node {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem 0.75rem;
+            width: 100%;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.04);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 130px;
+        }
+
+        .goal-node:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px -2px rgb(29 78 216 / 0.12);
+        }
+
+        .goal-node.selected {
+            border-color: var(--primary);
+            background-color: var(--primary-light);
+            box-shadow: 0 6px 12px -2px rgb(29 78 216 / 0.12);
+        }
+
+        .goal-node h4 {
+            margin: 0 0 0.3rem 0;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .goal-node p {
+            font-size: 0.78rem;
+            color: var(--secondary);
+            margin: 0 0 0.5rem 0;
+            line-height: 1.3;
+        }
+
+        .interactive-box {
+            width: 100%;
+            max-width: 900px;
+            background: #ffffff;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 1.25rem;
+            box-shadow: 0 10px 15px -3px rgb(29 78 216 / 0.08);
+            display: none;
+        }
+
+        .interactive-box.visible {
+            display: block;
+        }
+
+        .question-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin: 0 0 0.75rem 0;
+            text-align: center;
+        }
+
+        .options-grid {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .choice-btn {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            flex: 1;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .choice-btn:hover {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .choice-btn.selected {
+            border-color: var(--primary);
+            background-color: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .sub-question-container {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed var(--border-color);
+            display: none;
+        }
+
+        .sub-question-container.visible {
+            display: block;
+        }
+
+        .result-box {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.06);
+            display: none;
+        }
+
+        .result-box.visible {
+            display: block;
+        }
+
+        .result-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.6rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .result-box h3 {
+            margin: 0 0 0.15rem 0;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .result-box p.desc {
+            margin: 0;
+            color: var(--secondary);
+            font-size: 0.83rem;
+            font-style: italic;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+            .split-row {
+                flex-direction: column;
+            }
+            .options-grid {
+                flex-direction: column;
+            }
+        }
+
+        .section-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--secondary);
+            margin-bottom: 0.4rem;
+        }
+
+        .steps-list {
+            padding-left: 1.1rem;
+            margin: 0;
+            font-size: 0.83rem;
+            line-height: 1.5;
+        }
+
+        .steps-list li {
+            margin-bottom: 0.35rem;
+        }
+
+        pre.code-block-wrapper {
+            background: var(--code-bg);
+            color: var(--code-text);
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 0;
+            overflow-x: auto;
+        }
+
+        code.code-box {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+            border-radius: 0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.75rem;
+            white-space: pre;
+            display: block;
+            line-height: 1.4;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>DAPR3 Block 2</h1>
+    </header>
+
+    <div class="flowchart-container">
+        
+        <!-- START NODE -->
+        <div class="node">
+            <h3>Start</h3>
+            <p style="margin: 0; font-size: 0.88rem;">I have lots of variables measuring the same construct <strong>X</strong>.</p>
+        </div>
+
+        <!-- TIER 1: GOALS -->
+        <div class="split-row">
+            
+            <div class="goal-column">
+                <div id="goal-scores" class="goal-node" onclick="selectGoal('scores')">
+                    <div>
+                        <h4>I want scores for X</h4>
+                        <p>(e.g., to use in a subsequent analysis)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="goal-column">
+                <div id="goal-understand" class="goal-node" onclick="selectGoal('understand')">
+                    <div>
+                        <h4>I want to understand what it is I am measuring, and how.</h4>
+                        <p>(e.g., is there just one dimension to X, or are there multiple sub-domains?)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="goal-column">
+                <div id="goal-test" class="goal-node" onclick="selectGoal('test')">
+                    <div>
+                        <h4>I want to evaluate the psychometric quality and structural validity of X</h4>
+                        <p>(e.g., testing a theoretical measurement model, or assessing reliability)</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- DYNAMIC INTERACTIVE LAYER -->
+        <div id="interactive-box" class="interactive-box">
+            <div id="interactive-content"></div>
+        </div>
+
+        <!-- FINAL METHOD RESULT & CODE LAYER -->
+        <div id="result-box" class="result-box">
+            <div class="result-header">
+                <div>
+                    <h3 id="result-title"></h3>
+                    <p id="result-desc" class="desc"></p>
+                </div>
+            </div>
+            
+            <div class="content-grid">
+                <div>
+                    <div class="section-title">Summary</div>
+                    <ul id="result-list" class="steps-list"></ul>
+                </div>
+                <div>
+                    <div class="section-title">Minimal R Example</div>
+                    <pre class="code-block-wrapper"><code id="result-code" class="code-box"></code></pre>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function selectGoal(goalType) {
+            document.querySelectorAll('.goal-node').forEach(card => card.classList.remove('selected'));
+            document.getElementById('goal-' + goalType).classList.add('selected');
+
+            const box = document.getElementById('interactive-box');
+            const content = document.getElementById('interactive-content');
+
+            document.getElementById('result-box').classList.remove('visible');
+    
+            if (goalType === 'understand') {
+                box.classList.remove('visible');
+                showResult('efa');
+                return;
+            }
+
+            box.classList.add('visible');
+
+            if (goalType === 'scores') {
+                content.innerHTML = `
+                    <p class="question-text">Do you want to assume all items are equally representative of X?</p>
+                    <div class="options-grid" id="main-options-grid">
+                        <div class="choice-btn" id="btn-yes" onclick="handleYesChoice()">
+                            <strong>Yes</strong>
+                        </div>
+                        <div class="choice-btn" id="btn-no" onclick="handleNoChoice()">
+                            <strong>No</strong>
+                        </div>
+                    </div>
+                    <div id="sub-question-container" class="sub-question-container">
+                        <p class="question-text">Do you consider X to be the <em>underlying latent common cause</em>, or just an empirical summary composite?</p>
+                        <div class="options-grid">
+                            <div class="choice-btn" id="btn-common" onclick="handleSubChoice('efa-scores')">
+                                <strong>Common Cause</strong>
+                            </div>
+                            <div class="choice-btn" id="btn-composite" onclick="handleSubChoice('pca')">
+                                <strong>Composite</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else if (goalType === 'test') {
+                content.innerHTML = `
+                    <p class="question-text">Are you testing a specific factor structure, assessing how reliable the measurement is, or evaluating validity against external measures?</p>
+                    <div class="options-grid">
+                        <div class="choice-btn" id="btn-test-cfa" onclick="handleTestChoice('cfa')">
+                            <strong>I want to test whether a pre-specified measurement model holds in my sample data.</strong>
+                        </div>
+                        <div class="choice-btn" id="btn-test-rel" onclick="handleReliabilityChoice()">
+                            <strong>I want to assess the reliability of measurement.</strong>
+                        </div>
+                        <div class="choice-btn" id="btn-test-val" onclick="handleTestChoice('validity')">
+                            <strong>I want to validate my measurement model</strong>
+                        </div>
+                    </div>
+                    <div id="reliability-sub-container" class="sub-question-container">
+                        <p class="question-text">What are you working with?</p>
+                        <div class="options-grid">
+                            <div class="choice-btn" id="rel-btn-latent" onclick="handleReliabilitySub('reliability-latent')">
+                                <strong>I'm working with latent variables (CFA/SEM)</strong>
+                            </div>
+                            <div class="choice-btn" id="rel-btn-scores" onclick="handleReliabilitySub('reliability-scores')">
+                                <strong>I'm working with scale scores (mean scores/sum scores)</strong>
+                            </div>
+                            <div class="choice-btn" id="rel-btn-factor" onclick="handleReliabilitySub('reliability-factor')">
+                                <strong>I'm working with factor scores from an EFA</strong>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function handleYesChoice() {
+            document.getElementById('btn-yes').classList.add('selected');
+            document.getElementById('btn-no').classList.remove('selected');
+            document.getElementById('sub-question-container').classList.remove('visible');
+            showResult('scale-scores');
+        }
+
+        function handleNoChoice() {
+            document.getElementById('btn-no').classList.add('selected');
+            document.getElementById('btn-yes').classList.remove('selected');
+            document.getElementById('sub-question-container').classList.add('visible');
+            
+            document.getElementById('result-box').classList.remove('visible');
+        }
+
+        function handleSubChoice(methodType) {
+            if (methodType === 'efa-scores') {
+                document.getElementById('btn-common').classList.add('selected');
+                document.getElementById('btn-composite').classList.remove('selected');
+            } else {
+                document.getElementById('btn-composite').classList.add('selected');
+                document.getElementById('btn-common').classList.remove('selected');
+            }
+            showResult(methodType);
+        }
+
+        function handleTestChoice(type) {
+            document.getElementById('btn-test-rel').classList.remove('selected');
+            const relSub = document.getElementById('reliability-sub-container');
+            if (relSub) {
+                relSub.classList.remove('visible');
+            }
+
+            if (type === 'cfa') {
+                document.getElementById('btn-test-cfa').classList.add('selected');
+                document.getElementById('btn-test-val').classList.remove('selected');
+            } else if (type === 'validity') {
+                document.getElementById('btn-test-val').classList.add('selected');
+                document.getElementById('btn-test-cfa').classList.remove('selected');
+            }
+            showResult(type);
+        }
+
+        function handleReliabilityChoice() {
+            document.getElementById('btn-test-rel').classList.add('selected');
+            document.getElementById('btn-test-cfa').classList.remove('selected');
+            document.getElementById('btn-test-val').classList.remove('selected');
+
+            document.getElementById('reliability-sub-container').classList.add('visible');
+            document.getElementById('result-box').classList.remove('visible');
+        }
+
+        function handleReliabilitySub(subType) {
+            document.querySelectorAll('#reliability-sub-container .choice-btn').forEach(btn => btn.classList.remove('selected'));
+            if (subType === 'reliability-latent') {
+                document.getElementById('rel-btn-latent').classList.add('selected');
+                showResult('reliability-latent');
+            } else if (subType === 'reliability-scores') {
+                document.getElementById('rel-btn-scores').classList.add('selected');
+                showResult('reliability-scores');
+            } else if (subType === 'reliability-factor') {
+                document.getElementById('rel-btn-factor').classList.add('selected');
+                showResult('reliability-factor');
+            }
+        }
+
+        function showResult(methodType) {
+            const box = document.getElementById('result-box');
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+            const contentGrid = box.querySelector('.content-grid');
+
+            box.classList.add('visible');
+
+            contentGrid.innerHTML = `
+                <div>
+                    <div class="section-title">Summary</div>
+                    <ul id="result-list" class="steps-list"></ul>
+                </div>
+                <div id="code-section-wrapper">
+                    <div class="section-title">Minimal R Example</div>
+                    <pre class="code-block-wrapper"><code id="result-code" class="code-box"></code></pre>
+                </div>
+            `;
+
+            const list = document.getElementById('result-list');
+            const code = document.getElementById('result-code');
+	    const codeSectionWrapper = document.getElementById('code-section-wrapper');
+
+            if (methodType === 'scale-scores') {
+                title.innerText = "Scale Scores (Sum / Mean Scores)";
+                desc.innerText = "Compute straightforward scores for X assuming equal weighting of variables";
+                list.innerHTML = `
+                    <li><strong>1. Data Wrangling:</strong> Check items ranges and reverse-code negatively worded items</li>
+                    <li><strong>2. Check Missingness:</strong> Decide what to do with missing values (remember that missing values will artificially decrease a sum score!)</li>
+                    <li><strong>3. Aggregate:</strong> Compute row means or row sums</li>
+                `;
+                code.innerText = `library(tidyverse)
+library(psych)
+
+# big 5 inventory dataset. 5 question each of O,C,E,A,N
+mydata <- bfi[ ,1:25]
+
+# reverse code A1 (in this example it is scored 1 to 6)
+mydata <- mydata |>
+  mutate(A1_rev = 7 - A1)
+
+# check missingness on each item
+summary(mydata)
+
+# compute rowmeans for Agreeableness:
+mydata$agreeableness <- rowMeans(dat[, c('A1_rev', 'A2', 'A3', 'A4', 'A5')], na.rm = TRUE)
+# or in tidyverse:
+mydata <- mydata |> 
+  mutate(agreeableness = rowMeans(pick(A1_rev, A2:A5), na.rm=TRUE))`;
+            } else if (methodType === 'pca') {
+                title.innerText = "Principal Components Analysis (PCA)";
+                desc.innerText = "Data reduction technique that maximised variance in fewest dimensions.";
+                list.innerHTML = `
+                    <li><strong>1. Do PCA</strong></li>
+                    <li><strong>2. How many dimensions do you want to end up with?</strong> What proportion of the total variance do you want to retain? How many important dimensions do there appear to be?</li>
+                    <li><strong>3. Get Scores</strong></li>
+                `;
+                code.innerText = `library(psych)
+# dimensions of 4 different parts of 50 flowers (all are species of iris):
+mydata <- iris[,1:4]
+
+# do PCA extracting as many components as variables (in this case 4)
+mypca <- principal(mydata, nfactors = 4, rotate = "none")
+
+# decide how many to keep:
+mypca$Vaccounted
+scree(mydata, factors = FALSE)
+
+# get scores for the components you want to retain:
+# first component: 
+mydata$pc1 <- mypca$scores[,1]`;
+            } else if (methodType === 'efa-scores') {
+                title.innerText = "Exploratory Factor Analysis (EFA)";
+                desc.innerText = "Understand underlying common cause(s) ('factors') that explain why these variables correlate with each other.";
+                list.innerHTML = `
+                    <li><strong>1. fit EFA model</strong><br>Perform the usual steps of EFA, including initial checks, evaluation of a range of different possible factor solutions, potentially removing items, and then finally settling on a satisfactory factor model</li>
+                    <li><strong>2. Get Scores</strong><br>Factor models are models - scores need to be <em>estimated</em> and there are many different ways.<br>If the construct is going to be used as a dependent variable, use Bartlett<br>If the construct is going to be used as a predictor, use Thurstone</li>
+                `;
+                code.innerText = `library(psych)
+
+# big 5 inventory dataset. 5 question each of O,C,E,A,N
+mydata <- bfi[,1:25]
+
+# fit an EFA with 5 factors:
+myfa <- fa(mydata, nfactors = 5, rotate = "oblimin", fm = "ml")
+
+# get thurstone scores
+factor.scores(mydata, myfa, method="Thurstone")$scores
+# get bartlett scores
+factor.scores(mydata, myfa, method="Bartlett")$scores`;
+            } else if (methodType === 'efa') {
+                title.innerText = "Exploratory Factor Analysis (EFA) Workflow";
+                desc.innerText = "Understand underlying common cause(s) (latent 'factors') that explain why these variables correlate with each other.";
+                contentGrid.innerHTML = `
+                    <div style="grid-column: span 2; width: 100%;">
+                        <iframe src="https://uoepsy.github.io/dapr3/2627/misc/efa_workflow.html" 
+                                style="width: 100%; height: 1080px; border: none; border-radius: 8px;" 
+                                title="EFA Interactive Workflow">
+                        </iframe>
+                    </div>
+                `;
+            } else if (methodType === 'cfa') {
+                title.innerText = "Confirmatory Factor Analysis (CFA)";
+                desc.innerText = "Testing an *a priori* (pre-specified) hypothesis about the set of relationships between items and factor(s).";
+                list.innerHTML = `
+                    <li><strong>1. Specification:</strong> Define each factor as being measured by a pre-specified set of items</li>
+                    <li><strong>2. Estimation:</strong> Fit the model</li>
+                    <li><strong>3. Evaluation:</strong> Inspect indices of model fit (RMSEA, SRMR, TLI, CFI)<br>
+                    Common thresholds:<br>RMSEA <0.05, &nbsp; SRMR <0.05<br>TLI >0.95, &nbsp; CFI >0.95</li>
+                `;
+                code.innerText = `library(lavaan)
+library(psych)
+
+# big 5 inventory dataset. 5 question each of O,C,E,A,N
+mydata <- bfi[,1:25]
+
+# specify theoretical model of big 5:
+mymodel <- '
+  open =~ O1 + O2 + O3 + O4 + O5
+  consc =~ C1 + C2 + C3 + C4 + C5
+  extr =~ E1 + E2 + E3 + E4 + E5
+  agree =~ A1 + A2 + A3 + A4 + A5
+  neuro =~ N1 + N2 + N3 + N4 + N5
+'
+
+# fit model
+fittedmod <- cfa(mymodel, data = mydat)
+# inspect fit of model
+# (warning: lots of output here!)
+summary(fittedmod, standardized = TRUE, fit.measures = TRUE)`;
+            } else if (methodType === 'reliability-latent') {
+                title.innerText = "Reliability in a latent variable modelling framework (CFA/SEM)";
+                desc.innerText = "Measurement error is handled *within* the model";
+                list.innerHTML = `
+     <p>In Structural Equation Models (SEM) techniques like CFA, paths between latent constructs are estimated without ever having to estimate specific scores on these variables.<br>Uncertainty in measurement propagates up to the structural part of the model.</p>
+                    <li><strong>Look at the standardized loadings:</strong> The squaring standardised loadings provides estimates of variance in each item explained by a factor. Higher values indicate higher reliability of measurement.</li>
+                    <li><strong>Compute a composite reliability measure</strong></li>
+		    			<br>
+	    	    <p style='color:#dc2626; font-weight:600;'>Remember, a measurement tool is never inherently 'reliable'. Everything we do is specific to persons, place and time, meaning that any estimate of reliability is sample dependent.</p>
+                `;
+                code.innerText = `library(lavaan)
+library(semTools)
+
+...
+...
+
+# to examine loadings:  
+summary(fittedmod, standardized = TRUE)
+# to calculate a form of reliability:
+compRelSEM(fittedmod)
+`;
+            } else if (methodType === 'reliability-scores') {
+                title.innerText = "Reliability when using computed scale scores (mean/sum scores)";
+                desc.innerText = "Measures of 'internal consistency' estimate the proportion of variance in the scores that is 'true' (as opposed to error variance).";
+                list.innerHTML = `
+                    <li><strong>Coefficient Alpha:</strong> Traditional measure of reliability. Assumes all items are equally representative of construct.</li>
+                    <li><strong>McDonald's Omega (Preferred):</strong> Measure of reliability that is based on a factor model, allowing for differential item loadings.</li>
+			<br>
+	    	    <p style='color:#dc2626; font-weight:600;'>Remember, a measurement tool is never inherently 'reliable'. Everything we do is specific to persons, place and time, meaning that any estimate of reliability is sample dependent.</p>
+                `;
+                code.innerText = `library(psych)
+
+# data contains variables on two dimensions of fatigue: 
+# mental fatigue (columns 1,2,3,4), and physical fatigue (columns 5,6,7,8)
+mydata <- read.csv("https://uoepsy.github.io/data/tiredq.csv")
+
+# if you are extracting two sets of scores (one for each dimension)
+# then we calculate alpha on each set. 
+# (check.keys will try to detect and reverse any negative worded items)
+alpha(mydata[, 1:4], check.keys = TRUE)
+alpha(mydata[, 5:8], check.keys = TRUE)
+
+# if you are taking a single "fatigue" score, calculate it on the entire set:
+alpha(mydata[, 1:8], check.keys = TRUE)
+
+# omega will run fa() internally, and provide
+# 1. reliability for each factor
+# 2. reliability for a 'general factor' - for the total scale
+# flip = TRUE will reverse items
+omega(mydata[, 1:8], nfactors = 2, flip = TRUE)
+`;
+            } else if (methodType === 'reliability-factor') {
+                title.innerText = "Reliability when using factor scores (from EFA)";
+                desc.innerText = "Evaluated through the correlation between estimated factor scores and the latent factor.";
+                list.innerHTML = `
+			<li>The <code>fa()</code> function provides estimates of the correlations between the factor scores (the estimated scores we get out) and the unobserved latent factors. These can be found at the bottom of the output, or extracted (see code example).</li>
+			<li>The R^2 values reflect reliabilty of the factor scores, as they represent the proportion of variance in the scores that is estimated to be 'true variance' (i.e., due to the unobserved factor) as opposed to error variance.</li>
+			<br>
+	    	    <p style='color:#dc2626; font-weight:600;'>Remember, a measurement tool is never inherently 'reliable'. Everything we do is specific to persons, place and time, meaning that any estimate of reliability is sample dependent.</p>
+
+`;
+                code.innerText = `library(psych)
+
+# data contains variables on two dimensions of fatigue: 
+# mental fatigue (columns 1,2,3,4), and physical fatigue (columns 5,6,7,8)
+mydata <- read.csv("https://uoepsy.github.io/data/tiredq.csv")
+
+# fit EFA
+myefa <- fa(mydata, nfactors = 2, rotate = "oblimin", fm = "ml")
+
+# extract (for each factor) R squared between factors and factor score estimates
+myefa$R2`;
+            } else if (methodType === 'validity') {
+                title.innerText = "Validity";
+                desc.innerText = "Assessing whether the object of measurement is actually what we think it is.";
+                list.innerHTML = `
+			<p>There are lots of ways we can think about trying to ascertain if a measurement tool is 'valid' (if it is measuring what we think it is measuring)</p>
+                     <li><strong>Face validity:</strong> Look at, and think about, your variables. Do they seem to be measuring the intended construct?</li>
+                     <li><strong>Content validity:</strong> Look at, and think about, your variables. Do they cover all relevant aspects of the intended construct?</li>
+                     <li><strong>Convergent validity:</strong> Assess whether the measurement correlates with measurements of other things that we would expect it to correlate with.<br>This can be done either with correlations between computed scores for each measure, or in a latent variable framework (looking at correlations between latent factors)</li>
+                     <li><strong>Discriminant validity:</strong> Assess whether the measurement doesn't correlate too highly with measurements of other things that we consider to be distinct from our intent construct.<br>We would want a measure of anxiety to not correlate too highly with a measure of depression, otherwise we might just be measuring the same thing</li>
+		     <li><strong>Criterion/Predictive validity:</strong> Assess whether the measurement corresponds to a gold standard, or predicts some future event.</li>
+				<br>
+			<p style='color:#dc2626; font-weight:600;'>Remember, a measurement tool is never inherently "valid." Everything we do is specific to persons, place, and time, meaning that validity is sample- and context-dependent.</p>
+                `;
+                code.innerText = "";
+            }
+// Check if code is empty; if so, hide the code column and let the summary take full width
+            if (!code.innerText.trim()) {
+                codeSectionWrapper.style.display = 'none';
+                contentGrid.style.gridTemplateColumns = '1fr';
+            } else {
+                codeSectionWrapper.style.display = 'block';
+                contentGrid.style.gridTemplateColumns = '1fr 1fr';
+            }
+
+        }
+    </script>
+
+</body>
+</html>
