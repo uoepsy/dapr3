@@ -52,13 +52,42 @@ rglwidget()
 
 When we do PCA, we get out two key things about our new dimensions: 
 
-1. **magnitude:** how much variability is captured by the new dimension
-2. **direction:** how the new dimension relates to the original measured variables
+```{r}
+library(psych)
+my_pca <- principal(mydata, nfactors = 3, 
+                     rotate = "none")
+```
+
+
+1. **magnitude:** how much variability is captured by the new dimension.  
+    - found in the **"sum of squared loadings"**.  
+2. **direction:** how the new dimension relates to the original measured variables.
+    - referred to as **"loadings"**.  
 
 Strictly speaking, PCA is not really an "explanatory" tool. It simply combines variables to preserve variance. 
-This means we are less interested in the **directions** of the dimensions, and mainly focussed on **how much variance** they capture. 
+This means we are less interested in the **directions** of the new dimensions - we're not trying to give any meaning to the new dimensions beyond simply "a weighted composite of our original variables".  
+Instead we are mainly focussed on **how much variance** they capture. 
+Our aim is to simply decide how many of these new dimensions we want to keep (and therefore, how much variance in the data we are willing to sacrifice).  
 
-What we then do is simply decide how many of these new dimensions we want to keep (and therefore, how much variance in the data we are willing to sacrifice).  
+
+The amount of variance captured by each component is seen in the "sum of squared loadings".  
+Because the process underlying PCA is essentially just a _re-expression_ of our correlation matrix, we if we take 3 principal components, then we will be explaining **all** of the variance in the original data. In other words, the total variance of the principal components (the sum of their variances) is equal to the total variance in the original data (the sum of the variances of the variables). This makes sense - we would have simply gone from having 3 correlated variables to having 3 orthogonal (unrelated) components - we haven't lost any variance.  
+
+
+The key benefit of PCA is that our orthogonal components have *sequential variance maximisation* - i.e., the first captures the most variance, then the second captures the second most, and so on.. So if we just want to reduce down to 1 dimension, then we just keep the first component. If we want to keep some pre-specified amount (e.g., 80%) of variability, then we will want to look at the "SSloadings" (sum of squared loadings) to tell us how much variance is captured by each component:  
+
+```{r}
+my_pca$Vaccounted
+```
+
+- **SS loadings:** The sum of the squared loadings. In a PCA, the loadings are $cor(\text{component}, \text{variable})$. Squaring these gives us the $R^2$ value for each variable, representing the amount of variance captured by the component. We can then add these up, to get how much each component captures out of the total variance in the data (which is going to be equal to the number of variables).  
+- **Proportion Var:** The proportion the overall variance the component accounts for out of all the variables (these are the SSloadings divided by the number of variables). 
+- **Cumulative Var:** The cumulative sum of Proportion Var.
+- **Proportion Explained:** relative amount of variance explained ($\frac{\text{Proportion Var}}{\text{sum(Proportion Var)}}$.
+- **Cumulative Proportion:** cumulative sum of Proportion Explained.
+
+It is this last metric we can use to decide how many components are required to keep e.g., 50/75/90% of the variance. There's no set requirement for how much we want to keep. In some fields (like psychology) measurements are noisy, whereas in others we might expect to be able to preserve a lot of variance with only a few components.  
+
 
 ::: {.callout-caution collapse="true"}
 #### Rabbit Hole - eigen decomposition
@@ -328,6 +357,8 @@ pc1$uniquenesses
 ```
 
 :::
+
+
 
 ## Component Scores
 

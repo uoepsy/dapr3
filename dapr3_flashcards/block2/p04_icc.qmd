@@ -1,0 +1,140 @@
+---
+title: "Estimate reliability using ICC"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+```
+
+In our example where we got 30 dogs and weighed them, and then weighed them again, we might have data like the below. We are wanting to separate out the variance _within_ each dog's observed weights and attribute it to measurement error. The variance _between_ dogs is taken as the true variance. So Dougal first got 20.6, and then 25.9, so if we take his average of `r mean(c(20.6,25.9))` we can think of 'within-dougal-variance' as how his measurements vary around his average (due to measurement error). And Dougal's average `r mean(c(20.6,25.9))` differs from Rufus's average of `r mean(c(28.1,31.3))`, and so on - these values have a variance which we take to reflect Dougal truly varying from Rufus and Daisy etc.
+
+```{r}
+#| include: false
+set.seed(3)
+df = tibble(
+  true = rnorm(30,18,8),
+  measurement_1 = rnorm(30,true,.3),
+  measurement_2 = rnorm(30,true,.3)
+) 
+df[17,] <- as.data.frame(cbind(23.814346,23.6,23.9))
+
+set.seed(998)
+df1 = tibble(
+  true = df$true,
+  measurement_1 = rnorm(30,true,2),
+  measurement_2 = rnorm(30,true,2)
+)
+df1 <- df1 |> arrange(true)
+df1$dog <- c("rosie","jess","henry","glenn","pippin","luna",
+            "daisy","shell","dan","nellie","harley","jura",
+            "willow","isla","farra","brian","roly","archie",
+            "bella","max","lola","nala","coco","buddy",
+            "dougal","loki","fred","sox","shadow","rufus")
+set.seed(24)
+dogdata <- df1[c(25,30,sample(c(1:24,26:29))),c(4,2,3)]
+doglong <- dogdata |> 
+  pivot_longer(measurement_1:measurement_2,
+               names_to = "time", values_to = "score")
+```
+```{r}
+#| eval: false
+dogdata
+```
+
+```
+  dog    measurement_1 measurement_2
+  <chr>          <dbl>         <dbl>
+1 dougal          20.6         25.9 
+2 rufus           28.1         31.3 
+3 daisy           10.7         9.79
+4 bella           19.8         17.2 
+5 shell           13.4         8.88
+6 coco            20.8         19.6 
+. ...             ...          ...
+. ...             ...          ...
+```
+
+The `ICC()` function from the **psych** package will calculate the ICC for us.  
+
+```{r}
+library(psych)
+ICC(dogdata[,2:3])
+```
+
+The ICC function doesn't know what kind of reliability we want to measure, because it doesn't know how exactly we got our measurement multiple times.
+So to cover all its bases, the ICC function spits out a whole bunch of different *types* of ICC.
+Here's what each type of ICC means:
+
+- **ICC1:** Each dog is measured at a different time point and the time points are selected at random.
+- **ICC2:** Dogs are all measured at a random sample of k time points.
+- **ICC3:** Dogs are all measured at a specific fixed set of k time points.
+
+Then for each of these, we also get the equivalent for if there's more than one rating for each dog at each time point.
+
+In the official terminology that you'll see on the help pages of the ICC function, the same ideas will be phrased more generally as:
+
+- **ICC1:** Each target is rated by a different judge and the judges are selected at random.
+- **ICC2:** A random sample of k judges rate each target. The measure is one of absolute agreement in the ratings.
+- **ICC3:** A fixed set of k judges rate each target. There is no generalization to a larger population of judges.  
+
+This all uses the language of "judges" and "targets", which in our case corresponds to "timepoints" and "dogs". There's a nice paper ([Koo & Li 2016](https://pmc.ncbi.nlm.nih.gov/articles/PMC4913118/){target="_blank"}) here explaining this in more depth and with some flowcharts to help us think about which one we want. In our case, we have a random sample of timepoints (it's not like we measured all dogs before and after some event - we don't expect any systematic differences between timepoints), so ICC2 is probably what we want. 
+
+
+
+::: {.callout-caution collapse="true"}
+#### Rabbit hole: doesn't ICC come up in mixed models!?
+
+It did! We already saw ICC! and as it happens, it's the same thing.  
+This box shows how we can use the multilevel model machinery to reconstruct the same ICC value computed above.
+
+If we pivot our data to be long:  
+```{r}
+#| eval: false
+doglong <- dogdata |> 
+  pivot_longer(measurement_1:measurement_2,
+               names_to = "time", values_to = "score")
+
+doglong
+```
+```
+   dog    time          score
+   <chr>  <chr>         <dbl>
+ 1 dougal measurement_1 20.6 
+ 2 dougal measurement_2 25.9 
+ 3 rufus  measurement_1 28.1 
+ 4 rufus  measurement_2 31.3 
+ 5 daisy  measurement_1 10.7 
+ . ...    ...           ...
+ . ...    ...           ...
+```
+
+We can then use a multilevel/mixed effects model to regress the ratings on to a model with just an intercept and by-dog and by-timepoint random intercepts:  
+```{r}
+#| eval: false
+
+doglong$score=ifelse(doglong$time=="measurement_2",doglong$score+4,doglong$score)
+mod <- lmer(score ~ 1 + (1 | dog) + (1 | time), 
+            data = doglong)
+summary(mod)
+```
+```
+...
+Random effects:
+ Groups   Name        Variance  Std.Dev.  
+ dog      (Intercept) 48.78     6.985
+ time     (Intercept) 2.413e-09 4.912e-5
+ Residual             5.292     2.300
+Number of obs: 60, groups:  dog, 30; time, 2
+...
+```
+
+From the random effect variances, we can work out the ICC! This is because the estimated dog-level variability in intercepts can be taken as an estimate of "true variance"!  
+
+```{r}
+48.78 / (48.78 + 2.413e-09 + 5.292)
+```
+
+This is the same number that we got for the ICC2 from `ICC()` above.
+
+:::
