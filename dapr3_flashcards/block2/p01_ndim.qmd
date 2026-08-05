@@ -1,5 +1,5 @@
 ---
-title: "Deciding on the Number of Components/Factors"
+title: "Decide on the Number of Components/Factors"
 editor_options: 
   chunk_output_type: console
 ---
@@ -59,6 +59,55 @@ Dataset: [https://uoepsy.github.io/data/distressdata.csv](https://uoepsy.github.
 
 :::
 
+
+:::frame
+__Dataset: phoneaddiction.csv__  
+
+The dataset at [https://uoepsy.github.io/data/phoneaddiction.csv](https://uoepsy.github.io/data/phoneaddiction.csv){target="_blank"} comes from a (fake) study that is interested in developing a measure of "phone-attachment/addiction" - i.e., the idea of being overly attached to a phone.  
+
+We have a set of 10 statements (@tbl-phdict) that get at different aspects of this idea, and we asked 240 people to rate how much they agreed with each of the 10 statements on a 1-5 scale (1 = strongly disagree, 5 = strongly agree).
+
+```{r}
+phdat <- read_csv("https://uoepsy.github.io/data/phoneaddiction.csv")
+```
+
+
+```{r}
+#| echo: false
+#| label: tbl-phdict
+#| tbl-cap: "Item wordings for phoneaddiction.csv"
+itemqs = c("I often reach for my phone even when I don't have a specific reason to use it.",
+"I feel a strong urge to check my phone frequently, even during meals or social interactions.",
+"I spend a large portion of my day using my phone, often for more hours than I intend.",
+"My phone use has interfered with my ability to complete tasks or responsibilities at school, work, or home.",
+"When I cannot use my phone (e.g., no battery or no signal), I feel anxious or uncomfortable.",
+"My phone use has negatively affected my sleep schedule, such as staying up late scrolling.",
+"I find it difficult to avoid checking my phone immediately upon waking up or right before bed.",
+"I often check my phone even in situations where it's distracting or socially inappropriate (e.g., meetings or classes).",
+"I sometimes feel that others are overly concerned about my phone use in social situations.",
+"I have tried to reduce my phone usage but find it challenging to do so.")
+
+m = "
+ lv1 =~ .8*item1 + .8*item2 + .8*item3 + .8*item7 + .8*item8 + .1*item9
+ lv2 =~ .8*item4 + .8*item5 + .8*item6 + .2*item9 + .8*item10
+ lv1 ~~ .5*lv2
+"
+set.seed(2345)
+df = lavaan::simulateData(m,sample.nobs = 240)
+df = apply(df, 2, \(x) as.numeric(cut(x,5))) |> as_tibble()
+df = df |> select(paste0("item",1:10))
+phdat <- df
+# write_csv(phdat, file="../../data/phoneaddiction.csv")
+
+tibble(
+  variable = names(df),
+  question = itemqs
+) |> gt::gt()
+
+```
+:::
+
+
 ## Vaccounted
 
 For PCA, we might be guided to retain the number of components that keeps a certain proportion of the variance in the data.  
@@ -67,26 +116,18 @@ To do this, we would run a PCA, and examine the `Vaccounted` section of the outp
 
 ```{r}
 library(psych)
-distress_pca <- principal(distress_data, nfactors = 10, 
+phdat_pca <- principal(phdat, nfactors = 10, 
                      rotate = "none")
 
+phdat_pca$Vaccounted
 ```
 
-Because the process of eigen decomposition is essentially just a _re-expression_ of our correlation matrix, we if we take our 8 principal components all together, we are explaining **all** of the variance in the original data. In other words, the total variance of the principal components (the sum of their variances) is equal to the total variance in the original data (the sum of the variances of the variables). This makes sense - we have simply gone from having 8 correlated variables to having 8 orthogonal (unrelated) components - we haven't lost any variance. 
+It is the last row of this output (**Cumulative Proportion**) that we can use to decide how many components are required to keep e.g., 50/75/90% of the variance. 
+In the example here, we can see that the first component captures 32%, the first two components capture 45%, the first three capture 55%, and so on..  
 
-The key benefit of PCA is that our orthogonal components have *sequential variance maximisation* - i.e., the first captures the most variance, then the second captures the second most, and so on.. So if we just want to reduce down to 1 dimension, then we just keep the first component. If we want to keep some pre-specified amount (e.g., 80%) of variability, then accessing `Vaccounted` will give us information on the amount of variance captured by each component:  
+There's no set requirement for how much we want to keep. In some fields (like psychology) measurements are noisy, whereas in others we might expect to be able to preserve a lot of variance with only a few components.  
 
-```{r}
-distress_pca$Vaccounted
-```
 
-- **SS loadings:** The sum of the squared loadings. In a PCA, the loadings are $cor(\text{component}, \text{variable})$. Squaring these gives us the $R^2$ value for each variable, representing the amount of variance captured by the component. We can then add these up, to get how much each component captures out of the total variance in the data (which is going to be equal to the number of variables).  
-- **Proportion Var:** The proportion the overall variance the component accounts for out of all the variables (these are the SSloadings divided by the number of variables). 
-- **Cumulative Var:** The cumulative sum of Proportion Var.
-- **Proportion Explained:** relative amount of variance explained ($\frac{\text{Proportion Var}}{\text{sum(Proportion Var)}}$.
-- **Cumulative Proportion:** cumulative sum of Proportion Explained.
-
-It is this last metric we can use to decide how many components are required to keep e.g., 50/75/90% of the variance. There's no set requirement for how much we want to keep. In some fields (like psychology) measurements are noisy, whereas in others we might expect to be able to preserve a lot of variance with only a few components.  
 
 ## Scree plot 
 
@@ -94,14 +135,66 @@ Scree plots show the SSloadings for each component (PCA) or factor (EFA). A typi
 
 According to Scree plots, we should **keep as many principal components up to where the "kink" (or "elbow") in the plot occurs.** 
 
-Scree plots are subjective, and in the plot below you might argue there is a kink at 4, or perhaps at 6? So this means we would keep either 3 or 5.    
+::: {.callout-tip collapse="false"}
+#### How to read a scree plot
+
+```{r}
+#| echo: false
+library(ggforce) 
+tibble(
+  x = 1:10,
+  y = c(6,4.5,3,seq(1,.1,length.out=7))
+) |>
+  ggplot(aes(x=x,y=y))+geom_point(size=3)+geom_line()+
+  scale_x_continuous("Factor/Component", breaks=1:10)+
+  scale_y_continuous("Eigenvalue")+
+  annotate("point", x = 4, y = 1, size = 10, 
+           shape = 1, color = "tomato", stroke = 1.5) +
+  annotate(
+    "label", x = 6, y = 2, label = "kink happens after point 3\nsuggesting factors/components\nbeyond this are\nof less use", 
+    size = 4, col="tomato"
+  ) +
+  annotate(
+    "segment", x = 5.6, y = 1.4, xend = 4.3, yend = 1.1,
+    arrow = arrow(length = unit(0.2, "cm"), type = "closed"),
+    color = "tomato", linewidth = 0.8
+  )+
+  geom_mark_ellipse(
+    data = . %>% filter(x <= 3),
+    aes(x = x, y = y),
+    color = "tomato",
+    fill = NA,
+    linewidth = 0.8,
+    expand = unit(0.4, "cm"),
+    con.arrow = NULL,
+    con.cap = 0
+  ) +
+  annotate(
+    "label", x = 4.5, y = 4.5, label = "keep these", 
+    size = 4, col="tomato"
+  ) +
+  annotate(
+    "segment", x = 3.9, y = 4.4, xend = 3.1, yend = 4,
+    arrow = arrow(length = unit(0.2, "cm"), type = "closed"),
+    color = "tomato", linewidth = 0.8
+  )+
+  theme_classic()
+```
+
+
+:::
+
+
+Scree plots are subjective, and some are easier to read than others. In the plot below for our phone-addiction data, you could argue that the kink is either at the second or third point. This means we would keep either 1 or 2 dimensions.  
 
 The scree plot outputs these for both orthogonal components (PCA) and correlated factors (EFA). For PCA we should just look at the PC line, but for EFA we should consider both.  
 ```{r}
-scree(distress_data)
+scree(phdat)
 ```
 
 The horizontal line is an additional suggestion that we should keep all components for which the eigenvalue is >1. This is known as "Kaiser's Criterion"  
+
+
 
 ## Parallel analysis
 
@@ -116,7 +209,7 @@ Parallel analysis can be conducted in R using the `fa.parallel()` function.
 As with the scree plots, it presents this information for both orthogonal components (PCA) and correlated factors (EFA):  
 
 ```{r}
-fa.parallel(distress_data)
+fa.parallel(phdat)
 ```
 
 __NOTE: Parallel analysis will sometimes tend to over-extract (suggest too many components)__  
@@ -137,20 +230,22 @@ The MAP method is to keep the number of components for which the average squared
 We can conduct MAP in R using the `VSS()` function.  
 
 ::::{.columns}
-:::{.column width="50%"}
+:::{.column width="48%"}
 **For PCA:**  
 ```{r}
 #| eval: false
-VSS(distress_data, 
+VSS(phdat, 
     rotate = "none", fm = "pc",
     plot = FALSE)
 ```
 :::
-:::{.column width="50%"}
+:::{.column width="4%"}
+:::
+:::{.column width="48%"}
 **For EFA:**  
 ```{r}
 #| eval: false
-VSS(distress_data, 
+VSS(phdat, 
     rotate = "oblimin", fm = "ml",
     plot = FALSE)
 ```
@@ -198,4 +293,9 @@ for(i in 1:6){
 
 ## Summary
 
-TODO table
+| method  | description |
+| ------ | ------------- |
+| **Variance Accounted For**  | Look at the proportion of the total variance explained by each extracted component/factor. Retain those needed to meet a *predetermined* cumulative threshold.<br>**Choice of threshold is arbitrary.** |
+| **Scree Plot**  | Plot eigenvalues (variance explained by each component/factor) on the y-axis against the sequential component/factor number on the x-axis. <br>Retain all those appearing **before the kink/elbow** (where the curve flattens out)<br>**Identifying the kink is a subjective judgement.** |
+| **Parallel Analysis** | Compare the eigenvalues (variance explained by each component/factor) from your observed data against those generated from random datasets of the same size. Retain components/factors where the observed eigenvalues are greater than the 95th percentile of the simulated ones. <br>**Slight tendency to over-extract (i.e. suggest too many).** |
+| **Minimum Average Partial (MAP)** | Sequentially remove components/factors and evaluate the resulting average partial correlation between variables. Stop at the step where the average reaches its minimum.<br>**Slight tendency to under-extract (i.e. suggest too few).** |
