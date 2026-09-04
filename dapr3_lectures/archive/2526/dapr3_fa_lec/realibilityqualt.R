@@ -82,6 +82,9 @@ hdat |> pivot_longer(2:last_col(), names_to="rater", values_to="rating") |>
   coord_flip()
 
 
-
-
-
+hdat |> pivot_longer(2:last_col(), names_to="rater", values_to="rating") |>
+  group_by(name) |> 
+  summarise(
+    m = mean(rating),
+    sd = sd(rating)
+  ) |> arrange(sd)
