@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 
-<title>Identifying grouping structure – DAPR3 Lab Exercises</title>
+<title>Building maximal models and interpreting LMM estimates – DAPR3 Lab Exercises</title>
 <style>
 /* Default styles provided by pandoc.
 ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
@@ -122,10 +122,37 @@ if(f.classList.contains('jk-circle-right')) {
 }
 }
 </script>
-<link href="site_libs/panelset-0.3.0/panelset.css" rel="stylesheet">
-<script src="site_libs/panelset-0.3.0/panelset.js"></script>
 <link rel="stylesheet" href="https://uoepsy.github.io/assets/css/ccfooter.css">
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-chtml.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 </head>
 
@@ -176,7 +203,7 @@ if(f.classList.contains('jk-circle-right')) {
   <li><a href="#clothing" id="toc-clothing" class="nav-link active" data-scroll-target="#clothing">Clothing</a></li>
   <li><a href="#monkey-status" id="toc-monkey-status" class="nav-link" data-scroll-target="#monkey-status">Monkey status</a></li>
   <li><a href="#laughs" id="toc-laughs" class="nav-link" data-scroll-target="#laughs">Laughs</a></li>
-  <li><a href="#the-piazza-forum" id="toc-the-piazza-forum" class="nav-link" data-scroll-target="#the-piazza-forum">The Piazza forum</a></li>
+  <li><a href="#practice-interpreting-the-lmm-summary" id="toc-practice-interpreting-the-lmm-summary" class="nav-link" data-scroll-target="#practice-interpreting-the-lmm-summary">Practice interpreting the LMM summary</a></li>
   </ul>
 </nav>
     </div>
@@ -185,7 +212,7 @@ if(f.classList.contains('jk-circle-right')) {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Identifying grouping structure</h1>
+<h1 class="title">Building maximal models and interpreting LMM estimates</h1>
 </div>
 
 
@@ -204,10 +231,8 @@ if(f.classList.contains('jk-circle-right')) {
 
 <!-- when rendering in RStudio/  not production profile:   SHOW_SOLS: TRUE  -->
 <!-- when rendering in terminal/with production profile:   SHOW_SOLS: FALSE -->
-<p>In this lab, you will start to build skills that you’ll use again and again for the next five weeks (and really, for the rest of your data analysis career!).</p>
-<p>You’ll practice <strong>identifying the grouping structure within a given dataset</strong> and thinking about <strong>what kind of variability each grouping variable contributes.</strong></p>
-<p>In the questions below, you’ll apply the tools you saw in the lectures to three different group-structured datasets.</p>
-<p>(Next week, you’ll apply new tools to these same three datasets to understand their grouping structures even more deeply!)</p>
+<p>In this lab, you’ll apply the tools you saw in the lectures this week to the same three datasets you got to know in Week 1. You’ll work out the maximal model structure for each one.</p>
+<p>And in Question 10 (which is more substantial than the first nine), you’ll fit one of those maximal models and interpret its estimates.</p>
 <div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
@@ -221,10 +246,13 @@ if(f.classList.contains('jk-circle-right')) {
 <ol type="1">
 <li>Create a new .Rmd file for this week’s exercises.</li>
 <li>Save it somewhere you can find it again.</li>
-<li>Give it a clear name (for example, <code>dapr3_lab01.Rmd</code>).</li>
+<li>Give it a clear name (for example, <code>dapr3_lab03.Rmd</code>).</li>
 <li>In the first code chunk, load the packages you’ll need this week:
 <ul>
 <li><code>tidyverse</code></li>
+<li><code>lme4</code></li>
+<li><code>lmerTest</code></li>
+<li><code>stats</code> (for <code>xtabs()</code>)</li>
 </ul></li>
 </ol>
 </div>
@@ -233,30 +261,27 @@ if(f.classList.contains('jk-circle-right')) {
 <section id="clothing" class="level2">
 <h2 class="anchored" data-anchor-id="clothing">Clothing</h2>
 <div class="frame">
-<p>Read in the dataset located at <a href="https://uoepsy.github.io/data/dapr3_mannequin.csv">https://uoepsy.github.io/data/dapr3_mannequin.csv</a> and name it <code>clothing</code> using the following line of code.</p>
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>clothing <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/dapr3_mannequin.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
+<p>Read in the dataset located at <a href="https://uoepsy.github.io/data/dapr3_mannequin.csv">https://uoepsy.github.io/data/dapr3_mannequin.csv</a> and name it <code>clothing</code>.</p>
 <p>RQ: <strong>Are people more likely to purchase clothing when they see it displayed on a model, and is this association dependent on item price?</strong></p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<div id="hijfikdorz" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#hijfikdorz table {
+<div id="ivnruwdkmv" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#ivnruwdkmv table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#hijfikdorz thead, #hijfikdorz tbody, #hijfikdorz tfoot, #hijfikdorz tr, #hijfikdorz td, #hijfikdorz th {
+#ivnruwdkmv thead, #ivnruwdkmv tbody, #ivnruwdkmv tfoot, #ivnruwdkmv tr, #ivnruwdkmv td, #ivnruwdkmv th {
   border-style: none;
 }
 
-#hijfikdorz p {
+#ivnruwdkmv p {
   margin: 0;
   padding: 0;
 }
 
-#hijfikdorz .gt_table {
+#ivnruwdkmv .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -282,12 +307,12 @@ if(f.classList.contains('jk-circle-right')) {
   border-left-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_caption {
+#ivnruwdkmv .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#hijfikdorz .gt_title {
+#ivnruwdkmv .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -299,7 +324,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-bottom-width: 0;
 }
 
-#hijfikdorz .gt_subtitle {
+#ivnruwdkmv .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -311,7 +336,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-top-width: 0;
 }
 
-#hijfikdorz .gt_heading {
+#ivnruwdkmv .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -323,13 +348,13 @@ if(f.classList.contains('jk-circle-right')) {
   border-right-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_bottom_border {
+#ivnruwdkmv .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_col_headings {
+#ivnruwdkmv .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -344,7 +369,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-right-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_col_heading {
+#ivnruwdkmv .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -364,7 +389,7 @@ if(f.classList.contains('jk-circle-right')) {
   overflow-x: hidden;
 }
 
-#hijfikdorz .gt_column_spanner_outer {
+#ivnruwdkmv .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -376,15 +401,15 @@ if(f.classList.contains('jk-circle-right')) {
   padding-right: 4px;
 }
 
-#hijfikdorz .gt_column_spanner_outer:first-child {
+#ivnruwdkmv .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#hijfikdorz .gt_column_spanner_outer:last-child {
+#ivnruwdkmv .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#hijfikdorz .gt_column_spanner {
+#ivnruwdkmv .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -396,11 +421,11 @@ if(f.classList.contains('jk-circle-right')) {
   width: 100%;
 }
 
-#hijfikdorz .gt_spanner_row {
+#ivnruwdkmv .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#hijfikdorz .gt_group_heading {
+#ivnruwdkmv .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -426,7 +451,7 @@ if(f.classList.contains('jk-circle-right')) {
   text-align: left;
 }
 
-#hijfikdorz .gt_empty_group_heading {
+#ivnruwdkmv .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -441,15 +466,15 @@ if(f.classList.contains('jk-circle-right')) {
   vertical-align: middle;
 }
 
-#hijfikdorz .gt_from_md > :first-child {
+#ivnruwdkmv .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#hijfikdorz .gt_from_md > :last-child {
+#ivnruwdkmv .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#hijfikdorz .gt_row {
+#ivnruwdkmv .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -468,7 +493,7 @@ if(f.classList.contains('jk-circle-right')) {
   overflow-x: hidden;
 }
 
-#hijfikdorz .gt_stub {
+#ivnruwdkmv .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -481,7 +506,7 @@ if(f.classList.contains('jk-circle-right')) {
   padding-right: 5px;
 }
 
-#hijfikdorz .gt_stub_row_group {
+#ivnruwdkmv .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -495,15 +520,15 @@ if(f.classList.contains('jk-circle-right')) {
   vertical-align: top;
 }
 
-#hijfikdorz .gt_row_group_first td {
+#ivnruwdkmv .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#hijfikdorz .gt_row_group_first th {
+#ivnruwdkmv .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#hijfikdorz .gt_summary_row {
+#ivnruwdkmv .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -513,16 +538,16 @@ if(f.classList.contains('jk-circle-right')) {
   padding-right: 5px;
 }
 
-#hijfikdorz .gt_first_summary_row {
+#ivnruwdkmv .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_first_summary_row.thick {
+#ivnruwdkmv .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#hijfikdorz .gt_last_summary_row {
+#ivnruwdkmv .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -532,7 +557,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-bottom-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_grand_summary_row {
+#ivnruwdkmv .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -542,7 +567,7 @@ if(f.classList.contains('jk-circle-right')) {
   padding-right: 5px;
 }
 
-#hijfikdorz .gt_first_grand_summary_row {
+#ivnruwdkmv .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -552,7 +577,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-top-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_last_grand_summary_row_top {
+#ivnruwdkmv .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -562,11 +587,11 @@ if(f.classList.contains('jk-circle-right')) {
   border-bottom-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_striped {
+#ivnruwdkmv .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#hijfikdorz .gt_table_body {
+#ivnruwdkmv .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -575,7 +600,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-bottom-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_footnotes {
+#ivnruwdkmv .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -589,7 +614,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-right-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_footnote {
+#ivnruwdkmv .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -598,7 +623,7 @@ if(f.classList.contains('jk-circle-right')) {
   padding-right: 5px;
 }
 
-#hijfikdorz .gt_sourcenotes {
+#ivnruwdkmv .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -612,7 +637,7 @@ if(f.classList.contains('jk-circle-right')) {
   border-right-color: #D3D3D3;
 }
 
-#hijfikdorz .gt_sourcenote {
+#ivnruwdkmv .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -620,72 +645,72 @@ if(f.classList.contains('jk-circle-right')) {
   padding-right: 5px;
 }
 
-#hijfikdorz .gt_left {
+#ivnruwdkmv .gt_left {
   text-align: left;
 }
 
-#hijfikdorz .gt_center {
+#ivnruwdkmv .gt_center {
   text-align: center;
 }
 
-#hijfikdorz .gt_right {
+#ivnruwdkmv .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#hijfikdorz .gt_font_normal {
+#ivnruwdkmv .gt_font_normal {
   font-weight: normal;
 }
 
-#hijfikdorz .gt_font_bold {
+#ivnruwdkmv .gt_font_bold {
   font-weight: bold;
 }
 
-#hijfikdorz .gt_font_italic {
+#ivnruwdkmv .gt_font_italic {
   font-style: italic;
 }
 
-#hijfikdorz .gt_super {
+#ivnruwdkmv .gt_super {
   font-size: 65%;
 }
 
-#hijfikdorz .gt_footnote_marks {
+#ivnruwdkmv .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#hijfikdorz .gt_asterisk {
+#ivnruwdkmv .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#hijfikdorz .gt_indent_1 {
+#ivnruwdkmv .gt_indent_1 {
   text-indent: 5px;
 }
 
-#hijfikdorz .gt_indent_2 {
+#ivnruwdkmv .gt_indent_2 {
   text-indent: 10px;
 }
 
-#hijfikdorz .gt_indent_3 {
+#ivnruwdkmv .gt_indent_3 {
   text-indent: 15px;
 }
 
-#hijfikdorz .gt_indent_4 {
+#ivnruwdkmv .gt_indent_4 {
   text-indent: 20px;
 }
 
-#hijfikdorz .gt_indent_5 {
+#ivnruwdkmv .gt_indent_5 {
   text-indent: 25px;
 }
 
-#hijfikdorz .katex-display {
+#ivnruwdkmv .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#hijfikdorz div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#ivnruwdkmv div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -736,142 +761,167 @@ if(f.classList.contains('jk-circle-right')) {
 </div>
 </div>
 </div>
+<p><strong>From the Week 1 lab, here’s the key information about <code>clothing</code>:</strong></p>
+<ul>
+<li>Outcome: <code>purch_rating</code></li>
+<li>Predictors: <code>price</code>, <code>condition</code> (and their interaction)</li>
+<li>Randomly-varying grouping variable: <code>ppt</code></li>
+</ul>
 </div>
+<!-- q1 -->
 <div class="question-begin">
 Question 1
 </div>
 <div class="question-body">
-<p>Based on the RQ:</p>
-<ol type="a">
-<li>Which variable is the <strong>outcome variable</strong>, aka the <strong>dependent variable?</strong></li>
-<li>Which variable or variables is/are the <strong>predictor variable(s)</strong>, aka the <strong>independent variable(s)?</strong></li>
-</ol>
+<p><strong>Write the R formula for the fixed effects part of this model</strong> (that is, the <code>y ~ x + z</code> part).</p>
+<div class="dapr3green">
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/fixef.html">Fixed effects</a> flash card.</p>
+</div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<ol type="a">
-<li>Outcome: <code>purch_rating</code>.</li>
-<li>Predictors: <code>price</code>, <code>condition</code>.</li>
-</ol>
+<div class="solution-begin">
+<button id="sol-start-1" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-1', 'sol-start-1')">
+Solution
+</button>
+</div>
+<div id="sol-body-1" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 1</em>. </span></p>
+<pre><code>purch_rating ~ price * condition</code></pre>
+<p>(Note: We know this has to be an interaction model because the RQ is asking about how an <em>association</em> between predictor and outcome <em>depends on</em> the value of another predictor.)</p>
 </div>
 <p class="solution-end">
 </p>
+<!-- q2 -->
 <div class="question-begin">
 Question 2
 </div>
 <div class="question-body">
-<p><strong>What grouping variable(s)</strong> does this dataset contain?</p>
+<p>In the Week 1 lab, you identified the randomly-varying grouping variable(s) in this dataset. <strong>For each randomly-varying grouping variable, we know that a maximal model requires a random intercept—an adjustment to the fixed intercept for each level of the grouping variable.</strong> Additionally, for each of those variables, a maximal model <em>may</em> contain a random slope over each predictor—an adjustment to the fixed slope for each level of the grouping variable.</p>
+<p><strong>Identify the random slopes that this model can contain.</strong> You can figure this out by asking: for a given randomly-varying grouping variable, do at least some of its levels appear with more than one distinct value of a given predictor? If yes, then it’s possible to include a random slope over the given predictor by the given grouping variable.</p>
+<p>Specifically, for <code>clothing</code>:</p>
+<ul>
+<li>Do at least some levels of <code>ppt</code> appear with more than one distinct value of <code>price</code>? Can we include a random slope over <code>price</code> by <code>ppt</code>?</li>
+<li>Do at least some levels of <code>ppt</code> appear with more than one distinct value of <code>condition</code>? Can we include a random slope over <code>condition</code> by <code>ppt</code>?</li>
+</ul>
 <div class="dapr3green">
-<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/groupstruc.html">Grouping variables</a> and <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-group.html">Identify grouping variables</a> flash cards.</p>
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html">Identify possible random effects</a> flash card.</p>
 </div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<p>We’ll go through each variable in <code>clothing</code> one by one.</p>
-<ol type="1">
-<li><p><strong><code>purch_rating</code> is not a grouping variable</strong> for two reasons: it’s the outcome variable, and it’s continuous.</p></li>
-<li><p><code>price</code> is numeric, so it looks continuous. But we can also think of it as ordinal, since it has a fixed set of discrete values that occur in a specific order. And those values each appear more than once, so <strong><code>price</code> is a grouping variable:</strong></p></li>
-</ol>
+<div class="solution-begin">
+<button id="sol-start-2" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-2', 'sol-start-2')">
+Solution
+</button>
+</div>
+<div id="sol-body-2" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 2</em>. </span></p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>clothing <span class="sc">|&gt;</span> <span class="fu">group_by</span>(price) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 20 × 2
-# Groups:   price [20]
-   price     n
-   &lt;dbl&gt; &lt;int&gt;
- 1     5    30
- 2    10    30
- 3    15    30
- 4    20    30
- 5    25    30
- 6    30    30
- 7    35    30
- 8    40    30
- 9    45    30
-10    50    30
-11    55    30
-12    60    30
-13    65    30
-14    70    30
-15    75    30
-16    80    30
-17    85    30
-18    90    30
-19    95    30
-20   100    30</code></pre>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>clothing <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/dapr3_mannequin.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-</div>
-<ol start="3" type="1">
-<li><strong><code>ppt</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
+<p><strong>Do at least some levels of <code>ppt</code> appear with more than one distinct value of <code>price</code>?</strong> <strong>Yes,</strong> every <code>ppt</code> sees every <code>price</code> once. In other words, <code>price</code> varies within <code>ppt</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>clothing <span class="sc">|&gt;</span> <span class="fu">group_by</span>(ppt) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xtabs</span>(<span class="sc">~</span> ppt <span class="sc">+</span> price, <span class="at">data =</span> clothing)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 30 × 2
-# Groups:   ppt [30]
-   ppt        n
-   &lt;chr&gt;  &lt;int&gt;
- 1 ppt_1     20
- 2 ppt_10    20
- 3 ppt_11    20
- 4 ppt_12    20
- 5 ppt_13    20
- 6 ppt_14    20
- 7 ppt_15    20
- 8 ppt_16    20
- 9 ppt_17    20
-10 ppt_18    20
-# ℹ 20 more rows</code></pre>
+<pre><code>        price
+ppt      5 10 15 20 25 30 35 40 45 50 55 60 65 70 75 80 85 90 95 100
+  ppt_1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_10 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_11 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_12 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_13 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_14 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_15 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_16 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_17 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_18 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_19 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_2  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_20 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_21 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_22 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_23 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_24 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_25 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_26 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_27 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_28 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_29 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_3  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_30 1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_4  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_5  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_6  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_7  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_8  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1
+  ppt_9  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1  1   1</code></pre>
 </div>
 </div>
-<ol start="4" type="1">
-<li><strong><code>condition</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
+<p>Each value of <code>ppt</code> appears with more than one value of <code>price</code> (that is, each participant sees more than one price), so we can include a random slope over <code>price</code> by <code>ppt</code>.</p>
+<p><br></p>
+<p><strong>Do at least some levels of <code>ppt</code> appear with more than one distinct value of <code>condition</code>?</strong> <strong>No,</strong> every <code>ppt</code> sees only one <code>condition</code> or the other, not both. In other words, <code>condition</code> varies between <code>ppt</code>s.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>clothing <span class="sc">|&gt;</span> <span class="fu">group_by</span>(condition) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xtabs</span>(<span class="sc">~</span> ppt <span class="sc">+</span> condition, <span class="at">data =</span> clothing)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 2 × 2
-# Groups:   condition [2]
-  condition     n
-  &lt;chr&gt;     &lt;int&gt;
-1 item_only   300
-2 model       300</code></pre>
+<pre><code>        condition
+ppt      item_only model
+  ppt_1         20     0
+  ppt_10        20     0
+  ppt_11        20     0
+  ppt_12        20     0
+  ppt_13        20     0
+  ppt_14        20     0
+  ppt_15        20     0
+  ppt_16         0    20
+  ppt_17         0    20
+  ppt_18         0    20
+  ppt_19         0    20
+  ppt_2         20     0
+  ppt_20         0    20
+  ppt_21         0    20
+  ppt_22         0    20
+  ppt_23         0    20
+  ppt_24         0    20
+  ppt_25         0    20
+  ppt_26         0    20
+  ppt_27         0    20
+  ppt_28         0    20
+  ppt_29         0    20
+  ppt_3         20     0
+  ppt_30         0    20
+  ppt_4         20     0
+  ppt_5         20     0
+  ppt_6         20     0
+  ppt_7         20     0
+  ppt_8         20     0
+  ppt_9         20     0</code></pre>
 </div>
 </div>
-<p><strong>In summary, the grouping variables in <code>clothing</code> are <code>price</code>, <code>ppt</code>, and <code>condition</code>.</strong></p>
+<p>Each value of <code>ppt</code> appears with only one value of <code>condition</code> (that is, each participant sees only one condition, not both), so we cannot include a random slope over <code>condition</code> by <code>ppt</code>.</p>
 </div>
 <p class="solution-end">
 </p>
+<!-- q3 -->
 <div class="question-begin">
 Question 3
 </div>
 <div class="question-body">
-<ol type="a">
-<li>Which grouping variable(s) contribute <strong>reproducible/manipulated/controlled variability?</strong></li>
-<li>Which grouping variable(s) contribute <strong>random/non-manipulated/non-controlled variability?</strong></li>
-</ol>
+<p><strong>Write out the complete R formula for this maximal model</strong> (expanding on the fixed-effects-only model you wrote above by adding on the appropriate random effects).</p>
 <div class="dapr3green">
-<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/dgp.html">Data generating process</a> flash card.</p>
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html">Add random effects to a model formula</a> flash card.</p>
 </div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<ol type="a">
-<li>Sources of reproducible/manipulated/controlled variability (appearing in the model as predictors):</li>
-</ol>
-<ul>
-<li><code>price</code></li>
-<li><code>condition</code></li>
-</ul>
-<ol start="2" type="a">
-<li>Sources of random/non-manipulated/non-controlled variability:</li>
-</ol>
-<ul>
-<li><code>ppt</code></li>
-</ul>
+<div class="solution-begin">
+<button id="sol-start-3" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-3', 'sol-start-3')">
+Solution
+</button>
+</div>
+<div id="sol-body-3" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 3</em>. </span></p>
+<pre><code>purch_rating ~ price * condition + (1 + price | ppt)</code></pre>
 </div>
 <p class="solution-end">
 </p>
@@ -883,23 +933,23 @@ Question 3
 <p>RQ: <strong>How is the social status of monkeys associated with their ability to solve problems, while controlling for the difficulty of the problem?</strong></p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<div id="vuidzdrtwo" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#vuidzdrtwo table {
+<div id="davtjgekpm" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#davtjgekpm table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#vuidzdrtwo thead, #vuidzdrtwo tbody, #vuidzdrtwo tfoot, #vuidzdrtwo tr, #vuidzdrtwo td, #vuidzdrtwo th {
+#davtjgekpm thead, #davtjgekpm tbody, #davtjgekpm tfoot, #davtjgekpm tr, #davtjgekpm td, #davtjgekpm th {
   border-style: none;
 }
 
-#vuidzdrtwo p {
+#davtjgekpm p {
   margin: 0;
   padding: 0;
 }
 
-#vuidzdrtwo .gt_table {
+#davtjgekpm .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -925,12 +975,12 @@ Question 3
   border-left-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_caption {
+#davtjgekpm .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#vuidzdrtwo .gt_title {
+#davtjgekpm .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -942,7 +992,7 @@ Question 3
   border-bottom-width: 0;
 }
 
-#vuidzdrtwo .gt_subtitle {
+#davtjgekpm .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -954,7 +1004,7 @@ Question 3
   border-top-width: 0;
 }
 
-#vuidzdrtwo .gt_heading {
+#davtjgekpm .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -966,13 +1016,13 @@ Question 3
   border-right-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_bottom_border {
+#davtjgekpm .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_col_headings {
+#davtjgekpm .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -987,7 +1037,7 @@ Question 3
   border-right-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_col_heading {
+#davtjgekpm .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1007,7 +1057,7 @@ Question 3
   overflow-x: hidden;
 }
 
-#vuidzdrtwo .gt_column_spanner_outer {
+#davtjgekpm .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1019,15 +1069,15 @@ Question 3
   padding-right: 4px;
 }
 
-#vuidzdrtwo .gt_column_spanner_outer:first-child {
+#davtjgekpm .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#vuidzdrtwo .gt_column_spanner_outer:last-child {
+#davtjgekpm .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#vuidzdrtwo .gt_column_spanner {
+#davtjgekpm .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1039,11 +1089,11 @@ Question 3
   width: 100%;
 }
 
-#vuidzdrtwo .gt_spanner_row {
+#davtjgekpm .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#vuidzdrtwo .gt_group_heading {
+#davtjgekpm .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1069,7 +1119,7 @@ Question 3
   text-align: left;
 }
 
-#vuidzdrtwo .gt_empty_group_heading {
+#davtjgekpm .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1084,15 +1134,15 @@ Question 3
   vertical-align: middle;
 }
 
-#vuidzdrtwo .gt_from_md > :first-child {
+#davtjgekpm .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#vuidzdrtwo .gt_from_md > :last-child {
+#davtjgekpm .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#vuidzdrtwo .gt_row {
+#davtjgekpm .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1111,7 +1161,7 @@ Question 3
   overflow-x: hidden;
 }
 
-#vuidzdrtwo .gt_stub {
+#davtjgekpm .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1124,7 +1174,7 @@ Question 3
   padding-right: 5px;
 }
 
-#vuidzdrtwo .gt_stub_row_group {
+#davtjgekpm .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1138,15 +1188,15 @@ Question 3
   vertical-align: top;
 }
 
-#vuidzdrtwo .gt_row_group_first td {
+#davtjgekpm .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#vuidzdrtwo .gt_row_group_first th {
+#davtjgekpm .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#vuidzdrtwo .gt_summary_row {
+#davtjgekpm .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1156,16 +1206,16 @@ Question 3
   padding-right: 5px;
 }
 
-#vuidzdrtwo .gt_first_summary_row {
+#davtjgekpm .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_first_summary_row.thick {
+#davtjgekpm .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#vuidzdrtwo .gt_last_summary_row {
+#davtjgekpm .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1175,7 +1225,7 @@ Question 3
   border-bottom-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_grand_summary_row {
+#davtjgekpm .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1185,7 +1235,7 @@ Question 3
   padding-right: 5px;
 }
 
-#vuidzdrtwo .gt_first_grand_summary_row {
+#davtjgekpm .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1195,7 +1245,7 @@ Question 3
   border-top-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_last_grand_summary_row_top {
+#davtjgekpm .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1205,11 +1255,11 @@ Question 3
   border-bottom-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_striped {
+#davtjgekpm .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#vuidzdrtwo .gt_table_body {
+#davtjgekpm .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1218,7 +1268,7 @@ Question 3
   border-bottom-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_footnotes {
+#davtjgekpm .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1232,7 +1282,7 @@ Question 3
   border-right-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_footnote {
+#davtjgekpm .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1241,7 +1291,7 @@ Question 3
   padding-right: 5px;
 }
 
-#vuidzdrtwo .gt_sourcenotes {
+#davtjgekpm .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1255,7 +1305,7 @@ Question 3
   border-right-color: #D3D3D3;
 }
 
-#vuidzdrtwo .gt_sourcenote {
+#davtjgekpm .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1263,72 +1313,72 @@ Question 3
   padding-right: 5px;
 }
 
-#vuidzdrtwo .gt_left {
+#davtjgekpm .gt_left {
   text-align: left;
 }
 
-#vuidzdrtwo .gt_center {
+#davtjgekpm .gt_center {
   text-align: center;
 }
 
-#vuidzdrtwo .gt_right {
+#davtjgekpm .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#vuidzdrtwo .gt_font_normal {
+#davtjgekpm .gt_font_normal {
   font-weight: normal;
 }
 
-#vuidzdrtwo .gt_font_bold {
+#davtjgekpm .gt_font_bold {
   font-weight: bold;
 }
 
-#vuidzdrtwo .gt_font_italic {
+#davtjgekpm .gt_font_italic {
   font-style: italic;
 }
 
-#vuidzdrtwo .gt_super {
+#davtjgekpm .gt_super {
   font-size: 65%;
 }
 
-#vuidzdrtwo .gt_footnote_marks {
+#davtjgekpm .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#vuidzdrtwo .gt_asterisk {
+#davtjgekpm .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#vuidzdrtwo .gt_indent_1 {
+#davtjgekpm .gt_indent_1 {
   text-indent: 5px;
 }
 
-#vuidzdrtwo .gt_indent_2 {
+#davtjgekpm .gt_indent_2 {
   text-indent: 10px;
 }
 
-#vuidzdrtwo .gt_indent_3 {
+#davtjgekpm .gt_indent_3 {
   text-indent: 15px;
 }
 
-#vuidzdrtwo .gt_indent_4 {
+#davtjgekpm .gt_indent_4 {
   text-indent: 20px;
 }
 
-#vuidzdrtwo .gt_indent_5 {
+#davtjgekpm .gt_indent_5 {
   text-indent: 25px;
 }
 
-#vuidzdrtwo .katex-display {
+#davtjgekpm .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#vuidzdrtwo div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#davtjgekpm div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -1379,130 +1429,203 @@ Question 3
 </div>
 </div>
 </div>
+<p><strong>From the Week 1 lab, here’s the key information about <code>monkeystatus</code>:</strong></p>
+<ul>
+<li>Outcome: <code>solved</code></li>
+<li>Predictors: <code>status</code>, <code>difficulty</code></li>
+<li>Randomly-varying grouping variable: <code>monkeyID</code></li>
+</ul>
 </div>
+<!-- q4 -->
 <div class="question-begin">
 Question 4
 </div>
 <div class="question-body">
-<p>Based on the RQ:</p>
-<ol type="a">
-<li>Which variable is the <strong>outcome variable</strong>, aka the <strong>dependent variable?</strong></li>
-<li>Which variable or variables is/are the <strong>predictor variable(s)</strong>, aka the <strong>independent variable(s)?</strong></li>
-</ol>
+<p>Write the R formula for the fixed effects part of this model.</p>
+<div class="dapr3green">
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/fixef.html">Fixed effects</a> flash card.</p>
+</div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<ol type="a">
-<li>Outcome: <code>solved</code>.</li>
-<li>Predictors: <code>status</code>, <code>difficulty</code>.</li>
-</ol>
+<div class="solution-begin">
+<button id="sol-start-4" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-4', 'sol-start-4')">
+Solution
+</button>
+</div>
+<div id="sol-body-4" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 4</em>. </span></p>
+<pre><code>solved ~ status + difficulty</code></pre>
+<p>(Note: We know this is not an interaction model because the RQ is asking for us to control for a specific variable, not to estimate how one effect depends on a different variable. To control for a specific covariate, we just need to add it on.)</p>
 </div>
 <p class="solution-end">
 </p>
+<!-- q5 -->
 <div class="question-begin">
 Question 5
 </div>
 <div class="question-body">
-<p><strong>What grouping variable(s)</strong> does this dataset contain?</p>
+<p>We already know what random intercepts the model must have (one per randomly-varying grouping variable).</p>
+<p>Identify the possible random slopes.</p>
 <div class="dapr3green">
-<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/groupstruc.html">Grouping variables</a> and <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-group.html">Identify grouping variables</a> flash cards.</p>
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html">Identify possible random effects</a> flash card.</p>
 </div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>monkey <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">"https://uoepsy.github.io/data/msmr_monkeystatus.csv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="solution-begin">
+<button id="sol-start-5" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-5', 'sol-start-5')">
+Solution
+</button>
 </div>
-<p>We’ll go through each variable in <code>monkey</code> one by one.</p>
-<ol type="1">
-<li><strong><code>status</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
+<div id="sol-body-5" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 5</em>. </span></p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>monkey <span class="sc">|&gt;</span> <span class="fu">group_by</span>(status) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>monkey <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">'https://uoepsy.github.io/data/msmr_monkeystatus.csv'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><strong>Do at least some levels of <code>monkeyID</code> appear with more than one distinct value of <code>status</code>?</strong> <strong>No,</strong> every <code>monkeyID</code> has only one <code>status</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xtabs</span>(<span class="sc">~</span> monkeyID <span class="sc">+</span> status, <span class="at">data =</span> monkey)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 3 × 2
-# Groups:   status [3]
-  status          n
-  &lt;chr&gt;       &lt;int&gt;
-1 adolescent    126
-2 dominant      181
-3 subordinate    90</code></pre>
+<pre><code>           status
+monkeyID    adolescent dominant subordinate
+  Aliyya             0        7           0
+  Ashley             6        0           0
+  Billy              0        7           0
+  Brianna            0        5           0
+  Catherine          9        0           0
+  Celestina          5        0           0
+  Cheyenne           6        0           0
+  Cinoi              0        0          10
+  Courtney           0        7           0
+  Daniel             0        0           8
+  David              0        0          11
+  Delray             6        0           0
+  Devonte            0        5           0
+  Efren              0        7           0
+  Eric               0        8           0
+  Erik               6        0           0
+  Fuaad              0        0           6
+  Gienry             0       11           0
+  Iffat              0        8           0
+  Jaarallah          0       11           0
+  Jashjaun           0        6           0
+  Jason              0       10           0
+  Jayson            10        0           0
+  Jennifer          10        0           0
+  Jessica            0        0           8
+  Jonathan           7        0           0
+  Kaamil            11        0           0
+  Maya               0        7           0
+  Micah              0        0          10
+  Nadheera           0        0           7
+  Najiyya            0       11           0
+  Nathan             0        5           0
+  Nichol             0        0          10
+  Peter              7        0           0
+  Rachel             0       11           0
+  Rebecca            9        0           0
+  Richard            0        0           3
+  Riley              0        0           8
+  Robert             7        0           0
+  Saydie             0        8           0
+  Sean               0        9           0
+  Seunghoo           0        0           9
+  Shajee'a           0       10           0
+  Shannon           10        0           0
+  Sierra             0        6           0
+  Sydney             0        8           0
+  Taylor             0        6           0
+  Van               10        0           0
+  Vance              0        8           0
+  Young Joo          7        0           0</code></pre>
 </div>
 </div>
-<ol start="2" type="1">
-<li><strong><code>difficulty</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
+<p>Because each monkey only has one status, no random slope over <code>status</code> is possible.</p>
+<p><br></p>
+<p><strong>Do at least some levels of <code>monkeyID</code> appear with more than one distinct value of <code>difficulty</code>?</strong> <strong>Yes,</strong> nearly every <code>monkeyID</code> sees both levels of <code>difficulty</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>monkey <span class="sc">|&gt;</span> <span class="fu">group_by</span>(difficulty) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xtabs</span>(<span class="sc">~</span> monkeyID <span class="sc">+</span> difficulty, <span class="at">data =</span> monkey)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 2 × 2
-# Groups:   difficulty [2]
-  difficulty     n
-  &lt;chr&gt;      &lt;int&gt;
-1 difficult    189
-2 easy         208</code></pre>
+<pre><code>           difficulty
+monkeyID    difficult easy
+  Aliyya            3    4
+  Ashley            3    3
+  Billy             3    4
+  Brianna           3    2
+  Catherine         4    5
+  Celestina         3    2
+  Cheyenne          2    4
+  Cinoi             4    6
+  Courtney          2    5
+  Daniel            5    3
+  David             5    6
+  Delray            5    1
+  Devonte           2    3
+  Efren             4    3
+  Eric              3    5
+  Erik              2    4
+  Fuaad             5    1
+  Gienry            5    6
+  Iffat             1    7
+  Jaarallah         5    6
+  Jashjaun          2    4
+  Jason             6    4
+  Jayson            5    5
+  Jennifer          7    3
+  Jessica           4    4
+  Jonathan          2    5
+  Kaamil            7    4
+  Maya              2    5
+  Micah             5    5
+  Nadheera          0    7
+  Najiyya           5    6
+  Nathan            3    2
+  Nichol            4    6
+  Peter             1    6
+  Rachel            5    6
+  Rebecca           4    5
+  Richard           3    0
+  Riley             3    5
+  Robert            4    3
+  Saydie            4    4
+  Sean              3    6
+  Seunghoo          3    6
+  Shajee'a          7    3
+  Shannon           6    4
+  Sierra            5    1
+  Sydney            4    4
+  Taylor            3    3
+  Van               3    7
+  Vance             7    1
+  Young Joo         3    4</code></pre>
 </div>
 </div>
-<ol start="3" type="1">
-<li><strong><code>monkeyID</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>monkey <span class="sc">|&gt;</span> <span class="fu">group_by</span>(monkeyID) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 50 × 2
-# Groups:   monkeyID [50]
-   monkeyID      n
-   &lt;chr&gt;     &lt;int&gt;
- 1 Aliyya        7
- 2 Ashley        6
- 3 Billy         7
- 4 Brianna       5
- 5 Catherine     9
- 6 Celestina     5
- 7 Cheyenne      6
- 8 Cinoi        10
- 9 Courtney      7
-10 Daniel        8
-# ℹ 40 more rows</code></pre>
-</div>
-</div>
-<ol start="4" type="1">
-<li><strong><code>solved</code> is not a grouping variable</strong> because it’s the outcome variable.</li>
-</ol>
-<p><strong>In summary, the grouping variables in <code>monkey</code> are <code>status</code>, <code>difficulty</code>, and <code>monkeyID</code>.</strong></p>
+<p>Because at least some monkeys have seen both levels of difficulty, we can include a random slope by <code>monkey</code> over <code>difficulty</code>.</p>
+<p>(It’s fine that Nadheera and Richard only see one difficulty level each—we have enough data from the other monkeys to still be able to estimate the random slopes.)</p>
 </div>
 <p class="solution-end">
 </p>
+<!-- q6 -->
 <div class="question-begin">
 Question 6
 </div>
 <div class="question-body">
-<ol type="a">
-<li>Which grouping variable(s) contribute <strong>reproducible/manipulated/controlled variability?</strong></li>
-<li>Which grouping variable(s) contribute <strong>random/non-manipulated/non-controlled variability?</strong></li>
-</ol>
+<p>Write out the complete R formula for this maximal model.</p>
 <div class="dapr3green">
-<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/dgp.html">Data generating process</a> flash card.</p>
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html">Add random effects to a model formula</a> flash card.</p>
 </div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<ol type="a">
-<li>Sources of reproducible/manipulated/controlled variability (appearing in the model as predictors):</li>
-</ol>
-<ul>
-<li><code>status</code></li>
-<li><code>difficulty</code></li>
-</ul>
-<ol start="2" type="a">
-<li>Sources of random/non-manipulated/non-controlled variability:</li>
-</ol>
-<ul>
-<li><code>monkeyID</code></li>
-</ul>
+<div class="solution-begin">
+<button id="sol-start-6" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-6', 'sol-start-6')">
+Solution
+</button>
+</div>
+<div id="sol-body-6" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 6</em>. </span></p>
+<pre><code>solved ~ status + difficulty + (1 + difficulty | monkeyID)</code></pre>
 </div>
 <p class="solution-end">
 </p>
@@ -1514,23 +1637,23 @@ Question 6
 <p>RQ: <strong>How is the delivery format of jokes (audio-only vs.&nbsp;audio AND video) associated with differences in humour ratings?</strong></p>
 <div class="cell" data-layout-align="center">
 <div class="cell-output-display">
-<div id="qpelwqqxjt" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
-<style>#qpelwqqxjt table {
+<div id="yszehueuug" style="padding-left:0px;padding-right:0px;padding-top:10px;padding-bottom:10px;overflow-x:auto;overflow-y:auto;width:auto;height:auto;">
+<style>#yszehueuug table {
   font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-#qpelwqqxjt thead, #qpelwqqxjt tbody, #qpelwqqxjt tfoot, #qpelwqqxjt tr, #qpelwqqxjt td, #qpelwqqxjt th {
+#yszehueuug thead, #yszehueuug tbody, #yszehueuug tfoot, #yszehueuug tr, #yszehueuug td, #yszehueuug th {
   border-style: none;
 }
 
-#qpelwqqxjt p {
+#yszehueuug p {
   margin: 0;
   padding: 0;
 }
 
-#qpelwqqxjt .gt_table {
+#yszehueuug .gt_table {
   display: table;
   border-collapse: collapse;
   line-height: normal;
@@ -1556,12 +1679,12 @@ Question 6
   border-left-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_caption {
+#yszehueuug .gt_caption {
   padding-top: 4px;
   padding-bottom: 4px;
 }
 
-#qpelwqqxjt .gt_title {
+#yszehueuug .gt_title {
   color: #333333;
   font-size: 125%;
   font-weight: initial;
@@ -1573,7 +1696,7 @@ Question 6
   border-bottom-width: 0;
 }
 
-#qpelwqqxjt .gt_subtitle {
+#yszehueuug .gt_subtitle {
   color: #333333;
   font-size: 85%;
   font-weight: initial;
@@ -1585,7 +1708,7 @@ Question 6
   border-top-width: 0;
 }
 
-#qpelwqqxjt .gt_heading {
+#yszehueuug .gt_heading {
   background-color: #FFFFFF;
   text-align: center;
   border-bottom-color: #FFFFFF;
@@ -1597,13 +1720,13 @@ Question 6
   border-right-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_bottom_border {
+#yszehueuug .gt_bottom_border {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_col_headings {
+#yszehueuug .gt_col_headings {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1618,7 +1741,7 @@ Question 6
   border-right-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_col_heading {
+#yszehueuug .gt_col_heading {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1638,7 +1761,7 @@ Question 6
   overflow-x: hidden;
 }
 
-#qpelwqqxjt .gt_column_spanner_outer {
+#yszehueuug .gt_column_spanner_outer {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1650,15 +1773,15 @@ Question 6
   padding-right: 4px;
 }
 
-#qpelwqqxjt .gt_column_spanner_outer:first-child {
+#yszehueuug .gt_column_spanner_outer:first-child {
   padding-left: 0;
 }
 
-#qpelwqqxjt .gt_column_spanner_outer:last-child {
+#yszehueuug .gt_column_spanner_outer:last-child {
   padding-right: 0;
 }
 
-#qpelwqqxjt .gt_column_spanner {
+#yszehueuug .gt_column_spanner {
   border-bottom-style: solid;
   border-bottom-width: 2px;
   border-bottom-color: #D3D3D3;
@@ -1670,11 +1793,11 @@ Question 6
   width: 100%;
 }
 
-#qpelwqqxjt .gt_spanner_row {
+#yszehueuug .gt_spanner_row {
   border-bottom-style: hidden;
 }
 
-#qpelwqqxjt .gt_group_heading {
+#yszehueuug .gt_group_heading {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1700,7 +1823,7 @@ Question 6
   text-align: left;
 }
 
-#qpelwqqxjt .gt_empty_group_heading {
+#yszehueuug .gt_empty_group_heading {
   padding: 0.5px;
   color: #333333;
   background-color: #FFFFFF;
@@ -1715,15 +1838,15 @@ Question 6
   vertical-align: middle;
 }
 
-#qpelwqqxjt .gt_from_md > :first-child {
+#yszehueuug .gt_from_md > :first-child {
   margin-top: 0;
 }
 
-#qpelwqqxjt .gt_from_md > :last-child {
+#yszehueuug .gt_from_md > :last-child {
   margin-bottom: 0;
 }
 
-#qpelwqqxjt .gt_row {
+#yszehueuug .gt_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1742,7 +1865,7 @@ Question 6
   overflow-x: hidden;
 }
 
-#qpelwqqxjt .gt_stub {
+#yszehueuug .gt_stub {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1755,7 +1878,7 @@ Question 6
   padding-right: 5px;
 }
 
-#qpelwqqxjt .gt_stub_row_group {
+#yszehueuug .gt_stub_row_group {
   color: #333333;
   background-color: #FFFFFF;
   font-size: 100%;
@@ -1769,15 +1892,15 @@ Question 6
   vertical-align: top;
 }
 
-#qpelwqqxjt .gt_row_group_first td {
+#yszehueuug .gt_row_group_first td {
   border-top-width: 2px;
 }
 
-#qpelwqqxjt .gt_row_group_first th {
+#yszehueuug .gt_row_group_first th {
   border-top-width: 2px;
 }
 
-#qpelwqqxjt .gt_summary_row {
+#yszehueuug .gt_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1787,16 +1910,16 @@ Question 6
   padding-right: 5px;
 }
 
-#qpelwqqxjt .gt_first_summary_row {
+#yszehueuug .gt_first_summary_row {
   border-top-style: solid;
   border-top-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_first_summary_row.thick {
+#yszehueuug .gt_first_summary_row.thick {
   border-top-width: 2px;
 }
 
-#qpelwqqxjt .gt_last_summary_row {
+#yszehueuug .gt_last_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1806,7 +1929,7 @@ Question 6
   border-bottom-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_grand_summary_row {
+#yszehueuug .gt_grand_summary_row {
   color: #333333;
   background-color: #FFFFFF;
   text-transform: inherit;
@@ -1816,7 +1939,7 @@ Question 6
   padding-right: 5px;
 }
 
-#qpelwqqxjt .gt_first_grand_summary_row {
+#yszehueuug .gt_first_grand_summary_row {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1826,7 +1949,7 @@ Question 6
   border-top-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_last_grand_summary_row_top {
+#yszehueuug .gt_last_grand_summary_row_top {
   padding-top: 8px;
   padding-bottom: 8px;
   padding-left: 5px;
@@ -1836,11 +1959,11 @@ Question 6
   border-bottom-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_striped {
+#yszehueuug .gt_striped {
   background-color: rgba(128, 128, 128, 0.05);
 }
 
-#qpelwqqxjt .gt_table_body {
+#yszehueuug .gt_table_body {
   border-top-style: solid;
   border-top-width: 2px;
   border-top-color: #D3D3D3;
@@ -1849,7 +1972,7 @@ Question 6
   border-bottom-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_footnotes {
+#yszehueuug .gt_footnotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1863,7 +1986,7 @@ Question 6
   border-right-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_footnote {
+#yszehueuug .gt_footnote {
   margin: 0px;
   font-size: 90%;
   padding-top: 4px;
@@ -1872,7 +1995,7 @@ Question 6
   padding-right: 5px;
 }
 
-#qpelwqqxjt .gt_sourcenotes {
+#yszehueuug .gt_sourcenotes {
   color: #333333;
   background-color: #FFFFFF;
   border-bottom-style: none;
@@ -1886,7 +2009,7 @@ Question 6
   border-right-color: #D3D3D3;
 }
 
-#qpelwqqxjt .gt_sourcenote {
+#yszehueuug .gt_sourcenote {
   font-size: 90%;
   padding-top: 4px;
   padding-bottom: 4px;
@@ -1894,72 +2017,72 @@ Question 6
   padding-right: 5px;
 }
 
-#qpelwqqxjt .gt_left {
+#yszehueuug .gt_left {
   text-align: left;
 }
 
-#qpelwqqxjt .gt_center {
+#yszehueuug .gt_center {
   text-align: center;
 }
 
-#qpelwqqxjt .gt_right {
+#yszehueuug .gt_right {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-#qpelwqqxjt .gt_font_normal {
+#yszehueuug .gt_font_normal {
   font-weight: normal;
 }
 
-#qpelwqqxjt .gt_font_bold {
+#yszehueuug .gt_font_bold {
   font-weight: bold;
 }
 
-#qpelwqqxjt .gt_font_italic {
+#yszehueuug .gt_font_italic {
   font-style: italic;
 }
 
-#qpelwqqxjt .gt_super {
+#yszehueuug .gt_super {
   font-size: 65%;
 }
 
-#qpelwqqxjt .gt_footnote_marks {
+#yszehueuug .gt_footnote_marks {
   font-size: 75%;
   vertical-align: 0.4em;
   position: initial;
 }
 
-#qpelwqqxjt .gt_asterisk {
+#yszehueuug .gt_asterisk {
   font-size: 100%;
   vertical-align: 0;
 }
 
-#qpelwqqxjt .gt_indent_1 {
+#yszehueuug .gt_indent_1 {
   text-indent: 5px;
 }
 
-#qpelwqqxjt .gt_indent_2 {
+#yszehueuug .gt_indent_2 {
   text-indent: 10px;
 }
 
-#qpelwqqxjt .gt_indent_3 {
+#yszehueuug .gt_indent_3 {
   text-indent: 15px;
 }
 
-#qpelwqqxjt .gt_indent_4 {
+#yszehueuug .gt_indent_4 {
   text-indent: 20px;
 }
 
-#qpelwqqxjt .gt_indent_5 {
+#yszehueuug .gt_indent_5 {
   text-indent: 25px;
 }
 
-#qpelwqqxjt .katex-display {
+#yszehueuug .katex-display {
   display: inline-flex !important;
   margin-bottom: 0.75em !important;
 }
 
-#qpelwqqxjt div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
+#yszehueuug div.Reactable > div.rt-table > div.rt-thead > div.rt-tr.rt-tr-group-header > div.rt-th-group:after {
   height: 0px !important;
 }
 </style>
@@ -2014,178 +2137,591 @@ Question 6
 </div>
 </div>
 </div>
+<p><strong>From the Week 1 lab, here’s the key information about <code>laughs</code>:</strong></p>
+<ul>
+<li>Outcome: <code>rating</code></li>
+<li>Predictors: <code>delivery</code></li>
+<li>Randomly-varying grouping variables: <code>ppt</code> and <code>joke_label</code>/<code>joke_id</code> (two forms of the same information; for simplicity we can just use <code>joke_id</code>)</li>
+</ul>
 </div>
+<!-- q7 -->
 <div class="question-begin">
 Question 7
 </div>
 <div class="question-body">
-<p>Based on the RQ:</p>
-<ol type="a">
-<li>Which variable is the <strong>outcome variable</strong>, aka the <strong>dependent variable?</strong></li>
-<li>Which variable or variables is/are the <strong>predictor variable(s)</strong>, aka the <strong>independent variable(s)?</strong></li>
-</ol>
+<p>Write the R formula for the fixed effects part of this model.</p>
+<div class="dapr3green">
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/fixef.html">Fixed effects</a> flash card.</p>
+</div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<ol type="a">
-<li>Outcome: `rating``.</li>
-<li>Predictor: <code>delivery</code>.</li>
-</ol>
+<div class="solution-begin">
+<button id="sol-start-7" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-7', 'sol-start-7')">
+Solution
+</button>
+</div>
+<div id="sol-body-7" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 7</em>. </span></p>
+<pre><code>rating ~ delivery</code></pre>
 </div>
 <p class="solution-end">
 </p>
+<!-- q8 -->
 <div class="question-begin">
 Question 8
 </div>
 <div class="question-body">
-<p><strong>What grouping variable(s)</strong> does this dataset contain?</p>
+<p>We already know what random intercepts the model must have (one per randomly-varying grouping variable).</p>
+<p>Identify the possible random slopes.</p>
 <div class="dapr3green">
-<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/groupstruc.html">Grouping variables</a> and <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-group.html">Identify grouping variables</a> flash cards.</p>
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html">Identify possible random effects</a> flash card.</p>
 </div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>laughs <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">'https://uoepsy.github.io/data/lmm_laughs.csv'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="solution-begin">
+<button id="sol-start-8" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-8', 'sol-start-8')">
+Solution
+</button>
 </div>
-<p>We’ll go through each variable in <code>laughs</code> one by one.</p>
-<ol type="1">
-<li><strong><code>ppt</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
+<div id="sol-body-8" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 8</em>. </span></p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>laughs <span class="sc">|&gt;</span> <span class="fu">group_by</span>(ppt) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>laughs <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">'https://uoepsy.github.io/data/lmm_laughs.csv'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<p><strong>Do at least some levels of <code>ppt</code> appear with more than one distinct value of <code>delivery</code>?</strong> <strong>Yes,</strong> every <code>ppt</code> sees both kinds of <code>delivery</code>.</p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xtabs</span>(<span class="sc">~</span> ppt <span class="sc">+</span> delivery, <span class="at">data =</span> laughs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 90 × 2
-# Groups:   ppt [90]
-   ppt         n
-   &lt;chr&gt;   &lt;int&gt;
- 1 PPTID1     30
- 2 PPTID10    30
- 3 PPTID11    30
- 4 PPTID12    30
- 5 PPTID13    30
- 6 PPTID14    30
- 7 PPTID15    30
- 8 PPTID16    30
- 9 PPTID17    30
-10 PPTID18    30
-# ℹ 80 more rows</code></pre>
+<pre><code>         delivery
+ppt       audio video
+  PPTID1     15    15
+  PPTID10    15    15
+  PPTID11    15    15
+  PPTID12    15    15
+  PPTID13    15    15
+  PPTID14    15    15
+  PPTID15    15    15
+  PPTID16    15    15
+  PPTID17    15    15
+  PPTID18    15    15
+  PPTID19    15    15
+  PPTID2     15    15
+  PPTID20    15    15
+  PPTID21    15    15
+  PPTID22    15    15
+  PPTID23    15    15
+  PPTID24    15    15
+  PPTID25    15    15
+  PPTID26    15    15
+  PPTID27    15    15
+  PPTID28    15    15
+  PPTID29    15    15
+  PPTID3     15    15
+  PPTID30    15    15
+  PPTID31    15    15
+  PPTID32    15    15
+  PPTID33    15    15
+  PPTID34    15    15
+  PPTID35    15    15
+  PPTID36    15    15
+  PPTID37    15    15
+  PPTID38    15    15
+  PPTID39    15    15
+  PPTID4     15    15
+  PPTID40    15    15
+  PPTID41    15    15
+  PPTID42    15    15
+  PPTID43    15    15
+  PPTID44    15    15
+  PPTID45    15    15
+  PPTID46    15    15
+  PPTID47    15    15
+  PPTID48    15    15
+  PPTID49    15    15
+  PPTID5     15    15
+  PPTID50    15    15
+  PPTID51    15    15
+  PPTID52    15    15
+  PPTID53    15    15
+  PPTID54    15    15
+  PPTID55    15    15
+  PPTID56    15    15
+  PPTID57    15    15
+  PPTID58    15    15
+  PPTID59    15    15
+  PPTID6     15    15
+  PPTID60    15    15
+  PPTID61    15    15
+  PPTID62    15    15
+  PPTID63    15    15
+  PPTID64    15    15
+  PPTID65    15    15
+  PPTID66    15    15
+  PPTID67    15    15
+  PPTID68    15    15
+  PPTID69    15    15
+  PPTID7     15    15
+  PPTID70    15    15
+  PPTID71    15    15
+  PPTID72    15    15
+  PPTID73    15    15
+  PPTID74    15    15
+  PPTID75    15    15
+  PPTID76    15    15
+  PPTID77    15    15
+  PPTID78    15    15
+  PPTID79    15    15
+  PPTID8     15    15
+  PPTID80    15    15
+  PPTID81    15    15
+  PPTID82    15    15
+  PPTID83    15    15
+  PPTID84    15    15
+  PPTID85    15    15
+  PPTID86    15    15
+  PPTID87    15    15
+  PPTID88    15    15
+  PPTID89    15    15
+  PPTID9     15    15
+  PPTID90    15    15</code></pre>
 </div>
 </div>
-<ol start="2" type="1">
-<li><strong><code>joke_label</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
+<p>Because each participant has seen each kind of delivery, we can include random slopes over <code>delivery</code> by <code>ppt</code>.</p>
+<p><br></p>
+<p><strong>Do at least some levels of <code>joke_id</code> appear with more than one distinct value of <code>delivery</code>?</strong> <strong>Yes,</strong> every <code>joke_id</code> is told with both kinds of <code>delivery</code>.</p>
 <div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>laughs <span class="sc">|&gt;</span> <span class="fu">group_by</span>(joke_label) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="fu">xtabs</span>(<span class="sc">~</span> joke_id <span class="sc">+</span> delivery, <span class="at">data =</span> laughs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 30 × 2
-# Groups:   joke_label [30]
-   joke_label                                                                  n
-   &lt;chr&gt;                                                                   &lt;int&gt;
- 1 "A couple of New Jersey hunters are out in the woods when one of them …    90
- 2 "A doctor says to his patient, 'I have bad news and worse news'. 'Oh d…    90
- 3 "A general noticed one of his soldiers behaving oddly. The soldier wou…    90
- 4 "A man and a friend are playing golf one day at their local golf cours…    90
- 5 "A man goes into the doctor with a penguin on his head. The doctor say…    90
- 6 "A patient says: \"Doctor, last night I made a Freudian slip, I was ha…    90
- 7 "A termite walks into a cocktail lounge and asks a customer \"is the b…    90
- 8 "A turtle was walking down an alley in New York when he was mugged by …    90
- 9 "A woman gets on a bus with her baby. The bus driver says: \"That's th…    90
-10 "An Alsatian went to a telegram office, took out a blank form and wrot…    90
-# ℹ 20 more rows</code></pre>
+<pre><code>       delivery
+joke_id audio video
+     1     40    50
+     2     43    47
+     3     48    42
+     4     46    44
+     5     43    47
+     6     35    55
+     7     39    51
+     8     52    38
+     9     45    45
+     10    48    42
+     11    46    44
+     12    47    43
+     13    36    54
+     14    47    43
+     15    49    41
+     16    52    38
+     17    50    40
+     18    39    51
+     19    46    44
+     20    42    48
+     21    54    36
+     22    45    45
+     23    47    43
+     24    44    46
+     25    39    51
+     26    46    44
+     27    39    51
+     28    56    34
+     29    40    50
+     30    47    43</code></pre>
 </div>
 </div>
-<ol start="3" type="1">
-<li><strong><code>joke_id</code> is a grouping variable</strong> because each of its values appears more than once. (<code>joke_id</code> and <code>joke_label</code> contain the same information, just with different amounts of detail.)</li>
-</ol>
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>laughs <span class="sc">|&gt;</span> <span class="fu">group_by</span>(joke_id) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 30 × 2
-# Groups:   joke_id [30]
-   joke_id     n
-     &lt;dbl&gt; &lt;int&gt;
- 1       1    90
- 2       2    90
- 3       3    90
- 4       4    90
- 5       5    90
- 6       6    90
- 7       7    90
- 8       8    90
- 9       9    90
-10      10    90
-# ℹ 20 more rows</code></pre>
-</div>
-</div>
-<ol start="4" type="1">
-<li><strong><code>delivery</code> is a grouping variable</strong> because each of its values appears more than once.</li>
-</ol>
-<div class="cell" data-layout-align="center">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>laughs <span class="sc">|&gt;</span> <span class="fu">group_by</span>(delivery) <span class="sc">|&gt;</span> <span class="fu">count</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 2 × 2
-# Groups:   delivery [2]
-  delivery     n
-  &lt;chr&gt;    &lt;int&gt;
-1 audio     1350
-2 video     1350</code></pre>
-</div>
-</div>
-<ol start="5" type="1">
-<li><strong><code>rating</code> is not a grouping variable</strong> because it’s the outcome variable (and besides, it’s continuous).</li>
-</ol>
-<p><strong>In summary, the grouping variables in <code>laughs</code> are <code>ppt</code>, <code>joke_label</code>/<code>joke_id</code>, and <code>delivery</code>.</strong></p>
+<p>Because each joke was told in each kind of delivery, we can include random slopes over <code>delivery</code> by <code>joke_id</code>.</p>
 </div>
 <p class="solution-end">
 </p>
+<!-- q9 -->
 <div class="question-begin">
 Question 9
 </div>
 <div class="question-body">
-<ol type="a">
-<li>Which grouping variable(s) contribute <strong>reproducible/manipulated/controlled variability?</strong></li>
-<li>Which grouping variable(s) contribute <strong>random/non-manipulated/non-controlled variability?</strong></li>
-</ol>
+<p>Write out the complete R formula for this maximal model.</p>
 <div class="dapr3green">
-<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/dgp.html">Data generating process</a> flash card.</p>
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/identify-ranef.html">Add random effects to a model formula</a> flash card.</p>
 </div>
 </div>
 <p class="question-end">
 </p>
-<div style="display:none;">
-<ol type="a">
-<li>Sources of reproducible/manipulated/controlled variability (appearing in the model as predictors):</li>
-</ol>
-<ul>
-<li><code>delivery</code></li>
-</ul>
-<ol start="2" type="a">
-<li>Sources of random/non-manipulated/non-controlled variability:</li>
-</ol>
-<ul>
-<li><code>ppt</code></li>
-<li><code>joke_label</code>/<code>joke_id</code></li>
-</ul>
+<div class="solution-begin">
+<button id="sol-start-9" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-9', 'sol-start-9')">
+Solution
+</button>
+</div>
+<div id="sol-body-9" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 9</em>. </span></p>
+<pre><code>rating ~ delivery + (1 + delivery | ppt) + (1 + delivery | joke_id)</code></pre>
 </div>
 <p class="solution-end">
 </p>
 </section>
-<section id="the-piazza-forum" class="level2">
-<h2 class="anchored" data-anchor-id="the-piazza-forum">The Piazza forum</h2>
+<section id="practice-interpreting-the-lmm-summary" class="level2">
+<h2 class="anchored" data-anchor-id="practice-interpreting-the-lmm-summary">Practice interpreting the LMM summary</h2>
+<!-- q10 -->
 <div class="question-begin">
 Question 10
 </div>
 <div class="question-body">
-<p>Finally: we want you to get familiar with the course’s Piazza page. Either <a href="https://piazza.com/class/msemnhi2w0v30v/" target="_blank">click here</a> or if that doesn’t work then look for “Piazza Discussion Forum” on the Learn page.</p>
-<p>Piazza is a discussion forum where you can anonymously post questions that your coursemates, tutors, and instructors can see and respond to. Throughout this course, please use Piazza to ask us your stats questions. Asking on Piazza is better than asking by email because then everybody else can benefit from your questions.</p>
-<p><strong>Your final task this week is to get to know Piazza by anonymously posting about something you like.</strong> (A cute photo of your pet, a nice thing someone said to you, the best food you ate recently… whatever makes you happy!)</p>
-<!-- And in the future, if you have questions about the group report and the exam, you can post these on Piazza. -->
-<!-- That way, everybody has access to all the same information. -->
+<p><strong>Fit the LMM that you have developed for the <code>laughs</code> dataset, using the maximal model formula you wrote for Q9.</strong> (You can just use R’s default treatment coding for <code>delivery</code>, so that <code>audio</code> is the reference level and <code>video</code> is the non-reference level.)</p>
+<p>Use the model summary to respond to the following questions.</p>
+<p><strong>Fixed effects:</strong></p>
+<ol type="a">
+<li>What does the model’s intercept mean?</li>
+<li>What does the coefficient <code>deliveryvideo</code> mean?</li>
+</ol>
+<p><strong>By-participant random effects:</strong></p>
+<ol start="3" type="a">
+<li>Within what range will approximately 95% of participant-level intercepts fall?</li>
+<li>Within what range will approximately 95% of participant-level slopes over <code>delivery</code> fall?</li>
+<li>Could some participants show an effect of <code>delivery</code> that goes in the opposite direction than the fixed effect?</li>
+</ol>
+<p><strong>By-joke random effects:</strong></p>
+<ol start="6" type="a">
+<li>Within what range will approximately 95% of joke-level intercepts fall?</li>
+<li>Within what range will approximately 95% of joke-level slopes over <code>delivery</code> fall?</li>
+<li>Could some jokes elicit an effect of <code>delivery</code> that goes in the opposite direction than the fixed effect?</li>
+</ol>
+<div class="dapr3green">
+<p>🗂️ See <a href="https://uoepsy.github.io/dapr3/2627/flashcards/block1/interpret-lmm.html">Interpret LMM summary</a> flash card.</p>
+</div>
 </div>
 <p class="question-end">
+</p>
+<div class="solution-begin">
+<button id="sol-start-10" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-10', 'sol-start-10')">
+Solution – Model code and summary
+</button>
+</div>
+<div id="sol-body-10" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 10</em>. </span></p>
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>joke_mod <span class="ot">&lt;-</span> <span class="fu">lmer</span>(</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>  rating <span class="sc">~</span> delivery <span class="sc">+</span> </span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">+</span> delivery <span class="sc">|</span> joke_id) <span class="sc">+</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    (<span class="dv">1</span> <span class="sc">+</span> delivery <span class="sc">|</span> ppt), </span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> laughs</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(joke_mod)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: rating ~ delivery + (1 + delivery | joke_id) + (1 + delivery |  
+    ppt)
+   Data: laughs
+
+REML criterion at convergence: 17575
+
+Scaled residuals: 
+   Min     1Q Median     3Q    Max 
+-3.484 -0.663  0.016  0.651  3.353 
+
+Random effects:
+ Groups   Name          Variance Std.Dev. Corr 
+ ppt      (Intercept)   12.32    3.51          
+          deliveryvideo  3.18    1.78     0.00 
+ joke_id  (Intercept)    4.61    2.15          
+          deliveryvideo  5.03    2.24     0.39 
+ Residual               34.03    5.83          
+Number of obs: 2700, groups:  ppt, 90; joke_id, 30
+
+Fixed effects:
+              Estimate Std. Error     df t value Pr(&gt;|t|)    
+(Intercept)     39.020      0.562 71.177    69.4   &lt;2e-16 ***
+deliveryvideo    1.410      0.504 36.486     2.8   0.0082 ** 
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr)
+deliveryvid 0.131 </code></pre>
+</div>
+</div>
+</div>
+<p class="solution-end">
+</p>
+<div class="solution-begin">
+<button id="sol-start-11" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-11', 'sol-start-11')">
+Solution – Fixed effects
+</button>
+</div>
+<div id="sol-body-11" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 11</em>. </span></p>
+<ol type="a">
+<li><strong>What does the model’s intercept mean?</strong></li>
+</ol>
+<ul>
+<li>The average estimated humour rating when jokes were presented in audio-only format (the reference level of <code>delivery</code>, coded as 0) is 39.02 points.</li>
+</ul>
+<ol start="2" type="a">
+<li><strong>What does the coefficient <code>deliveryvideo</code> mean?</strong></li>
+</ol>
+<ul>
+<li>On average, presenting a joke in audio-video format increases its humour rating by an estimated 1.41 points compared to audio-only presentation.</li>
+<li>This change is significantly different from zero (<span class="math inline">\(p\)</span> = 0.008).</li>
+</ul>
+</div>
+<p class="solution-end">
+</p>
+<div class="solution-begin">
+<button id="sol-start-12" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-12', 'sol-start-12')">
+Solution – By-participant random effects
+</button>
+</div>
+<div id="sol-body-12" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 12</em>. </span></p>
+<ol start="3" type="a">
+<li><strong>Within what range will approximately 95% of participant-level intercepts fall?</strong></li>
+</ol>
+<ul>
+<li>The fixed intercept is 39.02 points, and the SD of participant-level intercept adjustments is 3.51 points.</li>
+<li>To get the approximate bounds of the central 95% of participant-level intercepts, use the following formulas.</li>
+<li>Lower bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&amp;~ 39.02 - (2 \times 3.51) \\
+=&amp;~ 32.00 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Upper bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&amp;~ 39.02 + (2 \times 3.51) \\
+=&amp;~ 46.04 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Approximately 95% of participant-level intercepts will fall between 32 and 46.04 points.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-5-contents" aria-controls="callout-5" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Calculate central 95% of participant-level intercepts with R
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-5" class="callout-5-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>fixed_int <span class="ot">&lt;-</span> <span class="fu">fixef</span>(joke_mod)[[<span class="st">'(Intercept)'</span>]]</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>by_ppt_int_sd <span class="ot">&lt;-</span> <span class="fu">attributes</span>( <span class="fu">VarCorr</span>(joke_mod)<span class="sc">$</span>ppt )<span class="sc">$</span>stddev[[<span class="st">'(Intercept)'</span>]]</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> (fixed_int <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span>by_ppt_int_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>),</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper =</span> (fixed_int <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>by_ppt_int_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>lower upper 
+   32    46 </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<ol start="4" type="a">
+<li><strong>Within what range will approximately 95% of participant-level slopes over <code>delivery</code> fall? </strong></li>
+</ol>
+<ul>
+<li>The fixed slope over <code>delivery</code> is 1.41 points, and the SD of participant-level adjustments to the slope over <code>delivery</code> is 1.78 points.</li>
+<li>Lower bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&amp;~ 1.41 - (2 \times 1.78) \\
+=&amp;~ -2.15 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Upper bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} + (2 \times \text{group-level SD}) \\
+=&amp;~ 1.41 + (2 \times 1.78) \\
+=&amp;~ 4.97 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Approximately 95% of participant-level slopes over <code>delivery</code> will fall between –2.15 and 4.97 points.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-6-contents" aria-controls="callout-6" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Calculate central 95% of participant-level intercepts with R
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-6" class="callout-6-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>fixed_slp <span class="ot">&lt;-</span> <span class="fu">fixef</span>(joke_mod)[[<span class="st">'deliveryvideo'</span>]]</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>by_ppt_slp_sd <span class="ot">&lt;-</span> <span class="fu">attributes</span>( <span class="fu">VarCorr</span>(joke_mod)<span class="sc">$</span>ppt )<span class="sc">$</span>stddev[[<span class="st">'deliveryvideo'</span>]]</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> (fixed_slp <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span>by_ppt_slp_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>),  </span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper =</span> (fixed_slp <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>by_ppt_slp_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>lower upper 
+-2.16  4.98 </code></pre>
+</div>
+</div>
+<p>The R code yields slightly different values because it takes into account a lot of decimal places, while we only used two, so the difference is due to rounding error. This is not a big deal (the values are approximations anyway), so either version is acceptable.</p>
+</div>
+</div>
+</div>
+<ol start="5" type="a">
+<li><strong>Could some participants show an effect of <code>delivery</code> that goes in the opposite direction than the fixed effect?</strong></li>
+</ol>
+<ul>
+<li>The fixed effect is positive, but some participants are estimated to show a negative slope.</li>
+<li>We know this because the lower bound of the range where 95% of participant-level slopes fall is negative (the opposite direction from the fixed effect).</li>
+<li>So: yes! It’s estimated that some people find audio-only presentation to be funnier than audio-video presentation.</li>
+</ul>
+</div>
+<p class="solution-end">
+</p>
+<div class="solution-begin">
+<button id="sol-start-13" class="jk-circle-right solution-icon clickable" onclick="toggle_visibility('sol-body-13', 'sol-start-13')">
+Solution – By-joke random effects
+</button>
+</div>
+<div id="sol-body-13" class="solution-body proof solution" style="display: none;">
+<p><span class="proof-title"><em>Solution 13</em>. </span></p>
+<ol start="6" type="a">
+<li><strong>Within what range will approximately 95% of joke-level intercepts fall?</strong></li>
+</ol>
+<ul>
+<li>The fixed intercept is 39.02 points, and the SD of joke-level intercept adjustments is 2.15 points.</li>
+<li>Lower bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&amp;~ 39.02 - (2 \times 2.15) \\
+=&amp;~ 34.72 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Upper bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&amp;~ 39.02 + (2 \times 2.15) \\
+=&amp;~ 43.32 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Approximately 95% of joke-level intercepts will fall between 34.72 and 43.32 points.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-7-contents" aria-controls="callout-7" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Calculate central 95% of participant-level intercepts with R
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-7" class="callout-7-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>fixed_int <span class="ot">&lt;-</span> <span class="fu">fixef</span>(joke_mod)[[<span class="st">'(Intercept)'</span>]]</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>by_joke_int_sd <span class="ot">&lt;-</span> <span class="fu">attributes</span>( <span class="fu">VarCorr</span>(joke_mod)<span class="sc">$</span>joke_id )<span class="sc">$</span>stddev[[<span class="st">'(Intercept)'</span>]]</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> (fixed_int <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span>by_joke_int_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>),</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper =</span> (fixed_int <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>by_joke_int_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>lower upper 
+ 34.7  43.3 </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<ol start="7" type="a">
+<li><strong>Within what range will approximately 95% of joke-level slopes over <code>delivery</code> fall?</strong></li>
+</ol>
+<ul>
+<li>The fixed slope over <code>delivery</code> is 1.41 points, and the SD of joke-level adjustments to the slope over <code>delivery</code> is 2.24 points.</li>
+<li>Lower bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} - (2 \times \text{group-level SD}) \\
+=&amp;~ 1.41 - (2 \times 2.24) \\
+=&amp;~ -3.07 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Upper bound:</li>
+</ul>
+<p><span class="math display">\[
+\begin{align}
+&amp; ~\text{fixed estimate} + (2 \times \text{group-level SD}) \\
+=&amp;~ 1.41 + (2 \times 2.24) \\
+=&amp;~ 5.89 \\
+\end{align}
+\]</span></p>
+<ul>
+<li>Approximately 95% of joke-level slopes over <code>delivery</code> will fall between –3.07 and 5.89 points.</li>
+<li>This range is wider for jokes than for participants, so the effect of <code>delivery</code> varies more from joke to joke than from person to person.</li>
+</ul>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-8-contents" aria-controls="callout-8" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Tip</span>Calculate central 95% of participant-level intercepts with R
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-8" class="callout-8-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="cell" data-layout-align="center">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>fixed_slp <span class="ot">&lt;-</span> <span class="fu">fixef</span>(joke_mod)[[<span class="st">'deliveryvideo'</span>]]</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>by_joke_slp_sd <span class="ot">&lt;-</span> <span class="fu">attributes</span>( <span class="fu">VarCorr</span>(joke_mod)<span class="sc">$</span>joke_id )<span class="sc">$</span>stddev[[<span class="st">'deliveryvideo'</span>]]</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">lower =</span> (fixed_slp <span class="sc">-</span> <span class="dv">2</span><span class="sc">*</span>by_joke_slp_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>),  </span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">upper =</span> (fixed_slp <span class="sc">+</span> <span class="dv">2</span><span class="sc">*</span>by_joke_slp_sd) <span class="sc">|&gt;</span> <span class="fu">round</span>(<span class="dv">2</span>)</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>lower upper 
+-3.07  5.89 </code></pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<ol start="8" type="a">
+<li><strong>Could some jokes elicit an effect of <code>delivery</code> that goes in the opposite direction than the fixed effect?</strong></li>
+</ol>
+<ul>
+<li>The fixed effect is positive, but some jokes are estimated to show a negative slope.</li>
+<li>We know this because the lower bound of the range where 95% of joke-level slopes fall is negative (the opposite direction from the fixed effect).</li>
+<li>So: yes! It’s estimated that some jokes are rated as funnier in audio-only format than they are in audio-video format.</li>
+</ul>
+</div>
+<p class="solution-end">
 </p>
 
 
