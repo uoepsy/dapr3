@@ -226,13 +226,13 @@ VarCorr(eds_m1)
 4.53 - 2 * 0.46 #  3.61 and 
 4.53 + 2 * 0.46 #  5.45 EDS points.
 # - The by-school adjustments to the slope over CRQ have a SD of 0.14 points. 
-#   Thus the model suggests that 95% of the adjusted school-level slopes over 
-#   CRQ fall between 
--0.17 - 2 * 0.14 #  -0.45 and 
--0.17 + 2 * 0.14 #  0.11.
-#   Thus most schools show a negative association between CRQ and EDS (meaning 
+#   Thus the model suggests that 95% of the school-level slopes over 
+#   CRQ – SPECIFICALLY FOR REF LEVEL, SO FOR PRIVATE SCHOOLS – fall between 
+-0.05 - 2 * 0.14 #  -0.33 and 
+-0.05 + 2 * 0.14 #  0.23.
+#   Thus most private schools show a negative association between CRQ and EDS (meaning 
 #   that as routine increases, dysregulation decreases—in line with the 
-#   hypothesis), but some schools are also estimated to show a positive 
+#   hypothesis), but some private schools are also estimated to show a positive 
 #   association (not in line with the hypothesis).
 
 # Interpret correlation between intercept and slope adjustments.
