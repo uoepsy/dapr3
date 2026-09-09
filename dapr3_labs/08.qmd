@@ -1,0 +1,441 @@
+---
+title: "EFA"
+params: 
+    SHOW_SOLS: TRUE
+    TOGGLE: TRUE  # TRUE = collapse sols, FALSE = uncollapse sols
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- when rendering in RStudio/  not production profile:   SHOW_SOLS: TRUE  -->
+<!-- when rendering in terminal/with production profile:   SHOW_SOLS: FALSE -->
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+
+bloads <- read.csv("~/Downloads/bcopeloads.csv") |>
+  mutate(across(everything(),~gsub("−","-",.)))
+bloads$q <- paste0("q",bloads$qitem)
+bloads[1,c(4:9)] <- bloads[grepl("distraction 2",bloads$subscale),4:9]
+bloads <- bloads |> arrange(qitem)
+
+# copeitems[c(2, 7, 10, 12, 14, 17, 23, 25)]
+# copeitems[c(5, 9, 13, 15, 18, 20, 21, 22, 24, 26, 27, 28)]
+# copeitems[c(1, 3, 4, 6, 8, 11, 16, 19)]
+
+dgp = paste0(
+  "F1 =~ ", paste0(bloads[,4],"*",bloads$q, collapse="+"),"\n",
+  "F2 =~ ", paste0(bloads[,5],"*",bloads$q, collapse="+"),"\n",
+  "F3 =~ ", paste0(bloads[,6],"*",bloads$q, collapse="+"),"\n",
+  "F4 =~ ", paste0(bloads[,7],"*",bloads$q, collapse="+"),"\n",
+  "F5 =~ ", paste0(bloads[,8],"*",bloads$q, collapse="+"),"\n",
+  "F6 =~ ", paste0(bloads[,9],"*",bloads$q, collapse="+"),"\n",
+  "F6 ~~ -.3*F1 \n
+   F1 ~~ .2*F3 \n F1 ~~ .1*F2 \n F2 ~~ .2*F5 \n F3 ~~ -.2*F6 \n
+   F4 ~~ -.25*F6")
+
+set.seed(738784)
+df <- lavaan::simulateData(dgp, sample.nobs = 620)
+df$q20 <- residuals(lm(df$q20 ~ rowSums(df[,c("q10","q15","q5","q23")])))
+df$q12 <- df$q12 + .5*df$q28
+df <- df |>
+  apply(2, \(x) cut(x,5,labels=FALSE)) |>
+  as.data.frame()
+
+bcdata <- as.data.frame(df)[,c(1,12,22:28,2:11,13:21)] |>
+  mutate(
+    pptID = paste0("PPTD",1:n()), .before = q1
+  )
+
+```
+
+:::{.callout-note}
+### Get set up
+
+1. Create a new .Rmd file for this week's exercises.
+1. Save it somewhere you can find it again.
+1. Give it a clear name (for example, `dapr3_lab08.Rmd`).
+1. In the first code chunk, load the packages you'll need this week:
+    - `tidyverse`
+    - `psych`
+    
+:::
+
+---
+
+:::frame
+__copingstrats.csv__  
+
+```{r}
+#| echo: false
+bloads |> 
+  arrange(as.numeric(qitem)) |>
+  transmute(variable = q, wording) |>
+  gt::gt()
+```
+
+
+:::
+
+`r qbegin(qcounter())`
+Read in the data and check the suitability of the items for EFA.  
+
+Things to look at: correlation matrix, bartlettt's test, KMO
+
+see fashcard
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+library(tidyverse)
+library(psych)
+#bcdata <-read_csv()
+copeitems <- bcdata |> select(-pptID)
+```
+
+
+BIG!
+```{r}
+cor(copeitems, )
+```
+
+```{r}
+cor(copeitems) |>
+  heatmap()
+```
+
+```{r}
+bartlett.test(copeitems)
+```
+
+```{r}
+KMO(copeitems)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Our set of items is attempting to measure peoples' coping strategies.  
+
+Look at the item wordings and description, and think about the following questions: 
+
+1. on what scale were the items measured? How many levels are there? 
+2. do the distributions of the items look roughly normally distributed? 
+3. if there is just one dimension to this measure (i.e., 1 factor), then what would it mean to be high on that factor?  
+4. just looking at wordings, are there possibly different groupings of items? 
+5. if there are groups of items for which responses are being driven by separate latent factors, what would it mean to be low/high on those factors? 
+6. Would we expect a person's standing on one of these factors to be similar/opposing/unrelated to their standing on the other factor(s)?
+
+These questions will help us to fill in these bits: 
+```
+fa(..........., cor = ???, rotate = ???, fm = ???)
+```
+
+If we have enough levels to our measurement scale, we can keep `cor = "cor"`.  
+If we are worried about normality, we can use `fm = "pa"`, otherwise we can use `fa = "minres"` or (with a large sample size, which we _do_ have here) `fm = "ml"`
+If this is multi-dimensional (i.e., if there is more than just one latent factor that explains peoples' responses to these questions), then would we expect those dimensions to be related? Do we _want_ to constrain them to be orthogonal? If not, then `rotate = "oblimin"` is a good shout.  
+
+see flashcard
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+Every item has 5 response options, and things look more or less normal (hard to see with Likert data, but we're not too skewed with lots of responses of 1s or 5s)
+```{r}
+multi.hist(copeitems)
+```
+
+```
+fa(..........., cor = "cor", rotate = "oblimin", fm = "ml")
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Define a range for the number of factors that we will extract.  
+
+see flashcard
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+| method | suggestion |
+| ---- | -----|
+| scree plot | 3? or maybe 6? |
+| parallel analysis | 6 |
+| MAP | 3 | 
+
+Let's examine from 2 to 6 factors.  
+
+```{r}
+scree(copeitems)
+fa.parallel(copeitems)
+VSS(copeitems, plot=F)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+For every number in your range, fit a factor model.  
+
+flashcard
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+copefa3 <- fa(copeitems, nfactors = 3, rotate = "oblimin", fm = "ml", cor = "cor")
+copefa4 <- fa(copeitems, nfactors = 4, rotate = "oblimin", fm = "ml", cor = "cor")
+copefa5 <- fa(copeitems, nfactors = 5, rotate = "oblimin", fm = "ml", cor = "cor")
+copefa6 <- fa(copeitems, nfactors = 6, rotate = "oblimin", fm = "ml", cor = "cor")
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+**V - variance**  
+
+How much of the total variance in the coping strategy items is explained by each factor solution?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+#| echo: false
+tribble(
+  ~solution, ~`variance explained`,
+  "3 factor", round(copefa3$Vaccounted[3,3],2),
+  "4 factor", round(copefa4$Vaccounted[3,4],2),
+  "5 factor", round(copefa5$Vaccounted[3,5],2),
+  "6 factor", round(copefa6$Vaccounted[3,6],2)
+) |> gt::gt()
+```
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+**I - identification**  
+
+For each solution, do all factors have 3+ items for which the factor is the primary loading?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+#| echo: false
+tribble(
+  ~solution, ~`all factors identified`,
+  "3 factor", "yes",
+  "4 factor", "yes",
+  "5 factor", "one factor (ML1) has only 2 items",
+  "6 factor", "two factors (ML3, ML2) only have 2 items"
+) |> gt::gt()
+```
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+**S - salience, C - complexity, H - heywood cases**  
+
+Look at the patterns of loadings for each solution. Are there any items that:  
+
+- do not load on to any factor at a salient level? 
+- have high complexity or cross loadings across multiple factors?
+- have impossible values (factor loadings or communalities > 1)?  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+::::panelset
+:::panel
+### 3 factor
+```{r}
+print(copefa3$loadings,cutoff=.3,sort=T)
+```
+:::
+:::panel
+### 4 factor
+```{r}
+print(copefa4$loadings,cutoff=.3,sort=T)
+```
+:::
+:::panel
+### 5 factor
+```{r}
+print(copefa5$loadings,cutoff=.3,sort=T)
+```
+:::
+:::panel
+### 6 factor
+```{r}
+print(copefa6$loadings,cutoff=.3,sort=T)
+```
+:::
+::::
+
+
+```{r}
+#| echo: false
+tribble(
+  ~solution, ~`salience of items`, ~`complexity & cross loadings`, ~`heywood cases`,
+  "3 factor", "4 items (11,22,27,4) have no salient loadings","close to problematic for qs 21, 14","no",
+  "4 factor", "4 items (11,22,27,4) have no salient loadings", "cross loadings for qs 17 and 3", "no",
+  "5 factor", "2 items (22,27) have no salient loadings","cross loadings for q3", "no",
+  "6 factor", "no", "no", "no"
+) |> gt::gt()
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Given your examination so far, some items may be flagged as consistently problematic. Take a look at the wordings of any such items. 
+Are they "double barrelled" or ambiguously worded? Can you think of any theoretical reason why these items are causing problems?  
+
+Here are the ones **we** identified.
+
+- q4, q11, q22 and q27 were only salient when loading onto factors with <3 items (11 and 4 seemed to go together, as did 22 and 27).  
+- q3 has some cross loadings in several solutions.  
+
+Normally, we would want to remove items one at a time. This is a time-consuming process, so let's skip ahead, and suppose we need to remove all four of q4, q11, q22 and q27.  
+
+**Task:** create a new dataframe which is the subset of items _without_ those four.  
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+copeitems_sub <- copeitems |>
+  select(-q4, -q11, -q22, -q27)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Re-do the entire process!  
+
+We've printed all the output so that you don't have to code it right here, and can focus on the evaluation of the different solutions.  
+
+Which model do you prefer? Remember to take into consideration the wordings of the items!  
+`r qend()`
+`r solbegin(show=TRUE, label="1 - Checks", slabel=FALSE, toggle=params$TOGGLE)`
+
+```{r}
+cor(copeitems_sub) |>
+  heatmap()
+```
+
+```{r}
+bartlett.test(copeitems_sub)
+```
+
+```{r}
+KMO(copeitems_sub)
+```
+
+`r solend()`
+`r solbegin(show=TRUE, label="2 - How many factors?", slabel=FALSE, toggle=params$TOGGLE)`
+
+
+| method | suggestion |
+| ---- | -----|
+| scree plot | 1? 4? |
+| parallel analysis | 4 |
+| MAP | 3 | 
+
+```{r}
+scree(copeitems_sub)
+fa.parallel(copeitems_sub)
+VSS(copeitems_sub, plot=F)
+```
+
+
+Let's examine from 2 to 5 factors.  
+
+`r solend()`
+`r solbegin(show=TRUE, label="3 - Competing models", slabel=FALSE, toggle=params$TOGGLE)`
+```{r}
+copefa1s <- fa(copeitems_sub, nfactors = 1, fm = "ml", cor = "cor")
+copefa2s <- fa(copeitems_sub, nfactors = 2, rotate = "oblimin", fm = "ml", cor = "cor")
+copefa3s <- fa(copeitems_sub, nfactors = 3, rotate = "oblimin", fm = "ml", cor = "cor")
+copefa4s <- fa(copeitems_sub, nfactors = 4, rotate = "oblimin", fm = "ml", cor = "cor")
+```
+
+::::panelset
+:::panel
+### 1 factor
+```{r}
+print(copefa1s$loadings,cutoff=.3,sort=T)
+```
+:::
+:::panel
+### 2 factor
+```{r}
+print(copefa2s$loadings,cutoff=.3,sort=T)
+```
+:::
+:::panel
+### 3 factor
+```{r}
+print(copefa3s$loadings,cutoff=.3,sort=T)
+```
+:::
+:::panel
+### 4 factor
+```{r}
+print(copefa4s$loadings,cutoff=.3,sort=T)
+```
+:::
+::::
+`r solend()`
+
+`r qbegin(qcounter())`
+
+For your chosen solution, name the factors!  
+
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+ML3 = reframing/distraction
+ML4 = avoidant/maladaptive
+ML1 = social support seeking
+ML2 = active problem focused
+
+
+`r solend()`
+
+```{r}
+
+newnames <- bloads$wording
+names(newnames) <- bloads$q
+names(copeitems_sub) <- newnames[names(copeitems_sub)]
+copefa4s <- fa(copeitems_sub, nfactors = 4, rotate = "oblimin", fm = "ml", cor = "cor")
+print(copefa4s$loadings,sort=T,cutoff=.3)
+
+```
+
+
+
+
+
+
+
