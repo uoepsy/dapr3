@@ -11,74 +11,10 @@ library(lme4)
 
 When we fit an LMM and look at its estimates using `summary()`, what do the numbers mean?
 
-## Example: Life satisfaction in Scotland
+The first example shows the basic idea with just a single predictor.
 
-These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
+The second example shows extra quirks that are involved in interpreting the SDs of the random effects once multiple predictors are involved.
 
-Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
-
-```{r}
-#| echo: false
-df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
-tibble(
-  variable = names(df),
-  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
-) |> gt::gt()
-```
-
-```{r}
-lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
-```
-
-## Fit the model
-
-Our model is the following (to see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html)).
-
-```{r}
-lifesat_mod <- lmer(
-  lifesat ~ age + (1 + age | dwelling),
-  data = lifesatscot
-)
-```
-
-
-
-Here's the model summary:
-
-```{r}
-summary(lifesat_mod)
-```
-
-:::{.callout-caution collapse='true'}
-### "Model failed to converge"?
-
-At the very bottom of this model summary, there's a bit that says
-
-```
-Model failed to converge with max|grad| = 0.0417437 (tol = 0.002, component 1)
-  See ?lme4::convergence and ?lme4::troubleshooting.
-```
-
-For now, so that this flash card focuses on interpretation, we'll be a bit naughty and just pretend that that isn't there.
-
-But this is a real problem for our model.
-**If you saw this in a real life data analysis scenario, you'd have to deal with it.**
-We'll see how to do that later (see [Troubleshoot](troubleshoot.html)).
-:::
-
-:::{.callout-caution collapse='true'}
-### Where are the p-values?
-
-For reasons that are technical and not important for this course, LMMs do not automatically estimate p-values for each coefficient the way that basic LMs do.
-
-We'll see how to add on p-values to the model summary in [Get p-values for LMMs](pvals.html).
-
-:::
-
-## The fixed effects
-
-**All the tools for interpreting intercepts and slopes that you learned in DAPR2 are exactly the same for LMMs.
-The only new thing is that now, predictors' coefficients are also called "fixed effects".**
 
 :::{.callout-note collapse='true'}
 ### General guide to interpreting any model's fixed effects (DAPR2 recap)
@@ -105,6 +41,76 @@ The only new thing is that now, predictors' coefficients are also called "fixed 
   - Or equivalently, the estimated adjustment to the association between `Y` and `B` when `A` changes from 0 to 1.
 
 :::
+
+# Example (one predictor): Life satisfaction in Scotland
+
+These data come from 112 people across 12 different Scottish dwellings (cities and towns). Information is captured on their ages and a measure of life satisfaction. The researchers are interested in **if there is an association between age and life-satisfaction**. 
+
+Data are available at [https://uoepsy.github.io/data/lmm_lifesatscot.csv](https://uoepsy.github.io/data/lmm_lifesatscot.csv){target="_blank"}.
+
+```{r}
+#| echo: false
+df <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+tibble(
+  variable = names(df),
+  description = c("Age (years)","Life Satisfaction score","Dwelling (town/city in Scotland)","Size of Dwelling (> or <100k people)")
+) |> gt::gt()
+```
+
+```{r}
+lifesatscot <- read_csv("https://uoepsy.github.io/data/lmm_lifesatscot.csv")
+```
+
+## Fit the model
+
+Our model is the following (to see how we figured out this random effect structure, see [Identify possible random effects](identify-ranef.html){target="_blank"}).
+
+```{r}
+lifesat_mod <- lmer(
+  lifesat ~ age + (1 + age | dwelling),
+  data = lifesatscot
+)
+```
+
+
+
+Here's the model summary:
+
+```{r}
+summary(lifesat_mod)
+```
+
+:::{.callout-caution collapse='true'}
+### "Model failed to converge"?
+
+At the very bottom of this model summary, there's a bit that says
+
+```
+Model failed to converge with max|grad| = 0.0417437 (tol = 0.002, component 1)
+  See ?lme4::convergence and ?lme4::troubleshooting.
+```
+
+For now, so that this flash card focuses on interpretation, we'll be a bit cheeky and just pretend that that isn't there.
+
+But this is a real problem for our model.
+**If you saw this in a real life data analysis scenario, you'd have to deal with it.**
+We'll see how to do that later (see [Troubleshoot](troubleshoot.html)).
+:::
+
+:::{.callout-caution collapse='true'}
+### Where are the p-values?
+
+For reasons that are technical and not important for this course, LMMs do not automatically estimate p-values for each coefficient the way that basic LMs do.
+
+We'll see how to add on p-values to the model summary in [Get p-values for LMMs](pvals.html).
+
+:::
+
+## The fixed effects
+
+**All the tools for interpreting intercepts and slopes that you learned in DAPR2 are exactly the same for LMMs.
+The only new thing is that now, predictors' coefficients are also called "fixed effects".**
+
 
 Fixed effects represent the average relationship between predictor(s) and outcome, averaging over all groups (here, over all dwellings).
 
@@ -157,6 +163,46 @@ First we'll go through how to read each row of this table, then we'll talk about
     Summarising all those distances with `sd(residual)` tells us that **the standard deviation of the residuals is 7.97.**
 
 
+::: {.callout-caution collapse="true"}
+#### Extracting values from `VarCorr()`
+
+If you want to extract and save the random intercept/slope SDs and correlation, here's the code that'll do that for you.
+
+**In general, for SDs (replace `MODEL`, `GROUPINGVAR`, and `COEFNAME`):**
+
+```{r eval=F}
+attr(VarCorr(MODEL)$GROUPINGVAR, "stddev")[['COEFNAME']]
+```
+
+
+For example, random intercept SD:
+
+```{r}
+attr(VarCorr(lifesat_mod)$dwelling, "stddev")[['(Intercept)']]
+```
+
+
+Random slope SD:
+
+```{r}
+attr(VarCorr(lifesat_mod)$dwelling, "stddev")[['age']]
+```
+
+**In general, for correlations (replace `MODEL`, `GROUPINGVAR`, and `SLOPECOEFNAME`):**
+
+```{r eval=F}
+attr(VarCorr(MODEL)$GROUPINGVAR, "correlation")['(Intercept)', 'SLOPECOEFNAME']
+```
+
+For example, the correlation between these random intercepts and slopes:
+
+```{r}
+attr(VarCorr(lifesat_mod)$dwelling, "correlation")['(Intercept)', 'age']
+```
+
+
+
+:::
 
 ### Interpreting the numbers: SDs
 
@@ -214,19 +260,195 @@ So even though the fixed effect of `age` is positive, **the model predicts that 
 ### Interpreting the numbers: Correlation
 
 The correlation between each dwelling's intercept adjustment and slope adjustment is estimated to be –0.87.
-This large native correlation means that:
+In the context of this study, this large negative correlation means that:
 
 - When a dwelling has a **large** intercept (that is, a large estimated average `lifesat` value for people aged zero), its slope tends to be **small** (that is, a more gradual line, a weaker effect).
 - Or equivalently, when a dwelling has a **small** intercept (that is, a small estimated average `lifesat` value for people aged zero), its slope tends to be **large** (that is, a steeper line, a stronger effect).
 
 
-## Linked flash cards
 
-### Outgoing links
+# Example (interaction): CBD drinks and stress
 
-- TODO
+Suppose that we conducted an experiment on a sample of 20 staff members from the Psychology department to investigate effects of CBD consumption on stress over the course of the working week. 
+Participants were randomly allocated to one of two conditions: the control group continued as normal, and the CBD group were given one CBD drink every day. 
+Over the course of the working week (5 days) participants stress levels were measured using a self-report questionnaire.
+
+Data are available at <https://uoepsy.github.io/data/stressweek1.csv>.
 
 
-### Backlinks
+```{r}
+#| echo: false
+cbd_stress <- read_csv("https://uoepsy.github.io/data/stressweek1.csv")
+tibble(
+  variable=names(cbd_stress),
+  description=c("Department",
+                "Participant Name",
+                "Whether or not they were allocated to the control group (N) or the CBD group (Y)",
+                "Measure used to assess stress levels",
+                "Day of the working week (1 to 5)",
+                "Stress Level (standardised)")
+) |> gt::gt()
+```
 
-- TODO
+
+```{r}
+cbd_stress <- read_csv('https://uoepsy.github.io/data/stressweek1.csv')
+```
+
+Because `day` doesn't contain the value 0 (only 1 = Monday to 5 = Friday), the interpretations would be a bit funny if we ran the model as-is.
+So we'll subtract 1 from each value of `day`.
+This will mean that Mondays are represented by 0, Tuesdays by 1, and so on.
+
+```{r}
+cbd_stress <- cbd_stress |>
+  mutate(
+    day = day - 1
+  )
+```
+
+
+This move is useful because now, when we need to interpret coefficients when `day` = 0, we can say "on Mondays".
+
+## Fit the model
+
+Our model is the following (see [Identify possible random effects](identify-ranef.html){target="_blank"}).
+
+```{r}
+cbd_mod <- lmer(
+  stress ~ day * CBD + (1 + day | pid),
+  data = cbd_stress
+)
+```
+
+Here's the model summary:
+
+```{r}
+summary(cbd_mod)
+```
+
+
+## The fixed effects
+
+```{r}
+fixef(cbd_mod)
+```
+
+- `(Intercept)`: The estimated stress for people in the control group (where `CBD` = N = 0, the reference level) on Mondays (where `day` = 0) is 0.13 points.
+- `day`: For people in the control group, going forward one weekday is estimated to increase stress by 0.08 points.
+- `CBDY`: On Mondays, changing from the control group to the CBD group (where `CBD` = Y = 1) is associated with a decrease in stress of 0.09 points.
+- `day:CBDY` has two equivalent interpretations:
+  - For people in the CBD group, their slope over `day` is estimated to decrease by an additional 0.19 points.
+  - On Mondays, the difference between the control group and the treatment group is estimated to decrease by an additional 0.19 points.
+
+
+## The random effects
+
+```{r}
+VarCorr(cbd_mod)
+```
+
+### Intercept (pay attention here!)
+
+The SD of all the participant-level intercept adjustments is 0.45.
+As always, we can best interpret this number in the context of the fixed intercept, 0.13.
+
+**The important new thing:** The fixed intercept tells us about the control group (the reference level of `CBD`).
+So, the range that we would compute by combining the fixed intercept and the random intercept SD **is specifically for participants in the control group.**
+
+
+**For participants in the control group,** 95% of their intercepts are estimated to fall between
+
+```{r}
+0.13 - (2 * 0.45)
+```
+
+and
+
+```{r}
+0.13 + (2 * 0.45)
+```
+
+stress points.
+
+
+
+::: {.callout-caution collapse="true"}
+#### What about intercepts for participants in the CBD group?
+
+We can compute the 95% range of intercepts for participants in the CBD group by adding the `CBDY` fixed slope to the calculation above.
+
+Adding the `CBDY` fixed slope effectively "shifts" us from making calculations about the reference level (control group) to the non-reference level (CBD group).
+
+**So, for participants in the CBD group,** 95% of their intercepts are estimated to fall between
+
+```{r}
+0.13 - 0.09 - (2 * 0.45)
+```
+
+and
+
+```{r}
+0.13 - 0.09 + (2 * 0.45)
+```
+
+stress points.
+
+:::
+
+
+(Why do we specify "in the control group" but not "on Mondays"?
+Because the "Mondays" part falls out of the fact that we're looking at the intercept of the line over `day`.
+The intercept is when `day` = 0, which is Mondays.)
+
+### Slope over `day` (pay attention here!)
+
+The SD of all the participant-level slopes over `day` is 0.07.
+Once again, we'll interpret this in the context of the fixed slope over `day`, estimated to be 0.08.
+
+**The important new thing:** The slope over `day` is estimated for the reference level of `CBD`, that is, for the control group.
+So, the range that we compute by combining the fixed slope and the random slope SD **is specifically for participants in the control group.**
+
+**For participants in the control group,** 95% of their slopes over `day` are estimated to fall between
+
+```{r}
+0.08 - (2 * 0.07)
+```
+
+and
+
+```{r}
+0.08 + (2 * 0.07)
+```
+
+. This range suggests that the model estimates  that participants in the control group mostly get more stressed as the week goes on, but a few get less stressed too.
+
+::: {.callout-caution collapse="true"}
+#### What about slopes over `day` for people in the CBD group?
+
+We can compute the 95% range of slopes over `age` for people in the CBD group by adding the `day:CBDY` interaction term to the calculation above.
+
+Adding the interaction term effectively "shifts" us from talking about the slope of the reference level to the slope of the non-reference level.
+It's just like calculating the simple slope over `day` for the non-reference level!
+
+**So, for participants in the CBD group,** 95% of their slopes over `day` are estimated to fall between
+
+
+```{r}
+0.08 - 0.19 - (2 * 0.07)
+```
+
+and
+
+```{r}
+0.08 - 0.19 + (2 * 0.07)
+```
+
+. This range suggests that the model estimates that participants in the CBD group mostly get *less* stressed as the week goes on, but a few do get more stressed too.
+
+
+:::
+
+### Correlation
+
+The correlation between each participant's intercept adjustment and slope adjustment is estimated to be 0.02.
+In the context of this study, this tiny positive correlation suggests that there aren't really any tendencies, based on how stressed someone is on Mondays, whether they'll get more or less stressed as the week goes on.
