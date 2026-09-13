@@ -27,7 +27,7 @@ qcounter <- function(){
   qcounter_i
 }
 
-bloads <- read.csv("~/Downloads/bcopeloads.csv") |>
+bloads <- read.csv("jk_playground/bcopeloads.csv") |>
   mutate(across(everything(),~gsub("−","-",.)))
 bloads$q <- paste0("q",bloads$qitem)
 bloads[1,c(4:9)] <- bloads[grepl("distraction 2",bloads$subscale),4:9]
@@ -80,6 +80,15 @@ bcdata <- as.data.frame(df)[,c(1,12,22:28,2:11,13:21)] |>
 :::frame
 __copingstrats.csv__  
 
+These data come from the development of a short measure of people's "coping strategies".  
+A sample of 620 people filled in a questionnaire that included 28 self-report items assessing the different ways individuals respond to stress in their daily lives. 
+Participants rated each statement on a 5-point Likert scale ranging from 1 ("I haven't been doing this at all") to 5 ("I've been doing this a lot"), indicating how frequently they used each specific coping response when facing stressful events.
+
+**Study aim**: 
+Explore the underlying structure of the 28-item pool and (if necessary) refine the questionnaire into a well-defined measure of distinct coping strategies.  
+
+::: {.callout-note collapse="true"}
+#### Item Wordings
 ```{r}
 #| echo: false
 bloads |> 
@@ -87,16 +96,20 @@ bloads |>
   transmute(variable = q, wording) |>
   gt::gt()
 ```
-
+:::
 
 :::
 
 `r qbegin(qcounter())`
 Read in the data and check the suitability of the items for EFA.  
 
-Things to look at: correlation matrix, bartlettt's test, KMO
+Things to look at: correlation matrix, bartlett's test, KMO
 
-see fashcard
+:::dapr3green
+🗂️
+See the [Check Suitability for Factor Analysis](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p02_efa_suitability.html) flash card.
+
+:::
 
 
 `r qend()`
@@ -109,20 +122,24 @@ copeitems <- bcdata |> select(-pptID)
 ```
 
 
-BIG!
+This is too big to look at sensibly as a set of numbers..  
 ```{r}
+#| eval: false
 cor(copeitems, )
 ```
 
+better as an image: 
 ```{r}
 cor(copeitems) |>
   heatmap()
 ```
 
+Looks like we have some non-zero correlations! 
 ```{r}
 bartlett.test(copeitems)
 ```
 
+And KMO, along with individual item KMOs, all seem okay. 
 ```{r}
 KMO(copeitems)
 ```
@@ -130,9 +147,16 @@ KMO(copeitems)
 `r solend()`
 
 `r qbegin(qcounter())`
-Our set of items is attempting to measure peoples' coping strategies.  
 
-Look at the item wordings and description, and think about the following questions: 
+
+Let's decide what to put in these bits of our factor models:  
+
+```
+fa(..........., cor = ???, rotate = ???, fm = ???)
+```
+
+
+To help us figure it out, refer back to the item wordings and the description of the study, and think through the questions below:   
 
 1. on what scale were the items measured? How many levels are there? 
 2. do the distributions of the items look roughly normally distributed? 
@@ -141,24 +165,49 @@ Look at the item wordings and description, and think about the following questio
 5. if there are groups of items for which responses are being driven by separate latent factors, what would it mean to be low/high on those factors? 
 6. Would we expect a person's standing on one of these factors to be similar/opposing/unrelated to their standing on the other factor(s)?
 
-These questions will help us to fill in these bits: 
-```
-fa(..........., cor = ???, rotate = ???, fm = ???)
-```
+::: {.callout-tip collapse="true"}
+#### Hints
 
-If we have enough levels to our measurement scale, we can keep `cor = "cor"`.  
-If we are worried about normality, we can use `fm = "pa"`, otherwise we can use `fa = "minres"` or (with a large sample size, which we _do_ have here) `fm = "ml"`
-If this is multi-dimensional (i.e., if there is more than just one latent factor that explains peoples' responses to these questions), then would we expect those dimensions to be related? Do we _want_ to constrain them to be orthogonal? If not, then `rotate = "oblimin"` is a good shout.  
+- If we have enough (5+ is often "enough") levels to our measurement scale, we can keep `cor = "cor"`.  
+- If we are worried about normality, we can use `fm = "pa"`, otherwise we can use `fa = "minres"` or (with a large sample size, which we _do_ have here) `fm = "ml"`
+- Do we _want_ to constrain any latent factors to be orthogonal to one another? If not, `rotate = "oblimin"` is a good shout.  
 
-see flashcard
+
+:::dapr3green
+🗂️
+See also the [Decide on Rotation and Factor Extraction Methods](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p02_efa_rotfm.html) flash card.
+
+:::
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+__what type of correlation?__  
 
 Every item has 5 response options, and things look more or less normal (hard to see with Likert data, but we're not too skewed with lots of responses of 1s or 5s)
 ```{r}
 multi.hist(copeitems)
 ```
+
+```
+fa(..........., cor = "cor", rotate = ???, fm = ???)
+```
+
+__what factor extraction method?__  
+we have a fairly large sample size here (`r nrow(copeitems)`), and everything looks fairly normally distributed. I think "ml" is a safe bet here. We probably won't get very different results depending on our choice in this situation, so any are probably fine. 
+
+```
+fa(..........., cor = "cor", rotate = ???, fm = "ml")
+```
+
+__what rotation?__ 
+
+- We're trying to measure "coping strategies". There are lots of possible links between questions I can see - some of the questions seem to ask about social related strategies (q5, q10), some seem to be distraction-focussed (q1, q19). Some seem like bad strategies (drugs, denial, self criticism), and some seem like better ones (planning, social support etc). 
+    - if it is a unidimensional scale, what would that represent? It will depend on the loadings (e.g., if loadings are positive for social items and negative for drugs/denial etc., then I suppose being higher indicates 'more frequently doing better coping strategies). But if all the loadings are positive, it would just represent "engaging *more* with coping strategies (of any sort)"
+- If the measure *is* multi-dimensional (i.e., if there is more than just one latent factor that explains peoples' responses to these questions), then would we expect those dimensions to be related? Probably! E.g., we would expect that someone who frequently uses the 'good' coping strategies will be less often using the 'bad' ones? 
+- And also, why would we ever want to **constrain** any dimensions to be orthogonal? Very occasionally, we might TODO, but not here
+
 
 ```
 fa(..........., cor = "cor", rotate = "oblimin", fm = "ml")
@@ -169,18 +218,21 @@ fa(..........., cor = "cor", rotate = "oblimin", fm = "ml")
 `r qbegin(qcounter())`
 Define a range for the number of factors that we will extract.  
 
-see flashcard
+:::dapr3green
+🗂️
+See the [How to: Decide on the Number of Components/Factors](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p01_pca_ndim.html) flash card.  
+:::
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 | method | suggestion |
 | ---- | -----|
-| scree plot | 3? or maybe 6? |
+| scree plot | maybe 3? or maybe 6? |
 | parallel analysis | 6 |
 | MAP | 3 | 
 
-Let's examine from 2 to 6 factors.  
+Let's examine from 3 to 6 factors.  
 
 ```{r}
 scree(copeitems)
@@ -193,7 +245,10 @@ VSS(copeitems, plot=F)
 `r qbegin(qcounter())`
 For every number in your range, fit a factor model.  
 
-flashcard
+:::dapr3green
+🗂️
+See the [Fitting and Comparing EFA solutions](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p02_efa_fitcomp.html) flash card.  
+:::
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
@@ -218,10 +273,10 @@ How much of the total variance in the coping strategy items is explained by each
 #| echo: false
 tribble(
   ~solution, ~`variance explained`,
-  "3 factor", round(copefa3$Vaccounted[3,3],2),
-  "4 factor", round(copefa4$Vaccounted[3,4],2),
-  "5 factor", round(copefa5$Vaccounted[3,5],2),
-  "6 factor", round(copefa6$Vaccounted[3,6],2)
+  "3 factor", round(sum(apply(copefa3$loadings,2,\(x) sum(x^2)/28)),2),
+  "4 factor", round(sum(apply(copefa4$loadings,2,\(x) sum(x^2)/28)),2),
+  "5 factor", round(sum(apply(copefa5$loadings,2,\(x) sum(x^2)/28)),2),
+  "6 factor", round(sum(apply(copefa6$loadings,2,\(x) sum(x^2)/28)),2)
 ) |> gt::gt()
 ```
 
@@ -242,8 +297,8 @@ tribble(
   ~solution, ~`all factors identified`,
   "3 factor", "yes",
   "4 factor", "yes",
-  "5 factor", "one factor (ML1) has only 2 items",
-  "6 factor", "two factors (ML3, ML2) only have 2 items"
+  "5 factor", "one factor (ML4) has only 2 items",
+  "6 factor", "two factors (ML4, ML6) only have 2 items"
 ) |> gt::gt()
 ```
 
@@ -262,60 +317,91 @@ Look at the patterns of loadings for each solution. Are there any items that:
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
-
+::: {.callout-note collapse="true"}
+#### Full output
 ::::panelset
 :::panel
 ### 3 factor
 ```{r}
-print(copefa3$loadings,cutoff=.3,sort=T)
+copefa3
 ```
 :::
 :::panel
 ### 4 factor
 ```{r}
-print(copefa4$loadings,cutoff=.3,sort=T)
+copefa4
 ```
 :::
 :::panel
 ### 5 factor
 ```{r}
-print(copefa5$loadings,cutoff=.3,sort=T)
+copefa5
 ```
 :::
 :::panel
 ### 6 factor
 ```{r}
-print(copefa6$loadings,cutoff=.3,sort=T)
+copefa6
 ```
 :::
 ::::
+:::
 
+::: {.callout-note collapse="true"}
+#### Tidied loadings
+::::panelset
+:::panel
+### 3 factor
+```{r}
+print(copefa3$loadings, cutoff = .3, sort = T)
+```
+:::
+:::panel
+### 4 factor
+```{r}
+print(copefa4$loadings, cutoff = .3, sort = T)
+```
+:::
+:::panel
+### 5 factor
+```{r}
+print(copefa5$loadings, cutoff = .3, sort = T)
+```
+:::
+:::panel
+### 6 factor
+```{r}
+print(copefa6$loadings, cutoff = .3, sort = T)
+```
+:::
+::::
+:::
 
 ```{r}
 #| echo: false
 tribble(
   ~solution, ~`salience of items`, ~`complexity & cross loadings`, ~`heywood cases`,
-  "3 factor", "4 items (11,22,27,4) have no salient loadings","close to problematic for qs 21, 14","no",
+  "3 factor", "4 items (11,22,27,4) have no salient loadings","no cross loadings, but higher complexity for qs 21, 14","no",
   "4 factor", "4 items (11,22,27,4) have no salient loadings", "cross loadings for qs 17 and 3", "no",
   "5 factor", "2 items (22,27) have no salient loadings","cross loadings for q3", "no",
-  "6 factor", "no", "no", "no"
+  "6 factor", "no", "no cross loadings but high complexity for many items (2,3,8,9,17,20,21,24,25)", "no"
 ) |> gt::gt()
 ```
 
 `r solend()`
 
 `r qbegin(qcounter())`
-Given your examination so far, some items may be flagged as consistently problematic. Take a look at the wordings of any such items. 
-Are they "double barrelled" or ambiguously worded? Can you think of any theoretical reason why these items are causing problems?  
-
+Given your examination so far, some items may be flagged as consistently problematic.  
 Here are the ones **we** identified.
 
 - q4, q11, q22 and q27 were only salient when loading onto factors with <3 items (11 and 4 seemed to go together, as did 22 and 27).  
 - q3 has some cross loadings in several solutions.  
 
-Normally, we would want to remove items one at a time. This is a time-consuming process, so let's skip ahead, and suppose we need to remove all four of q4, q11, q22 and q27.  
+Take a look at the wordings of any such items. 
+Are they "double barrelled" or ambiguously worded? Can you think of any theoretical reason why these items are causing problems?  
 
-**Task:** create a new dataframe which is the subset of items _without_ those four.  
+Normally, we would want to remove items one at a time. This is a time-consuming process, so let's skip ahead, and suppose we need to remove all four of q4, q11, q22 and q27.  
+**Task:** create a new dataframe which is the subset of items _without_ questions 4, 11, 22, and 27.  
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
@@ -326,13 +412,44 @@ copeitems_sub <- copeitems |>
 ```
 
 `r solend()`
+`r solbegin(show=TRUE, label="note - what about the stuff that those discard items capture?", slabel=FALSE, toggle=params$TOGGLE)`
+
+We've just got rid of some items. 
+Surely that means that we're losing someting important that we measured?  
+
+This depends on _why_ we have decided to discard those items. If they were badly worded, then we could argue that they just contain too much noise, or that the 'signal' they carry is unable to be clearly separated out into any of the latent factors (i.e. "I use alcohol or drugs to relax and then feel guilty about it later." would be split across two types of coping strategy: use of alcohol and self-blame).
+
+In our case, I think we can argue for something else happening. If you look at the items we have discarded, they seem fairly clear. Qs 4 and 11 are about substance misuse, and Qs 22 and 27 about spiritual/religious coping.  
+
+```{r}
+#| echo: false
+bloads |> 
+  filter(grepl("q4|q11|q22|q27",q)) |>
+  arrange(as.numeric(qitem)) |>
+  transmute(variable = q, wording) |>
+  gt::gt()
+```
+
+
+
+Note that also in the factor solutions we have looked at that have more factors, these pairs came out as their own little factors with 2 items each. 
+So there **is** potentially a real construct there, it's simply that the 2-item factors are statistically unstable.  
+So while these don't fit in to our general view of measuring "coping strategies", we might want to consider either:
+
+1. refining our questionnaire, adding more items about these, and starting over. 
+2. start thinking of religiosity and substance use as separate from 'coping strategies', and include them as separate measures in analyses that study coping. 
+
+
+
+`r solend()`
+
 
 `r qbegin(qcounter())`
 Re-do the entire process!  
 
-We've printed all the output so that you don't have to code it right here, and can focus on the evaluation of the different solutions.  
+We've printed all the output so that you don't have to code it right here and now, and can focus on the evaluation of the different solutions.  
 
-Which model do you prefer? Remember to take into consideration the wordings of the items!  
+Are any of these models satisfactory? Do you think they need further refinement? Remember to take into consideration the wordings of the items!  
 `r qend()`
 `r solbegin(show=TRUE, label="1 - Checks", slabel=FALSE, toggle=params$TOGGLE)`
 
@@ -355,7 +472,7 @@ KMO(copeitems_sub)
 
 | method | suggestion |
 | ---- | -----|
-| scree plot | 1? 4? |
+| scree plot | 1? maybe 2? 4? |
 | parallel analysis | 4 |
 | MAP | 3 | 
 
@@ -365,8 +482,7 @@ fa.parallel(copeitems_sub)
 VSS(copeitems_sub, plot=F)
 ```
 
-
-Let's examine from 2 to 5 factors.  
+Let's examine from 1 to 4 factors.  
 
 `r solend()`
 `r solbegin(show=TRUE, label="3 - Competing models", slabel=FALSE, toggle=params$TOGGLE)`
@@ -377,60 +493,104 @@ copefa3s <- fa(copeitems_sub, nfactors = 3, rotate = "oblimin", fm = "ml", cor =
 copefa4s <- fa(copeitems_sub, nfactors = 4, rotate = "oblimin", fm = "ml", cor = "cor")
 ```
 
+::: {.callout-note collapse="true"}
+#### Full output
 ::::panelset
 :::panel
 ### 1 factor
 ```{r}
-print(copefa1s$loadings,cutoff=.3,sort=T)
+copefa1s
 ```
 :::
 :::panel
 ### 2 factor
 ```{r}
-print(copefa2s$loadings,cutoff=.3,sort=T)
+copefa2s
 ```
 :::
 :::panel
 ### 3 factor
 ```{r}
-print(copefa3s$loadings,cutoff=.3,sort=T)
+copefa3s
 ```
 :::
 :::panel
 ### 4 factor
 ```{r}
-print(copefa4s$loadings,cutoff=.3,sort=T)
+copefa4s
 ```
 :::
 ::::
+:::
+
+::: {.callout-note collapse="true"}
+#### Tidied loadings
+::::panelset
+:::panel
+### 1 factor
+```{r}
+print(copefa1s$loadings, cutoff = .3, sort = T)
+```
+:::
+:::panel
+### 2 factor
+```{r}
+print(copefa2s$loadings, cutoff = .3, sort = T)
+```
+:::
+:::panel
+### 3 factor
+```{r}
+print(copefa3s$loadings, cutoff = .3, sort = T)
+```
+:::
+:::panel
+### 4 factor
+```{r}
+print(copefa4s$loadings, cutoff = .3, sort = T)
+```
+:::
+::::
+:::
+
 `r solend()`
 
 `r qbegin(qcounter())`
-
 For your chosen solution, name the factors!  
-
-
 
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+I think we could probably make an argument for either the 3 factor solution or the 4 factor solution (although we might want to take a closer look at q3).  
 
-ML3 = reframing/distraction
-ML4 = avoidant/maladaptive
-ML1 = social support seeking
-ML2 = active problem focused
+Personally I would probably choose the 3 factor solution, if nothing else then for parsimony.  
+If we choose the 3 factor, then we might name them something like: 
+
+- ML1 - "support and solution seeking"
+- ML2 - "distraction and reframing"
+- ML3 - "maladaptive/avoidant"
+
+If we were to choose 4, then it feels like the first factor of gets split up into two separate parts: social support focussed, and problem/planning focussed. In the factor correlations, we can see that these two correlate more than other factors do, suggesting a reasonable degree of overlap (which makes sense with how our 3-factor model looks too)!  
+
+- ML2 = reframing/distraction
+- ML3 = avoidant/maladaptive
+- ML1 = social support seeking
+- ML4 = active problem focused
+
+Interestingly, this latter factor then loads on to the q3, which sound a bit more like denial (*I've been saying to myself "this isn't real."*), but you could see this as also an active/planned coping strategy (perhaps not a good one!) of getting through difficult situations.
 
 
 `r solend()`
 
 ```{r}
-
-newnames <- bloads$wording
+#| include: false
+newnames <- bloads$subscale
 names(newnames) <- bloads$q
 names(copeitems_sub) <- newnames[names(copeitems_sub)]
 copefa4s <- fa(copeitems_sub, nfactors = 4, rotate = "oblimin", fm = "ml", cor = "cor")
+copefa3s <- fa(copeitems_sub, nfactors = 3, rotate = "oblimin", fm = "ml", cor = "cor")
+print(copefa3s$loadings,sort=T,cutoff=.3)
 print(copefa4s$loadings,sort=T,cutoff=.3)
-
 ```
 
 
