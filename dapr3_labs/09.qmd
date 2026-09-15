@@ -1,0 +1,206 @@
+---
+title: "CFA"
+params: 
+    SHOW_SOLS: FALSE
+    TOGGLE: TRUE  # TRUE = collapse sols, FALSE = uncollapse sols
+editor_options: 
+  chunk_output_type: console
+---
+
+<!-- when rendering in RStudio/  not production profile:   SHOW_SOLS: TRUE  -->
+<!-- when rendering in terminal/with production profile:   SHOW_SOLS: FALSE -->
+
+```{r}
+#| label: setup
+#| include: false
+source('assets/setup.R')
+library(xaringanExtra)
+library(tidyverse)
+library(patchwork)
+use_panelset()
+qcounter <- function(){
+  if(!exists("qcounter_i")){
+    qcounter_i <<- 1
+  }else{
+    qcounter_i <<- qcounter_i + 1
+  }
+  qcounter_i
+}
+source("jk_playground/iri.r")
+```
+
+:::{.callout-note}
+### Get set up
+
+1. Create a new .Rmd file for this week's exercises.
+1. Save it somewhere you can find it again.
+1. Give it a clear name (for example, `dapr3_lab08.Rmd`).
+1. In the first code chunk, load the packages you'll need this week:
+    - `tidyverse`
+    - `psych`
+    
+:::
+
+---
+
+:::frame
+__Testing the Short-IRI__  
+
+Our aim today is to test the factor structure of a short form of the IRI (Interpersonal Reactivity Index) - a measure of empathy, that captures four related constructs:  
+
+- Perspective Taking (PD): tendency to adopt others' points of view
+- Empathic Concern (EC): tendency to experience sympathy and compassion for others
+- Personal Distress (PD): tendency to experience distress/discomfort in response to others' distress
+- Fantasy (FS): tendency to imaginatively transpose oneself into fictional situations
+
+The full measure contains 28 items, but researchers have developed a short version: a subset of 16 of the items deemed most relevant to each of the constructs. 
+
+A sample of 220 people completed their 16 item version: 
+
+::: {.callout-note collapse="true"}
+#### Item Wordings
+
+```{r}
+#| echo: false
+short_iri |>
+  transmute(
+    question=q,subscale,wording,negatively_worded = neg*1
+  ) |> gt::gt()
+```
+
+:::
+:::
+
+`r qbegin(qcounter())`
+The researchers who developed this short form of the model suggest that this subset of 16 items is sufficient to tap into the four separate facets of the original measure. 
+In the syntax for **lavaan**, specify the model that they suggest underpins this new measure.  
+
+```{r}
+#| eval: false
+#| echo: true
+
+irimod <- "
+    ...
+    ...
+    
+    ...
+  "
+```
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+
+```{r}
+irimod <- "
+FS =~ item1 + item12 + item16 + item26
+EC =~ item2 + item14 + item20 + item22
+PT =~ item8 + item11 + item21 + item28
+PD =~ item13 + item17 + item24 + item27
+"
+```
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Fit the model, and evaluate the global (overall) model fit.  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+mod16.est <- cfa(irimod, data = siridat, std.lv=T)
+
+fitmeasures(mod16.est)[c("rmsea","srmr","cfi","tli")]
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+Examine the modification indices.  
+Even if the model already "fits well", this can help to highlight possible issues with the measurement model. What might a large residual covariance between two items tell us? 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+modindices(mod16.est, sort = TRUE) |> 
+  head(5)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+When you fitted your model, which did you use? 
+```{r}
+#| eval: false
+#| echo: true
+cfa(model, data)
+cfa(model, data, std.lv = TRUE)
+```
+
+To help us better understand how this changes things, fit the other one now, and examine what (if anything) is different.  
+
+- global fit of the model
+- modification indices
+- in `summary()`:  
+    - factor loading estimates
+    - factor covariance estimates
+    
+**Bonus Challenge:** can you see the link between estimates from the two versions?  
+    
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+m1 <- cfa(irimod, siridat)
+m1a <- cfa(irimod, siridat, std.lv = TRUE)
+```
+
+```{r}
+fitmeasures(m1)[c("rmsea","srmr","cfi","tli")]
+fitmeasures(m1a)[c("rmsea","srmr","cfi","tli")]
+```
+
+```{r}
+head(modindices(m1, sort = TRUE))
+head(modindices(m1a, sort = TRUE))
+```
+
+```{r}
+summary(m1)
+summary(m1a)
+```
+
+`r solend()`
+
+`r qbegin(qcounter())`
+We might ask ourselves if the four factors really necessary?  
+How does the fit of our model compare to that of a model in which there is just one factor of dispositional empathy? 
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+mod1f <- "
+EMP =~ item1 + item12 + item16 + item26 + item2 + item14 + 
+        item20 + item22 + item8 + item11 + item21 + item28 + 
+          item13 + item17 + item24 + item27
+"
+
+mod1f.est <- cfa(mod1f, siridat, std.lv=TRUE)
+
+library(semTools)
+summary(compareFit(mod1f.est, mod16.est))
+```
+
+`r solend()`
+ 
+6. how do items look? R^2 for each item? standsolution
+7. make quick diagram
+8. fit same model in adolescents
+9. compare the loadings from the adult sample and adolescent sample
+10. compare metric invariance
+
+
+8. here's the rest of the sample. test your short form on this subset 
+	1. note why we split it. our decisions about the short form were informed by sampleA. we can't test that short form on that same sample. 
+10. invariance across groups.  
