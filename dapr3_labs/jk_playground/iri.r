@@ -53,8 +53,9 @@ library(lavaan)
 
 set.seed(8887)
 
-df <- simulateData(dgp) |>
-  apply(2,\(x) cut(x,5,labels=FALSE)) |> as.data.frame()
+df <- simulateData(dgp, standardized = TRUE, model_type="cfa") |>
+  apply(2,\(x) cut(x,5,labels=FALSE)) |> 
+  as.data.frame()
 head(df)
 
 short_iri <- iri |> filter(q %in% names(df))
@@ -75,6 +76,18 @@ mod1 <- cfa(mm,df,std.lv=T)
 fitmeasures(mod1)[c("rmsea","srmr","cfi","tli")]
 #modindices(mod1,sort=T) |> head(4)
 summary(mod1,std=T)
+
+
+
+standardizedsolution(mod1) |>
+  filter(op=="=~") |>
+  mutate(r2 = est.std^2) |>
+  group_by(lhs) |>
+  summarise(
+    mean(r2)
+  )
+
+
 
 
 mm1 <- "
@@ -101,7 +114,7 @@ dgp_adlsc <- '
 '
 
 set.seed(7423)
-df2 <- simulateData(dgp_adlsc) |>
+df2 <- simulateData(dgp_adlsc, standardized = TRUE, model_type="cfa") |>
   apply(2,\(x) cut(x,5,labels=FALSE)) |> as.data.frame()
 
 df2 <- df2 |> 
@@ -112,6 +125,10 @@ head(df2)
 
 m2 <- cfa(mm,df2,std.lv=T)
 fitmeasures(m2)[c("rmsea","srmr","cfi","tli")]
+
+semPaths(mod1,whatLabels="std",rotation=2)
+semPaths(m2,whatLabels="std",rotation=2)
+
 
 full <- bind_rows(
   "adult" = df,

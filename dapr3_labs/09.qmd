@@ -1,7 +1,7 @@
 ---
 title: "CFA"
 params: 
-    SHOW_SOLS: FALSE
+    SHOW_SOLS: TRUE
     TOGGLE: TRUE  # TRUE = collapse sols, FALSE = uncollapse sols
 editor_options: 
   chunk_output_type: console
@@ -26,7 +26,7 @@ qcounter <- function(){
   }
   qcounter_i
 }
-source("jk_playground/iri.r")
+source("jk_playground/whoqol.r")
 ```
 
 :::{.callout-note}
@@ -34,52 +34,51 @@ source("jk_playground/iri.r")
 
 1. Create a new .Rmd file for this week's exercises.
 1. Save it somewhere you can find it again.
-1. Give it a clear name (for example, `dapr3_lab08.Rmd`).
+1. Give it a clear name (for example, `dapr3_lab09.Rmd`).
 1. In the first code chunk, load the packages you'll need this week:
     - `tidyverse`
-    - `psych`
+    - `lavaan`
+    - `semPlot`
     
 :::
 
 ---
 
 :::frame
-__Testing the Short-IRI__  
+__Quality Street__  
 
-Our aim today is to test the factor structure of a short form of the IRI (Interpersonal Reactivity Index) - a measure of empathy, that captures four related constructs:  
+Our exercises today are concerning the factor structure of the "WHOQOL-BREF" - a brief measure of quality of life developed by the World Health Organisation (WHO). 
+It contains 26 questions (the first two of which are treated individually as general single item measures). 
+The remaining 24 questions captures four related aspects of quality of life: Physical, Psychological, Social and Environmental.  
 
-- Perspective Taking (PD): tendency to adopt others' points of view
-- Empathic Concern (EC): tendency to experience sympathy and compassion for others
-- Personal Distress (PD): tendency to experience distress/discomfort in response to others' distress
-- Fantasy (FS): tendency to imaginatively transpose oneself into fictional situations
 
-The full measure contains 28 items, but researchers have developed a short version: a subset of 16 of the items deemed most relevant to each of the constructs. 
-
-A sample of 220 people completed their 16 item version: 
+In practice, these four domain scores are often highly correlated ($r > .70$). 
+Researcher A is curious about whether this scale is genuinely measuring four distinct domains or simply reflecting one underlying construct (a "General Quality of Life").
+She wants to test whether a complex 4-factor structure is strictly necessary to explain the responses, or whether a simpler 1-factor model is sufficient. She collects WHOQOL-BREF data from 300 adults aged 25 to 55.  
+The wordings of the items can be found below.  
+The dataset can be accessed at <https://uoepsy.github.io/data/whoqolbref-sampleA.csv>
 
 ::: {.callout-note collapse="true"}
 #### Item Wordings
 
 ```{r}
 #| echo: false
-short_iri |>
-  transmute(
-    question=q,subscale,wording,negatively_worded = neg*1
-  ) |> gt::gt()
+wqit |> gt::gt()
 ```
 
 :::
 :::
 
 `r qbegin(qcounter())`
-The researchers who developed this short form of the model suggest that this subset of 16 items is sufficient to tap into the four separate facets of the original measure. 
-In the syntax for **lavaan**, specify the model that they suggest underpins this new measure.  
+First, let's fit the factor model that is suggested by the WHO. We can then see if this factor structure provides a good fit to the responses from our sample. 
+In the syntax for **lavaan**, specify the model. 
+(We need to specify the model that links the specific questions to their relevant "domains")
 
 ```{r}
 #| eval: false
 #| echo: true
 
-irimod <- "
+who_mod <- "
     ...
     ...
     
@@ -88,17 +87,23 @@ irimod <- "
 ```
 
 
+:::dapr3green
+🗂️
+See the [#Specification section on the Fit a Confirmatory Factor Model](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p03_cfa.html#specification]) flash card.
+:::
+
+
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 
 ```{r}
-irimod <- "
-FS =~ item1 + item12 + item16 + item26
-EC =~ item2 + item14 + item20 + item22
-PT =~ item8 + item11 + item21 + item28
-PD =~ item13 + item17 + item24 + item27
-"
+who_mod <- '
+  Phys =~ q3 + q4 + q10 + q15 + q16 + q17 + q18
+  Psych =~ q5 + q6 + q7 + q11 + q19 + q26
+  Social =~ q20 + q21 + q22
+  Env =~ q8 + q9 + q12 + q13 + q14 + q23 + q24 + q25
+'
 ```
 
 
@@ -106,25 +111,49 @@ PD =~ item13 + item17 + item24 + item27
 
 `r qbegin(qcounter())`
 Fit the model, and evaluate the global (overall) model fit.  
+
+:::dapr3green
+🗂️
+See the [#Estimation section on the Fit a Confirmatory Factor Model](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p03_cfa.html#estimation]) flash card.
+:::
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 ```{r}
-mod16.est <- cfa(irimod, data = siridat, std.lv=T)
+whqb_a <- read_csv("https://uoepsy.github.io/data/whoqolbref-sampleA.csv")
 
-fitmeasures(mod16.est)[c("rmsea","srmr","cfi","tli")]
+fit_who <- cfa(who_mod, data = whqb_a, std.lv = TRUE)
+
+fitmeasures(fit_who)[c("rmsea","srmr","cfi","tli")]
 ```
 
 `r solend()`
 
 `r qbegin(qcounter())`
 Examine the modification indices.  
-Even if the model already "fits well", this can help to highlight possible issues with the measurement model. What might a large residual covariance between two items tell us? 
+Even if the model already "fits well", this can help to highlight possible issues with the measurement instrument.  
+What might large residual covariances between two items tell us?  
+
+
+:::dapr3green
+🗂️
+See the [#Re-specification section on the Fit a Confirmatory Factor Model](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p03_cfa.html#re-specification]) flash card.
+:::
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+This will require looking carefully at the item wordings. What do the items with suggested residual covariances all have in common?  
+
+:::
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
 ```{r}
-modindices(mod16.est, sort = TRUE) |> 
+modindices(fit_who, sort = TRUE) |> 
   head(5)
 ```
+
+You might notice that these top 3 - questions q3, q4, q26 - are the only negatively worded questions! Respondents often process negatively framed items with their specific cognitive bias that can creating residual correlation among them. But this is more noise due to the method than theoretically interesting domain variability.  
 
 `r solend()`
 
@@ -147,60 +176,237 @@ To help us better understand how this changes things, fit the other one now, and
     - factor covariance estimates
     
 **Bonus Challenge:** can you see the link between estimates from the two versions?  
+
+:::dapr3green
+🗂️
+See the [#Parameter Estimates section on the Fit a Confirmatory Factor Model](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p03_cfa.html#parameter-estimates]) flash card.
+:::
+
     
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
 ```{r}
-m1 <- cfa(irimod, siridat)
-m1a <- cfa(irimod, siridat, std.lv = TRUE)
+fit_who <- cfa(who_mod, data = whqb_a, std.lv = TRUE)
+fit_who2 <- cfa(who_mod, data = whqb_a)
 ```
 
+The fit of the models should be identical: 
 ```{r}
-fitmeasures(m1)[c("rmsea","srmr","cfi","tli")]
-fitmeasures(m1a)[c("rmsea","srmr","cfi","tli")]
+fitmeasures(fit_who)[c("rmsea","srmr","cfi","tli")]
+fitmeasures(fit_who2)[c("rmsea","srmr","cfi","tli")]
 ```
 
+And the modification indices should also be indentical: 
 ```{r}
-head(modindices(m1, sort = TRUE))
-head(modindices(m1a, sort = TRUE))
+head(modindices(fit_who, sort = TRUE))
+head(modindices(fit_who2, sort = TRUE))
 ```
 
+The loadings will be different. 
+
+- without `std.lv = TRUE`, the first loading is fixed to 1, and all the others are in comparison to that one
+- with `std.lv = TRUE`, the loadings are all freely estimated but the latent variable has a variance of 1
+
+For instance, the items loading on the social domain have these loadings when we use `std.lv = TRUE`: 0.576, 0.489, 0.510.  
+And when we don't use it, we get: 1.000, 0.849, 0.885.  
+
+To see how they match up: 
 ```{r}
-summary(m1)
-summary(m1a)
+c(0.576, 0.489, 0.510) / 0.576
+```
+
+The factor covariances are also different.  
+
+- without `std.lv = TRUE`, they are covariances between latent variables that have scales fixed to the same as their first item. covariances are dependent on units, remember! 
+- with `std.lv = TRUE`, the latent variables have variances of 1, so they are all standardised. so covariances become correlations!  
+
+
+`r solend()`
+
+`r qbegin(qcounter())`
+How do the individual items look? How much variance in each item is explained by its corresponding factor?  
+
+**Bonus Challenge:** Can you calculate the "average variance explained" for each factor? 
+
+::: {.callout-tip collapse="true"}
+#### Hints
+
+When we have a standardised factor loading, it is just like EFA, where squaring it gives the variance in an item explained by a factor.  
+
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+I love making plots rather than looking at numbers, so here we go! 
+```{r}
+standardizedsolution(fit_who) |>
+  filter(op == "=~") |>
+  mutate(r2 = est.std^2) |>
+  group_by(lhs) |>
+  mutate(mean_r2 = mean(r2)) |>
+  ggplot(aes(x = rhs, y = r2)) +
+  geom_col() +
+  geom_hline(aes(yintercept = mean_r2),
+             linetype = "dashed", color = "red") +
+  ylim(0,1)+
+  coord_flip() + 
+  facet_wrap(~lhs, scales = "free_y") 
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Make a quick diagram showing the standardised loadings for each factor.  
+
+:::dapr3green
+🗂️
+See the [#Drawing your fitted model section on the Fit a Confirmatory Factor Model](https://uoepsy.github.io/dapr3/2627/flashcards/block2/p03_cfa.html#drawing-your-fitted-model]) flash card.
+:::
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+library(semPlot)
+
+semPaths(fit_who, whatLabels = "std", rotation=2)
+```
+
+`r solend()`
+
+
+`r qbegin(qcounter())`
+Researcher A would now like to compare this to a model with only one single factor.  
+
+Fit a unidimensional model and compare the fit measures.  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+rA_mod <- '
+  GQOL =~ q3 + q4 + q10 + q15 + q16 + q17 + q18 + q5 + q6 + q7 + q11 + q19 + q26 + q20 + q21 + q22 + q8 + q9 + q12 + q13 + q14 + q23 + q24 + q25
+'
+
+fit_a <- cfa(rA_mod, whqb_a, std.lv=TRUE)
+fitmeasures(fit_a)[c("rmsea","srmr","cfi","tli")]
+```
+
+`r solend()`
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+:::frame
+__Quality over Quantity__  
+
+Researcher B is working on the same project, and wonders whether this factor structure holds up across different age demographics. 
+Specifically, he wants to ask if the optimal factor structure identified in younger adults (25–55) holds true in older adults aged 65+?
+Is the WHOQOL-BREF measurement "invariant" across these two age groups, or do older adults interpret and answer the items differently?  
+To test this, Researcher B recruits a second sample of 300 adults aged 65 and above who complete the same 26 items.
+
+The data are available at <https://uoepsy.github.io/data/whoqolbref-sampleB.csv>
+
+
+:::
+ 
+ 
+`r qbegin(qcounter())`
+Fit the WHO 4 factor model to sample B (the sample of 300 adults >65).  
+
+Does it fit well?  
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+
+```{r}
+whqb_b <- read_csv("https://uoepsy.github.io/data/whoqolbref-sampleB.csv")
+
+fit_bwho <- cfa(who_mod, whqb_b, std.lv = TRUE)
+
+fitmeasures(fit_bwho)[c("rmsea","srmr","cfi","tli")]
 ```
 
 `r solend()`
 
 `r qbegin(qcounter())`
-We might ask ourselves if the four factors really necessary?  
-How does the fit of our model compare to that of a model in which there is just one factor of dispositional empathy? 
+Compare the loadings of the models fitted to the 25-55 year old sample and the 65+ sample.  
+Can you make any suggestions on why certain items might mean different things to these two groups?  
 `r qend()`
 `r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
 
+We can look through `summary()` or `standardizedsolution()` for each model and just compare the various numbers. Or we could draw diagrams for both models using `semPaths()` and compare.  
+
+However, i'm going to plot stuff again (you don't have to, i just prefer it!).  
 ```{r}
-mod1f <- "
-EMP =~ item1 + item12 + item16 + item26 + item2 + item14 + 
-        item20 + item22 + item8 + item11 + item21 + item28 + 
-          item13 + item17 + item24 + item27
-"
+#| echo: false
+bind_rows(
+  # younger adults
+  standardizedsolution(fit_who) |>
+  select(lhs,op,rhs,est.std) |> 
+    mutate(group="younger"),
+  # older adults
+  standardizedsolution(fit_bwho) |>
+  select(lhs,op,rhs,est.std) |>
+    mutate(group="older")
+) |> filter(op == "=~") |>
+  ggplot(aes(x=rhs, y = ifelse(group=="older",-abs(est.std),abs(est.std)),
+             fill = group)) +
+  geom_col() + 
+  facet_wrap(~lhs, scales="free_x") +
+  labs(y="std factor loading",x = "question")
 
-mod1f.est <- cfa(mod1f, siridat, std.lv=TRUE)
-
-library(semTools)
-summary(compareFit(mod1f.est, mod16.est))
 ```
 
+What does it tell us? 
+it looks like loadings for q12, q18, and q21 specifically are quite a lot weaker than in the younger group. 
+And some questions (q25) are a bit higher!
+
+```{r}
+wqit |> 
+  filter(q %in% c("q12","q18","q21","q25")) |>
+  gt::gt()
+```
+
+This makes a little bit of sense when we think about it. People over the age of 65 are often retired, meaning q18 is kind of irrelevant? And the same reasoning might be said for q21. They might have fewer financial outgoings, making q12 less indicative of quality of life. q25 possibly becomes far more indicative of quality of life because older people will be more likely to be infirm and unable to drive etc.  
+
+
 `r solend()`
- 
-6. how do items look? R^2 for each item? standsolution
-7. make quick diagram
-8. fit same model in adolescents
-9. compare the loadings from the adult sample and adolescent sample
-10. compare metric invariance
 
 
-8. here's the rest of the sample. test your short form on this subset 
-	1. note why we split it. our decisions about the short form were informed by sampleA. we can't test that short form on that same sample. 
-10. invariance across groups.  
+`r qbegin(paste0("Extra ", qcounter()))`
+Researcher A, who is happy that the WHOQOL-BREF appears to fit well in her sample of working aged adults, has another question. 
+
+Which specific domain is the strongest unique predictor of the single item measure (`q1`) of an overall quality of life?  
+
+She fits the model below.  
+Can you answer her question?  
+```{r}
+a2_mod <- '
+  # measurement
+  Phys =~ q3 + q4 + q10 + q15 + q16 + q17 + q18
+  Psych =~ q5 + q6 + q7 + q11 + q19 + q26
+  Social =~ q20 + q21 + q22
+  Env =~ q8 + q9 + q12 + q13 + q14 + q23 + q24 + q25
+  
+  # regression
+  q1 ~ Phys + Psych + Social + Env
+'
+
+fit_a2 <- sem(a2_mod, whqb_a, std.lv = TRUE)
+```
+
+
+`r qend()`
+`r solbegin(show=params$SHOW_SOLS, toggle=params$TOGGLE)`
+```{r}
+standardizedsolution(fit_a2) |>
+  filter(op == "~") 
+```
+`r solend()`
+
+
+

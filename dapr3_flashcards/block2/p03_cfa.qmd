@@ -172,6 +172,34 @@ standardizedsolution(myfittedmodel)
 .  ...   ..   ...   ...   ...     ...   ...      ...      ...
 ```
 
+### Average Variance Explained (AVE)
+
+Sometimes, it may be useful to calculate the amount of variance in each item by its corresponding factor. 
+These are just the standardised factor loadings (the estimates where *everything* is standardised), squared! 
+
+```{r}
+standardizedsolution(myfittedmodel) |>
+  filter(op == "=~") |>
+  mutate(
+    r2 = est.std^2
+  ) |> 
+  select(lhs, rhs, est.std, r2)
+```
+What can then be useful is calculating the "average variance explained". This is kind of similar to the "variance explained" metrics we get out of EFA - for each factor, we sum the squared loadings and divide by the number of items! 
+
+```{r}
+standardizedsolution(myfittedmodel) |>
+  filter(op == "=~") |>
+  mutate(
+    r2 = est.std^2
+  ) |> 
+  group_by(lhs) |>
+  summarise(
+    AVV = mean(r2)
+  )
+```
+
+
 
 ## Measures of global fit
 
@@ -188,8 +216,7 @@ fitmeasures(myfittedmodel)[c("srmr","rmsea","cfi","tli")]
 
 
 
-::: {.callout-caution collapse="true"}
-#### Rabbit Hole: Re-Specification
+# Re-Specification
 
 The `modindices()` function takes a fitted model object from __lavaan__ and provides a table of all the possible additional parameters we _could_ estimate.  
 
@@ -234,4 +261,21 @@ It's very important to think critically here about _why_ such modifications may 
 
 Modifications to a CFA model should be made judiciously, with careful consideration of theory as well as quantitative metrics. The goal is to develop a model that accurately represents the underlying structure of the data while maintaining theoretical coherence and generalizability.  
 :::
-:::
+
+## Drawing your fitted model
+
+To make proper, publishable diagrams of models, we would want to use different software like powerpoint, visio, inkscape etc. There are also tools online like <https://semdiag.psychstat.org/>. 
+
+For just quick visuals though, R can do that! 
+The **semPlot** package has the `semPaths()` function:  
+
+```{r}
+library(semPlot)
+semPaths(object = myfittedmodel,
+         # let's print the standardised estimates: 
+         whatLabels = "std"
+)
+```
+
+
+
