@@ -10,7 +10,7 @@ week_f <- list.files(pattern = "^[0-9]+\\.qmd$")
 sol_state <- list()
 for (wf in week_f) {
   weekn <- as.numeric(sub(".*?([0-9]+).*", "\\1", wf))
-  sol_state[[wf]] <- TRUE
+  sol_state[[tools::file_path_sans_ext(wf)]] <- TRUE
 }
 
 message("Current Week Set To ",current_week)
