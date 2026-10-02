@@ -13,9 +13,11 @@ for (wf in week_f) {
   sol_state[[tools::file_path_sans_ext(wf)]] <- TRUE
 }
 
+visible <- paste0(names(unlist(sol_state))[which(unlist(sol_state))], collapse = ",")
+visible <- ifelse(visible=="", "NONE", visible)
+
 message("Current Week Set To ",current_week)
-message("Solutions visible for ", 
-        paste0(names(unlist(sol_state))[which(unlist(sol_state))], collapse = ","))
+message("Solutions visible for ", visible)
 
 # save out (gets read by .qmdss when rendreing)
 saveRDS(list(current_week = current_week, sols = sol_state), "week_sols.rds")
