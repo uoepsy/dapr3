@@ -43,20 +43,21 @@ lifesat_mod <- lmer(
 
 ### Plot fixed effects
 
-With the `effects` library, we get the function `effect()`.
+With the `effects` library, we get the function `Effect()`.
 This function tells us the model-fitted outcome values (in column `fit`) for each value of `age`, along with the `lower` and `upper` bounds of the 95% CI around those fitted values.
 
 ```{r}
 library(effects)
 
-effect(term = "age", mod = lifesat_mod) |>
+Effect(focal.predictors = "age", mod = lifesat_mod) |>
   as.data.frame()
 ```
 
-`effect()` by default gives five equally-spaced values across the range of the predictor.
+`Effect()` by default gives five equally-spaced values across the range of the predictor.
+It's decided to start at 20 and ending at 60.
 But we have observed ages outside this range: we have ages 15 in our data, as well as ages of 65.
 
-So, we need an extra trick: to make `effect()` give us fitted values for the whole observed range of `age`, we define the values of `age` we want to see and then tell that to `effects()` using the `xlevels=` argument:
+So, we need an extra trick: to make `Effect()` give us fitted values for the whole observed range of `age`, we define the values of `age` we want to see and then tell that to `effects()` using the `xlevels=` argument:
 
 ```{r}
 # Get fitted values every five years between the min age and max age
@@ -66,7 +67,7 @@ age_range <- seq(
   5  # this is how spaced out the numbers should be (gives us every fifth number)
 )
 
-effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
+Effect(focal.predictors = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   as.data.frame()
 ```
 
@@ -74,7 +75,7 @@ effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
 We can pipe this data into ggplot to visualise the model-fitted values as follows:
 
 ```{r}
-effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
+Effect(focal.predictors = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   as.data.frame() |>
   ggplot(aes(x = age, y = fit)) +
   geom_line() +
@@ -85,13 +86,22 @@ effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   )
 ```
 
+
+Another option to get more values for `age` that's a bit simpler, code-wise: tell `xlevels` that we just want some number of values of `age` other than 5, and it'll give us that many instead:
+
+```{r}
+Effect(focal.predictors = "age", mod = lifesat_mod, xlevels = 10) |>
+  as.data.frame()
+```
+
+
 ::: {.callout-caution collapse="true"}
 ### More advanced plotting: Including the group-level lines
 
 #### First plot group-level lines on their own
 
 With the package `broom.mixed`, we get the function `augment()`.
-Think of this function as the group-level version of `effects::effect()`: it gives us model-fitted values (in the column `.fitted`) for each level of our grouping variable.
+Think of this function as the group-level version of `effects::Effect()`: it gives us model-fitted values (in the column `.fitted`) for each level of our grouping variable.
 We can pipe its output into ggplot and plot lines for each dwelling.
 
 ```{r}
@@ -109,7 +119,7 @@ This plot is a bit more complex, since it combines data coming from two differen
 
 ```{r}
 # Store the fitted estimates for the fixed effects 
-eff_df <- effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
+eff_df <- Effect(focal.predictors = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   as.data.frame()
 
 # Create the ggplot based on `augment()`
@@ -143,7 +153,7 @@ If there are lots of levels, it's hard for the reader to map different colours t
 
 ```{r}
 # Store the fitted estimates for the fixed effects 
-eff_df <- effect(term = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
+eff_df <- Effect(focal.predictors = "age", mod = lifesat_mod, xlevels = list(age = age_range)) |>
   as.data.frame()
 
 # Create the ggplot based on `augment()`
@@ -184,17 +194,17 @@ lifesat_size_mod <- lmer(
 )
 ```
 
-Again we can use `effect()` to tell us the model-fitted outcome values (in column `fit`) for each of the two levels of our predictor `size`, along with the `lower` and `upper` bounds of their corresponding 95% CIs.
+Again we can use `Effect()` to tell us the model-fitted outcome values (in column `fit`) for each of the two levels of our predictor `size`, along with the `lower` and `upper` bounds of their corresponding 95% CIs.
 
 ```{r}
-effect(term = "size", mod = lifesat_size_mod) |>
+Effect(focal.predictors = "size", mod = lifesat_size_mod) |>
   as.data.frame()
 ```
 
 We'll pipe this data into ggplot and visualise each fitted value as a point and the 95% CIs as error bars.
 
 ```{r}
-effect(term = "size", mod = lifesat_size_mod) |>
+Effect(focal.predictors = "size", mod = lifesat_size_mod) |>
   as.data.frame() |>
   ggplot(aes(x = size, y = fit)) +
   geom_point() +
@@ -233,21 +243,21 @@ augment(lifesat_size_mod) |>
   select(size, dwelling, .fitted) |>
   distinct() |>
   ggplot(aes(x = size, y = .fitted)) +
-  geom_jitter(width = 0.1)
+  geom_jitter(width = 0.1, height = 0)
 ```
 
 
 #### Combine fixed effects and group-level points
 
 ```{r}
-eff_df <- effect(term = "size", mod = lifesat_size_mod) |>
+eff_df <- Effect(focal.predictors = "size", mod = lifesat_size_mod) |>
   as.data.frame()
 
 augment(lifesat_size_mod) |>
   select(size, dwelling, .fitted) |>
   distinct() |>
   ggplot(aes(x = size)) +
-  geom_jitter(aes(y = .fitted), width = 0.1, alpha = 0.3) +
+  geom_jitter(aes(y = .fitted), width = 0.1, height = 0, alpha = 0.3) +
   geom_point(data = eff_df, aes(y = fit)) +
   geom_errorbar(data = eff_df, aes(ymin = lower, ymax = upper), width = 0) +
   labs(
@@ -283,6 +293,7 @@ tibble(variable=names(read_csv("https://uoepsy.github.io/data/schoolmot.csv")),
 ```{r}
 schoolmot <- read_csv('https://uoepsy.github.io/data/schoolmot.csv')
 ```
+
 The [maximal model](maxmodel.html) will be the following:
 
 ```{r}
@@ -298,10 +309,10 @@ We are also including by-school adjustments to the fixed intercept and to the fi
 
 ### Plot fixed effects
 
-Because we've got an interaction model, we include both interacting predictors in the `term=` argument of `effect()`.
+When we want to include multiple predictors in our plot, we include both of them in a vector that we give to the `focal.predictors=` argument of `Effect()`.
 
 ```{r}
-effect(term = "motiv * funding", mod = grade_mod) |>
+Effect(focal.predictors = c("motiv", "funding"), mod = grade_mod) |>
   as.data.frame() |>
   ggplot(aes(x = motiv)) +
   geom_line(aes(y = fit, colour = funding)) + 
@@ -323,7 +334,7 @@ augment(grade_mod) |>
 #### Combine fixed effects and group-level lines, add colour
 
 ```{r}
-eff_df <- effect(term = "motiv * funding", mod = grade_mod) |>
+eff_df <- Effect(focal.predictors = c("motiv", "funding"), mod = grade_mod) |>
   as.data.frame()
 
 augment(grade_mod) |>
