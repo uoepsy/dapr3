@@ -1,0 +1,149 @@
+---
+title: "Create a nicely-formatted table of coefficients"
+---
+
+```{r setup, include=FALSE}
+source('../assets/setup.R')
+library(tidyverse)
+library(lme4)
+```
+
+There are three ways that you might make a nicely-formatted table that shows your fixed effect coefficient estimates.
+
+- `sjPlot::tab_model()` does not render properly to PDF, but will render to HTML.
+- `broom.mixed::tidy()` renders to both PDF and HTML.
+- `modelsummary::modelsummary()` also renders to both PDF and HTML.
+
+Examples below.
+In reports, it doesn't matter which of these you use, as long as the key information (the fixed effect estimates and their significance) is there.
+
+## Example data: University job satisfaction
+
+Let's suppose we are studying employee job satisfaction at the university, and we want to estimate the **association between pay-scale and job satisfaction, controlling for the NSS rating of departments**.   
+
+We have 399 employees from 25 different departments, and we got them to fill in a job satisfaction questionnaire, and got information on what their payscale was.
+We have also taken information from the National Student Survey on the level of student satisfaction for each department.  
+
+Each datapoint here represents an individual employee, and these employees are grouped into departments.  
+
+```{r}
+#| echo: false
+tibble(variable=names(read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")),
+       description = c(
+         "National Student Satisfaction rating for the department",
+         "Department name",
+         "Pay scale of employee",
+         "Job satisfaction of employee",
+         "Binary question of whether the employee considered themselves to be satisfied with their work (1) or not (0)"
+       )
+) %>% gt::gt()
+```
+
+```{r}
+jobsat <- read_csv("https://uoepsy.github.io/data/msmr_nssjobsat.csv")
+```
+
+
+Here's the [maximal model](maxmodel.html) for this data:
+
+```{r}
+jobsat_mod <- lmerTest::lmer(
+  jobsat ~ 1 + payscale + NSSrating + (1 + payscale | dept), 
+  data = jobsat
+)
+```
+
+We are predicting employee's job satisfaction as a function of their pay scale and the department's NSS rating.
+We're also including by-department adjustments to the fixed intercept and to the slope over `payscale`.
+
+To see where the `lmerTest::lmer()` bit comes from, see [Get p-values for LMM coefficients](pvals.html).
+
+
+## `tab_model()` from `sjPlot`
+
+```{r}
+library(sjPlot)
+
+tab_model(jobsat_mod)
+```
+
+<br>
+
+Classic and minimal, and works just fine when knitting to HTML, but fails to render properly when knitting a document to PDF.
+
+## `tidy()` from `broom.mixed`
+
+```{r message=F}
+library(broom.mixed)
+library(kableExtra)
+```
+
+The code chunk below has the following header line, which defines the label we'll use to refer to this table in the text:
+
+> ` ```{r FromBroomMixed}`
+
+<br>
+
+```{r FromBroomMixed}
+tidy(jobsat_mod) |>
+  filter(effect=="fixed") |>
+  select(-effect, -group) |>
+  mutate(
+    estimate = round(estimate, 2),
+    std.error = round(std.error, 2)
+  ) |>
+  kable(
+    booktabs = TRUE, 
+    caption = 'This is my caption'
+    # when you render to PDF (not to HTML as we are doing here), 
+    # the caption will appear as "Table 1: This is my caption"
+  )  
+```
+
+<br>
+
+To refer to this table in your Rmd file, write:
+
+> `Here I am cross-referencing Table \@ref(tab:FromBroomMixed).`
+
+This will appear as "Here I am cross-referencing Table 1".
+
+For more detail on table formatting and cross-referencing, see the [DAPR1 table formatting resources](https://uoepsy.github.io/dapr1/2526/labs/zf_formatting_resources.html#referencing-tables){target="_blank"}.
+
+
+## `modelsummary()` from `modelsummary`
+
+```{r message=F}
+library(modelsummary)
+```
+
+```{r}
+modelsummary(
+  models = list('Job satisfaction' = jobsat_mod),  
+  # ^ in general: `list('<Dependent variable name>' = <modelname>)`
+  
+  fmt = fmt_statistic('estimate' = 2, 'std.error' = 2, 'conf.int' = 2, 'p.value' = 3),
+  estimate = c("b" = "{estimate}"),
+  statistic = c("SE" = "{std.error}", "p" = "{p.value}", "CI" = "[{conf.low}, {conf.high}]"),
+  shape = term ~ statistic,
+  gof_map = 'none',
+  output = 'markdown',
+  # ^ leave all this as-is
+  
+  title = "(\\#tab:FromModelSummary) This is my caption"
+  # ^ best to only edit the bits outside brackets.
+  # when you render to PDF (not to HTML as we are doing here), 
+  # the caption will appear as "Table 2: This is my caption"
+)
+
+```
+
+<br>
+
+In your Rmd file, write:
+
+> `Here I am cross-referencing Table \@ref(tab:FromModelSummary).`
+
+This will appear as "Here I am cross-referencing Table 2".
+
+For more detail on table formatting and cross-referencing, see the [DAPR1 table formatting resources](https://uoepsy.github.io/dapr1/2526/labs/zf_formatting_resources.html#referencing-tables){target="_blank"}.
