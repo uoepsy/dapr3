@@ -118,13 +118,33 @@ course_table(block1_name,block2_name,block1_lecs,block2_lecs,week=7)
 	    - we then reduce by taking the first $k$ components
 7. a constant reminder: getting some numbers is not the same thing as measurement  
 
-## This week
+# Today {transition="slide"}
 
 - from reduction to measurement models (from PCA to EFA)
 - Why EFA?
 - How (broadly) EFA works
 - "Rotations" & Simple Structures
 - Evaluating Factor Solutions
+
+# This Week {transition="slide" background-color="white"}
+
+::::{.columns}
+:::{.column width="50%"}
+**Labs:**  
+
+- doing EFA! 
+
+:::
+:::{.column width="50%"}
+
+**Lecture consolidation:**  
+
+- [Exploratory Factor Analysis (EFA) Flashcard](https://uoepsy.github.io/dapr3/2627/flashcards/block2/c02_efa.html){target="_blank"}
+- [EFA vs PCA Flashcard](https://uoepsy.github.io/dapr3/2627/flashcards/block2/c02_pcaefa.html){target="_blank"}
+- [EFA workflow Flashcard](https://uoepsy.github.io/dapr3/2627/flashcards/block2/wf02_efa.html){target="_blank"}
+
+:::
+::::
 
 # Conceptual overview {transition="slide"}
 
@@ -594,7 +614,7 @@ data
 #| label: lsat10
 #| eval: false
 #| echo: true
-lsat10 <- read_csv("data/lsatdat2.csv")
+lsat10 <- read_csv("https://uoepsy.github.io/dapr3/2627/misc/lsatdat2.csv")
 head(lsat10)
 ```
 :::
@@ -654,18 +674,22 @@ briefly:
 
 ```{r}
 #| echo: false
+newcols = RColorBrewer::brewer.pal(name="Set1",n=4)
+names(newcols) = c("Original X","Original Y","Rotated X","Rotated Y")
+
 eg2 <- lsat10[,-1]
 
 mn = fa(eg2, nfactors=2, rotate = "none", fm="minres")
 mr = fa(eg2, nfactors=2, rotate = "varimax", fm="minres")
+set.seed(457)
 mor = fa(eg2, nfactors=2, rotate = "oblimin", fm="minres")
 
 x_axis <- c(1, 0)
 y_axis <- c(0, 1)
 new_x_axis <- mr$rot.mat %*% x_axis
 new_y_axis <- mr$rot.mat %*% y_axis
-newo_x_axis <- (mor$rot.mat %*% mor$Phi) %*% y_axis
-newo_y_axis <- (mor$rot.mat %*% mor$Phi) %*% x_axis
+newo_x_axis <- (mor$rot.mat %*% mor$Phi) %*% y_axis 
+newo_y_axis <- (mor$rot.mat %*% mor$Phi) %*% x_axis 
 original_axes <- data.frame(
   x = c(0, x_axis[1], 0, y_axis[1]),
   y = c(0, x_axis[2], 0, y_axis[2]),
@@ -690,16 +714,15 @@ p1 <- mn$loadings[,1:2] |>
   geom_vline(xintercept=0,size=1)+
   geom_hline(yintercept=0,size=1)+
   geom_text(aes(label=rowname),hjust=-.2)+
-  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
-  #              alpha=.6)+
-  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
-  #              alpha=.6)+
   labs(x="Loadings on Factor 1",
        y="Loadings on Factor 2")+
+  scale_color_manual(values=newcols)+
   xlim(-1,1)+ylim(-1,1)+
-  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+  geom_segment(data = original_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
                arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+  geom_segment(data = original_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
                arrow = arrow(length = unit(0.2, "cm")), size = 1)
 
 p2 <- mn$loadings[,1:2] |>
@@ -710,20 +733,21 @@ p2 <- mn$loadings[,1:2] |>
   geom_vline(xintercept=0,size=1)+
   geom_hline(yintercept=0,size=1)+
   geom_text(aes(label=rowname),hjust=-.2)+
-  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
-  #              alpha=.3)+
-  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
-  #              alpha=.3)+
   labs(x="Loadings on Factor 1",
        y="Loadings on Factor 2")+
+  scale_color_manual(values=newcols)+
   xlim(-1,1)+ylim(-1,1)+
-  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+  geom_segment(data = original_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
                arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+  geom_segment(data = original_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
                arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+  geom_segment(data = rotated_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
                linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = rotated_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+  geom_segment(data = rotated_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
                linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1)
 
 p3 <- mn$loadings[,1:2] |>
@@ -734,22 +758,22 @@ p3 <- mn$loadings[,1:2] |>
   geom_vline(xintercept=0,size=1)+
   geom_hline(yintercept=0,size=1)+
   geom_text(aes(label=rowname),hjust=-.2)+
-  # geom_segment(aes(xend=0,yend=ML2),lty="dashed",
-  #              alpha=.3)+
-  # geom_segment(aes(yend=0,xend=ML1),lty="dashed",
-  #              alpha=.3)+
   labs(x="Loadings on Factor 1",
        y="Loadings on Factor 2")+
+  scale_color_manual(values=newcols)+
   xlim(-1,1)+ylim(-1,1)+
-    geom_segment(data = original_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+  geom_segment(data = original_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
                arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = original_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+  geom_segment(data = original_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
                arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
+  geom_segment(data = orotated_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = x, yend = y, color = axis), 
                linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1) +
-  geom_segment(data = orotated_axes, aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
+  geom_segment(data = orotated_axes[c(2,4),], 
+               aes(x = 0, y = 0, xend = -x, yend = -y, color = axis), 
                linetype = "dashed", arrow = arrow(length = unit(0.2, "cm")), size = 1) 
-
 ```
 
 ## 2/6 Why rotate?
@@ -1412,12 +1436,41 @@ __what to do__
 - If one or more factors don't make sense, then either the items are bad, the theory is bad, the analysis is bad, or all three are bad!  
 
 
+# Extras
 
-# Example factor models {transition="slide"}
+## Example factor models {transition="slide"}
 
 :::woo
 https://app.wooclap.com/events/XMPODHD/
 :::
+
+## The --insert name here-- scale {transition="slide"}
+
+::::{.columns}
+:::{.column width="50%"}
+I went through the responses from last week, and pulled out these recurring themes: 
+
+- ethical & societal concerns (environmental, corporate)
+- accuracy / reliability (or lack thereof!)
+- efficiency
+- ease of use
+- (lack of) humanity
+- social pressure
+
+:::
+:::{.column width="50%"}
+What we need now:  
+
+- questions!
+- a name!  
+
+![](img_sandbox/qitemsscale.png)  
+<https://edin.ac/4jVggSE>
+:::
+::::
+
+
+
 
 ```{r}
 #| echo: false
