@@ -1,0 +1,497 @@
+---
+title: "Quick Recap: Dimensions, PCA, EFA"
+editor_options: 
+  chunk_output_type: console
+format:
+  revealjs:
+    smaller: true
+---
+
+```{css, echo = FALSE}
+.output {
+max-height: 500px;
+overflow-y: scroll;
+}
+```
+
+```{r setup, include=F}
+library(tidyverse)
+library(patchwork)
+library(psych)
+source('_theme/theme_quarto.R')
+
+theme_set(theme_quarto(title_font_size=42))
+theme_update(
+  text = element_text(family = 'Source Sans 3')
+)
+
+dapr3green <- "#88B04B" 
+dapr3dkgreen <- "#5C7C28"
+dapr3ltgreen <- "#E5EED7"
+pal <- c( "#d35269", "#5c9ead","#2a3c24", "#F5C396", "#8B2635",  "#235789")
+
+
+
+library(psych)
+library(lavaan)
+set.seed(346)
+d1 <- simulateData("
+f=~ 1*y1+1*y2+1*y3+1*y4+1*y5+1*y6
+y1 ~~ 0*y1
+y2 ~~ 0*y2
+y3 ~~ 0*y3
+y4 ~~ 0*y4
+y5 ~~ 0*y5
+y6 ~~ 0*y6
+") |> apply(2,\(x) cut(x,7,labels=FALSE)) |> as.data.frame()
+
+d2 <- simulateData("f=~ .8*y1+.8*y2+.8*y3+.8*y4+.8*y5+.8*y6") |> 
+  apply(2,\(x) cut(x,7,labels=FALSE)) |> as.data.frame()
+
+# set.seed(533612)
+set.seed(9935)
+d3 <- simulateData("f=~ .8*y1+.8*y2+.8*y3
+                   f1=~.8*y4+.8*y5+.8*y6
+                   f~~.5*f1") |> 
+  apply(2,\(x) cut(x,7,labels=FALSE)) |> as.data.frame()
+
+names(d1) <- names(d2) <- names(d3) <-
+  c("dgstv","hbnb","rcht","oreo","brbn","choclbnz")
+
+d3a <- d3 |> mutate(f1 = rowMeans(pick(dgstv:rcht)),
+                    f2 = rowMeans(pick(oreo:choclbnz))) |>
+  mutate(across(f1:f2,~cut(.,5,labels=F)))
+
+d1 <- d1 |> mutate(ppt=paste0("PPT",1:n()),.before=dgstv)
+d2 <- d2 |> mutate(ppt=paste0("PPT",1:n()),.before=dgstv)
+d3 <- d3 |> mutate(ppt=paste0("PPT",1:n()),.before=dgstv)
+
+```
+
+# overview
+
+- problem: too many variables
+- what: reduce
+- how: pca/efa
+
+## starting point
+
+- measurement is difficult, and often introduces error.   
+
+- especially in psychology, we might use "multi-item measures" (n different "tests" of the same thing)
+
+:::{.fragment}
+
+- necessary because:
+    - constructs are multi-faceted
+    - individual tests have noise/error
+
+:::
+
+## therefore...
+
+- increased "dimensionality"
+
+- more columns in our data, but they all kind of mean the same thing. 
+
+## example
+
+::::{.columns}
+:::{.column width="50%"}
+we get people to answer 6 questions rating how much they like:  
+
+- dgstvs
+- hobnobs
+- rich tea
+- oreos
+- bourbon
+- choc-leibniz
+  
+for each Q, people rate it 1-7
+
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+set.seed(345)
+d1 |> 
+  slice_sample(n=10) |>
+  mutate(across(2:7, ~"---")) |>
+  gt::gt()
+```
+
+:::
+::::
+
+
+## the idea of reducing
+
+::::{.columns}
+:::{.column width="50%"}
+
+- our variables all measure the same thing (love of biscuits)
+- can we express this information more efficiently? 
+    - i.e. *without* having to use all 6 variables?  
+
+
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+set.seed(345)
+d1 |> 
+  slice_sample(n=10) |>
+  mutate(across(dgstv:`choclbnz`, ~"---")) |>
+  mutate(`(unobservable) love of biscuits`="??") |>
+  gt::gt() |>
+  gt::tab_style(
+     style = gt::cell_text(color = "grey70"),
+     locations = gt::cells_body(columns = 8) 
+   ) 
+```
+:::
+::::
+
+
+## a perfect world
+
+::::{.columns}
+:::{.column width="50%"}
+
+- if the *only* reason people differ on these variables is because of "how much they like biscuits", then each Q is a perfect measure of that, and we might see:
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+set.seed(345)
+d1 |> 
+  slice_sample(n=10) |>
+  gt::gt()
+```
+
+:::
+::::
+
+
+## a perfect world
+
+::::{.columns}
+:::{.column width="50%"}
+
+- if the *only* reason people differ on these variables is because of "how much they like biscuits", then each Q is a perfect measure of that, and we might see:
+
+:::
+:::{.column width="50%"}
+
+```{r}
+d1 |> select(-ppt) |> cor()
+d1 |> select(-ppt) |> plot()
+```
+
+:::
+::::
+
+
+
+
+
+
+## a perfect world
+
+::::{.columns}
+:::{.column width="50%"}
+
+Can we express this information more efficiently? (can we "reduce"?)  
+
+:::{.fragment fragment-index=1}
+yes!  
+
+- "people either score 1 on all 6 Qs, or 2 on all 6 Qs, or 3.."   
+
+:::
+
+:::{.fragment fragment-index=2}
+
+^ one dimension, captures everything
+
+:::
+
+:::
+:::{.column width="50%"}
+
+```{r}
+#| echo: false
+set.seed(3446)
+slice_sample(d1,n=6) |>
+  gt::gt()
+```
+
+:::
+::::
+
+
+## a perfect world
+
+::::{.columns}
+:::{.column width="50%"}
+
+- whatever we do (PCA, EFA, take a mean/sum score), reducing down to 1 thing would capture 100% of the variance - we wouldn't lose _anything_  
+
+
+
+:::
+:::{.column width="50%"}
+```{r}
+d1 |> select(-ppt) |> scree()
+```
+:::
+::::
+
+## reality
+
+::::{.columns}
+:::{.column width="50%"}
+
+- in reality, measures aren't perfect.  
+
+- "do you like hobnobs?" isn't a perfect measure of someone's love of biscuits in general.  
+
+
+:::
+:::{.column width="50%"}
+
+
+```{r}
+#| echo: false
+set.seed(35)
+bind_rows(
+  d2 |> mutate(f1 = rowMeans(pick(dgstv:`choclbnz`))) |> 
+    arrange(f1) |> select(-f1) |> slice(1:2),
+  slice_sample(d2, n=2),
+  d2 |> mutate(f1 = rowMeans(pick(dgstv:`choclbnz`))) |> 
+    arrange(desc(f1)) |> select(-f1) |> slice(1:2),
+) |> gt::gt()
+```
+
+:::
+::::
+
+
+
+
+## scenario 1
+
+::::{.columns}
+:::{.column width="50%"}
+
+If there is thing that these items all share, we can still express the information with less (we can still "reduce").  
+
+:::{.fragment fragment-index=1}
+e.g.:  
+
+- "people tend to be high on all 6 Qs, medium on all 6, low on all 6" 
+
+:::
+
+:::{.fragment fragment-index=2}
+
+^ one dimension, captures a lot of "why people score high/low" on individual questions
+
+:::
+
+:::
+:::{.column width="50%"}
+```{r}
+#| echo: false
+set.seed(35)
+bind_rows(
+  d2 |> mutate(f1 = rowMeans(pick(dgstv:`choclbnz`))) |> 
+    arrange(f1) |> select(-f1) |> slice(1:2),
+  slice_sample(d2, n=2),
+  d2 |> mutate(f1 = rowMeans(pick(dgstv:`choclbnz`))) |> 
+    arrange(desc(f1)) |> select(-f1) |> slice(1:2),
+) |> gt::gt()
+```
+
+:::
+::::
+
+
+## scenario 1
+
+::::{.columns}
+:::{.column width="50%"}
+
+- all the variables correlate at a similar level with all the others  
+
+- 1 dimension captures most of the variance
+
+:::{.fragment style="font-size:.8em"}
+
+what information do we lose?  
+there are 5 other dimensions that don't explain anything shared across questions:  
+
+- some people have a specific preference/dislike for digestives
+- some people have a specific preference/dislike for hobnobs 
+- some people have a specific preference/dislike for rich tea
+- ...
+- ...
+
+:::
+
+:::
+:::{.column width="50%"}
+```{r}
+d2 |> select(-ppt) |> cor() |> round(2)
+d2 |> select(-ppt) |> scree()
+```
+:::
+::::
+
+## PCA and EFA
+
+PCA & EFA are about reducing to new dimensions without losing too much
+
+- the only real differences:
+    - conceptual: is the dimension a "common cause" (EFA) or a "summary composite" (PCA)
+        - if a "common cause" then we need it to be theoretically meaningful
+    - practical: do we want to let these new dimensions be correlated? (EFA, rotated)
+
+## scenario 1 - EFA
+
+::::{.columns}
+:::{.column width="50%"}
+
+
+- if there's just 1 thing driving 'why people score high/low on these questions'?, and everything else is specific preferences for specific biscuit types... then 
+
+- the 1-factor model will look best
+- if we try to add more factors, we just end up with factors that have only 1 item. 
+    - this isn't helpful - these factors don't give us something 'shared'. they just give us the hobnob-specific variation. we're not reducing anything.   
+
+:::
+:::{.column width="50%" .fragment}
+
+```{r}
+fa(d2[,-1],nfactors=2,rotate="oblimin")$loadings |> 
+  print(cutoff=.3)
+```
+
+
+:::
+::::
+
+
+## scenario 2 - what if.. 
+
+::::{.columns}
+:::{.column width="50%"}
+
+- what if there's another useful dimension?  
+
+- in other words: what if there's not just 1 thing driving 'why people score high/low on these questions'?  
+
+:::
+:::{.column width="50%"}
+__\*different data\*__
+```{r}
+#| echo: false
+bind_rows(
+  d3a |> arrange(f1,f2) |> select(-f1,-f2) |> slice(1:2),
+  d3a |> arrange(f1,desc(f2)) |> select(-f1,-f2) |> slice(1:2),
+  d3a |> arrange(desc(f1),f2) |> select(-f1,-f2) |> slice(1:2),
+  d3a |> arrange(desc(f1),desc(f2)) |> select(-f1,-f2) |> slice(1:2)
+) |> 
+  mutate(
+    `unobserved thing 1` = "??",
+    `unobserved thing 2` = "??"
+  ) |>
+  gt::gt() |>
+    gt::tab_style(
+     style = gt::cell_text(color = "grey70"),
+     locations = gt::cells_body(columns = 7:8) 
+   ) 
+```
+
+
+
+:::
+::::
+
+## it's all in the correlations
+
+::::{.columns}
+:::{.column width="50%"}
+
+there are patterns in the correlation matrix.  
+
+:::
+:::{.column width="50%"}
+```{r}
+d3 |> select(-ppt) |> cor() |> round(2)
+
+d3 |> select(-ppt) |> cor() |> heatmap()
+```
+:::
+::::
+
+## more than 1 dimension
+
+```{r}
+d3 |> select(-ppt) |> scree()
+```
+
+## scenario 2 - EFA
+
+::::{.columns}
+:::{.column width="50%"}
+just 1 factor explains 27%
+```{r}
+fa(d3[,-1], nfactors = 1, rotate = "oblimin")
+```
+:::
+:::{.column width="50%"}
+2 factors explains 37%
+```{r}
+fa(d3[,-1], nfactors = 2, rotate = "oblimin")
+```
+:::
+::::
+
+## scenario 2 - EFA
+
+::::{.columns}
+:::{.column width="50%"}
+Allowing our dimensions to be correlated, we get a nice clean pattern:  
+Why do people differ on these 6 Qs?  
+
+1. it partly depends on whether they like/dislike non-chocolatey biscuits
+1. it partly depends on whether they like/dislike chocolatey biscuits
+
+and these two dimensions are correlated - if you like non-chocolatey, typically you like chocolatey!  
+  
+:::
+:::{.column width="50%"}
+```{r}
+fa(d3[,-1], nfactors = 2, rotate = "oblimin")$loadings |>
+  print(cutoff = .3)
+```
+:::
+::::
+
+
+## 
+
+- because the 2 factors correlate, their combination explains variance.
+- if we force orthogonal/no rotation (i.e. zero correlation), this variance gets shoved into the loadings
+- results in cross loadings and makes the factors more difficult to define. 
+
+```{r}
+fa(d3[,-1], nfactors = 2, rotate = "varimax")
+```
+
+
