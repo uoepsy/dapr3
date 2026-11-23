@@ -12,7 +12,8 @@ dotdat <- fetch_survey("SV_2nRRjGfjCSy80uO")
 
 
 # here's the test retest stuff:  
-testretest <- dotdat |> select(starts_with("s1d"),starts_with("s2d")) |>
+testretest <- dotdat |> 
+  select(starts_with("s1d"),starts_with("s2d")) |>
   mutate(id = 1:n()) |>
   pivot_longer(-id) |>
   filter(!is.na(value)) |>
@@ -27,7 +28,6 @@ testretest <- dotdat |> select(starts_with("s1d"),starts_with("s2d")) |>
 # group info
 # scale1 = no increments on the scale, just the far left and far right
 # scale2 = 7 increments along the scale
-
 testretest1 <- testretest |> filter(scale==1)
 testretest2 <- testretest |> filter(scale==2)
 
@@ -37,7 +37,6 @@ ICC(testretest2[,3:4])
 
 plot(testretest1[,3:4])
 plot(testretest2[,3:4])
-
 
 
 # here's the inter-rater reliability
@@ -68,6 +67,8 @@ ICC(hdat[,2:ncol(hdat)])
 # our reliability is even lower..
 ICC(hdat[-c(11),2:ncol(hdat)])
 
+
+
 # this actually makes sense. the scale is more reliable for measuring the 
 # historical significance of people like raymond kertezc, because essentially you
 # all correctly identified that he didn't do anything (we just made him up!)
@@ -75,7 +76,6 @@ hdat |> pivot_longer(2:last_col(), names_to="rater", values_to="rating") |>
   ggplot(aes(x=name,y=rating))+
   geom_boxplot()+
   coord_flip()
-
 
 
 
