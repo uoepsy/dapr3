@@ -1,0 +1,154 @@
+---
+title: "reliability ICC"
+author: "jk"
+date: "2026-11-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(psych)
+# you can use this package to read in data straight from Qualtrics, but it gets linked to your
+# specific qualtrics account, so I can't share it with you. 
+# if you're interested doing this for your own projects, see 
+# https://cran.r-project.org/web/packages/qualtRics/vignettes/qualtRics.html
+# library(qualtRics)
+# dotdat <- fetch_survey("SV_2nRRjGfjCSy80uO")
+
+# i'll put the data here for you to access:  
+dotdat <- read_csv("https://uoepsy.github.io/dapr3/2627/misc/dotdat.csv")
+```
+
+# test re-test
+
+we have to do some convoluted data wrangling to get the test re-test stuff out.   
+essentially, each person rated the same picture on two occasions.  
+
+in this case, *you* are the targets  
+what we want to be able to do with our measurement tool is clearly differentiate people who tend to over-estimate density from those who under-estimate it. i.e. we want to measure how *you* vary.  
+
+
+```{r}
+testretest <- dotdat |> 
+  select(starts_with("s1d"),starts_with("s2d")) |>
+  mutate(id = 1:n()) |>
+  pivot_longer(-id) |>
+  filter(!is.na(value)) |>
+  mutate(
+    retest = grepl("retest",name)*1,
+    name = substr(name,1,4),
+    scale = substr(name,2,2),
+  ) |> filter(grepl("d4", name)) |>
+  select(scale,id,value,retest) |>
+  pivot_wider(names_from=retest,values_from=value,names_prefix = "t")
+```
+
+half of you used one scale, and half used another. so we might expect more consistent measurements from one of the scales.  
+
+scale1 = no increments on the scale, just the far left and far right
+```{r}
+testretest1 <- testretest |> filter(scale==1)
+
+ICC(testretest1[,3:4])
+```
+
+scale2 = 7 increments along the scale
+```{r}
+testretest2 <- testretest |> filter(scale==2)
+
+ICC(testretest2[,3:4])
+```
+
+reliability is slightly higher for the second scale (which is what we would expect). 
+we can also see this agreement in the plots of score 1 against score 2
+```{r}
+par(mfrow=c(1,2))
+plot(testretest1[,3:4], main = "scale 1")
+plot(testretest2[,3:4], main = "scale 2")
+```
+
+
+# inter-rater reliability
+
+for the inter-rater reliability stuff, we asked you all to rate the same set of individual targets.  
+
+so now the people (julius caesar, genghis khan etc.,) are the targets. we want to be able to use our measurement (the scale of "almost forgotten" to "world altering significance") to differentiate people who were historically important from those who aren't.  
+
+in this scenario, you are not targets. you are now all judges, or "raters", or "administrators of the test".  
+
+```{r}
+hdat <- dotdat |> select(starts_with("Q22")) |>
+  mutate(id=1:n()) |> 
+  pivot_longer(-id) |>
+  mutate(value = case_match(value,
+                            "Almost None (Almost forgotten)" ~ 1, 
+                            "Minor Local Impact (Only influenced a small area/field)" ~ 2,
+                            "Notable Regional Impact (Known by most historians)" ~ 3,
+                            "Moderate Global Impact (Changed one aspect of global culture)" ~ 4,
+                            "High Global Impact (Fundamental shift in history)" ~ 5,
+                            "Profound Global Impact (Redefined human civilization)" ~ 6, 
+                            "World-Altering Significance (Legacy is undeniable and vast)" ~ 7
+                            ),
+         name = case_match(name,
+                           "Q22_1" ~ "j caesar", "Q22_2" ~ "m gandhi", "Q22_3" ~ "g khan",
+                           "Q22_4" ~ "m l king jr", "Q22_5" ~ "m curie", "Q22_6" ~ "s squarepants",
+                           "Q22_7" ~ "n mandela", "Q22_8" ~ "confucius", "Q22_9" ~ "s bolivar",
+                           "Q22_10" ~ "m yousafzai", "Q22_11" ~ "r kertezc", "Q22_12" ~ "a lincoln")
+         ) |>
+  pivot_wider(names_from=id,values_from=value,names_prefix = "rater_")
+```
+
+so now each of you is a column, rather than a row:
+```{r}
+hdat
+```
+
+```{r}
+# ICC
+ICC(hdat[,2:ncol(hdat)])
+```
+
+
+to emphasise that reliability is dependent upon the sample of targets, and the sample of judges
+
+raters 1 to 40 were actually not students of DAPR3 - they were tutors, staff members, random people i tested the qualtrics on! 
+Notice that the reliability is lower in this group!  
+Which maybe makes sense because you lot are probably a bit more "homogenous" (i.e. consistent with one another), whereas the first 40 raters included people of all sorts of different ages.  
+```{r}
+ICC(hdat[, 2: 41])
+```
+
+
+What is more, if I happened to ask you to rate a different set of targets, let's say a set that didn't include 
+
+
+note that if we DIDN'T have raymond kertezc in the sample, then our reliability is lower.  
+why? because raymond kertezc is just some made up person, so everyone agrees that he is historically irrelevant. 
+```{r}
+ICC(hdat[-c(11),2:ncol(hdat)])
+```
+
+someone like malala yousafzai (activist, won the nobel peace prize in 2014) might be less well known, or maybe people are more divided in how much historical significance she has (given that it's much more recent). This means if didn't have her in our set of targets, ICC goes up:  
+```{r}
+ICC(hdat[-c(10),2:ncol(hdat)])
+```
+```{r}
+hdat |> pivot_longer(2:last_col(), names_to="rater", values_to="rating") |>
+  ggplot(aes(x=name,y=rating))+
+  geom_boxplot()+
+  coord_flip()
+
+```
+
+
+
+another way to think about this sample dependency:  
+
+- consider a set of weighing scales that typically report +/- 2kg
+- weighing 50 chihuahua dogs would probably make me think that they are not very reliable. 
+- weighing 50 dogs of all breeds (chihuahua, great dane, spaniel) would increase the reliability estimate, because the true variance increases. 
+
+
+

@@ -11,7 +11,11 @@ dotdat <- fetch_survey("SV_2nRRjGfjCSy80uO")
 ## dotdat <- read_csv("TODO")
 
 
+
+# we have to do some convoluted data wrangling, 
 # here's the test retest stuff:  
+# essentially, each person rated the same picture on two occasions. 
+# half the people used one scale, half used the other
 testretest <- dotdat |> 
   select(starts_with("s1d"),starts_with("s2d")) |>
   mutate(id = 1:n()) |>
@@ -25,18 +29,23 @@ testretest <- dotdat |>
   select(scale,id,value,retest) |>
   pivot_wider(names_from=retest,values_from=value,names_prefix = "t")
 
-# group info
+
 # scale1 = no increments on the scale, just the far left and far right
-# scale2 = 7 increments along the scale
 testretest1 <- testretest |> filter(scale==1)
+
+ICC(testretest1[,3:4])
+
+# scale2 = 7 increments along the scale
 testretest2 <- testretest |> filter(scale==2)
 
-# reliability
-ICC(testretest1[,3:4])
 ICC(testretest2[,3:4])
 
-plot(testretest1[,3:4])
-plot(testretest2[,3:4])
+# reliability is slightly higher for the second scale (which is what we would expect): 
+plot(testretest1[,3:4], main = "scale 1")
+plot(testretest2[,3:4], main = "scale 2")
+
+
+## 
 
 
 # here's the inter-rater reliability
